@@ -39,3 +39,7 @@ npm run dev
 ```
 
 Use `npm test` for the domain scenarios and `npm run build` for type checking and a static production build. The app currently supports the first synthetic product only. Amounts displayed in the interface are rounded to two decimal places; the calculator uses JavaScript numbers for this learning example and is not a production money calculation.
+
+## GitHub Pages
+
+The workflow in `.github/workflows/pages.yml` tests and builds the site on pushes to `main`, then deploys `dist` to GitHub Pages. In the repository's **Settings → Pages**, set **Build and deployment → Source** to **GitHub Actions**. The workflow builds with `/spire/` as the asset base for the repository site at `https://sthotakura.github.io/spire/`.
