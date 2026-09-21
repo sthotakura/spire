@@ -7,7 +7,7 @@ SPIRe is a public learning project about structured products and their issuance 
 - Build the smallest useful interactive reference first: one bullet note, one equity or equity-index underlier, and an upside participation payoff.
 - Use TypeScript for domain calculations and validation, and Vue for the interface. Keep domain code independent of Vue.
 - Treat the application as a static single-page app until a concrete requirement calls for a server.
-- Keep wrapper, payoff, underlier, determination method, terms, and lifecycle behavior conceptually distinct. Prefer composition and small named types over a universal `Deal` object or deep inheritance tree.
+- Keep instrument wrapper, redemption behavior, payoff, underlier, determination method, and terms conceptually distinct. Prefer composition and small named types over a universal `Deal` object or deep inheritance tree.
 - Make unsupported combinations and missing terms explicit. Do not assign behavior to a financial concept without a verified definition and stated assumptions.
 - Do not add pricing, market data, booking, issuance workflows, identifiers, document generation, regulatory processing, AI, microservices, or distributed infrastructure to the first milestone.
 

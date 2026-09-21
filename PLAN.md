@@ -4,20 +4,20 @@ This plan covers the first useful, public, browser-only version. It records deci
 
 ## 1. Settle the first product definition
 
-- Model the agreed first example as a bullet note with 100% contractual principal repayment at maturity and upside participation. Keep the protection rule separate from the wrapper.
+- Model the agreed first example as a note wrapper with bullet redemption, 100% contractual principal repayment at maturity, and upside participation. Keep these concepts separate.
 - Define the terms precisely: principal amount, underlier kind, initial level, participation rate, and point-to-point final-level determination.
 - Specify allowed values, rounding for displayed amounts, and what happens when a term is invalid.
 - Write a small set of synthetic scenarios, including falling, flat, and rising underlier levels.
 
 ## 2. Model and verify the domain
 
-- Create small TypeScript types for the wrapper, underlier, determination method, payoff rule, and note terms.
+- Create small TypeScript types for the wrapper, redemption behavior, underlier, determination method, payoff rule, and note terms.
 - Implement a pure function for the contractual maturity payment and focused tests for scenarios and invalid inputs.
 - Keep scenario inputs separate from the note's authoritative terms; derive returns and payments rather than storing them as product terms.
 
 ## 3. Build the first wizard
 
-- Guide the learner through wrapper, payoff, underlier and terms, then outcome exploration.
+- Guide the learner through wrapper, redemption behavior, payoff, underlier and terms, then outcome exploration.
 - Support only the verified first structure. Label future choices clearly as unavailable.
 - Recalculate the payoff diagram, scenario table, and explanation when supported terms or the hypothetical final level change.
 - Keep the interface usable on narrow screens and with keyboard navigation.

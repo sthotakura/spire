@@ -6,7 +6,8 @@ export interface SingleUnderlier {
 }
 
 export interface ProtectedParticipationNote {
-  wrapper: 'bullet'
+  wrapper: 'note'
+  redemption: 'bullet'
   underlier: SingleUnderlier
   determination: { kind: 'point-to-point'; initialLevel: number }
   payoff: { kind: 'upside-participation'; participationRate: number; principalProtection: 1 }

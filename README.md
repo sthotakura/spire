@@ -8,16 +8,17 @@ SPIRe uses generic public concepts and synthetic examples. It does not describe 
 
 The first structure under consideration is a bullet note linked to one equity or equity index, with point-to-point upside participation. The proposed example compares an initial and a hypothetical final underlier level, applies a participation rate to positive performance, and displays a maturity payment, scenario table, diagram, and plain-English explanation.
 
-**First product decision:** use a 100% principal-protected participation note. The bullet wrapper means there is one payment at maturity; principal protection is a separate economic rule that sets the contractual maturity payment floor at 100% of principal. The name "principal-protected note" describes this combination, but the model should keep the protection rule distinct from the wrapper. Contractual payment depends on the issuer's ability to pay.
+**First product decision:** use a 100% principal-protected participation note. The wrapper is a **note**; **bullet** describes its one-payment-at-maturity redemption behavior. Principal protection is a separate economic rule that sets the contractual maturity payment floor at 100% of principal. Contractual payment depends on the issuer's ability to pay.
 
 ## Interface direction
 
 The planned single-page application uses a guided sequence:
 
-1. Choose a wrapper.
-2. Choose a payoff mechanic.
-3. Set the underlier, determination method, and relevant terms.
-4. Explore hypothetical outcomes using a payoff diagram, scenario table, and explanation.
+1. Choose an instrument wrapper.
+2. Choose redemption behavior.
+3. Choose payoff mechanics.
+4. Set the underlier, determination method, and relevant terms.
+5. Explore hypothetical outcomes using a payoff diagram, scenario table, and explanation.
 
 The first release will support only the combination we can define and test precisely. Other choices can be shown as future concepts without suggesting they already work. Observation or valuation schedules belong in a later example that actually uses them.
 

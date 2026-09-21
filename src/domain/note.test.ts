@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { maturityPayment, validateNote, type ProtectedParticipationNote } from './note'
 
 const note: ProtectedParticipationNote = {
-  wrapper: 'bullet',
+  wrapper: 'note',
+  redemption: 'bullet',
   underlier: { kind: 'equity-index', name: 'Synthetic Index' },
   determination: { kind: 'point-to-point', initialLevel: 100 },
   payoff: { kind: 'upside-participation', participationRate: 1.5, principalProtection: 1 },
