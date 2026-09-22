@@ -32,6 +32,8 @@ The first milestone does not cover real market pricing, volatility, Greeks, live
 
 See [PLAN.md](PLAN.md) for the immediate work and open questions.
 
+The agreed first-milestone concepts, assumptions, architecture, and worked synthetic example are recorded in [docs/milestone-1.md](docs/milestone-1.md).
+
 ## Run locally
 
 ```sh

@@ -4,6 +4,20 @@ import { maturityPayment, validateNote, type ProtectedParticipationNote, type Un
 
 const step = ref(0)
 const steps = ['Wrapper', 'Redemption', 'Payoff', 'Underlier & terms', 'Explore outcomes']
+const wrapperOptions = [
+  { id: 'note', label: 'Note', description: "The first example is an issuer's contractual promise to pay.", available: true },
+  { id: 'certificate-or-warrant', label: 'Certificate or warrant', description: 'Future examples need their own terms.', available: false },
+  { id: 'etf', label: 'ETF', description: 'A fund structure would need a different model.', available: false },
+] as const
+const redemptionOptions = [
+  { id: 'bullet', label: 'Bullet', description: 'One payment at scheduled maturity; no early call.', available: true },
+  { id: 'issuer-callable', label: 'Issuer callable', description: 'The issuer may redeem early under defined terms. Later example.', available: false },
+  { id: 'autocallable', label: 'Autocallable', description: 'Defined conditions may trigger early redemption. Later example.', available: false },
+] as const
+const underlierOptions: ReadonlyArray<{ id: UnderlierKind; label: string }> = [
+  { id: 'equity-index', label: 'Single equity index' },
+  { id: 'equity', label: 'Single equity' },
+]
 const underlierKind = ref<UnderlierKind>('equity-index')
 const underlierName = ref('Synthetic Index')
 const principal = ref(1000)
@@ -19,6 +33,12 @@ const note = computed<ProtectedParticipationNote>(() => ({
   payoff: { kind: 'upside-participation', participationRate: participationPercent.value / 100, principalProtection: 1 },
   principalAmount: principal.value,
 }))
+const payoffOptions = computed(() => [
+  { id: 'principal-protection', label: '100% principal repayment', description: 'The maturity payment cannot fall below principal under the formula.', selected: note.value.payoff.principalProtection === 1, available: true },
+  { id: 'upside-participation', label: 'Upside participation', description: 'Positive underlier return is multiplied by the participation rate.', selected: note.value.payoff.kind === 'upside-participation', available: true },
+  { id: 'digital', label: 'Digital', description: 'Pays a predefined amount if a stated condition is met. Later example.', selected: false, available: false },
+] as const)
+const structureJson = computed(() => JSON.stringify(note.value, null, 2))
 const errors = computed(() => validateNote(note.value))
 const finalError = computed(() => !Number.isFinite(finalLevel.value) || finalLevel.value < 0 ? 'Final level must be zero or greater.' : '')
 const valid = computed(() => errors.value.length === 0 && !finalError.value)
@@ -32,6 +52,7 @@ const scenarios = computed(() => {
   return [-0.4, 0, 0.1, 0.3].map((returnValue) => ({
     final: initialLevel.value * (1 + returnValue),
     returnValue,
+    participatedReturn: note.value.payoff.participationRate * Math.max(returnValue, 0),
     payment: maturityPayment(note.value, initialLevel.value * (1 + returnValue)),
   }))
 })
@@ -82,31 +103,26 @@ const chart = computed(() => {
           <template v-if="step === 0">
             <p class="eyebrow">Step 1 of 5</p><h2>Choose a wrapper</h2>
             <p class="help">The wrapper describes the form in which the product is issued.</p>
-            <div class="option selected"><strong>Note</strong><span>The first example is an issuer's contractual promise to pay.</span></div>
-            <div class="option unavailable"><strong>Certificate or warrant</strong><span>Future examples need their own terms.</span></div>
-            <div class="option unavailable"><strong>ETF</strong><span>A fund structure would need a different model.</span></div>
+            <button v-for="option in wrapperOptions" :key="option.id" type="button" :class="['option', 'option-button', { selected: option.id === note.wrapper, unavailable: !option.available }]" :disabled="!option.available" :aria-pressed="option.id === note.wrapper"><strong>{{ option.label }}</strong><span>{{ option.description }}</span></button>
           </template>
 
           <template v-else-if="step === 1">
             <p class="eyebrow">Step 2 of 5</p><h2>Choose redemption behavior</h2>
             <p class="help">This describes when the note can end. The first example pays at scheduled maturity.</p>
-            <button type="button" class="option selected option-button" aria-pressed="true"><strong>Bullet</strong><span>One payment at scheduled maturity; no early call.</span></button>
-            <button type="button" class="option unavailable option-button" disabled><strong>Issuer callable</strong><span>The issuer may redeem early under defined terms. Later example.</span></button>
-            <button type="button" class="option unavailable option-button" disabled><strong>Autocallable</strong><span>Defined conditions may trigger early redemption. Later example.</span></button>
+            <button v-for="option in redemptionOptions" :key="option.id" type="button" :class="['option', 'option-button', { selected: option.id === note.redemption, unavailable: !option.available }]" :disabled="!option.available" :aria-pressed="option.id === note.redemption"><strong>{{ option.label }}</strong><span>{{ option.description }}</span></button>
           </template>
 
           <template v-else-if="step === 2">
             <p class="eyebrow">Step 3 of 5</p><h2>Choose the economics</h2>
             <p class="help">These rules determine the contractual payment at maturity.</p>
-            <div class="option selected"><strong>100% principal repayment</strong><span>The maturity payment cannot fall below principal under the formula.</span></div>
-            <div class="option selected"><strong>Upside participation</strong><span>Positive underlier return is multiplied by the participation rate.</span></div>
+            <button v-for="option in payoffOptions" :key="option.id" type="button" :class="['option', 'option-button', { selected: option.selected, unavailable: !option.available }]" :disabled="!option.available" :aria-pressed="option.selected"><strong>{{ option.label }}</strong><span>{{ option.description }}</span></button>
             <p class="aside">Protection applies at maturity and depends on the issuer's ability to pay.</p>
           </template>
 
           <template v-else-if="step === 3">
             <p class="eyebrow">Step 4 of 5</p><h2>Set the terms</h2>
             <p class="help">The first example uses one underlier and point-to-point determination.</p>
-            <label>Underlier type<select v-model="underlierKind"><option value="equity-index">Single equity index</option><option value="equity">Single equity</option></select></label>
+            <label>Underlier type<select v-model="underlierKind"><option v-for="option in underlierOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></label>
             <label>Underlier name<input v-model="underlierName" type="text" placeholder="Synthetic Index" /></label>
             <div class="field-pair"><label>Principal (units)<input v-model.number="principal" type="number" min="0.01" step="any" /></label><label>Initial level<input v-model.number="initialLevel" type="number" min="0.01" step="any" /></label></div>
             <label>Participation rate (%)<input v-model.number="participationPercent" type="number" min="0.01" step="any" /></label>
@@ -139,11 +155,20 @@ const chart = computed(() => {
             </svg>
             <div class="chart-axis-title">Final underlier level →</div>
             <h3>Example scenarios</h3>
-            <div class="table-wrap"><table><thead><tr><th>Final level</th><th>Underlier return</th><th>Payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}</td><td>{{ formatPercent(row.returnValue) }}</td><td>{{ formatAmount(row.payment) }}</td></tr></tbody></table></div>
+            <div class="table-wrap"><table><thead><tr><th>Final level</th><th>Underlier return</th><th>Participated return</th><th>Payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}</td><td>{{ formatPercent(row.returnValue) }}</td><td>{{ formatPercent(row.participatedReturn) }}</td><td>{{ formatAmount(row.payment) }}</td></tr></tbody></table></div>
+            <p class="scenario-formula"><strong>Participated return</strong> = {{ formatPercent(note.payoff.participationRate) }} participation × positive underlier return. A flat or negative underlier return contributes 0%.</p>
             <p class="explanation">If {{ note.underlier.name || 'the underlier' }} finishes above its initial level, the note pays principal plus {{ formatPercent(note.payoff.participationRate) }} of the positive underlier return. Otherwise, the contractual payment is principal. All amounts are illustrative and subject to issuer payment ability.</p>
           </template>
           <p v-else class="help">Enter valid terms to see the payoff.</p>
         </section>
+
+        <aside class="panel structure-json" aria-labelledby="structure-json-heading">
+          <p class="eyebrow">Selected structure</p>
+          <h2 id="structure-json-heading">Structure JSON</h2>
+          <p class="help">A live representation of the note's contractual terms. Scenario inputs and calculated outcomes are not part of this structure.</p>
+          <pre><code>{{ structureJson }}</code></pre>
+          <p class="aside">Learning representation only; this is not an industry-standard issuance schema.</p>
+        </aside>
       </div>
     </main>
   </div>

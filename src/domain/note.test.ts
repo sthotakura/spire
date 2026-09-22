@@ -20,9 +20,17 @@ describe('protected participation note', () => {
     expect(maturityPayment(note, finalLevel)).toBeCloseTo(expected, 8)
   })
 
-  it('rejects invalid terms and final levels', () => {
-    expect(validateNote({ ...note, principalAmount: 0 })).toContain('Principal must be greater than zero.')
-    expect(validateNote({ ...note, determination: { kind: 'point-to-point', initialLevel: 0 } })).toContain('Initial level must be greater than zero.')
+  it.each([
+    [{ ...note, underlier: { ...note.underlier, name: ' ' } }, 'Enter an underlier name.'],
+    [{ ...note, principalAmount: 0 }, 'Principal must be greater than zero.'],
+    [{ ...note, determination: { kind: 'point-to-point' as const, initialLevel: 0 } }, 'Initial level must be greater than zero.'],
+    [{ ...note, payoff: { ...note.payoff, participationRate: 0 } }, 'Participation must be greater than zero.'],
+  ])('rejects an invalid note term', (invalidNote, expectedError) => {
+    expect(validateNote(invalidNote)).toContain(expectedError)
+  })
+
+  it('rejects invalid final levels', () => {
     expect(() => maturityPayment(note, -1)).toThrow('Final level must be zero or greater.')
+    expect(() => maturityPayment(note, Number.NaN)).toThrow('Final level must be zero or greater.')
   })
 })

@@ -2,6 +2,8 @@
 
 This plan covers the first useful, public, browser-only version. It records decisions to make before implementation; it is not a promise to build later product types now.
 
+**Status:** Milestone 1 is complete. Its domain decisions, assumptions, worked example, and remaining questions are recorded in [docs/milestone-1.md](docs/milestone-1.md).
+
 ## 1. Settle the first product definition
 
 - Model the agreed first example as a note wrapper with bullet redemption, 100% contractual principal repayment at maturity, and upside participation. Keep these concepts separate.
