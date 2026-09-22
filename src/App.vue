@@ -46,6 +46,12 @@ const payment = computed(() => valid.value ? maturityPayment(note.value, finalLe
 const underlierReturn = computed(() => valid.value ? finalLevel.value / initialLevel.value - 1 : null)
 const formatAmount = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 })
 const formatPercent = (value: number) => `${(value * 100).toFixed(1).replace(/\.0$/, '')}%`
+const buildTimestampIso = __BUILD_TIMESTAMP__
+const buildTimestamp = new Intl.DateTimeFormat('en-GB', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  timeZone: 'UTC',
+}).format(new Date(buildTimestampIso))
 
 const scenarios = computed(() => {
   if (errors.value.length) return []
@@ -170,6 +176,12 @@ const chart = computed(() => {
           <p class="aside">Learning representation only; this is not an industry-standard issuance schema.</p>
         </aside>
       </div>
+
+      <footer class="site-footer">
+        Built by <a href="https://www.linkedin.com/in/sureshthotakura/" target="_blank" rel="noopener noreferrer">Suresh Thotakura</a>
+        <span aria-hidden="true">·</span>
+        Build: <time :datetime="buildTimestampIso">{{ buildTimestamp }} UTC</time>
+      </footer>
     </main>
   </div>
 </template>
