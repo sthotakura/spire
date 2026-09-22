@@ -3,6 +3,8 @@ import { computed, ref } from 'vue'
 import { maturityPayment, validateNote, type ProtectedParticipationNote, type UnderlierKind } from './domain/note'
 
 const step = ref(0)
+const activeHint = ref<string | null>(null)
+const toggleHint = (hint: string) => { activeHint.value = activeHint.value === hint ? null : hint }
 const steps = ['Wrapper', 'Redemption', 'Payoff', 'Underlier & terms', 'Explore outcomes']
 const wrapperOptions = [
   { id: 'note', label: 'Note', description: "The first example is an issuer's contractual promise to pay.", available: true },
@@ -131,15 +133,18 @@ const chart = computed(() => {
             <p class="help">The first example uses one underlier and point-to-point determination.</p>
             <label>Underlier type<select v-model="underlierKind"><option v-for="option in underlierOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></label>
             <label>Underlier name<input v-model="underlierName" type="text" placeholder="Synthetic Index" /></label>
-            <div class="field-pair"><label>Principal (units)<input v-model.number="principal" type="number" min="0.01" step="any" /></label><label>Initial level<input v-model.number="initialLevel" type="number" min="0.01" step="any" /></label></div>
-            <label>Participation rate (%)<input v-model.number="participationPercent" type="number" min="0.01" step="any" /></label>
+            <div class="field-pair">
+              <div class="hint-field"><div class="field-heading"><label for="principal">Principal (units)</label><button type="button" class="hint-button" aria-label="About principal" aria-controls="principal-hint" :aria-expanded="activeHint === 'principal'" @click="toggleHint('principal')">ⓘ</button><p v-if="activeHint === 'principal'" id="principal-hint" class="hint-text" role="tooltip">The amount used as the base for the maturity payment, in synthetic units.</p></div><input id="principal" v-model.number="principal" type="number" min="0.01" step="any" /></div>
+              <div class="hint-field"><div class="field-heading"><label for="initial-level">Initial level</label><button type="button" class="hint-button" aria-label="About initial level" aria-controls="initial-level-hint" :aria-expanded="activeHint === 'initial-level'" @click="toggleHint('initial-level')">ⓘ</button><p v-if="activeHint === 'initial-level'" id="initial-level-hint" class="hint-text" role="tooltip">The reference level used to calculate the underlier's return.</p></div><input id="initial-level" v-model.number="initialLevel" type="number" min="0.01" step="any" /></div>
+            </div>
+            <div class="hint-field"><div class="field-heading"><label for="participation">Participation rate (%)</label><button type="button" class="hint-button" aria-label="About participation rate" aria-controls="participation-hint" :aria-expanded="activeHint === 'participation'" @click="toggleHint('participation')">ⓘ</button><p v-if="activeHint === 'participation'" id="participation-hint" class="hint-text" role="tooltip">The share of a positive underlier return added to principal. At 150%, a 10% rise adds 15%.</p></div><input id="participation" v-model.number="participationPercent" type="number" min="0.01" step="any" /></div>
             <ul v-if="errors.length" class="errors" role="alert"><li v-for="error in errors" :key="error">{{ error }}</li></ul>
           </template>
 
           <template v-else>
             <p class="eyebrow">Step 5 of 5</p><h2>Explore outcomes</h2>
             <p class="help">Change the hypothetical final level. This example makes one final observation, so it has no interim valuation schedule.</p>
-            <label>Final underlier level<input v-model.number="finalLevel" type="number" min="0" step="any" /></label>
+            <div class="hint-field"><div class="field-heading"><label for="final-level">Final underlier level</label><button type="button" class="hint-button" aria-label="About final underlier level" aria-controls="final-level-hint" :aria-expanded="activeHint === 'final-level'" @click="toggleHint('final-level')">ⓘ</button><p v-if="activeHint === 'final-level'" id="final-level-hint" class="hint-text" role="tooltip">A hypothetical level for this scenario. Changing it does not change the note's terms.</p></div><input id="final-level" v-model.number="finalLevel" type="number" min="0" step="any" /></div>
             <input v-model.number="finalLevel" type="range" min="0" :max="Math.max(initialLevel * 1.6, 1)" step="1" aria-label="Final underlier level slider" />
             <p v-if="finalError" class="errors" role="alert">{{ finalError }}</p>
             <div v-if="payment !== null" class="selected-result" aria-live="polite"><span>Contractual maturity payment</span><strong>{{ formatAmount(payment) }} units</strong><small>Underlier return {{ formatPercent(underlierReturn!) }}</small></div>
