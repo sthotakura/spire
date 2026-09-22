@@ -10,9 +10,10 @@ const wrapperOptions = [
   { id: 'etf', label: 'ETF', description: 'A fund structure would need a different model.', available: false },
 ] as const
 const redemptionOptions = [
+  { id: 'autocallable', label: 'Autocallable', description: 'Defined conditions may trigger early redemption. Later example.', available: false },
   { id: 'bullet', label: 'Bullet', description: 'One payment at scheduled maturity; no early call.', available: true },
   { id: 'issuer-callable', label: 'Issuer callable', description: 'The issuer may redeem early under defined terms. Later example.', available: false },
-  { id: 'autocallable', label: 'Autocallable', description: 'Defined conditions may trigger early redemption. Later example.', available: false },
+  { id: 'puttable', label: 'Puttable', description: 'The holder may require redemption under defined terms. Later example.', available: false },
 ] as const
 const underlierOptions: ReadonlyArray<{ id: UnderlierKind; label: string }> = [
   { id: 'equity-index', label: 'Single equity index' },
