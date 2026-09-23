@@ -6,9 +6,9 @@ SPIRe uses generic public concepts and synthetic examples. It does not describe 
 
 ## First example
 
-The first structure under consideration is a bullet note linked to one equity or equity index, with point-to-point upside participation. The proposed example compares an initial and a hypothetical final underlier level, applies a participation rate to positive performance, and displays a maturity payment, scenario table, diagram, and plain-English explanation.
+The first structure is a bullet note linked to one equity or equity index, with point-to-point participation. The example compares an initial and a hypothetical final underlier level, applies selected participation rules to positive or negative performance, enforces a configurable contractual protection floor, and displays a maturity payment, scenario table, diagram, and plain-English explanation. At least one of upside or downside participation must be selected; both may be selected.
 
-**First product decision:** use a 100% principal-protected participation note. The wrapper is a **note**; **bullet** describes its one-payment-at-maturity redemption behavior. Principal protection is a separate economic rule that sets the contractual maturity payment floor at 100% of principal. Contractual payment depends on the issuer's ability to pay.
+The wrapper is a **note**; **bullet** describes its one-payment-at-maturity redemption behavior. Principal protection is a separate economic rule that sets the contractual maturity-payment floor as a percentage of principal. Upside and downside participation determine the payment above that floor. Contractual payment depends on the issuer's ability to pay.
 
 ## Interface direction
 
@@ -32,7 +32,7 @@ The first milestone does not cover real market pricing, volatility, Greeks, live
 
 See [PLAN.md](PLAN.md) for the immediate work and open questions.
 
-The agreed first-milestone concepts, assumptions, architecture, and worked synthetic example are recorded in [docs/milestone-1.md](docs/milestone-1.md).
+The original first-milestone concepts and example are recorded in [docs/milestone-1.md](docs/milestone-1.md). The subsequent separation of protection, upside participation, and downside participation is recorded in [docs/participation-and-protection.md](docs/participation-and-protection.md).
 
 ## Run locally
 

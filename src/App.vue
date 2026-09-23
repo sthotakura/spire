@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { maturityPayment, validateNote, type ProtectedParticipationNote, type UnderlierKind } from './domain/note'
+import { computed, reactive, ref } from 'vue'
+import { maturityPayment, validateNote, type ParticipationDirection, type ProtectedParticipationNote, type UnderlierKind } from './domain/note'
 
 const step = ref(0)
 const activeHint = ref<string | null>(null)
@@ -25,7 +25,14 @@ const underlierKind = ref<UnderlierKind>('equity-index')
 const underlierName = ref('Synthetic Index')
 const principal = ref(1000)
 const initialLevel = ref(100)
-const participationPercent = ref(150)
+const protectionPercent = ref(90)
+const participationFeatures: ReadonlyArray<{ direction: ParticipationDirection; id: string; label: string; description: string }> = [
+  { direction: 'downside', id: 'downside-participation', label: 'Downside participation', description: 'Negative underlier return is multiplied by the downside participation rate until the protection floor applies.' },
+  { direction: 'upside', id: 'upside-participation', label: 'Upside participation', description: 'Positive underlier return is multiplied by the upside participation rate.' },
+]
+const participationPercent = reactive<Record<ParticipationDirection, number>>({ downside: 100, upside: 150 })
+const selectedParticipation = reactive<Record<ParticipationDirection, boolean>>({ downside: true, upside: true })
+const selectedParticipationFeatures = computed(() => participationFeatures.filter(({ direction }) => selectedParticipation[direction]))
 const finalLevel = ref(110)
 
 const note = computed<ProtectedParticipationNote>(() => ({
@@ -33,14 +40,27 @@ const note = computed<ProtectedParticipationNote>(() => ({
   redemption: 'bullet',
   underlier: { kind: underlierKind.value, name: underlierName.value },
   determination: { kind: 'point-to-point', initialLevel: initialLevel.value },
-  payoff: { kind: 'upside-participation', participationRate: participationPercent.value / 100, principalProtection: 1 },
+  payoff: {
+    kind: 'participation',
+    participations: selectedParticipationFeatures.value.map(({ direction }) => ({
+      direction,
+      rate: participationPercent[direction] / 100,
+    })),
+    principalProtection: protectionPercent.value / 100,
+  },
   principalAmount: principal.value,
 }))
 const payoffOptions = computed(() => [
-  { id: 'principal-protection', label: '100% principal repayment', description: 'The maturity payment cannot fall below principal under the formula.', selected: note.value.payoff.principalProtection === 1, available: true },
-  { id: 'upside-participation', label: 'Upside participation', description: 'Positive underlier return is multiplied by the participation rate.', selected: note.value.payoff.kind === 'upside-participation', available: true },
-  { id: 'digital', label: 'Digital', description: 'Pays a predefined amount if a stated condition is met. Later example.', selected: false, available: false },
-] as const)
+  { id: 'digital', label: 'Digital', description: 'Pays a predefined amount if a stated condition is met. Later example.', selected: false, available: false, direction: null },
+  { ...participationFeatures[0], selected: selectedParticipation.downside, available: true },
+  { id: 'principal-protection', label: 'Principal protection', description: 'Sets the minimum contractual maturity payment as a percentage of principal. Always included in this example.', selected: true, available: true, direction: null },
+  { ...participationFeatures[1], selected: selectedParticipation.upside, available: true },
+])
+const toggleParticipation = (direction: ParticipationDirection) => {
+  const selectedCount = selectedParticipationFeatures.value.length
+  if (selectedParticipation[direction] && selectedCount === 1) return
+  selectedParticipation[direction] = !selectedParticipation[direction]
+}
 const structureJson = computed(() => JSON.stringify(note.value, null, 2))
 const errors = computed(() => validateNote(note.value))
 const finalError = computed(() => !Number.isFinite(finalLevel.value) || finalLevel.value < 0 ? 'Final level must be zero or greater.' : '')
@@ -49,6 +69,9 @@ const payment = computed(() => valid.value ? maturityPayment(note.value, finalLe
 const underlierReturn = computed(() => valid.value ? finalLevel.value / initialLevel.value - 1 : null)
 const formatAmount = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 })
 const formatPercent = (value: number) => `${(value * 100).toFixed(1).replace(/\.0$/, '')}%`
+const participationSummary = computed(() => selectedParticipationFeatures.value
+  .map(({ direction, label }) => `${formatPercent(participationPercent[direction] / 100)} ${label.toLowerCase()}`)
+  .join(' and '))
 const buildTimestampIso = __BUILD_TIMESTAMP__
 const buildTimestamp = new Intl.DateTimeFormat('en-GB', {
   dateStyle: 'medium',
@@ -58,12 +81,28 @@ const buildTimestamp = new Intl.DateTimeFormat('en-GB', {
 
 const scenarios = computed(() => {
   if (errors.value.length) return []
-  return [-0.4, 0, 0.1, 0.3].map((returnValue) => ({
-    final: initialLevel.value * (1 + returnValue),
-    returnValue,
-    participatedReturn: note.value.payoff.participationRate * Math.max(returnValue, 0),
-    payment: maturityPayment(note.value, initialLevel.value * (1 + returnValue)),
-  }))
+  return [-0.4, 0, 0.1, 0.3].map((returnValue) => {
+    const direction: ParticipationDirection = returnValue < 0 ? 'downside' : 'upside'
+    const participation = note.value.payoff.participations.find((candidate) => candidate.direction === direction)
+    const participationRate = participation?.rate ?? 0
+    const participatedReturn = participationRate * returnValue
+    const unflooredPayment = principal.value * (1 + participatedReturn)
+    const payment = maturityPayment(note.value, initialLevel.value * (1 + returnValue))
+
+    return {
+      final: initialLevel.value * (1 + returnValue),
+      returnValue,
+      calculations: Object.fromEntries(selectedParticipationFeatures.value.map((feature) => [
+        feature.direction,
+        returnValue !== 0 && feature.direction === direction
+        ? `${formatPercent(participationRate)} × ${formatPercent(returnValue)} = ${formatPercent(participatedReturn)}`
+        : null,
+      ])) as Record<ParticipationDirection, string | null>,
+      unflooredPayment,
+      payment,
+      floorApplied: payment > unflooredPayment,
+    }
+  })
 })
 
 const chart = computed(() => {
@@ -72,12 +111,12 @@ const chart = computed(() => {
   const end = initialLevel.value * 1.6
   const values = Array.from({ length: 65 }, (_, i) => maturityPayment(note.value, start + (end - start) * i / 64))
   const max = Math.max(...values)
-  const min = principal.value * 0.9
+  const min = principal.value * note.value.payoff.principalProtection * 0.9
   const x = (level: number) => 50 + level / end * 540
   const y = (amount: number) => 230 - (amount - min) / (max - min) * 195
   return {
     points: values.map((value, i) => `${x(start + (end - start) * i / 64)},${y(value)}`).join(' '),
-    floorY: y(principal.value),
+    floorY: y(principal.value * note.value.payoff.principalProtection),
     initialX: x(initialLevel.value),
     selectedX: valid.value && finalLevel.value <= end ? x(finalLevel.value) : null,
     selectedY: payment.value !== null && finalLevel.value <= end ? y(payment.value) : null,
@@ -98,7 +137,7 @@ const chart = computed(() => {
       <div class="intro">
         <p class="eyebrow">Build a structure</p>
         <h1>Learn one building block at a time.</h1>
-        <p>Construct a synthetic principal-protected note, then explore its contractual payment at maturity.</p>
+        <p>Construct a synthetic participation note with a contractual protection floor, then explore its payment at maturity.</p>
       </div>
 
       <nav class="steps" aria-label="Builder steps">
@@ -124,7 +163,8 @@ const chart = computed(() => {
           <template v-else-if="step === 2">
             <p class="eyebrow">Step 3 of 5</p><h2>Choose the economics</h2>
             <p class="help">These rules determine the contractual payment at maturity.</p>
-            <button v-for="option in payoffOptions" :key="option.id" type="button" :class="['option', 'option-button', { selected: option.selected, unavailable: !option.available }]" :disabled="!option.available" :aria-pressed="option.selected"><strong>{{ option.label }}</strong><span>{{ option.description }}</span></button>
+            <button v-for="option in payoffOptions" :key="option.id" type="button" :class="['option', 'option-button', { selected: option.selected, unavailable: !option.available }]" :disabled="!option.available || option.direction === null || (option.selected && selectedParticipationFeatures.length === 1)" :aria-pressed="option.direction !== null ? option.selected : undefined" @click="option.direction && toggleParticipation(option.direction)"><strong>{{ option.label }}</strong><span>{{ option.description }}</span></button>
+            <p class="aside">Select upside, downside, or both. At least one participation direction is required.</p>
             <p class="aside">Protection applies at maturity and depends on the issuer's ability to pay.</p>
           </template>
 
@@ -137,7 +177,8 @@ const chart = computed(() => {
               <div class="hint-field"><div class="field-heading"><label for="principal">Principal (units)</label><button type="button" class="hint-button" aria-label="About principal" aria-controls="principal-hint" :aria-expanded="activeHint === 'principal'" @click="toggleHint('principal')">ⓘ</button><p v-if="activeHint === 'principal'" id="principal-hint" class="hint-text" role="tooltip">The amount used as the base for the maturity payment, in synthetic units.</p></div><input id="principal" v-model.number="principal" type="number" min="0.01" step="any" /></div>
               <div class="hint-field"><div class="field-heading"><label for="initial-level">Initial level</label><button type="button" class="hint-button" aria-label="About initial level" aria-controls="initial-level-hint" :aria-expanded="activeHint === 'initial-level'" @click="toggleHint('initial-level')">ⓘ</button><p v-if="activeHint === 'initial-level'" id="initial-level-hint" class="hint-text" role="tooltip">The reference level used to calculate the underlier's return.</p></div><input id="initial-level" v-model.number="initialLevel" type="number" min="0.01" step="any" /></div>
             </div>
-            <div class="hint-field"><div class="field-heading"><label for="participation">Participation rate (%)</label><button type="button" class="hint-button" aria-label="About participation rate" aria-controls="participation-hint" :aria-expanded="activeHint === 'participation'" @click="toggleHint('participation')">ⓘ</button><p v-if="activeHint === 'participation'" id="participation-hint" class="hint-text" role="tooltip">The share of a positive underlier return added to principal. At 150%, a 10% rise adds 15%.</p></div><input id="participation" v-model.number="participationPercent" type="number" min="0.01" step="any" /></div>
+            <div class="hint-field"><div class="field-heading"><label for="protection">Principal protection (%)</label><button type="button" class="hint-button" aria-label="About principal protection" aria-controls="protection-hint" :aria-expanded="activeHint === 'protection'" @click="toggleHint('protection')">ⓘ</button><p v-if="activeHint === 'protection'" id="protection-hint" class="hint-text" role="tooltip">The minimum contractual maturity payment as a percentage of principal.</p></div><input id="protection" v-model.number="protectionPercent" type="number" min="0" max="100" step="any" /></div>
+            <div v-for="feature in selectedParticipationFeatures" :key="feature.direction" class="hint-field"><div class="field-heading"><label :for="feature.id">{{ feature.label }} rate (%)</label><button type="button" class="hint-button" :aria-label="`About ${feature.label.toLowerCase()} rate`" :aria-controls="`${feature.id}-hint`" :aria-expanded="activeHint === feature.id" @click="toggleHint(feature.id)">ⓘ</button><p v-if="activeHint === feature.id" :id="`${feature.id}-hint`" class="hint-text" role="tooltip">{{ feature.direction === 'upside' ? 'The share of a positive underlier return added to principal.' : 'The share of a negative underlier return deducted from principal before the protection floor applies.' }}</p></div><input :id="feature.id" v-model.number="participationPercent[feature.direction]" type="number" min="0.01" step="any" /></div>
             <ul v-if="errors.length" class="errors" role="alert"><li v-for="error in errors" :key="error">{{ error }}</li></ul>
           </template>
 
@@ -156,20 +197,20 @@ const chart = computed(() => {
         <section class="panel preview" aria-label="Payoff preview">
           <div class="preview-heading"><div><p class="eyebrow">Live preview</p><h2>Payoff at maturity</h2></div><span class="pill">Note · bullet · protected participation</span></div>
           <template v-if="chart">
-            <svg class="chart" viewBox="0 0 620 270" role="img" aria-label="Contractual maturity payment remains at principal for flat or falling final levels, then rises with upside participation">
+            <svg class="chart" viewBox="0 0 620 270" role="img" aria-label="Contractual maturity payment falls with negative underlier returns until the protection floor applies, and rises with positive underlier returns">
               <line x1="50" y1="230" x2="590" y2="230" class="axis-line"/><line x1="50" y1="35" x2="50" y2="230" class="axis-line"/>
               <line x1="50" :y1="chart.floorY" x2="590" :y2="chart.floorY" class="grid-line"/>
               <line :x1="chart.initialX" y1="35" :x2="chart.initialX" y2="230" class="grid-line"/>
               <polyline :points="chart.points" class="payoff-line"/>
               <circle v-if="chart.selectedX !== null && chart.selectedY !== null" :cx="chart.selectedX" :cy="chart.selectedY" r="5" class="selected-point"/>
               <text x="47" y="251" class="axis-label">0</text><text :x="chart.initialX" y="251" text-anchor="middle" class="axis-label">Initial {{ formatAmount(initialLevel) }}</text><text x="590" y="251" text-anchor="end" class="axis-label">{{ formatAmount(chart.end) }}</text>
-              <text x="46" :y="chart.floorY - 7" class="axis-label">Principal {{ formatAmount(principal) }}</text>
+              <text x="46" :y="chart.floorY - 7" class="axis-label">Floor {{ formatAmount(principal * note.payoff.principalProtection) }}</text>
             </svg>
             <div class="chart-axis-title">Final underlier level →</div>
             <h3>Example scenarios</h3>
-            <div class="table-wrap"><table><thead><tr><th>Final level</th><th>Underlier return</th><th>Participated return</th><th>Payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}</td><td>{{ formatPercent(row.returnValue) }}</td><td>{{ formatPercent(row.participatedReturn) }}</td><td>{{ formatAmount(row.payment) }}</td></tr></tbody></table></div>
-            <p class="scenario-formula"><strong>Participated return</strong> = {{ formatPercent(note.payoff.participationRate) }} participation × positive underlier return. A flat or negative underlier return contributes 0%.</p>
-            <p class="explanation">If {{ note.underlier.name || 'the underlier' }} finishes above its initial level, the note pays principal plus {{ formatPercent(note.payoff.participationRate) }} of the positive underlier return. Otherwise, the contractual payment is principal. All amounts are illustrative and subject to issuer payment ability.</p>
+            <div class="table-wrap"><table><thead><tr><th>Final level</th><th>Underlier change</th><th v-for="feature in selectedParticipationFeatures" :key="feature.direction">{{ feature.label }}</th><th>Payment before protection</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}</td><td>{{ formatPercent(row.returnValue) }}</td><td v-for="feature in selectedParticipationFeatures" :key="feature.direction">{{ row.calculations[feature.direction] ?? '—' }}</td><td>{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="row.floorApplied"> (floor applied)</span></td></tr></tbody></table></div>
+            <p class="scenario-formula"><strong>Selected participation:</strong> {{ participationSummary }}. A move in an unselected direction does not change principal before protection. The payment cannot fall below {{ formatPercent(note.payoff.principalProtection) }} of principal.</p>
+            <p class="explanation">The selected participation rule adjusts principal when {{ note.underlier.name || 'the underlier' }} moves in that direction. The contractual protection floor then limits any resulting loss. All amounts are illustrative and subject to issuer payment ability.</p>
           </template>
           <p v-else class="help">Enter valid terms to see the payoff.</p>
         </section>

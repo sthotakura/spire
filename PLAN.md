@@ -2,7 +2,7 @@
 
 This plan covers the first useful, public, browser-only version. It records decisions to make before implementation; it is not a promise to build later product types now.
 
-**Status:** Milestone 1 is complete. Its domain decisions, assumptions, worked example, and remaining questions are recorded in [docs/milestone-1.md](docs/milestone-1.md).
+**Status:** Milestone 1 is complete. The current model also separates a configurable protection floor from upside and downside participation. That increment is recorded in [docs/participation-and-protection.md](docs/participation-and-protection.md).
 
 ## 1. Settle the first product definition
 
@@ -30,6 +30,13 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Record the architecture choice to keep calculations separate from Vue.
 - Add at least one synthetic product example with its expected scenarios.
 - Keep unresolved questions visible instead of silently choosing rules.
+
+## 5. Separate participation and protection
+
+- Configure principal protection as a contractual payment floor from 0% through 100% of principal.
+- Allow upside participation, downside participation, or both, while requiring at least one selected direction.
+- Apply each selected participation rate before enforcing the protection floor; an unselected direction leaves principal unchanged.
+- Keep coupons, buffers, barriers, and other payoff mechanics outside this increment.
 
 ## Deferred questions
 
