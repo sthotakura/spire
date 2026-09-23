@@ -6,6 +6,7 @@ const step = ref(0)
 const activeHint = ref<string | null>(null)
 const toggleHint = (hint: string) => { activeHint.value = activeHint.value === hint ? null : hint }
 const steps = ['Wrapper', 'Redemption', 'Payoff', 'Underlier & terms', 'Explore outcomes']
+const nextStepLabels = ['Continue to redemption', 'Continue to payoff', 'Continue to terms', 'Explore outcomes']
 const wrapperOptions = [
   { id: 'note', label: 'Note', description: "The first example is an issuer's contractual promise to pay.", available: true },
   { id: 'certificate-or-warrant', label: 'Certificate or warrant', description: 'Future examples need their own terms.', available: false },
@@ -100,7 +101,7 @@ const scenarios = computed(() => {
       ])) as Record<ParticipationDirection, string | null>,
       unflooredPayment,
       payment,
-      floorApplied: payment > unflooredPayment,
+      floorApplied: principal.value * note.value.payoff.principalProtection > unflooredPayment,
     }
   })
 })
@@ -146,6 +147,12 @@ const chart = computed(() => {
         </button>
       </nav>
 
+      <div class="wizard-actions" aria-label="Builder navigation">
+        <button type="button" class="secondary" :disabled="step === 0" @click="step--">Back</button>
+        <button v-if="step < 4" type="button" class="primary" :disabled="step === 3 && errors.length > 0" @click="step++">{{ nextStepLabels[step] }}</button>
+        <span v-else class="complete-step" aria-live="polite">Outcome exploration</span>
+      </div>
+
       <div class="workspace">
         <section class="panel controls" aria-label="Product builder">
           <template v-if="step === 0">
@@ -190,8 +197,6 @@ const chart = computed(() => {
             <p v-if="finalError" class="errors" role="alert">{{ finalError }}</p>
             <div v-if="payment !== null" class="selected-result" aria-live="polite"><span>Contractual maturity payment</span><strong>{{ formatAmount(payment) }} units</strong><small>Underlier return {{ formatPercent(underlierReturn!) }}</small></div>
           </template>
-
-          <div class="actions"><button type="button" class="secondary" :disabled="step === 0" @click="step--">Back</button><button type="button" class="primary" :disabled="step === 4 || (step === 3 && errors.length > 0)" @click="step++">Continue</button></div>
         </section>
 
         <section class="panel preview" aria-label="Payoff preview">
