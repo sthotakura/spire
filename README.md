@@ -6,21 +6,17 @@ SPIRe uses generic public concepts and synthetic examples. It does not describe 
 
 ## First example
 
-The first structure is a bullet note linked to one equity or equity index, with point-to-point participation. The example compares an initial and a hypothetical final underlier level, applies selected participation rules to positive or negative performance, enforces a configurable contractual protection floor, and displays a maturity payment, scenario table, diagram, and plain-English explanation. At least one of upside or downside participation must be selected; both may be selected.
+The first structure is a bullet note linked to one equity or equity index, with point-to-point participation. The example compares an initial and a hypothetical final underlier level, applies selected participation rules to positive or negative performance, enforces a configurable contractual protection floor, and displays a maturity payment, scenario table, diagram, and plain-English explanation. Upside participation, downside participation, and principal protection are each optional; a note with none of them repays principal.
 
 The wrapper is a **note**; **bullet** describes its one-payment-at-maturity redemption behavior. Principal protection is a separate economic rule that sets the contractual maturity-payment floor as a percentage of principal. Upside and downside participation determine the payment above that floor. Contractual payment depends on the issuer's ability to pay.
 
 ## Interface direction
 
-The planned single-page application uses a guided sequence:
+The single-page application shows the product as an outline of its concepts: wrapper, redemption behavior, underlier, determination method, and payoff. Each term sits beside the concept it belongs to. The note starts with no payoff features, so it only repays principal, and the reader adds downside participation, principal protection, and upside participation one at a time.
 
-1. Choose an instrument wrapper.
-2. Choose redemption behavior.
-3. Choose payoff mechanics.
-4. Set the underlier, determination method, and relevant terms.
-5. Explore hypothetical outcomes using a payoff diagram, scenario table, and explanation.
+Beside the outline the page shows a one-sentence summary of the note, a payoff diagram with draggable handles, a worked calculation of the maturity payment, a scenario table, and the note's structure as JSON. Selecting a concept highlights it in each of them.
 
-The first release will support only the combination we can define and test precisely. Other choices can be shown as future concepts without suggesting they already work. Observation or valuation schedules belong in a later example that actually uses them.
+The first release supports only the combination we can define and test precisely. Other choices are visible and marked unavailable, without suggesting they already work. Observation or valuation schedules are expected to belong to the payoff and will arrive with an example that actually uses them. The interface design is recorded in [docs/annotated-outline-task.md](docs/annotated-outline-task.md).
 
 ## Technology direction
 

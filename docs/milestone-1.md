@@ -43,17 +43,17 @@ For the 110 final-level scenario, the positive underlier return is 10%. Multiply
 
 ## Architecture decision
 
-The domain model, validation, and maturity-payment function are framework-independent TypeScript in `src/domain/note.ts`. Vue owns user interaction and presentation in `src/App.vue`. Scenario results are derived from authoritative note terms rather than stored in the note.
+The domain model, validation, and maturity-payment function are framework-independent TypeScript in `src/domain/note.ts`. Vue owns user interaction and presentation in `src/App.vue` and `src/components/`. Small framework-independent modules under `src/content/` and `src/chart/` build the summary sentence, the structure JSON lines, the outcome explanation, the scenario rows, and the chart geometry. Scenario results are derived from authoritative note terms rather than stored in the note.
 
 Choice catalogs drive the wrapper, redemption, payoff, and underlier controls. An option appearing in a catalog does not give it domain behavior: unsupported choices remain disabled until their terms and calculations are defined and tested.
 
 ## Open questions for later milestones
 
 - Which payoff mechanics can be combined independently of wrappers?
-- When should observation and valuation schedules become explicit model concepts?
+- When should observation and valuation schedules become explicit model concepts? They are expected to belong to the payoff, not the determination method.
 - Which terms are product economics, and which belong only to issuance?
 - How should changes to authoritative terms invalidate derived results?
-- How should baskets, best-of, worst-of, or other multiple-underlier aggregation methods be represented?
+- How should a basket be represented as an underlier? Aggregation methods such as worst-of and best-of are expected to become options of the determination method.
 - How should coupons and downside exposure be composed before introducing examples such as reverse convertibles?
 
 Pricing, live market data, Greeks, booking, issuance workflows, identifiers, document generation, regulatory processing, AI, microservices, and distributed infrastructure remain outside this milestone.
