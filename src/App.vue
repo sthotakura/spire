@@ -474,9 +474,9 @@ const chart = computed(() => {
         <aside class="panel structure-json" aria-labelledby="structure-json-heading">
           <p class="eyebrow">{{ errors.length ? 'Draft structure · invalid terms' : 'Selected structure' }}</p>
           <h2 id="structure-json-heading">Structure JSON</h2>
-          <p class="help">{{ errors.length ? 'A live draft containing invalid terms. Correct the highlighted terms before treating it as a valid structure.' : "A live representation of the note's contractual terms. Scenario inputs and calculated outcomes are not part of this structure." }}</p>
+          <p class="help">{{ errors.length ? 'A live draft containing invalid terms. Correct the highlighted terms before treating it as a valid structure.' : "A live representation of the note's contractual terms." }}</p>
           <pre><code><span v-for="(line, index) in jsonLines" :key="index" :class="['jl', { on: line.concept && highlighted(line.concept) }]">{{ line.text }}</span></code></pre>
-          <p class="aside">Learning representation only; this is not an industry-standard issuance schema.</p>
+          <p class="aside">Sample representation, not an industry standard.</p>
         </aside>
       </div>
 
