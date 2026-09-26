@@ -87,6 +87,12 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 Keep `README.md` as the public entry point and `PLAN.md` as the near-term work plan. As the project grows, record domain concepts, open questions, architecture decisions, and synthetic product examples under `docs/`. Distinguish established facts, example-specific assumptions, and open questions.
 
+## User-facing copy
+
+- Keep option names and descriptions focused on the public financial concept they teach.
+- Do not expose internal roadmap language, implementation status, planning notes, or phrases such as "later example" and "future example" in option descriptions.
+- Communicate availability through interface state and a concise learner-facing label when needed; keep development rationale in `PLAN.md`, `docs/`, or code comments.
+
 ## Financial examples
 
 Payoff diagrams and scenarios illustrate contractual payments under stated assumptions. They are not valuations, investment advice, or guarantees of issuer payment. Use clearly synthetic underliers, levels, amounts, and dates.
