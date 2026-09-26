@@ -321,7 +321,7 @@ const chart = computed(() => {
     <main class="page">
       <div class="intro">
         <p class="eyebrow">Build a structure</p>
-        <h1>Learn one building block at a time.</h1>
+        <h1>Structured products, built from their parts.</h1>
         <p>Build a product from its parts and see what it pays at maturity.</p>
       </div>
 
@@ -469,7 +469,7 @@ const chart = computed(() => {
               <p v-else class="help">Enter valid terms to see the scenarios.</p>
             </template>
           </TabGroup>
-          <p v-if="chart" class="explanation">All amounts are illustrative and subject to issuer payment ability.</p>
+          <p v-if="chart" class="explanation">All amounts are illustrative.</p>
         </section>
 
         <aside class="panel structure-json" aria-labelledby="structure-json-heading">
