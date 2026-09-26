@@ -66,7 +66,6 @@ const payoffFeatures: ReadonlyArray<{ id: FeatureId; label: string; description:
   { id: 'protection', label: 'Principal protection', description: 'Sets the minimum contractual maturity payment as a percentage of principal.', available: true },
   { id: 'upside', label: 'Upside participation', description: 'Positive underlier return is multiplied by the upside participation rate.', available: true },
 ]
-const quickAddFeatures = payoffFeatures.filter(({ available }) => available)
 const participationLabels: Record<ParticipationDirection, string> = { downside: 'Downside participation', upside: 'Upside participation' }
 const participationPercent = reactive<Record<ParticipationDirection, number>>({ downside: firstFeatureValues.downside, upside: firstFeatureValues.upside })
 const selectedParticipation = reactive<Record<ParticipationDirection, boolean>>({ downside: false, upside: false })
@@ -200,7 +199,7 @@ const calculation = computed(() => {
     { n: 3, title: 'Payment before protection', how: `${formatAmount(principal.value)} × (1 ${b.participatedReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(b.participatedReturn))})`, value: formatAmount(b.unflooredPayment) },
     withProtection
       ? { n: 4, title: 'Protection floor', how: `${formatPercent(protectionPercent.value / 100)} × ${formatAmount(principal.value)} · ${b.floorApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.floor), concept: 'protection' as ConceptId }
-      : { n: 4, title: 'Protection floor', how: 'No protection, so the payment cannot fall below zero', value: 'Not added', muted: true, concept: 'protection' as ConceptId },
+      : { n: 4, title: 'Protection floor', how: selectedParticipation.downside ? 'No protection selected, so some or all of the principal can be lost' : 'No protection selected. Without downside participation, principal is not reduced', value: 'Not added', muted: true, concept: 'protection' as ConceptId },
     { n: 5, title: 'Payment at maturity', how: withProtection ? 'The higher of steps 3 and 4' : 'The higher of step 3 and zero', value: `${formatAmount(b.payment)} units`, result: true },
   ]
 })
@@ -299,6 +298,8 @@ const chart = computed(() => {
     downsidePoints: [...pointsWhere((level) => level < initial), atInitial].join(' '),
     upsidePoints: [atInitial, ...pointsWhere((level) => level > initial)].join(' '),
     principalY: y(principalAmount),
+    // Compact labels (such as 1.5K) keep large principals inside the left margin.
+    amountTicks: [0, 0.5, 1, 1.5, 2].map((multiple) => ({ y: y(principalAmount * multiple), label: (principalAmount * multiple).toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: 1 }) })),
     floorY: protectionSelected.value ? y(floorAmount) : null,
     floorAmount,
     initialX: x(initial),
@@ -391,9 +392,8 @@ const chart = computed(() => {
                     </li>
                     <li v-if="!hasFeatures" class="empty-payoff">
                       <p>This note only repays principal. Add a feature to change what it pays.</p>
-                      <div class="quick-add"><button v-for="feature in quickAddFeatures" :key="feature.id" type="button" class="quick" @click="addFeature(feature.id)">＋ {{ feature.label }}</button></div>
                     </li>
-                    <li ref="paletteRoot" class="addrow" @keydown.esc="closePalette(true)">
+                    <li ref="paletteRoot" class="addrow"@keydown.esc="closePalette(true)">
                       <button ref="addButton" type="button" class="addbtn" aria-haspopup="dialog" :aria-expanded="paletteOpen" @click="paletteOpen ? closePalette() : openPalette()">＋ Add feature</button>
                       <div v-if="paletteOpen" class="menu" role="dialog" aria-label="Add a payoff feature">
                         <input ref="paletteSearch" v-model="paletteQuery" type="search" class="search" placeholder="Search features" aria-label="Search features" @keydown.enter.prevent="addFirstMatch" />
@@ -430,6 +430,7 @@ const chart = computed(() => {
                 <polyline :points="chart.points" class="payoff-line"/>
               </g>
               <line v-if="chart.finalHandle" :x1="chart.finalHandle.x" :y1="chart.finalHandle.y" :x2="chart.finalHandle.x" :y2="plot.bottom" class="final-guide"/>
+              <g v-for="tick in chart.amountTicks" :key="tick.y"><line :x1="plot.left - 4" :y1="tick.y" :x2="plot.left" :y2="tick.y" class="axis-line"/><text :x="plot.left - 7" :y="tick.y" text-anchor="end" dominant-baseline="middle" class="axis-label">{{ tick.label }}</text></g>
               <text :x="plot.left + 2" y="24" class="axis-label">Payment (units)</text>
               <text :x="plot.left + 4" :y="chart.principalY - 6" class="axis-label">Principal {{ formatAmount(principal) }}</text>
               <text v-if="chart.floorY !== null" :x="plot.left + 4" :y="chart.floorY + 14" :class="['axis-label', { on: chartHighlight.floor }]">Floor {{ formatAmount(chart.floorAmount) }}</text>
@@ -446,7 +447,7 @@ const chart = computed(() => {
               </g>
             </svg>
             <div class="chart-axis-title">Final underlier level →</div>
-            <p class="chart-hint">Drag a handle on the chart, or focus one and use the arrow keys. Shift takes bigger steps. A faint dashed line shows the payoff before your last change.</p>
+            <p class="chart-hint">Drag a handle on the chart, or focus one and use the arrow keys. Shift takes bigger steps. A grey line shows the payoff before your last change.</p>
           </template>
           <p v-else class="help">Enter valid terms to see the payoff.</p>
 
