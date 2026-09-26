@@ -19,34 +19,73 @@ export interface ProtectedParticipationNote {
   payoff: {
     kind: 'participation'
     participations: Participation[]
-    principalProtection: number
+    principalProtection?: number
   }
   principalAmount: number
 }
 
-export function validateNote(note: ProtectedParticipationNote): string[] {
-  const errors: string[] = []
-  if (!note.underlier.name.trim()) errors.push('Enter an underlier name.')
-  if (!Number.isFinite(note.principalAmount) || note.principalAmount <= 0) errors.push('Principal must be greater than zero.')
-  if (!Number.isFinite(note.determination.initialLevel) || note.determination.initialLevel <= 0) errors.push('Initial level must be greater than zero.')
-  if (note.payoff.participations.length === 0) errors.push('Select at least one participation direction.')
-  for (const participation of note.payoff.participations) {
-    if (!Number.isFinite(participation.rate) || participation.rate <= 0) errors.push(`${participation.direction === 'upside' ? 'Upside' : 'Downside'} participation must be greater than zero.`)
-  }
-  if (new Set(note.payoff.participations.map(({ direction }) => direction)).size !== note.payoff.participations.length) errors.push('Each participation direction can be selected only once.')
-  if (!Number.isFinite(note.payoff.principalProtection) || note.payoff.principalProtection < 0 || note.payoff.principalProtection > 1) errors.push('Principal protection must be between 0% and 100%.')
-  return errors
+export type NoteIssueField = 'principalAmount' | 'underlierName' | 'initialLevel' | 'participations' | 'principalProtection'
+
+export interface NoteIssue {
+  field: NoteIssueField
+  message: string
 }
 
-export function maturityPayment(note: ProtectedParticipationNote, finalLevel: number): number {
+export function noteIssues(note: ProtectedParticipationNote): NoteIssue[] {
+  const issues: NoteIssue[] = []
+  if (!note.underlier.name.trim()) issues.push({ field: 'underlierName', message: 'Enter an underlier name.' })
+  if (!Number.isFinite(note.principalAmount) || note.principalAmount <= 0) issues.push({ field: 'principalAmount', message: 'Principal must be greater than zero.' })
+  if (!Number.isFinite(note.determination.initialLevel) || note.determination.initialLevel <= 0) issues.push({ field: 'initialLevel', message: 'Initial level must be greater than zero.' })
+  for (const participation of note.payoff.participations) {
+    if (!Number.isFinite(participation.rate) || participation.rate <= 0) issues.push({ field: 'participations', message: `${participation.direction === 'upside' ? 'Upside' : 'Downside'} participation must be greater than zero.` })
+  }
+  if (new Set(note.payoff.participations.map(({ direction }) => direction)).size !== note.payoff.participations.length) issues.push({ field: 'participations', message: 'Each participation direction can be selected only once.' })
+  const protection = note.payoff.principalProtection
+  if (protection !== undefined && (!Number.isFinite(protection) || protection < 0 || protection > 1)) issues.push({ field: 'principalProtection', message: 'Principal protection must be between 0% and 100%.' })
+  return issues
+}
+
+export function validateNote(note: ProtectedParticipationNote): string[] {
+  return noteIssues(note).map(({ message }) => message)
+}
+
+export interface PaymentBreakdown {
+  underlierReturn: number
+  // The direction the return falls in. A flat return counts as upside.
+  direction: ParticipationDirection
+  // Undefined when that direction has no participation, so principal is unchanged.
+  participationRate?: number
+  participatedReturn: number
+  unflooredPayment: number
+  // Zero when the note has no principal protection: a holder cannot lose more than the principal amount.
+  floor: number
+  floorApplies: boolean
+  payment: number
+}
+
+export function paymentBreakdown(note: ProtectedParticipationNote, finalLevel: number): PaymentBreakdown {
   const errors = validateNote(note)
   if (errors.length) throw new Error(errors.join(' '))
   if (!Number.isFinite(finalLevel) || finalLevel < 0) throw new Error('Final level must be zero or greater.')
 
   const underlierReturn = finalLevel / note.determination.initialLevel - 1
   const direction: ParticipationDirection = underlierReturn < 0 ? 'downside' : 'upside'
-  const participation = note.payoff.participations.find((candidate) => candidate.direction === direction)
-  const participatedReturn = (participation?.rate ?? 0) * underlierReturn
+  const participationRate = note.payoff.participations.find((candidate) => candidate.direction === direction)?.rate
+  const participatedReturn = (participationRate ?? 0) * underlierReturn
   const unflooredPayment = note.principalAmount * (1 + participatedReturn)
-  return Math.max(note.principalAmount * note.payoff.principalProtection, unflooredPayment)
+  const floor = note.principalAmount * (note.payoff.principalProtection ?? 0)
+  return {
+    underlierReturn,
+    direction,
+    participationRate,
+    participatedReturn,
+    unflooredPayment,
+    floor,
+    floorApplies: floor > unflooredPayment,
+    payment: Math.max(floor, unflooredPayment),
+  }
+}
+
+export function maturityPayment(note: ProtectedParticipationNote, finalLevel: number): number {
+  return paymentBreakdown(note, finalLevel).payment
 }

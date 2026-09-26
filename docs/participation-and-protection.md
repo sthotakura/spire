@@ -7,7 +7,8 @@ This increment separates three economic terms in the synthetic bullet note. It d
 - **Principal protection** is the minimum contractual maturity payment, expressed as a percentage of principal. It remains subject to the issuer's ability to pay.
 - **Upside participation**, when selected, determines how much of a positive point-to-point underlier return is added to principal.
 - **Downside participation**, when selected, determines how much of a negative point-to-point underlier return is deducted from principal before the protection floor applies.
-- At least one participation direction must be selected. Both may be selected.
+- Participation is optional. Upside, downside, both, or neither may be selected. A note with neither, and no protection, repays principal.
+- Principal protection is also optional. Without it, the contractual floor is zero: a holder cannot lose more than the principal amount.
 - A return in an unselected direction does not change principal before the protection floor is applied.
 - A flat underlier return produces repayment of principal under this payoff formula.
 
@@ -29,6 +30,8 @@ maturity payment = max(
 )
 ```
 
+When principal protection is not selected, the protection amount in the formula is zero.
+
 ## Synthetic worked example
 
 Assume a principal amount of 1,000 units, an initial underlier level of 100, 90% principal protection, 150% upside participation, and 100% downside participation.
@@ -44,6 +47,7 @@ Assume a principal amount of 1,000 units, an initial underlier level of 100, 90%
 ## Assumptions and limits
 
 - Protection may range from 0% through 100% of principal.
+- Absent protection and 0% protection pay the same but describe different structures. Absent means the feature has not been added.
 - Each selected participation rate must be greater than zero.
 - At 100% protection, downside participation remains a defined term but has no effect on the maturity payment.
 - The payoff describes contractual maturity amounts, not present value, investment advice, or guaranteed issuer payment.
@@ -51,4 +55,4 @@ Assume a principal amount of 1,000 units, an initial underlier level of 100, 90%
 
 ## Interface decision
 
-Payoff features are listed alphabetically. An unavailable feature may appear in that list for learning context, but its presence does not assign it domain behavior.
+Payoff features are added one at a time to a payoff that starts with none. They are listed alphabetically. An unavailable feature may appear in that list for learning context, but its presence does not assign it domain behavior.
