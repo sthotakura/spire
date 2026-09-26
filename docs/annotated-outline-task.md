@@ -27,7 +27,7 @@ The author's goals, in order:
 
 Nobody guides the reader through the page, and the reader can tell who built it from the footer.
 
-The current builder is a stack of five cards that unlock in order. It works, but it is a form, not a picture of the product. It hides the shape of the structure, cannot grow to more concepts, and says nothing about what the author knows and does not know. A clickable mock of the direction below exists at `docs/mock/outline-mock.html`. It is a throwaway visual reference (plain HTML, formulas re-implemented). Do not copy its code. Match its behavior in Vue and TypeScript. The mock differs from this brief, and the brief wins: it has no notes tab, scenarios tab or boundaries section; its feature list is not alphabetical and has no protection feature; it starts on a filled-in note, not an empty payoff; and its JSON panel sits below the chart instead of in a tab group.
+The current builder is a stack of five cards that unlock in order. It works, but it is a form, not a picture of the product. It hides the shape of the structure, cannot grow to more concepts, and says nothing about what the author knows and does not know. A throwaway clickable mock of the direction below was used as a visual reference while building it, and has since been deleted.
 
 ## Proposed design
 
