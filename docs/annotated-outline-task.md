@@ -13,7 +13,7 @@ These decisions override the sections below wherever they disagree.
 - **Not on the public page, and deleted:** the notes (Established, Assumptions, Open questions, Try this), the "About this part" tab, and the "Boundaries of this model" section. `conceptNotes`, `ConceptNotes`, `tryThis`, `boundaries`, `generalOpenQuestions` and their test are gone from `src/content/concepts.ts`, which now only lists the concept ids. The definitions and open questions live in the docs. The page is the builder, the JSON, the calculation and the scenarios.
 - **Structure JSON is its own panel**, always visible in the third column (below the other panels at narrower widths). It is not a tab. One of the intended readers is technical, so the structure is in plain view, with the selected concept's lines highlighted.
 - **The tabs under the chart are "How the payment is worked out" (the default) and "Scenarios".**
-- **Intro paragraph:** "Build a product from its parts and see what it pays at maturity." The headline is "Structured products, built from their parts."
+- **Intro:** two lines, with no label above them. The headline is "Structured products, built from their parts." and the line under it is "See how each feature changes what a note pays at maturity, and why."
 - **Attribution and disclaimers:** the name stays in the footer, and the line under the tabs reads "All amounts are illustrative." The footer carries only the name and the build time.
 
 ## Why this task exists

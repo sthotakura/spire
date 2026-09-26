@@ -320,9 +320,8 @@ const chart = computed(() => {
 
     <main class="page">
       <div class="intro">
-        <p class="eyebrow">Build a structure</p>
         <h1>Structured products, built from their parts.</h1>
-        <p>Build a product from its parts and see what it pays at maturity.</p>
+        <p>See how each feature changes what a note pays at maturity, and why.</p>
       </div>
 
       <p class="summary-sentence" aria-live="polite"><template v-for="(segment, index) in summary" :key="index"><button v-if="segment.concept" type="button" :class="['concept', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)" :aria-pressed="highlighted(segment.concept)" @click="select(segment.concept)">{{ segment.text }}</button><span v-else>{{ segment.text }}</span></template></p>
