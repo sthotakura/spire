@@ -1,0 +1,73 @@
+import { describe, expect, it } from 'vitest'
+import type { ProtectedParticipationNote } from '../domain/note'
+import { summarize } from './summary'
+
+const note: ProtectedParticipationNote = {
+  wrapper: 'note',
+  redemption: 'bullet',
+  underlier: { kind: 'equity-index', name: 'Synthetic Index' },
+  determination: { kind: 'point-to-point', initialLevel: 100 },
+  payoff: {
+    kind: 'participation',
+    participations: [
+      { direction: 'downside', rate: 1 },
+      { direction: 'upside', rate: 1.5 },
+    ],
+    principalProtection: 0.9,
+  },
+  principalAmount: 1000,
+}
+
+const sentence = (n: ProtectedParticipationNote) => summarize(n).map(({ text }) => text).join('')
+const conceptOf = (n: ProtectedParticipationNote, phrase: string) => summarize(n).find(({ text }) => text === phrase)?.concept
+
+describe('note summary', () => {
+  it('describes upside and downside participation together', () => {
+    expect(sentence(note)).toBe('A note that redeems at maturity and pays 150% of the upside and 100% of the downside of Synthetic Index, measured point-to-point from 100, with 90% principal protection.')
+    expect(conceptOf(note, '150% of the upside')).toBe('upside')
+    expect(conceptOf(note, '100% of the downside')).toBe('downside')
+  })
+
+  it('describes upside participation only', () => {
+    const upsideOnly = { ...note, payoff: { ...note.payoff, participations: [{ direction: 'upside' as const, rate: 1.5 }] } }
+    expect(sentence(upsideOnly)).toContain('pays 150% of the upside of Synthetic Index')
+    expect(sentence(upsideOnly)).not.toContain('downside')
+    expect(conceptOf(upsideOnly, '150% of the upside')).toBe('upside')
+  })
+
+  it('describes downside participation only', () => {
+    const downsideOnly = { ...note, payoff: { ...note.payoff, participations: [{ direction: 'downside' as const, rate: 0.5 }] } }
+    expect(sentence(downsideOnly)).toContain('pays 50% of the downside of Synthetic Index')
+    expect(sentence(downsideOnly)).not.toContain('upside')
+    expect(conceptOf(downsideOnly, '50% of the downside')).toBe('downside')
+  })
+
+  it('names the concept each phrase describes', () => {
+    expect(conceptOf(note, 'note')).toBe('wrapper')
+    expect(conceptOf(note, 'at maturity')).toBe('redemption')
+    expect(conceptOf(note, 'Synthetic Index')).toBe('underlier')
+    expect(conceptOf(note, 'point-to-point from 100')).toBe('determination')
+    expect(conceptOf(note, '90% principal protection')).toBe('protection')
+  })
+
+  it('says a note with no features repays its principal', () => {
+    const principalOnly = { ...note, payoff: { kind: 'participation' as const, participations: [] } }
+    expect(sentence(principalOnly)).toBe('A note that redeems at maturity and repays its principal, linked to Synthetic Index, measured point-to-point from 100.')
+    expect(conceptOf(principalOnly, 'repays its principal')).toBe('payoff')
+  })
+
+  it('leaves out the protection clause when protection is absent', () => {
+    const unprotected = { ...note, payoff: { kind: 'participation' as const, participations: [{ direction: 'upside' as const, rate: 1 }] } }
+    expect(sentence(unprotected)).toBe('A note that redeems at maturity and pays 100% of the upside of Synthetic Index, measured point-to-point from 100.')
+  })
+
+  it('keeps the protection clause when there is protection but no participation', () => {
+    const protectionOnly = { ...note, payoff: { kind: 'participation' as const, participations: [], principalProtection: 0.9 } }
+    expect(sentence(protectionOnly)).toBe('A note that redeems at maturity and repays its principal, linked to Synthetic Index, measured point-to-point from 100, with 90% principal protection.')
+  })
+
+  it('keeps describing a draft that is not valid yet', () => {
+    const draft = { ...note, underlier: { ...note.underlier, name: ' ' }, payoff: { ...note.payoff, participations: [], principalProtection: Number.NaN } }
+    expect(sentence(draft)).toBe('A note that redeems at maturity and repays its principal, linked to the underlier, measured point-to-point from 100, with — principal protection.')
+  })
+})
