@@ -5,7 +5,7 @@ const units = (value: number) => Math.abs(value).toLocaleString('en-US', { maxim
 
 // Explains a contractual maturity payment in words, from the note and its payment breakdown.
 export function explainOutcome(note: ProtectedParticipationNote, breakdown: PaymentBreakdown): string {
-  const { underlierReturn, direction, participationRate, participatedReturn, uncappedPayment, capAmount, capApplies, unflooredPayment, floor, floorApplies, payment } = breakdown
+  const { underlierReturn, direction, participationRate, participatedReturn, capAmount, capApplies, unflooredPayment, floor, floorApplies, payment } = breakdown
   const hasProtection = note.payoff.principalProtection !== undefined
   const hasCap = capAmount !== undefined
   const principal = note.principalAmount
@@ -20,7 +20,7 @@ export function explainOutcome(note: ProtectedParticipationNote, breakdown: Paym
   else {
     const label = direction === 'upside' ? 'Upside' : 'Downside'
     const change = direction === 'upside' ? `adds ${percent(participatedReturn)} to` : `deducts ${percent(participatedReturn)} from`
-    participation = `${label} participation of ${percent(participationRate)} ${change} principal${(hasProtection || hasCap) && uncappedPayment >= 0 ? `, so the payment before ${hasCap ? 'the cap' : 'protection'} is ${units(uncappedPayment)}` : ''}.`
+    participation = `${label} participation of ${percent(participationRate)} ${change} principal.`
   }
 
   const reasons: string[] = []

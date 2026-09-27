@@ -415,6 +415,7 @@ const chart = computed(() => {
 
       <div class="workspace">
         <section class="panel outline" aria-label="Product structure">
+          <p class="eyebrow">Editable terms</p>
           <h2>Structure</h2>
           <p class="help">A structured product is built from separate parts. Each one answers a single question about what the product is and what it pays.</p>
           <ul class="tree">
@@ -471,21 +472,21 @@ const chart = computed(() => {
                     <li v-if="selectedParticipation.downside" :class="['node', { sel: highlighted('downside') }]" :style="conceptStyle('downside')">
                       <div class="nrow" @click="select('downside')" @focusin="focusRow('downside')">
                         <span class="nlabel">Downside participation<HintToggle id="downside" about="downside participation rate" :text="hints.downside" :active="activeHint === 'downside'" @toggle="toggleHint('downside')" /></span>
-                        <span class="ctrl"><input id="rate-downside" v-model.number="participationPercent.downside" type="number" min="0.01" step="any" aria-label="Downside participation rate (%)" /><span class="unit">%</span></span>
+                        <span class="ctrl"><NumberInput id="rate-downside" v-model="participationPercent.downside" class="num rate" aria-label="Downside participation rate (%)" /><span class="unit">%</span></span>
                         <button type="button" class="xbtn" aria-label="Remove downside participation" @click.stop="removeFeature('downside')">×</button>
                       </div>
                     </li>
                     <li v-if="selectedParticipation.upside" :class="['node', { sel: highlighted('upside') }]" :style="conceptStyle('upside')">
                       <div class="nrow" @click="select('upside')" @focusin="focusRow('upside')">
                         <span class="nlabel">Upside participation<HintToggle id="upside" about="upside participation rate" :text="hints.upside" :active="activeHint === 'upside'" @toggle="toggleHint('upside')" /></span>
-                        <span class="ctrl"><input id="rate-upside" v-model.number="participationPercent.upside" type="number" min="0.01" step="any" aria-label="Upside participation rate (%)" /><span class="unit">%</span></span>
+                        <span class="ctrl"><NumberInput id="rate-upside" v-model="participationPercent.upside" class="num rate" aria-label="Upside participation rate (%)" /><span class="unit">%</span></span>
                         <button type="button" class="xbtn" aria-label="Remove upside participation" @click.stop="removeFeature('upside')">×</button>
                       </div>
                     </li>
                     <li v-if="capSelected" :class="['node', { sel: highlighted('cap') }]" :style="conceptStyle('cap')">
                       <div class="nrow" @click="select('cap')" @focusin="focusRow('cap')">
                         <span class="nlabel">Cap<HintToggle id="cap" about="cap" :text="hints.cap" :active="activeHint === 'cap'" @toggle="toggleHint('cap')" /></span>
-                        <span class="ctrl"><input id="rate-cap" v-model.number="capPercent" type="number" min="0.01" step="any" aria-label="Cap: maximum return on principal (%)" /><span class="unit">%</span></span>
+                        <span class="ctrl"><NumberInput id="rate-cap" v-model="capPercent" class="num rate" aria-label="Cap: maximum return on principal (%)" /><span class="unit">%</span></span>
                         <button type="button" class="xbtn" aria-label="Remove cap" @click.stop="removeFeature('cap')">×</button>
                       </div>
                       <ul v-if="issuesFor('cap').length" class="errors" role="alert"><li v-for="message in issuesFor('cap')" :key="message">{{ message }}</li></ul>
@@ -494,7 +495,7 @@ const chart = computed(() => {
                     <li v-if="protectionSelected" :class="['node', { sel: highlighted('protection') }]" :style="conceptStyle('protection')">
                       <div class="nrow" @click="select('protection')" @focusin="focusRow('protection')">
                         <span class="nlabel">Principal protection<HintToggle id="protection" about="principal protection" :text="hints.protection" :active="activeHint === 'protection'" @toggle="toggleHint('protection')" /></span>
-                        <span class="ctrl"><input id="rate-protection" v-model.number="protectionPercent" type="number" min="0" max="100" step="any" aria-label="Principal protection (%)" /><span class="unit">%</span></span>
+                        <span class="ctrl"><NumberInput id="rate-protection" v-model="protectionPercent" class="num rate" aria-label="Principal protection (%)" /><span class="unit">%</span></span>
                         <button type="button" class="xbtn" aria-label="Remove principal protection" @click.stop="removeFeature('protection')">×</button>
                       </div>
                       <ul v-if="issuesFor('principalProtection').length" class="errors" role="alert"><li v-for="message in issuesFor('principalProtection')" :key="message">{{ message }}</li></ul>
@@ -531,6 +532,7 @@ const chart = computed(() => {
               <line :x1="plot.left" :y1="chart.principalY" :x2="plot.right" :y2="chart.principalY" class="ref-line principal"/>
               <line v-if="chart.floorY !== null" :x1="plot.left" :y1="chart.floorY" :x2="plot.right" :y2="chart.floorY" :class="['ref-line', { on: chartHighlight.floor }]" :style="conceptStyle('protection')"/>
               <line v-if="chart.capY !== null" :x1="plot.left" :y1="chart.capY" :x2="plot.right" :y2="chart.capY" :class="['ref-line', { on: chartHighlight.cap }]" :style="conceptStyle('cap')"/>
+              <line v-if="chartHighlight.initial" :x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" class="highlight-line" :style="conceptStyle('determination')"/>
               <line :x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" :class="['ref-line initial', { on: chartHighlight.initial }]" :style="conceptStyle('determination')"/>
               <g clip-path="url(#plot-clip)">
                 <polyline v-if="chart.ghostPoints" :points="chart.ghostPoints" class="ghost-line"/>
@@ -570,7 +572,7 @@ const chart = computed(() => {
 
           <TabGroup v-model="activeTab" :tabs="tabs" label="The payment and its scenarios">
             <template #calculation>
-              <div class="hint-field"><div class="field-heading"><label for="final-level">Hypothetical final level</label><button type="button" class="hint-button" aria-label="About final underlier level" aria-controls="final-level-hint" :aria-expanded="activeHint === 'final-level'" @click="toggleHint('final-level')">ⓘ</button><p v-if="activeHint === 'final-level'" id="final-level-hint" class="hint-text" role="tooltip">A hypothetical level for this scenario. Changing it does not change the note's terms.</p></div><NumberInput id="final-level" v-model="finalLevel" /></div>
+              <div class="hint-field"><div class="field-heading"><label for="final-level">Hypothetical final level</label><button type="button" class="hint-button" aria-label="About final underlier level" aria-controls="final-level-hint" :aria-expanded="activeHint === 'final-level'" @click="toggleHint('final-level')">ⓘ</button><p v-if="activeHint === 'final-level'" id="final-level-hint" class="hint-text" role="tooltip">A hypothetical level for this scenario. Changing it does not change the note's terms.</p></div><NumberInput id="final-level" v-model="finalLevel" class="final-input" /></div>
               <p v-if="finalError" class="errors" role="alert">{{ finalError }}</p>
               <ol class="calc-steps" aria-live="polite"><li v-for="step in calculation" :key="step.n" :class="{ hl: step.concept && highlighted(step.concept), muted: step.muted, result: step.result }"><span class="calc-n">{{ step.n }}</span><b>{{ step.title }}</b><span class="calc-value">{{ step.value }}</span><span class="calc-how">{{ step.how }}</span></li></ol>
               <p v-if="outcomeSentence" class="outcome" aria-live="polite">{{ outcomeSentence }}</p>
