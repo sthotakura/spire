@@ -13,9 +13,9 @@ import { scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
-import { finalLevelFrom, initialLevelFrom, maturityPayment, noteIssues, observationCountOf, paymentBreakdown, type Determination, type NoteIssueField, type ParticipationDirection, type ProtectedParticipationNote, type AssetKind } from './domain/note'
-import { fitObservations, shiftToAverage } from './domain/observations'
-import { firstFeatureValues, firstObservationCount, startingFinalLevel, startingNote } from './domain/starting-note'
+import { finalLevelFrom, initialLevelFrom, lookbackCountOf, maturityPayment, noteIssues, observationCountOf, paymentBreakdown, type Determination, type FinalDetermination, type InitialDetermination, type NoteIssueField, type ParticipationDirection, type ProtectedParticipationNote, type AssetKind } from './domain/note'
+import { fitLookbackObservations, fitObservations, shiftToAverage } from './domain/observations'
+import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingNote } from './domain/starting-note'
 
 const activeHint = ref<string | null>(null)
 const toggleHint = (hint: string) => { activeHint.value = activeHint.value === hint ? null : hint }
@@ -24,11 +24,12 @@ const hints = {
   redemption: 'Sets when the note ends and principal is paid back: at scheduled maturity, or earlier if its terms allow a call or a put. A bullet note pays once, at maturity.',
   underlier: 'What the payoff reads: the asset it tracks, where that asset starts, and how its change is measured. A single underlier tracks one asset. A basket tracks several and combines their changes into one return.',
   asset: 'The equity or equity index the note tracks. Holding the note does not mean owning the asset.',
-  determination: 'Sets which observed levels measure the underlier’s change. Point-to-point uses the initial level and one final level: final ÷ initial − 1. Moves in between do not count. Averaging takes the final level as the average of the levels observed on several dates before maturity, so a sharp move on the last date counts for less.',
+  determination: 'Sets which observed levels measure the underlier’s change: final ÷ initial − 1. The initial and final levels are each set on their own. Point-to-point uses the fixed initial level and the level on the final date; moves in between do not count. Lookback starts from the lowest of the initial level and the levels on several dates after pricing, so a fall soon after pricing lowers the starting point. Averaging takes the final level as the average of the levels observed on several dates before maturity, so a sharp move on the last date counts for less.',
+  'lookback-observations': 'The number of dates after pricing whose levels can lower the starting point. The lowest of them and the initial level is the lookback level.',
   observations: 'The number of dates whose levels are averaged into the final level. Each observed level counts equally.',
   payoff: 'The rules that turn the underlier’s change into the maturity payment. With no features the note repays principal. Each feature adds a rule, such as a share of the gain or a minimum payment.',
   principal: 'The amount used as the base for the maturity payment.',
-  'initial-level': 'The reference level used to calculate the underlier’s return. It is a term of this note: two notes on the same asset can start from different levels.',
+  'initial-level': 'The reference level used to calculate the underlier’s return, unless lookback lowers it. It is a term of this note: two notes on the same asset can start from different levels. When a note’s strike is set at 100% of it, it is often called the strike level.',
   downside: 'The share of a negative underlier return, beyond any buffer, deducted from principal before the protection floor applies.',
   buffer: 'The fall the holder does not bear, as a percentage of the initial level. A fall within it leaves principal unchanged. A larger fall reduces principal by the amount beyond it, at the downside participation rate. It has an effect only when downside participation is selected.',
   upside: 'The share of a positive underlier return added to principal.',
@@ -46,11 +47,15 @@ const redemptionOptions = [
   { id: 'issuer-callable', label: 'Issuer callable', description: 'The issuer may redeem the note early under defined terms.', available: false },
   { id: 'puttable', label: 'Puttable', description: 'The holder may require redemption under defined terms.', available: false },
 ] as const
-const determinationOptions = [
-  { id: 'averaging', label: 'Averaging', description: 'Uses the average of levels observed on several stated dates.', available: true },
-  { id: 'lookback', label: 'Lookback', description: 'Uses the highest or lowest level observed on stated dates.', available: false },
-  { id: 'point-to-point', label: 'Point-to-point', description: 'Compares one initial level with one final level.', available: true },
-] as const
+// Each level of the determination is chosen on its own. A fixed initial level and a final level on the final date is point-to-point.
+const initialDeterminationOptions: ReadonlyArray<{ id: InitialDetermination['kind']; label: string; description: string }> = [
+  { id: 'given', label: 'Fixed', description: 'Uses the initial level set in the terms.' },
+  { id: 'lookback', label: 'Lookback', description: 'Uses the lowest of the initial level and the levels on several stated dates after pricing.' },
+]
+const finalDeterminationOptions: ReadonlyArray<{ id: FinalDetermination['kind']; label: string; description: string }> = [
+  { id: 'averaging', label: 'Averaging', description: 'Uses the average of levels observed on several stated dates.' },
+  { id: 'final-date', label: 'Final date', description: 'Uses the level on the one final date.' },
+]
 // A one-line meaning under each part's name, so the outline reads without opening every hint.
 const partDescriptions = {
   wrapper: 'The form the product takes',
@@ -73,14 +78,22 @@ const assetKind = ref<AssetKind>(startingComponent.asset.kind)
 const assetName = ref(startingComponent.asset.name)
 const principal = ref(startingNote.principalAmount)
 const initialLevel = ref(startingComponent.initialLevel)
-// The one choice the outline offers. Point-to-point is given at the start and final-date at the end.
-const determinationKind = ref<'point-to-point' | 'averaging'>(startingNote.underlier.determination.final.kind === 'averaging' ? 'averaging' : 'point-to-point')
+const initialKind = ref<InitialDetermination['kind']>(startingNote.underlier.determination.initial.kind)
+const lookbackCount = ref(firstLookbackMoves.length)
+const finalKind = ref<FinalDetermination['kind']>(startingNote.underlier.determination.final.kind)
 const observationCount = ref(firstObservationCount)
 const determination = computed<Determination>(() => ({
-  initial: { kind: 'given' },
-  final: determinationKind.value === 'averaging' ? { kind: 'averaging', observationCount: observationCount.value } : { kind: 'final-date' },
+  initial: initialKind.value === 'lookback' ? { kind: 'lookback', observationCount: lookbackCount.value } : { kind: 'given' },
+  final: finalKind.value === 'averaging' ? { kind: 'averaging', observationCount: observationCount.value } : { kind: 'final-date' },
 }))
-const averaging = computed(() => determinationKind.value === 'averaging')
+const lookingBack = computed(() => initialKind.value === 'lookback')
+const averaging = computed(() => finalKind.value === 'averaging')
+// Hypothetical levels after pricing, in date order, as last edited. They are a scenario input, not a note term. The first
+// time lookback is chosen they start from the initial level as it is then.
+const lookbackLevels = ref<number[]>([])
+watch(initialKind, (kind) => {
+  if (kind === 'lookback' && !lookbackLevels.value.length) lookbackLevels.value = firstLookbackMoves.map((move) => Math.round(initialLevel.value * (1 + move)))
+})
 // Hypothetical observed levels, in date order, as last edited. They are a scenario input, not a note term.
 const observedLevels = ref<number[]>([startingFinalLevel])
 
@@ -225,9 +238,15 @@ const setObservation = (index: number, level: number) => { observedLevels.value 
 // The chart handle sets the final level. With averaging it moves every observed level together, so the path keeps its shape.
 const setFinalLevel = (level: number) => { observedLevels.value = shiftToAverage(observations.value, level) }
 const finalError = computed(() => observations.value.every((level) => Number.isFinite(level) && level >= 0) ? '' : averaging.value ? 'Each observed level must be zero or greater.' : 'Final level must be zero or greater.')
-const valid = computed(() => errors.value.length === 0 && !finalError.value)
+// The levels after pricing fitted to the lookback count, in the same way. Without lookback there are none.
+const afterPricing = computed(() => !lookingBack.value ? [] : issuesFor('lookbackObservationCount').length ? lookbackLevels.value : fitLookbackObservations(lookbackLevels.value, lookbackCountOf(determination.value.initial)))
+const setAfterPricing = (index: number, level: number) => { lookbackLevels.value = afterPricing.value.map((current, i) => i === index ? level : current) }
+const lookbackError = computed(() => afterPricing.value.every((level) => Number.isFinite(level) && level > 0) ? '' : 'Each level after pricing must be greater than zero.')
+// The chart and scenarios need only the initial level; the calculation also needs the final level.
+const initialValid = computed(() => errors.value.length === 0 && !lookbackError.value)
+const valid = computed(() => initialValid.value && !finalError.value)
 // The initial level every calculation reads, as the initial end of the determination produces it.
-const determinedInitialLevel = computed(() => initialLevelFrom(determination.value.initial, initialLevel.value, []))
+const determinedInitialLevel = computed(() => initialValid.value ? initialLevelFrom(determination.value.initial, initialLevel.value, afterPricing.value) : Number.NaN)
 const finalLevel = computed(() => valid.value ? finalLevelFrom(determination.value.final, observations.value) : Number.NaN)
 const breakdown = computed(() => valid.value ? paymentBreakdown(note.value, { initial: determinedInitialLevel.value, final: finalLevel.value }) : null)
 const payment = computed(() => breakdown.value?.payment ?? null)
@@ -255,7 +274,7 @@ const buildTimestamp = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
 }).format(new Date(buildTimestampIso))
 
-const scenarios = computed(() => errors.value.length ? [] : scenarioRows(note.value, determinedInitialLevel.value).map(({ returnValue, finalLevel, breakdown }) => ({
+const scenarios = computed(() => !initialValid.value ? [] : scenarioRows(note.value, determinedInitialLevel.value).map(({ returnValue, finalLevel, breakdown }) => ({
   final: finalLevel,
   returnValue,
   calculations: Object.fromEntries(selectedDirections.value.map((direction) => [
@@ -277,7 +296,7 @@ const activeTab = ref('calculation')
 const calculation = computed(() => {
   const b = breakdown.value
   if (!b) return []
-  return calculationSteps(note.value, b, observations.value, [])
+  return calculationSteps(note.value, b, observations.value, afterPricing.value)
 })
 
 // The chart. Its vertical axis is fixed (see chart/geometry.ts), and handles on it edit the same values the outline fields edit.
@@ -329,7 +348,7 @@ const dragMove = (id: HandleId, event: PointerEvent) => {
   if (id === 'floor') protectionPercent.value = protectionFromY(point.y, principal.value, plot)
   else if (id === 'slope') participationPercent.upside = upsideRateFromY(point.y, principal.value, plot, capFraction.value)
   else if (id === 'cap') capPercent.value = capFromY(point.y, principal.value, plot)
-  else if (id === 'buffer') bufferPercent.value = bufferFromX(point.x, initialLevel.value, plot)
+  else if (id === 'buffer') bufferPercent.value = bufferFromX(point.x, initialLevel.value, plot, determinedInitialLevel.value)
   else setFinalLevel(finalLevelFromX(point.x, initialLevel.value, plot))
 }
 const endDrag = () => { dragging.value = null }
@@ -360,16 +379,19 @@ const chartHighlight = computed(() => ({
 const regimeConcept: Record<Regime, ConceptId> = { principal: 'payoff', buffer: 'buffer', downside: 'downside', upside: 'upside', floor: 'protection', cap: 'cap' }
 const regimeLabel: Record<Regime, string> = { principal: 'Principal repaid', buffer: 'Buffer', downside: 'Downside participation', upside: 'Upside participation', floor: 'Protection floor', cap: 'Cap' }
 const chart = computed(() => {
-  if (errors.value.length) return null
+  if (!initialValid.value) return null
   const principalAmount = principal.value
-  const initial = initialLevel.value
-  const end = initial * levelAxisFactor
+  // The axis is scaled on the initial-level term, so editing a level after pricing does not rescale it. The payoff bends
+  // at the level the return is measured from, which with lookback can be lower.
+  const scale = initialLevel.value
+  const initial = determinedInitialLevel.value
+  const end = scale * levelAxisFactor
   const levels = Array.from({ length: 257 }, (_, i) => end * i / 256)
   // The payment at each final level on the axis, measured from the determined initial level.
-  const at = (level: number) => ({ initial: determinedInitialLevel.value, final: level })
+  const at = (level: number) => ({ initial, final: level })
   const breakdowns = levels.map((level) => paymentBreakdown(note.value, at(level)))
   const values = breakdowns.map((b) => b.payment)
-  const x = (level: number) => levelToX(level, initial, plot)
+  const x = (level: number) => levelToX(level, scale, plot)
   const y = (amount: number) => amountToY(amount, principalAmount, plot)
   const pinnedY = (amount: number) => clamp(y(amount), plot.top, plot.bottom)
   const point = (level: number, value: number) => `${x(level)},${y(value)}`
@@ -379,13 +401,17 @@ const chart = computed(() => {
   const pointsWhere = (keep: (level: number) => boolean) => levels.flatMap((level, i) => keep(level) ? [point(level, values[i])] : [])
   const atInitial = point(initial, maturityPayment(note.value, at(initial)))
   const ghost = ghostNote.value
-  const ghostInitial = ghost && initialLevelFrom(ghost.underlier.determination.initial, ghost.underlier.components[0].initialLevel, [])
-  const ghostPoints = ghost && ghostInitial && noteIssues(ghost).length === 0 ? levels.map((level) => point(level, maturityPayment(ghost, { initial: ghostInitial, final: level }))).join(' ') : ''
+  // The levels after pricing are not note terms, so the ghost reads the current ones, fitted to its own lookback count.
+  const ghostAfterPricing = ghost ? fitLookbackObservations(lookbackLevels.value, lookbackCountOf(ghost.underlier.determination.initial)) : []
+  const ghostDrawable = ghost !== null && noteIssues(ghost).length === 0 && ghostAfterPricing.every((level) => Number.isFinite(level) && level > 0)
+  const ghostInitial = ghostDrawable ? initialLevelFrom(ghost.underlier.determination.initial, ghost.underlier.components[0].initialLevel, ghostAfterPricing) : Number.NaN
+  const ghostPoints = ghostDrawable ? levels.map((level) => point(level, maturityPayment(ghost, { initial: ghostInitial, final: level }))).join(' ') : ''
   const floorAmount = principalAmount * (note.value.payoff.principalProtection ?? 0)
   const capAmount = principalAmount * (1 + (note.value.payoff.cap ?? 0))
   const finalHandle = payment.value === null ? null : { x: x(clamp(finalLevel.value, 0, end)), y: pinnedY(payment.value) }
   const bubbleText = payment.value === null ? '' : `${formatAmount(finalLevel.value)} → ${formatAmount(payment.value)}`
-  const bubbleWidth = 16 + bubbleText.length * 6.4 * labelScale.value
+  const labelWidth = (text: string) => text.length * 6.4 * labelScale.value
+  const bubbleWidth = 16 + labelWidth(bubbleText)
   const capLabelY = y(capAmount) - 6 < plot.top + 10 ? y(capAmount) + 14 : y(capAmount) - 6 // above the cap line, or below it when the line is at the top of the plot
   // The cap handle sits where the line actually bends flat. When the upside rate is too low for that to be in view,
   // it falls back to a fixed spot on the cap's reference line instead of floating over the wrong-coloured segment.
@@ -420,7 +446,11 @@ const chart = computed(() => {
     capLabelY,
     capLabelRight,
     capAmount,
-    initialX: x(initial),
+    initialX: x(scale),
+    // The lookback level is a separate reference line, left of the initial level, whenever the note looks back. Its label
+    // sits under the axis beside the initial label, moved left when the two would overlap.
+    lookbackX: lookingBack.value ? x(initial) : null,
+    lookbackLabelX: Math.min(x(initial), x(scale) - (labelWidth(`Initial ${formatAmount(scale)}`) + labelWidth(`Lookback ${formatAmount(initial)}`)) / 2 - 8),
     end,
     bufferX,
     bufferLabel: bufferX === null ? null : { x: bufferLabelLeft ? bufferX + 6 : bufferX - 6, anchor: bufferLabelLeft ? 'start' : 'end' },
@@ -493,12 +523,15 @@ const chart = computed(() => {
                     <li :class="['node', { sel: highlighted('determination') }]" :style="conceptStyle('determination')">
                       <div class="nrow" @click="select('determination')" @focusin="focusRow('determination')">
                         <span class="nlabel">Determination<HintToggle id="determination" about="determination" :text="hints.determination" :active="activeHint === 'determination'" @toggle="toggleHint('determination')" /></span>
-                        <span class="ctrl pick"><select v-model="determinationKind" aria-label="Determination"><option v-for="option in determinationOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
                         <span class="ndesc">{{ partDescriptions.determination }}</span>
+                        <span class="ctrl block"><label for="initial-determination">Initial level</label><select id="initial-determination" v-model="initialKind"><option v-for="option in initialDeterminationOptions" :key="option.id" :value="option.id" :title="option.description">{{ option.label }}</option></select></span>
+                        <span v-if="lookingBack" class="ctrl block"><label for="lookback-count">Observations after pricing</label><HintToggle id="lookback-count" about="observations after pricing" :text="hints['lookback-observations']" :active="activeHint === 'lookback-observations'" @toggle="toggleHint('lookback-observations')" /><NumberInput id="lookback-count" v-model="lookbackCount" class="num" /></span>
+                        <span v-if="lookingBack" class="ctrl block wraps"><span class="flabel">Levels after pricing</span><span class="unit">Hypothetical, set in the calculation</span></span>
+                        <span class="ctrl block"><label for="final-determination">Final level</label><select id="final-determination" v-model="finalKind"><option v-for="option in finalDeterminationOptions" :key="option.id" :value="option.id" :title="option.description">{{ option.label }}</option></select></span>
                         <span v-if="averaging" class="ctrl block"><label for="observation-count">Observations</label><HintToggle id="observation-count" about="observations" :text="hints.observations" :active="activeHint === 'observations'" @toggle="toggleHint('observations')" /><NumberInput id="observation-count" v-model="observationCount" class="num" /></span>
-                        <span class="ctrl block wraps"><span class="flabel">{{ averaging ? 'Observed levels' : 'Final level' }}</span><span class="unit">{{ averaging ? 'Hypothetical, set in the calculation' : 'Hypothetical, set on the chart' }}</span></span>
+                        <span class="ctrl block wraps"><span class="flabel">{{ averaging ? 'Observed levels' : 'Level on the final date' }}</span><span class="unit">{{ averaging ? 'Hypothetical, set in the calculation' : 'Hypothetical, set on the chart' }}</span></span>
                       </div>
-                      <ul v-if="issuesFor('observationCount').length" class="errors" role="alert"><li v-for="message in issuesFor('observationCount')" :key="message">{{ message }}</li></ul>
+                      <ul v-if="issuesFor('lookbackObservationCount', 'observationCount').length" class="errors" role="alert"><li v-for="message in issuesFor('lookbackObservationCount', 'observationCount')" :key="message">{{ message }}</li></ul>
                     </li>
                   </ul>
                 </li>
@@ -584,6 +617,7 @@ const chart = computed(() => {
               <line v-if="chart.bufferX !== null" :x1="chart.bufferX" :y1="plot.top" :x2="chart.bufferX" :y2="plot.bottom" :class="['ref-line', { on: chartHighlight.buffer }]" :style="conceptStyle('buffer')"/>
               <line v-if="chartHighlight.initial":x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" class="highlight-line" :style="conceptStyle('determination')"/>
               <line :x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" :class="['ref-line initial', { on: chartHighlight.initial }]" :style="conceptStyle('determination')"/>
+              <line v-if="chart.lookbackX !== null" :x1="chart.lookbackX" :y1="plot.top" :x2="chart.lookbackX" :y2="plot.bottom" :class="['ref-line', { on: chartHighlight.initial }]" :style="conceptStyle('determination')"/>
               <g clip-path="url(#plot-clip)">
                 <polyline v-if="chart.ghostPoints" :points="chart.ghostPoints" class="ghost-line"/>
                 <polyline :points="chart.points" class="payoff-casing"/>
@@ -599,6 +633,7 @@ const chart = computed(() => {
               <template v-if="chart.floorY !== null"><line :x1="plot.left + 4" :y1="chart.floorY + 10" :x2="plot.left + 16" :y2="chart.floorY + 10" :class="['ref-swatch', { on: chartHighlight.floor }]" :style="conceptStyle('protection')"/><text :x="plot.left + 20" :y="chart.floorY + 14" :class="['ref-label', { on: chartHighlight.floor }]">Floor {{ formatAmount(chart.floorAmount) }}</text></template>
               <template v-if="chart.capY !== null"><line :x1="chart.capLabelRight - 12" :y1="chart.capLabelY - 4" :x2="chart.capLabelRight" :y2="chart.capLabelY - 4" :class="['ref-swatch', { on: chartHighlight.cap }]" :style="conceptStyle('cap')"/><text :x="chart.capLabelRight - 16" :y="chart.capLabelY" text-anchor="end" :class="['ref-label', { on: chartHighlight.cap }]">Cap {{ formatAmount(chart.capAmount) }}</text></template>
               <text v-if="chart.bufferLabel" :x="chart.bufferLabel.x" :y="plot.top + 12" :text-anchor="chart.bufferLabel.anchor" :class="['ref-label', { on: chartHighlight.buffer }]">Buffer {{ bufferSummary }}</text>
+              <text v-if="chart.lookbackX !== null" :x="chart.lookbackLabelX" y="251" text-anchor="middle" class="axis-label">Lookback {{ formatAmount(determinedInitialLevel) }}</text>
               <text :x="plot.left - 3" y="251" class="axis-label">0</text><text :x="chart.initialX" y="251" text-anchor="middle" class="axis-label">Initial {{ formatAmount(initialLevel) }}</text><text :x="plot.right" y="251" text-anchor="end" class="axis-label">{{ formatAmount(chart.end) }}</text>
               <g v-if="chart.bubble" class="bubble" :transform="`translate(${chart.bubble.x} ${chart.bubble.y})`"><rect :width="chart.bubble.width" height="22" rx="6"/><text :x="chart.bubble.width / 2" y="15" text-anchor="middle">{{ chart.bubble.text }}</text></g>
               <g v-if="chart.floorHandle" :class="['handle', { on: highlighted('protection') }]" :style="conceptStyle('protection')" :transform="`translate(${chart.floorHandle.x} ${chart.floorHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Principal protection" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="protectionPercent" :aria-valuetext="`${protectionPercent}% protection`" @pointerdown="startDrag('floor', $event)" @pointermove="dragMove('floor', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('floor', $event)" @focus="focusHandle('floor')">
@@ -626,6 +661,8 @@ const chart = computed(() => {
 
           <TabGroup v-model="activeTab" :tabs="tabs" label="The payment and its scenarios">
             <template #calculation>
+              <div v-if="lookingBack" class="hint-field"><div class="field-heading"><span id="lookback-levels-label" class="observed-heading">Hypothetical levels of {{ underlierLabel }} after pricing</span><button type="button" class="hint-button" aria-label="About levels after pricing" aria-controls="lookback-levels-hint" :aria-expanded="activeHint === 'lookback-levels'" @click="toggleHint('lookback-levels')">ⓘ</button><p v-if="activeHint === 'lookback-levels'" id="lookback-levels-hint" class="hint-text" role="tooltip">Hypothetical levels on each lookback date after pricing, earliest first. The lowest of them and the initial level is the lookback level, which the return is measured from. Changing them does not change the note's terms.</p></div><div class="observed-levels" role="group" aria-labelledby="lookback-levels-label"><span class="observed-op" aria-hidden="true">min(</span><span class="observed-cell"><span class="observed-name">Initial</span><output class="observed-fixed">{{ formatAmount(initialLevel) }}</output></span><template v-for="(level, index) in afterPricing" :key="index"><span class="observed-op" aria-hidden="true">,</span><span class="observed-cell"><label :for="`lookback-${index}`" class="observed-name">Obs {{ index + 1 }}</label><NumberInput :id="`lookback-${index}`" :model-value="level" class="observed-input" @update:model-value="setAfterPricing(index, $event)" /></span></template><span class="observed-op" aria-hidden="true">) =</span><span class="observed-cell"><span class="observed-name">Lookback level</span><output class="observed-result" aria-live="polite">{{ Number.isFinite(determinedInitialLevel) ? formatAmount(determinedInitialLevel) : '—' }}</output></span></div></div>
+              <p v-if="lookbackError" class="errors" role="alert">{{ lookbackError }}</p>
               <div v-if="averaging" class="hint-field"><div class="field-heading"><span id="observed-levels-label" class="observed-heading">Hypothetical observed levels of {{ underlierLabel }}</span><button type="button" class="hint-button" aria-label="About observed levels" aria-controls="observed-levels-hint" :aria-expanded="activeHint === 'observed-levels'" @click="toggleHint('observed-levels')">ⓘ</button><p v-if="activeHint === 'observed-levels'" id="observed-levels-hint" class="hint-text" role="tooltip">Hypothetical levels on each averaging date, earliest first. Their average is the final level. Changing them does not change the note's terms.</p></div><div class="observed-levels" role="group" aria-labelledby="observed-levels-label"><template v-for="(level, index) in observations" :key="index"><span v-if="index > 0" class="observed-op" aria-hidden="true">+</span><span class="observed-cell"><label :for="`observation-${index}`" class="observed-name">Obs {{ index + 1 }}<template v-if="index === observations.length - 1"> · final date</template></label><NumberInput :id="`observation-${index}`" :model-value="level" class="observed-input" @update:model-value="setObservation(index, $event)" /></span></template><span class="observed-op" aria-hidden="true">÷ {{ observations.length }} =</span><span class="observed-cell"><span class="observed-name">Final level</span><output class="observed-result" aria-live="polite">{{ Number.isFinite(finalLevel) ? formatAmount(finalLevel) : '—' }}</output></span></div></div>
               <div v-else class="hint-field"><div class="field-heading"><label for="final-level">Hypothetical final level of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About final underlier level" aria-controls="final-level-hint" :aria-expanded="activeHint === 'final-level'" @click="toggleHint('final-level')">ⓘ</button><p v-if="activeHint === 'final-level'" id="final-level-hint" class="hint-text" role="tooltip">A hypothetical level for this scenario. Changing it does not change the note's terms.</p></div><NumberInput id="final-level" :model-value="observations[0]" class="final-input" @update:model-value="setObservation(0, $event)" /></div>
               <p v-if="finalError" class="errors" role="alert">{{ finalError }}</p>
@@ -638,7 +675,7 @@ const chart = computed(() => {
                 <h3>Example scenarios</h3>
                 <p class="table-scroll-hint">Scroll horizontally to see every scenario column.</p>
                 <div class="table-wrap"><table><thead><tr><th>Final level</th><th>Underlier change</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected">Payment before protection</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}</td><td>{{ formatPercent(row.returnValue) }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="protectionSelected && row.floorApplied" class="floor-note">floor applied</span></td></tr></tbody></table></div>
-                <p class="scenario-formula"><template v-if="averaging">Each final level is the average of the observed levels. </template><strong>Selected participation:</strong> {{ participationSummary }}. A move in an unselected direction does not change principal before protection.<template v-if="bufferSelected"> The buffer absorbs the first {{ bufferSummary }} of a fall.</template> The payment cannot fall below {{ floorSummary }}.<template v-if="capSelected"> It cannot exceed {{ capSummary }}.</template></p>
+                <p class="scenario-formula"><template v-if="lookingBack">Each change is measured from the lookback level, {{ formatAmount(determinedInitialLevel) }}. </template><template v-if="averaging">Each final level is the average of the observed levels. </template><strong>Selected participation:</strong> {{ participationSummary }}. A move in an unselected direction does not change principal before protection.<template v-if="bufferSelected"> The buffer absorbs the first {{ bufferSummary }} of a fall.</template> The payment cannot fall below {{ floorSummary }}.<template v-if="capSelected"> It cannot exceed {{ capSummary }}.</template></p>
               </template>
               <p v-else class="help">Enter valid terms to see the scenarios.</p>
             </template>

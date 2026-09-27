@@ -66,10 +66,12 @@ describe('drag conversions', () => {
 
   it('sets the buffer from the position as the fall from the initial level, snapped to 1% and limited to 1% to 100%', () => {
     expect(bufferLevel(100, 0.1)).toBeCloseTo(90, 8)
-    expect(bufferFromX(levelToX(90, 100, plot), 100, plot)).toBe(10)
-    expect(bufferFromX(levelToX(90.3, 100, plot), 100, plot)).toBe(10)
-    expect(bufferFromX(plot.left - 30, 100, plot)).toBe(100)
-    expect(bufferFromX(levelToX(120, 100, plot), 100, plot)).toBe(1)
+    expect(bufferFromX(levelToX(90, 100, plot), 100, plot, 100)).toBe(10)
+    expect(bufferFromX(levelToX(90.3, 100, plot), 100, plot, 100)).toBe(10)
+    expect(bufferFromX(plot.left - 30, 100, plot, 100)).toBe(100)
+    expect(bufferFromX(levelToX(120, 100, plot), 100, plot, 100)).toBe(1)
+    // With a lookback level of 80 on an axis scaled to 100, a handle at 72 is a 10% fall from 80.
+    expect(bufferFromX(levelToX(72, 100, plot), 100, plot, 80)).toBe(10)
     expect(clampBuffer(0)).toBe(1)
     expect(clampBuffer(140)).toBe(100)
   })

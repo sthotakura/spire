@@ -19,5 +19,9 @@ export const startingFinalLevel = 110
 // The number of observations the first time averaging is chosen.
 export const firstObservationCount = 5
 
+// The levels after pricing the first time lookback is chosen, as moves from the initial level: a fall soon after pricing,
+// then a partial recovery. Their count is the first number of lookback observations.
+export const firstLookbackMoves = [-0.03, -0.08, -0.05]
+
 // Rates in percent, used the first time each payoff feature is added.
 export const firstFeatureValues = { upside: 100, downside: 100, protection: 90, cap: 20, buffer: 10 }

@@ -57,8 +57,9 @@ export const capFromY = (y: number, principal: number, plot: Plot) => clampCap((
 // The buffer handle sits where losses start: the level the underlier can fall to before principal is reduced.
 export const bufferLevel = (initialLevel: number, buffer: number) => initialLevel * (1 - buffer)
 
-// Dragging the buffer handle sideways sets the buffer as the fall from the initial level, snapped to 1%.
-export const bufferFromX = (x: number, initialLevel: number, plot: Plot) => clampBuffer((1 - xToLevel(x, initialLevel, plot) / initialLevel) * 100)
+// Dragging the buffer handle sideways sets the buffer as the fall from the level the return is measured from, snapped to 1%.
+// The axis stays scaled on the initial-level term, so with lookback the two levels differ.
+export const bufferFromX = (x: number, initialLevel: number, plot: Plot, measuredFrom: number) => clampBuffer((1 - xToLevel(x, initialLevel, plot) / measuredFrom) * 100)
 
 // Dragging the final-level handle sets the level, snapped to 1 unit.
 export const finalLevelFromX = (x: number, initialLevel: number, plot: Plot) => clampFinalLevel(xToLevel(x, initialLevel, plot), initialLevel)
