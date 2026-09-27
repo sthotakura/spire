@@ -227,7 +227,7 @@ const setFinalLevel = (level: number) => { observedLevels.value = shiftToAverage
 const finalError = computed(() => observations.value.every((level) => Number.isFinite(level) && level >= 0) ? '' : averaging.value ? 'Each observed level must be zero or greater.' : 'Final level must be zero or greater.')
 const valid = computed(() => errors.value.length === 0 && !finalError.value)
 // The initial level every calculation reads, as the initial end of the determination produces it.
-const determinedInitialLevel = computed(() => initialLevelFrom(determination.value.initial, initialLevel.value))
+const determinedInitialLevel = computed(() => initialLevelFrom(determination.value.initial, initialLevel.value, []))
 const finalLevel = computed(() => valid.value ? finalLevelFrom(determination.value.final, observations.value) : Number.NaN)
 const breakdown = computed(() => valid.value ? paymentBreakdown(note.value, { initial: determinedInitialLevel.value, final: finalLevel.value }) : null)
 const payment = computed(() => breakdown.value?.payment ?? null)
@@ -379,7 +379,7 @@ const chart = computed(() => {
   const pointsWhere = (keep: (level: number) => boolean) => levels.flatMap((level, i) => keep(level) ? [point(level, values[i])] : [])
   const atInitial = point(initial, maturityPayment(note.value, at(initial)))
   const ghost = ghostNote.value
-  const ghostInitial = ghost && initialLevelFrom(ghost.underlier.determination.initial, ghost.underlier.components[0].initialLevel)
+  const ghostInitial = ghost && initialLevelFrom(ghost.underlier.determination.initial, ghost.underlier.components[0].initialLevel, [])
   const ghostPoints = ghost && ghostInitial && noteIssues(ghost).length === 0 ? levels.map((level) => point(level, maturityPayment(ghost, { initial: ghostInitial, final: level }))).join(' ') : ''
   const floorAmount = principalAmount * (note.value.payoff.principalProtection ?? 0)
   const capAmount = principalAmount * (1 + (note.value.payoff.cap ?? 0))

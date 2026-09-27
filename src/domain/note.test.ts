@@ -370,10 +370,6 @@ describe('averaging determination', () => {
     expect(finalLevelFrom({ kind: 'final-date' }, [110])).toBe(110)
   })
 
-  it('reads the initial-level term when the initial level is given', () => {
-    expect(initialLevelFrom({ kind: 'given' }, 100)).toBe(100)
-  })
-
   it('pays on the average, not on the level on the last date', () => {
     const observed = [120, 130, 140, 150, 60]
     const finalLevel = finalLevelFrom(averaging(5).underlier.determination.final, observed)
@@ -395,5 +391,62 @@ describe('averaging determination', () => {
 
   it.each([1, 13, 2.5, Number.NaN])('rejects %s observations', (count) => {
     expect(noteIssues(averaging(count))).toEqual([{ field: 'observationCount', message: 'Observations must be a whole number from 2 to 12.' }])
+  })
+})
+
+describe('lookback determination', () => {
+  const upsideOnly: ProtectedParticipationNote = { ...note, payoff: { kind: 'participation', participations: [{ direction: 'upside', rate: 1 }] } }
+  const lookback = (observationCount: number, base: ProtectedParticipationNote = upsideOnly): ProtectedParticipationNote => ({
+    ...base,
+    underlier: { ...base.underlier, determination: { ...base.underlier.determination, initial: { kind: 'lookback', observationCount } } },
+  })
+  const paymentFrom = (n: ProtectedParticipationNote, afterPricing: number[], finalLevel: number) => {
+    const { initial } = n.underlier.determination
+    return maturityPayment(n, { initial: initialLevelFrom(initial, n.underlier.components[0].initialLevel, afterPricing), final: finalLevel })
+  }
+
+  it('reads the initial-level term when the initial level is given', () => {
+    expect(initialLevelFrom({ kind: 'given' }, 100, [])).toBe(100)
+  })
+
+  it('takes the lowest of the initial level and the levels observed after pricing', () => {
+    expect(initialLevelFrom({ kind: 'lookback', observationCount: 3 }, 100, [97, 92, 95])).toBe(92)
+  })
+
+  it('keeps the initial level when every observed level is above it', () => {
+    expect(initialLevelFrom({ kind: 'lookback', observationCount: 3 }, 100, [101, 104, 103])).toBe(100)
+  })
+
+  // The worked example in docs/lookback.md: principal 1,000, initial level 100, three observations, 100% upside participation.
+  it.each([
+    [[97, 92, 95], 110, 1000 * 110 / 92, 1100],
+    [[101, 104, 103], 110, 1100, 1100],
+    [[97, 92, 95], 90, 1000, 1000],
+  ])('pays on the return from the lookback level after %j, ending at %d', (afterPricing, finalLevel, withLookback, pointToPoint) => {
+    expect(paymentFrom(lookback(3), afterPricing, finalLevel)).toBeCloseTo(withLookback, 8)
+    expect(paymentFrom(upsideOnly, [], finalLevel)).toBeCloseTo(pointToPoint, 8)
+  })
+
+  it('combines with averaging of the final level', () => {
+    const both = lookback(3, { ...upsideOnly, underlier: { ...upsideOnly.underlier, determination: { initial: { kind: 'given' }, final: { kind: 'averaging', observationCount: 4 } } } })
+    expect(validateNote(both)).toEqual([])
+    // Lookback level 92; final level (100 + 120 + 90 + 130) ÷ 4 = 110.
+    const finalLevel = finalLevelFrom(both.underlier.determination.final, [100, 120, 90, 130])
+    expect(paymentFrom(both, [97, 92, 95], finalLevel)).toBeCloseTo(1000 * 110 / 92, 8)
+  })
+
+  it('rejects observed levels that do not match the count, or are not above zero', () => {
+    expect(() => initialLevelFrom({ kind: 'lookback', observationCount: 3 }, 100, [97, 92])).toThrow('Expected 3 observed levels after pricing.')
+    expect(() => initialLevelFrom({ kind: 'given' }, 100, [97])).toThrow('Expected 0 observed levels after pricing.')
+    for (const level of [0, -1, Number.NaN]) expect(() => initialLevelFrom({ kind: 'lookback', observationCount: 2 }, 100, [97, level])).toThrow('Observed levels after pricing must be greater than zero.')
+  })
+
+  it('accepts from 2 to 12 observations', () => {
+    expect(validateNote(lookback(2))).toEqual([])
+    expect(validateNote(lookback(12))).toEqual([])
+  })
+
+  it.each([1, 13, 2.5, Number.NaN])('rejects %s observations', (count) => {
+    expect(noteIssues(lookback(count))).toEqual([{ field: 'lookbackObservationCount', message: 'Lookback observations must be a whole number from 2 to 12.' }])
   })
 })

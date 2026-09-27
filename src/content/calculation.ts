@@ -53,7 +53,7 @@ export function calculationSteps(note: ProtectedParticipationNote, breakdown: Pa
   const withProtection = principalProtection !== undefined
   const hasDownside = note.payoff.participations.some(({ direction }) => direction === 'downside')
   const { determination } = note.underlier
-  const initialLevel = initialLevelFrom(determination.initial, component.initialLevel)
+  const initialLevel = initialLevelFrom(determination.initial, component.initialLevel, [])
   const finalLevel = finalLevelFrom(determination.final, observedLevels)
   const steps: Array<Omit<CalculationStep, 'n'>> = []
   if (determination.final.kind === 'averaging') {
