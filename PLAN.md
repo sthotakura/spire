@@ -69,6 +69,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Should the payoff kind be renamed now that participation is optional?
 - Would a capped, leveraged note also carry "Outperformance" in its name? The Swiss taxonomy describes that product without a cap, so the name is unverified and not shown.
 - Is a note with upside participation but no downside participation principal-protected, given that it repays principal on a fall? The name rules look only at the protection term.
+- Parked: the payoff chart's fixed 0 to 2 × principal axis squeezes the floor-to-cap band into about 15% of its height. Options are a taller chart, a tighter fixed range (which limits dragging), or an axis fitted to the payoff that holds still during a drag and keeps zero at the bottom (recommended, but it reverses the fixed-axis decision).
 
 ## Later exploration
 
