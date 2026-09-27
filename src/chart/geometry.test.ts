@@ -110,7 +110,7 @@ describe('arrow keys', () => {
 
 describe('payoff regimes', () => {
   const note = (payoff: Partial<ProtectedParticipationNote['payoff']>): ProtectedParticipationNote => ({ ...startingNote, payoff: { ...startingNote.payoff, ...payoff } })
-  const regimeAt = (n: ProtectedParticipationNote, level: number) => regimeOf(paymentBreakdown(n, level))
+  const regimeAt = (n: ProtectedParticipationNote, level: number) => regimeOf(paymentBreakdown(n, { initial: 100, final: level }))
 
   it('only repays principal when no participation applies', () => {
     expect(regimeAt(note({}), 60)).toBe('principal')

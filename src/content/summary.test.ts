@@ -5,7 +5,7 @@ import { summarize } from './summary'
 const note: ProtectedParticipationNote = {
   wrapper: 'note',
   redemption: 'bullet',
-  underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { kind: 'point-to-point' } },
+  underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } } },
   payoff: {
     kind: 'participation',
     participations: [
@@ -45,7 +45,7 @@ describe('note summary with a buffer', () => {
 
 describe('note summary with averaging', () => {
   it('says the change is measured to the average of the observed levels', () => {
-    const averaged = { ...note, underlier: { ...note.underlier, determination: { kind: 'averaging' as const, observationCount: 5 } } }
+    const averaged = { ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'given' as const }, final: { kind: 'averaging' as const, observationCount: 5 } } } }
     expect(sentence(averaged)).toContain('of Synthetic Index, measured from 100 to the average of 5 observed levels, with 90% principal protection.')
     expect(conceptOf(averaged, 'from 100 to the average of 5 observed levels')).toBe('determination')
   })

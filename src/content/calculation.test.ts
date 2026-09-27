@@ -5,12 +5,12 @@ import { calculationSteps } from './calculation'
 const noteWith = (participations: Participation[], principalProtection?: number, cap?: number): ProtectedParticipationNote => ({
   wrapper: 'note',
   redemption: 'bullet',
-  underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { kind: 'point-to-point' } },
+  underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } } },
   payoff: { kind: 'participation', participations, principalProtection, cap },
   principalAmount: 1000,
 })
 const both = [{ direction: 'downside' as const, rate: 0.1 }, { direction: 'upside' as const, rate: 1 }]
-const steps = (note: ProtectedParticipationNote, finalLevel: number) => calculationSteps(note, paymentBreakdown(note, finalLevel), [finalLevel])
+const steps = (note: ProtectedParticipationNote, finalLevel: number) => calculationSteps(note, paymentBreakdown(note, { initial: 100, final: finalLevel }), [finalLevel])
 const step = (note: ProtectedParticipationNote, finalLevel: number, title: string) => steps(note, finalLevel).find((candidate) => candidate.title === title)
 
 describe('calculation steps', () => {
@@ -73,9 +73,9 @@ describe('calculation steps', () => {
   })
 
   it('adds a step that averages the observed levels before the return', () => {
-    const note = { ...noteWith(both), underlier: { ...noteWith(both).underlier, determination: { kind: 'averaging' as const, observationCount: 4 } } }
+    const note = { ...noteWith(both), underlier: { ...noteWith(both).underlier, determination: { initial: { kind: 'given' as const }, final: { kind: 'averaging' as const, observationCount: 4 } } } }
     const observed = [100, 120, 90, 130]
-    const averaged = calculationSteps(note, paymentBreakdown(note, 110), observed)
+    const averaged = calculationSteps(note, paymentBreakdown(note, { initial: 100, final: 110 }), observed)
     expect(averaged.slice(0, 2)).toMatchObject([
       { n: 1, title: 'Final level of Synthetic Index', how: '(100 + 120 + 90 + 130) ÷ 4', value: '110', concept: 'determination' },
       { n: 2, title: 'Synthetic Index return', how: '110 ÷ 100 − 1', value: '+10%', concept: 'determination' },

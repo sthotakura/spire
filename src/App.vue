@@ -13,7 +13,7 @@ import { scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
-import { finalLevelFrom, maturityPayment, noteIssues, observationCountOf, paymentBreakdown, type Determination, type NoteIssueField, type ParticipationDirection, type ProtectedParticipationNote, type AssetKind } from './domain/note'
+import { finalLevelFrom, initialLevelFrom, maturityPayment, noteIssues, observationCountOf, paymentBreakdown, type Determination, type NoteIssueField, type ParticipationDirection, type ProtectedParticipationNote, type AssetKind } from './domain/note'
 import { fitObservations, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstObservationCount, startingFinalLevel, startingNote } from './domain/starting-note'
 
@@ -73,9 +73,13 @@ const assetKind = ref<AssetKind>(startingComponent.asset.kind)
 const assetName = ref(startingComponent.asset.name)
 const principal = ref(startingNote.principalAmount)
 const initialLevel = ref(startingComponent.initialLevel)
-const determinationKind = ref<Determination['kind']>(startingNote.underlier.determination.kind)
+// The one choice the outline offers. Point-to-point is given at the start and final-date at the end.
+const determinationKind = ref<'point-to-point' | 'averaging'>(startingNote.underlier.determination.final.kind === 'averaging' ? 'averaging' : 'point-to-point')
 const observationCount = ref(firstObservationCount)
-const determination = computed<Determination>(() => determinationKind.value === 'averaging' ? { kind: 'averaging', observationCount: observationCount.value } : { kind: 'point-to-point' })
+const determination = computed<Determination>(() => ({
+  initial: { kind: 'given' },
+  final: determinationKind.value === 'averaging' ? { kind: 'averaging', observationCount: observationCount.value } : { kind: 'final-date' },
+}))
 const averaging = computed(() => determinationKind.value === 'averaging')
 // Hypothetical observed levels, in date order, as last edited. They are a scenario input, not a note term.
 const observedLevels = ref<number[]>([startingFinalLevel])
@@ -216,14 +220,16 @@ const openName = (name: MarketingName) => {
   toggleHint(nameHintKey(name))
 }
 // The observed levels fitted to the count the determination reads. While the count is invalid they are left as they are.
-const observations = computed(() => issuesFor('observationCount').length ? observedLevels.value : fitObservations(observedLevels.value, observationCountOf(determination.value)))
+const observations = computed(() => issuesFor('observationCount').length ? observedLevels.value : fitObservations(observedLevels.value, observationCountOf(determination.value.final)))
 const setObservation = (index: number, level: number) => { observedLevels.value = observations.value.map((current, i) => i === index ? level : current) }
 // The chart handle sets the final level. With averaging it moves every observed level together, so the path keeps its shape.
 const setFinalLevel = (level: number) => { observedLevels.value = shiftToAverage(observations.value, level) }
 const finalError = computed(() => observations.value.every((level) => Number.isFinite(level) && level >= 0) ? '' : averaging.value ? 'Each observed level must be zero or greater.' : 'Final level must be zero or greater.')
 const valid = computed(() => errors.value.length === 0 && !finalError.value)
-const finalLevel = computed(() => valid.value ? finalLevelFrom(determination.value, observations.value) : Number.NaN)
-const breakdown = computed(() => valid.value ? paymentBreakdown(note.value, finalLevel.value) : null)
+// The initial level every calculation reads, as the initial end of the determination produces it.
+const determinedInitialLevel = computed(() => initialLevelFrom(determination.value.initial, initialLevel.value))
+const finalLevel = computed(() => valid.value ? finalLevelFrom(determination.value.final, observations.value) : Number.NaN)
+const breakdown = computed(() => valid.value ? paymentBreakdown(note.value, { initial: determinedInitialLevel.value, final: finalLevel.value }) : null)
 const payment = computed(() => breakdown.value?.payment ?? null)
 const outcomeSentence = computed(() => breakdown.value ? explainOutcome(note.value, breakdown.value) : '')
 const formatAmount = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 })
@@ -249,7 +255,7 @@ const buildTimestamp = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
 }).format(new Date(buildTimestampIso))
 
-const scenarios = computed(() => errors.value.length ? [] : scenarioRows(note.value).map(({ returnValue, finalLevel, breakdown }) => ({
+const scenarios = computed(() => errors.value.length ? [] : scenarioRows(note.value, determinedInitialLevel.value).map(({ returnValue, finalLevel, breakdown }) => ({
   final: finalLevel,
   returnValue,
   calculations: Object.fromEntries(selectedDirections.value.map((direction) => [
@@ -359,7 +365,9 @@ const chart = computed(() => {
   const initial = initialLevel.value
   const end = initial * levelAxisFactor
   const levels = Array.from({ length: 257 }, (_, i) => end * i / 256)
-  const breakdowns = levels.map((level) => paymentBreakdown(note.value, level))
+  // The payment at each final level on the axis, measured from the determined initial level.
+  const at = (level: number) => ({ initial: determinedInitialLevel.value, final: level })
+  const breakdowns = levels.map((level) => paymentBreakdown(note.value, at(level)))
   const values = breakdowns.map((b) => b.payment)
   const x = (level: number) => levelToX(level, initial, plot)
   const y = (amount: number) => amountToY(amount, principalAmount, plot)
@@ -369,9 +377,10 @@ const chart = computed(() => {
   const segments = splitByRegime(levels.map((level, i) => ({ point: point(level, values[i]), regime: regimeOf(breakdowns[i]) })))
   const legend = [...new Set(segments.map((segment) => segment.regime))].map((regime) => ({ regime, concept: regimeConcept[regime], label: regimeLabel[regime] }))
   const pointsWhere = (keep: (level: number) => boolean) => levels.flatMap((level, i) => keep(level) ? [point(level, values[i])] : [])
-  const atInitial = point(initial, maturityPayment(note.value, initial))
+  const atInitial = point(initial, maturityPayment(note.value, at(initial)))
   const ghost = ghostNote.value
-  const ghostPoints = ghost && noteIssues(ghost).length === 0 ? levels.map((level) => point(level, maturityPayment(ghost, level))).join(' ') : ''
+  const ghostInitial = ghost && initialLevelFrom(ghost.underlier.determination.initial, ghost.underlier.components[0].initialLevel)
+  const ghostPoints = ghost && ghostInitial && noteIssues(ghost).length === 0 ? levels.map((level) => point(level, maturityPayment(ghost, { initial: ghostInitial, final: level }))).join(' ') : ''
   const floorAmount = principalAmount * (note.value.payoff.principalProtection ?? 0)
   const capAmount = principalAmount * (1 + (note.value.payoff.cap ?? 0))
   const finalHandle = payment.value === null ? null : { x: x(clamp(finalLevel.value, 0, end)), y: pinnedY(payment.value) }
@@ -418,7 +427,7 @@ const chart = computed(() => {
     bufferHandle: bufferX === null ? null : { x: bufferX, y: y(principalAmount) },
     capHandle: capHandleX === null ? null : { x: capHandleX, y: pinnedY(capAmount) },
     floorHandle: protectionSelected.value ? { x: plot.left + (plot.right - plot.left) * 0.25, y: y(floorAmount) } : null,
-    slopeHandle: selectedParticipation.upside ? { x: x(slopeLevel(initial, capFraction.value)), y: pinnedY(maturityPayment(note.value, slopeLevel(initial, capFraction.value))) } : null,
+    slopeHandle: selectedParticipation.upside ? { x: x(slopeLevel(initial, capFraction.value)), y: pinnedY(maturityPayment(note.value, at(slopeLevel(initial, capFraction.value)))) } : null,
     finalHandle,
     bubble: finalHandle && bubbleX !== null && { text: bubbleText, width: bubbleWidth, x: bubbleX, y: finalHandle.y < plot.top + 40 || coversCapLabel ? finalHandle.y + 16 : finalHandle.y - 34 },
   }

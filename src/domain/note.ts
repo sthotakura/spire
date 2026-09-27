@@ -17,9 +17,24 @@ export interface UnderlierComponent {
   initialLevel: number
 }
 
-// How the final level is measured. Point-to-point takes the level on the one final date. Averaging takes the arithmetic
-// average of the levels on several dates before maturity (averaging out); the initial level is still a single given level.
-export type Determination = { kind: 'point-to-point' } | { kind: 'averaging'; observationCount: number }
+// How the initial level is measured. Given takes the initial-level term of the note as it stands.
+export type InitialDetermination = { kind: 'given' }
+
+// How the final level is measured. Final-date takes the level on the one final date. Averaging takes the arithmetic
+// average of the levels on several dates before maturity (averaging out).
+export type FinalDetermination = { kind: 'final-date' } | { kind: 'averaging'; observationCount: number }
+
+// How the underlier's change is measured, one end at a time. Given at the start and final-date at the end is point-to-point.
+export interface Determination {
+  initial: InitialDetermination
+  final: FinalDetermination
+}
+
+// The two levels the return is measured between, each as its end of the determination produces it.
+export interface DeterminedLevels {
+  initial: number
+  final: number
+}
 
 // The underlier produces the one return the payoff reads: which assets, where each starts, and how its change is measured.
 // A single underlier has exactly one component. A basket will hold several, and a rule that combines them, which only a basket can have.
@@ -63,8 +78,8 @@ export function noteIssues(note: ProtectedParticipationNote): NoteIssue[] {
   if (!component.asset.name.trim()) issues.push({ field: 'underlierName', message: 'Enter an underlier name.' })
   if (!Number.isFinite(note.principalAmount) || note.principalAmount <= 0) issues.push({ field: 'principalAmount', message: 'Principal must be greater than zero.' })
   if (!Number.isFinite(component.initialLevel) || component.initialLevel <= 0) issues.push({ field: 'initialLevel', message: 'Initial level must be greater than zero.' })
-  const determination = note.underlier.determination
-  if (determination.kind === 'averaging' && !(Number.isInteger(determination.observationCount) && determination.observationCount >= observationCountRange.min && determination.observationCount <= observationCountRange.max)) {
+  const final = note.underlier.determination.final
+  if (final.kind === 'averaging' && !(Number.isInteger(final.observationCount) && final.observationCount >= observationCountRange.min && final.observationCount <= observationCountRange.max)) {
     issues.push({ field: 'observationCount', message: `Observations must be a whole number from ${observationCountRange.min} to ${observationCountRange.max}.` })
   }
   const buffer = note.payoff.buffer
@@ -84,12 +99,17 @@ export function validateNote(note: ProtectedParticipationNote): string[] {
   return noteIssues(note).map(({ message }) => message)
 }
 
-// The number of observed levels the determination reads.
-export const observationCountOf = (determination: Determination) => determination.kind === 'averaging' ? determination.observationCount : 1
+// The number of observed levels the final end of the determination reads.
+export const observationCountOf = (determination: FinalDetermination) => determination.kind === 'averaging' ? determination.observationCount : 1
+
+// The initial level the payoff reads. Given reads the initial-level term.
+export function initialLevelFrom(determination: InitialDetermination, initialLevel: number): number {
+  return initialLevel
+}
 
 // The final level the payoff reads, from the levels observed on the determination dates, in date order.
-// Point-to-point reads the one level; averaging reads the arithmetic average of all of them.
-export function finalLevelFrom(determination: Determination, observedLevels: number[]): number {
+// Final-date reads the one level; averaging reads the arithmetic average of all of them.
+export function finalLevelFrom(determination: FinalDetermination, observedLevels: number[]): number {
   if (observedLevels.length !== observationCountOf(determination)) throw new Error(`Expected ${observationCountOf(determination)} observed levels.`)
   if (observedLevels.some((level) => !Number.isFinite(level) || level < 0)) throw new Error('Observed levels must be zero or greater.')
   return observedLevels.reduce((sum, level) => sum + level, 0) / observedLevels.length
@@ -117,13 +137,15 @@ export interface PaymentBreakdown {
   payment: number
 }
 
-// The final level is the one the determination produces (see finalLevelFrom), so the payoff does not depend on how it was measured.
-export function paymentBreakdown(note: ProtectedParticipationNote, finalLevel: number): PaymentBreakdown {
+// The levels are the ones the determination produces (see initialLevelFrom and finalLevelFrom), so the payoff does not
+// depend on how they were measured.
+export function paymentBreakdown(note: ProtectedParticipationNote, levels: DeterminedLevels): PaymentBreakdown {
   const errors = validateNote(note)
   if (errors.length) throw new Error(errors.join(' '))
-  if (!Number.isFinite(finalLevel) || finalLevel < 0) throw new Error('Final level must be zero or greater.')
+  if (!Number.isFinite(levels.initial) || levels.initial <= 0) throw new Error('Initial level must be greater than zero.')
+  if (!Number.isFinite(levels.final) || levels.final < 0) throw new Error('Final level must be zero or greater.')
 
-  const underlierReturn = finalLevel / note.underlier.components[0].initialLevel - 1
+  const underlierReturn = levels.final / levels.initial - 1
   const direction: ParticipationDirection = underlierReturn < 0 ? 'downside' : 'upside'
   const participationRate = note.payoff.participations.find((candidate) => candidate.direction === direction)?.rate
   const bufferAbsorbs = note.payoff.buffer === undefined ? undefined : Math.min(note.payoff.buffer, Math.max(0, -underlierReturn))
@@ -150,6 +172,6 @@ export function paymentBreakdown(note: ProtectedParticipationNote, finalLevel: n
   }
 }
 
-export function maturityPayment(note: ProtectedParticipationNote, finalLevel: number): number {
-  return paymentBreakdown(note, finalLevel).payment
+export function maturityPayment(note: ProtectedParticipationNote, levels: DeterminedLevels): number {
+  return paymentBreakdown(note, levels).payment
 }

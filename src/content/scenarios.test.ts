@@ -17,17 +17,17 @@ const notes: Array<[string, ProtectedParticipationNote]> = [
 
 describe('scenario rows', () => {
   it.each(notes)('match the maturity payment in every row for %s', (_, note) => {
-    const rows = scenarioRows(note)
+    const rows = scenarioRows(note, 100)
     expect(rows.map(({ returnValue }) => returnValue)).toEqual(scenarioReturns)
-    for (const row of rows) expect(row.breakdown.payment).toBe(maturityPayment(note, row.finalLevel))
+    for (const row of rows) expect(row.breakdown.payment).toBe(maturityPayment(note, { initial: 100, final: row.finalLevel }))
   })
 
   it('places each row at the initial level scaled by its return', () => {
-    expect(scenarioRows(startingNote).map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 110, 130])
+    expect(scenarioRows(startingNote, 100).map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 110, 130])
   })
 
   it('shows the floor applying only where it does', () => {
-    const rows = scenarioRows(notes[3][1])
+    const rows = scenarioRows(notes[3][1], 100)
     expect(rows.map(({ breakdown }) => breakdown.floorApplies)).toEqual([true, false, false, false])
     expect(rows.map(({ breakdown }) => Math.round(breakdown.payment))).toEqual([900, 1000, 1150, 1450])
   })
@@ -35,7 +35,7 @@ describe('scenario rows', () => {
 
 describe('scenario rows with a cap', () => {
   it('show the cap applying only where it does', () => {
-    const rows = scenarioRows(notes[4][1])
+    const rows = scenarioRows(notes[4][1], 100)
     expect(rows.map(({ breakdown }) => breakdown.capApplies)).toEqual([false, false, false, true])
     expect(rows.map(({ breakdown }) => Math.round(breakdown.payment))).toEqual([1000, 1000, 1150, 1200])
   })

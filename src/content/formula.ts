@@ -29,7 +29,7 @@ export function paymentFormula(note: ProtectedParticipationNote): FormulaLine[] 
 
   const lines: FormulaLine[] = []
   // Averaging defines the final level before the return reads it. Point-to-point needs no line: the final level is the one observed level.
-  if (note.underlier.determination.kind === 'averaging') lines.push({ lead: 'Final level', segments: [{ text: 'Average of the observed levels', concept: 'determination' }] })
+  if (note.underlier.determination.final.kind === 'averaging') lines.push({ lead: 'Final level', segments: [{ text: 'Average of the observed levels', concept: 'determination' }] })
   lines.push(
     { lead: 'Return', segments: [{ text: 'Final level ÷ Initial level − 1', concept: 'determination' }] },
     { lead: 'Payment', segments: payment },

@@ -7,7 +7,7 @@ export const startingNote: ProtectedParticipationNote = {
   underlier: {
     kind: 'single',
     components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }],
-    determination: { kind: 'point-to-point' },
+    determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } },
   },
   payoff: { kind: 'participation', participations: [] },
   principalAmount: 1000,

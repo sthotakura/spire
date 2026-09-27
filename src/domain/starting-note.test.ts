@@ -10,7 +10,7 @@ describe('starting note', () => {
   })
 
   it.each([0, 60, 100, startingFinalLevel, 130])('repays principal at a final level of %s', (finalLevel) => {
-    expect(maturityPayment(startingNote, finalLevel)).toBe(startingNote.principalAmount)
+    expect(maturityPayment(startingNote, { initial: 100, final: finalLevel })).toBe(startingNote.principalAmount)
   })
 
   it('stays valid when each feature is added with its first value', () => {
@@ -28,7 +28,7 @@ describe('starting note', () => {
     }
 
     expect(validateNote(withEveryFeature)).toEqual([])
-    expect(maturityPayment(withEveryFeature, 60)).toBeCloseTo(900, 8)
-    expect(maturityPayment(withEveryFeature, 110)).toBeCloseTo(1100, 8)
+    expect(maturityPayment(withEveryFeature, { initial: 100, final: 60 })).toBeCloseTo(900, 8)
+    expect(maturityPayment(withEveryFeature, { initial: 100, final: 110 })).toBeCloseTo(1100, 8)
   })
 })

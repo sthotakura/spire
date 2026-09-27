@@ -58,6 +58,9 @@ The second row shows that a rise after pricing leaves the pricing level in place
 2. **The determination splits into initial and final ends.** The alternative, lookback as a third single option, cannot combine lookback with averaging and leaves "point-to-point" describing both ends at once.
 3. **Observations are counted, without dates,** as for averaging, from 2 to 12. Real lookback periods often observe every trading day for weeks, so the limit is for hand entry only.
 4. **Naming.** "Initial level" stays the name of the term beside the asset, and the derived value is called "Lookback level" wherever it appears.
+5. **Every calculation reads the determined initial level**, as it reads the determined final level: the initial-level term when the initial end is given, the lookback level when it is lookback. This covers the return, the payment, the scenario table (its returns are measured from the determined initial level) and the chart's bend points. Only the chart's axis scale stays on the initial-level term, so editing an observation does not rescale the axis.
+6. **No chart handle for the lookback observations** at first. They are edited in the calculation, and the chart shows the lookback level as a reference line.
+7. **Starting and fitted observations.** A new lookback starts from the worked example's shape relative to the initial level (−3%, −8%, −5%). When the count changes, the earliest levels are kept, since they are the ones closest to pricing, and new levels are added at the end.
 
 ## Open questions
 

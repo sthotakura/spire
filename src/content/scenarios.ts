@@ -9,10 +9,11 @@ export interface ScenarioRow {
   breakdown: PaymentBreakdown
 }
 
-// One row per scenario return. Every number comes from the payment breakdown, so the table cannot disagree with the calculation.
-export function scenarioRows(note: ProtectedParticipationNote, returns: number[] = scenarioReturns): ScenarioRow[] {
+// One row per scenario return, measured from the determined initial level. Every number comes from the payment breakdown,
+// so the table cannot disagree with the calculation.
+export function scenarioRows(note: ProtectedParticipationNote, initialLevel: number, returns: number[] = scenarioReturns): ScenarioRow[] {
   return returns.map((returnValue) => {
-    const finalLevel = note.underlier.components[0].initialLevel * (1 + returnValue)
-    return { returnValue, finalLevel, breakdown: paymentBreakdown(note, finalLevel) }
+    const finalLevel = initialLevel * (1 + returnValue)
+    return { returnValue, finalLevel, breakdown: paymentBreakdown(note, { initial: initialLevel, final: finalLevel }) }
   })
 }

@@ -46,7 +46,7 @@ describe('payment formula', () => {
   })
 
   it('defines the final level as the average when the note averages', () => {
-    const averaged = { ...noteWith([up]), underlier: { ...startingNote.underlier, determination: { kind: 'averaging' as const, observationCount: 5 } } }
+    const averaged = { ...noteWith([up]), underlier: { ...startingNote.underlier, determination: { initial: { kind: 'given' as const }, final: { kind: 'averaging' as const, observationCount: 5 } } } }
     expect(text(averaged).slice(0, 2)).toEqual(['Final level = Average of the observed levels', 'Return = Final level ÷ Initial level − 1'])
     expect(paymentFormula(averaged)[0].segments[0].concept).toBe('determination')
   })

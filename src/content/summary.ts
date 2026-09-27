@@ -19,9 +19,9 @@ export function summarize(note: ProtectedParticipationNote): SummarySegment[] {
   const cap = note.payoff.cap
   const buffer = note.payoff.buffer
   const initialLevel = amount(note.underlier.components[0].initialLevel)
-  const determination = note.underlier.determination
-  const measured = determination.kind === 'averaging'
-    ? `from ${initialLevel} to the average of ${Number.isFinite(determination.observationCount) ? determination.observationCount : '—'} observed levels`
+  const final = note.underlier.determination.final
+  const measured = final.kind === 'averaging'
+    ? `from ${initialLevel} to the average of ${Number.isFinite(final.observationCount) ? final.observationCount : '—'} observed levels`
     : `point-to-point from ${initialLevel}`
 
   const payoff: SummarySegment[] = []

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { finalLevelFrom, maturityPayment, noteIssues, paymentBreakdown, validateNote, type ProtectedParticipationNote } from './note'
+import { finalLevelFrom, initialLevelFrom, maturityPayment, noteIssues, paymentBreakdown, validateNote, type ProtectedParticipationNote } from './note'
 
 const note: ProtectedParticipationNote = {
   wrapper: 'note',
@@ -7,7 +7,7 @@ const note: ProtectedParticipationNote = {
   underlier: {
     kind: 'single',
     components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }],
-    determination: { kind: 'point-to-point' },
+    determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } },
   },
   payoff: {
     kind: 'participation',
@@ -31,7 +31,7 @@ describe('protected participation note', () => {
     [110, 1150],
     [130, 1450],
   ])('pays %s final level as %s units', (finalLevel, expected) => {
-    expect(maturityPayment(note, finalLevel)).toBeCloseTo(expected, 8)
+    expect(maturityPayment(note, { initial: 100, final: finalLevel })).toBeCloseTo(expected, 8)
   })
 
   it.each([
@@ -43,9 +43,18 @@ describe('protected participation note', () => {
     expect(validateNote(invalidNote)).toContain(expectedError)
   })
 
+  it('measures the return from the initial level it is given', () => {
+    // 100 ÷ 80 − 1 = +25%, at 150% upside participation.
+    expect(maturityPayment(note, { initial: 80, final: 100 })).toBeCloseTo(1375, 8)
+  })
+
+  it('rejects invalid initial levels', () => {
+    for (const initial of [0, -1, Number.NaN]) expect(() => maturityPayment(note, { initial, final: 100 })).toThrow('Initial level must be greater than zero.')
+  })
+
   it('rejects invalid final levels', () => {
-    expect(() => maturityPayment(note, -1)).toThrow('Final level must be zero or greater.')
-    expect(() => maturityPayment(note, Number.NaN)).toThrow('Final level must be zero or greater.')
+    expect(() => maturityPayment(note, { initial: 100, final: -1 })).toThrow('Final level must be zero or greater.')
+    expect(() => maturityPayment(note, { initial: 100, final: Number.NaN })).toThrow('Final level must be zero or greater.')
   })
 
   it.each([
@@ -63,7 +72,7 @@ describe('protected participation note', () => {
       },
     }
 
-    expect(maturityPayment(partiallyProtectedNote, finalLevel)).toBeCloseTo(expected, 8)
+    expect(maturityPayment(partiallyProtectedNote, { initial: 100, final: finalLevel })).toBeCloseTo(expected, 8)
   })
 
   it('applies the configured downside participation rate before the floor', () => {
@@ -79,7 +88,7 @@ describe('protected participation note', () => {
       },
     }
 
-    expect(maturityPayment(partiallyProtectedNote, 80)).toBeCloseTo(900, 8)
+    expect(maturityPayment(partiallyProtectedNote, { initial: 100, final: 80 })).toBeCloseTo(900, 8)
   })
 
   it('allows a zero protection floor', () => {
@@ -88,7 +97,7 @@ describe('protected participation note', () => {
       payoff: { ...note.payoff, principalProtection: 0 },
     }
 
-    expect(maturityPayment(unprotectedNote, 0)).toBe(0)
+    expect(maturityPayment(unprotectedNote, { initial: 100, final: 0 })).toBe(0)
   })
 
   it.each([
@@ -109,8 +118,8 @@ describe('protected participation note', () => {
       },
     }
 
-    expect(maturityPayment(upsideOnlyNote, 60)).toBe(1000)
-    expect(maturityPayment(upsideOnlyNote, 110)).toBeCloseTo(1150, 8)
+    expect(maturityPayment(upsideOnlyNote, { initial: 100, final: 60 })).toBe(1000)
+    expect(maturityPayment(upsideOnlyNote, { initial: 100, final: 110 })).toBeCloseTo(1150, 8)
   })
 
   it('leaves positive returns unchanged when only downside participation is selected', () => {
@@ -123,8 +132,8 @@ describe('protected participation note', () => {
       },
     }
 
-    expect(maturityPayment(downsideOnlyNote, 90)).toBeCloseTo(900, 8)
-    expect(maturityPayment(downsideOnlyNote, 110)).toBe(1000)
+    expect(maturityPayment(downsideOnlyNote, { initial: 100, final: 90 })).toBeCloseTo(900, 8)
+    expect(maturityPayment(downsideOnlyNote, { initial: 100, final: 110 })).toBe(1000)
   })
 
   it.each([
@@ -142,7 +151,7 @@ describe('protected participation note', () => {
     const principalOnlyNote: ProtectedParticipationNote = { ...note, payoff: { kind: 'participation', participations: [] } }
 
     expect(validateNote(principalOnlyNote)).toEqual([])
-    for (const finalLevel of [0, 60, 100, 110, 130]) expect(maturityPayment(principalOnlyNote, finalLevel)).toBe(1000)
+    for (const finalLevel of [0, 60, 100, 110, 130]) expect(maturityPayment(principalOnlyNote, { initial: 100, final: finalLevel })).toBe(1000)
   })
 
   it('rejects a direction selected more than once', () => {
@@ -164,16 +173,16 @@ describe('protected participation note', () => {
       payoff: { kind: 'participation', participations: [{ direction: 'downside', rate: 1.5 }] },
     }
 
-    expect(maturityPayment(unprotectedNote, 60)).toBeCloseTo(400, 8)
-    expect(maturityPayment(unprotectedNote, 20)).toBe(0)
-    expect(maturityPayment(unprotectedNote, 0)).toBe(0)
+    expect(maturityPayment(unprotectedNote, { initial: 100, final: 60 })).toBeCloseTo(400, 8)
+    expect(maturityPayment(unprotectedNote, { initial: 100, final: 20 })).toBe(0)
+    expect(maturityPayment(unprotectedNote, { initial: 100, final: 0 })).toBe(0)
   })
 
   it('treats absent and zero protection alike in payment but not in structure', () => {
     const absent: ProtectedParticipationNote = { ...note, payoff: { kind: 'participation', participations: [{ direction: 'downside', rate: 1 }] } }
     const zero: ProtectedParticipationNote = { ...absent, payoff: { ...absent.payoff, principalProtection: 0 } }
 
-    for (const finalLevel of [0, 50, 100, 120]) expect(maturityPayment(absent, finalLevel)).toBe(maturityPayment(zero, finalLevel))
+    for (const finalLevel of [0, 50, 100, 120]) expect(maturityPayment(absent, { initial: 100, final: finalLevel })).toBe(maturityPayment(zero, { initial: 100, final: finalLevel }))
     expect(absent.payoff.principalProtection).toBeUndefined()
   })
 })
@@ -182,7 +191,7 @@ describe('payment breakdown', () => {
   const protectedNote: ProtectedParticipationNote = { ...note, payoff: { ...note.payoff, principalProtection: 0.9 } }
 
   it('breaks a rise into its steps', () => {
-    const breakdown = paymentBreakdown(protectedNote, 110)
+    const breakdown = paymentBreakdown(protectedNote, { initial: 100, final: 110 })
 
     expect(breakdown.underlierReturn).toBeCloseTo(0.1, 8)
     expect(breakdown.direction).toBe('upside')
@@ -195,7 +204,7 @@ describe('payment breakdown', () => {
   })
 
   it('shows the floor applying after a fall', () => {
-    const breakdown = paymentBreakdown(protectedNote, 60)
+    const breakdown = paymentBreakdown(protectedNote, { initial: 100, final: 60 })
 
     expect(breakdown.direction).toBe('downside')
     expect(breakdown.participationRate).toBe(1)
@@ -205,7 +214,7 @@ describe('payment breakdown', () => {
   })
 
   it('has a floor of zero and no rate for a note with no features', () => {
-    const breakdown = paymentBreakdown({ ...note, payoff: { kind: 'participation', participations: [] } }, 110)
+    const breakdown = paymentBreakdown({ ...note, payoff: { kind: 'participation', participations: [] } }, { initial: 100, final: 110 })
 
     expect(breakdown.participationRate).toBeUndefined()
     expect(breakdown.participatedReturn).toBe(0)
@@ -215,9 +224,9 @@ describe('payment breakdown', () => {
   })
 
   it('agrees with the maturity payment and rejects what it rejects', () => {
-    for (const finalLevel of [0, 40, 90, 100, 100.5, 130]) expect(paymentBreakdown(protectedNote, finalLevel).payment).toBe(maturityPayment(protectedNote, finalLevel))
-    expect(() => paymentBreakdown(protectedNote, -1)).toThrow('Final level must be zero or greater.')
-    expect(() => paymentBreakdown({ ...protectedNote, principalAmount: 0 }, 100)).toThrow('Principal must be greater than zero.')
+    for (const finalLevel of [0, 40, 90, 100, 100.5, 130]) expect(paymentBreakdown(protectedNote, { initial: 100, final: finalLevel }).payment).toBe(maturityPayment(protectedNote, { initial: 100, final: finalLevel }))
+    expect(() => paymentBreakdown(protectedNote, { initial: 100, final: -1 })).toThrow('Final level must be zero or greater.')
+    expect(() => paymentBreakdown({ ...protectedNote, principalAmount: 0 }, { initial: 100, final: 100 })).toThrow('Principal must be greater than zero.')
   })
 })
 
@@ -233,50 +242,50 @@ describe('cap', () => {
     [130, 1200],
     [500, 1200],
   ])('pays %s final level as %s units with 150% upside participation and a 20% cap', (finalLevel, expected) => {
-    expect(maturityPayment(capped, finalLevel)).toBeCloseTo(expected, 8)
+    expect(maturityPayment(capped, { initial: 100, final: finalLevel })).toBeCloseTo(expected, 8)
   })
 
   it('limits the return on principal, so participation above 100% reaches the cap sooner', () => {
     const at100 = { ...capped, payoff: { ...capped.payoff, participations: [{ direction: 'upside' as const, rate: 1 }] } }
-    expect(maturityPayment(at100, 119)).toBeCloseTo(1190, 8)
-    expect(maturityPayment(at100, 121)).toBeCloseTo(1200, 8)
+    expect(maturityPayment(at100, { initial: 100, final: 119 })).toBeCloseTo(1190, 8)
+    expect(maturityPayment(at100, { initial: 100, final: 121 })).toBeCloseTo(1200, 8)
   })
 
   it('never binds below the cap, whatever the participation rate', () => {
     const lowRate = { ...capped, payoff: { ...capped.payoff, participations: [{ direction: 'upside' as const, rate: 0.1 }] } }
-    expect(maturityPayment(lowRate, 300)).toBeCloseTo(1200, 8)
-    expect(maturityPayment(lowRate, 160)).toBeCloseTo(1060, 8)
+    expect(maturityPayment(lowRate, { initial: 100, final: 300 })).toBeCloseTo(1200, 8)
+    expect(maturityPayment(lowRate, { initial: 100, final: 160 })).toBeCloseTo(1060, 8)
   })
 
   it('has no effect without upside participation or on a fall', () => {
     const downsideOnly = { ...capped, payoff: { ...capped.payoff, participations: [{ direction: 'downside' as const, rate: 1 }] } }
-    expect(maturityPayment(downsideOnly, 200)).toBe(1000)
-    expect(maturityPayment(downsideOnly, 95)).toBeCloseTo(950, 8)
-    expect(maturityPayment(capped, 60)).toBe(maturityPayment({ ...capped, payoff: { ...capped.payoff, cap: undefined } }, 60))
+    expect(maturityPayment(downsideOnly, { initial: 100, final: 200 })).toBe(1000)
+    expect(maturityPayment(downsideOnly, { initial: 100, final: 95 })).toBeCloseTo(950, 8)
+    expect(maturityPayment(capped, { initial: 100, final: 60 })).toBe(maturityPayment({ ...capped, payoff: { ...capped.payoff, cap: undefined } }, { initial: 100, final: 60 }))
   })
 
   it('works without protection', () => {
     const unprotected = { ...capped, payoff: { ...capped.payoff, principalProtection: undefined } }
-    expect(maturityPayment(unprotected, 130)).toBeCloseTo(1200, 8)
-    expect(maturityPayment(unprotected, 60)).toBeCloseTo(600, 8)
+    expect(maturityPayment(unprotected, { initial: 100, final: 130 })).toBeCloseTo(1200, 8)
+    expect(maturityPayment(unprotected, { initial: 100, final: 60 })).toBeCloseTo(600, 8)
   })
 
   it('breaks the cap into steps', () => {
-    const atCap = paymentBreakdown(capped, 130)
+    const atCap = paymentBreakdown(capped, { initial: 100, final: 130 })
     expect(atCap.uncappedPayment).toBeCloseTo(1450, 8)
     expect(atCap.capAmount).toBeCloseTo(1200, 8)
     expect(atCap.capApplies).toBe(true)
     expect(atCap.unflooredPayment).toBeCloseTo(1200, 8)
     expect(atCap.payment).toBeCloseTo(1200, 8)
 
-    const belowCap = paymentBreakdown(capped, 110)
+    const belowCap = paymentBreakdown(capped, { initial: 100, final: 110 })
     expect(belowCap.capApplies).toBe(false)
     expect(belowCap.unflooredPayment).toBeCloseTo(1150, 8)
     expect(belowCap.uncappedPayment).toBe(belowCap.unflooredPayment)
   })
 
   it('leaves the cap out of the breakdown when the note has none', () => {
-    const breakdown = paymentBreakdown(note, 130)
+    const breakdown = paymentBreakdown(note, { initial: 100, final: 130 })
     expect(breakdown.capAmount).toBeUndefined()
     expect(breakdown.capApplies).toBe(false)
     expect(breakdown.payment).toBeCloseTo(1450, 8)
@@ -302,39 +311,39 @@ describe('buffer', () => {
     [100, 1000],
     [110, 1150],
   ])('pays %s final level as %s units with a 10% buffer and 100% downside participation', (finalLevel, expected) => {
-    expect(maturityPayment(buffered, finalLevel)).toBeCloseTo(expected, 8)
+    expect(maturityPayment(buffered, { initial: 100, final: finalLevel })).toBeCloseTo(expected, 8)
   })
 
   it('applies the downside rate to the fall beyond the buffer', () => {
     const halfRate = { ...buffered, payoff: { ...buffered.payoff, participations: [{ direction: 'downside' as const, rate: 0.5 }] } }
-    expect(maturityPayment(halfRate, 70)).toBeCloseTo(900, 8)
+    expect(maturityPayment(halfRate, { initial: 100, final: 70 })).toBeCloseTo(900, 8)
   })
 
   it('has no effect without downside participation', () => {
     const upsideOnly = { ...buffered, payoff: { ...buffered.payoff, participations: [{ direction: 'upside' as const, rate: 1.5 }] } }
-    for (const finalLevel of [0, 50, 95]) expect(maturityPayment(upsideOnly, finalLevel)).toBe(1000)
+    for (const finalLevel of [0, 50, 95]) expect(maturityPayment(upsideOnly, { initial: 100, final: finalLevel })).toBe(1000)
   })
 
   it('combines with a protection floor, so the holder bears only the losses between the two', () => {
     const both = { ...buffered, payoff: { ...buffered.payoff, principalProtection: 0.9 } }
-    expect(maturityPayment(both, 95)).toBe(1000)
-    expect(maturityPayment(both, 85)).toBeCloseTo(950, 8)
-    expect(maturityPayment(both, 80)).toBeCloseTo(900, 8)
-    expect(maturityPayment(both, 40)).toBeCloseTo(900, 8)
+    expect(maturityPayment(both, { initial: 100, final: 95 })).toBe(1000)
+    expect(maturityPayment(both, { initial: 100, final: 85 })).toBeCloseTo(950, 8)
+    expect(maturityPayment(both, { initial: 100, final: 80 })).toBeCloseTo(900, 8)
+    expect(maturityPayment(both, { initial: 100, final: 40 })).toBeCloseTo(900, 8)
   })
 
   it('breaks the buffer into steps', () => {
-    const past = paymentBreakdown(buffered, 70)
+    const past = paymentBreakdown(buffered, { initial: 100, final: 70 })
     expect(past.bufferAbsorbs).toBeCloseTo(0.1, 8)
     expect(past.participatedReturn).toBeCloseTo(-0.2, 8)
     expect(past.payment).toBeCloseTo(800, 8)
 
-    const within = paymentBreakdown(buffered, 95)
+    const within = paymentBreakdown(buffered, { initial: 100, final: 95 })
     expect(within.bufferAbsorbs).toBeCloseTo(0.05, 8)
     expect(within.participatedReturn).toBeCloseTo(0, 8)
 
-    expect(paymentBreakdown(buffered, 110).bufferAbsorbs).toBe(0)
-    expect(paymentBreakdown(note, 70).bufferAbsorbs).toBeUndefined()
+    expect(paymentBreakdown(buffered, { initial: 100, final: 110 }).bufferAbsorbs).toBe(0)
+    expect(paymentBreakdown(note, { initial: 100, final: 70 }).bufferAbsorbs).toBeUndefined()
   })
 
   it.each([0, -0.1, 1.1, Number.NaN])('rejects a buffer of %s', (buffer) => {
@@ -346,32 +355,36 @@ describe('buffer', () => {
   it('allows a buffer of 100%, which absorbs any fall', () => {
     const full = { ...buffered, payoff: { ...buffered.payoff, buffer: 1 } }
     expect(validateNote(full)).toEqual([])
-    expect(maturityPayment(full, 0)).toBe(1000)
+    expect(maturityPayment(full, { initial: 100, final: 0 })).toBe(1000)
   })
 })
 
 describe('averaging determination', () => {
-  const averaging = (observationCount: number): ProtectedParticipationNote => ({ ...note, underlier: { ...note.underlier, determination: { kind: 'averaging', observationCount } } })
+  const averaging = (observationCount: number): ProtectedParticipationNote => ({ ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'given' }, final: { kind: 'averaging', observationCount } } } })
 
   it('takes the final level as the arithmetic average of the observed levels', () => {
     expect(finalLevelFrom({ kind: 'averaging', observationCount: 4 }, [100, 120, 90, 130])).toBe(110)
   })
 
   it('reads the one observed level for point-to-point', () => {
-    expect(finalLevelFrom({ kind: 'point-to-point' }, [110])).toBe(110)
+    expect(finalLevelFrom({ kind: 'final-date' }, [110])).toBe(110)
+  })
+
+  it('reads the initial-level term when the initial level is given', () => {
+    expect(initialLevelFrom({ kind: 'given' }, 100)).toBe(100)
   })
 
   it('pays on the average, not on the level on the last date', () => {
     const observed = [120, 130, 140, 150, 60]
-    const finalLevel = finalLevelFrom(averaging(5).underlier.determination, observed)
+    const finalLevel = finalLevelFrom(averaging(5).underlier.determination.final, observed)
     expect(finalLevel).toBe(120)
-    expect(maturityPayment(averaging(5), finalLevel)).toBeCloseTo(1300, 8)
-    expect(maturityPayment(note, observed[observed.length - 1])).toBe(1000)
+    expect(maturityPayment(averaging(5), { initial: 100, final: finalLevel })).toBeCloseTo(1300, 8)
+    expect(maturityPayment(note, { initial: 100, final: observed[observed.length - 1] })).toBe(1000)
   })
 
   it('rejects observed levels that do not match the count, or are negative', () => {
     expect(() => finalLevelFrom({ kind: 'averaging', observationCount: 3 }, [100, 110])).toThrow('Expected 3 observed levels.')
-    expect(() => finalLevelFrom({ kind: 'point-to-point' }, [100, 110])).toThrow('Expected 1 observed levels.')
+    expect(() => finalLevelFrom({ kind: 'final-date' }, [100, 110])).toThrow('Expected 1 observed levels.')
     expect(() => finalLevelFrom({ kind: 'averaging', observationCount: 2 }, [100, -1])).toThrow('Observed levels must be zero or greater.')
   })
 

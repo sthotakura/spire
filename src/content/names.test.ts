@@ -5,7 +5,7 @@ import { marketingNames } from './names'
 const noteWith = (payoff: { participations?: Participation[]; principalProtection?: number; cap?: number; buffer?: number }): ProtectedParticipationNote => ({
   wrapper: 'note',
   redemption: 'bullet',
-  underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { kind: 'point-to-point' } },
+  underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } } },
   payoff: { kind: 'participation', participations: [], ...payoff },
   principalAmount: 1000,
 })
