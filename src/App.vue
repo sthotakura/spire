@@ -401,7 +401,7 @@ const chart = computed(() => {
                         <button type="button" class="xbtn" aria-label="Remove cap" @click.stop="removeFeature('cap')">×</button>
                       </div>
                       <ul v-if="issuesFor('cap').length" class="errors" role="alert"><li v-for="message in issuesFor('cap')" :key="message">{{ message }}</li></ul>
-                      <p v-if="!selectedParticipation.upside" class="row-note">Has no effect until upside participation is added.</p>
+                      <p v-if="!selectedParticipation.upside" class="row-note">A cap has no meaning unless there is some upside exposure to cap.</p>
                     </li>
                     <li v-if="selectedParticipation.downside" :class="['node', { sel: highlighted('downside') }]" :style="conceptStyle('downside')">
                       <div class="nrow" @click="select('downside')" @focusin="focusRow('downside')">
