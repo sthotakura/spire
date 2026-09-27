@@ -6,6 +6,7 @@ import NumberInput from './components/NumberInput.vue'
 import TabGroup from './components/TabGroup.vue'
 import type { ConceptId } from './content/concepts'
 import { marketingNames, type MarketingName } from './content/names'
+import { paymentFormula } from './content/formula'
 import { explainOutcome } from './content/outcome'
 import { scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
@@ -170,6 +171,9 @@ const note = computed<ProtectedParticipationNote>(() => ({
   principalAmount: principal.value,
 }))
 const jsonLines = computed(() => structureLines(note.value))
+const formula = computed(() => paymentFormula(note.value))
+// The asset the final level belongs to. A basket will need one final level per asset, each named this way.
+const underlierLabel = computed(() => assetName.value.trim() || 'the underlier')
 // Copies the JSON exactly as shown. The label says whether it worked, then returns to "Copy" after a moment.
 const copyState = ref<'idle' | 'copied' | 'failed'>('idle')
 let copyReset: ReturnType<typeof setTimeout> | undefined
@@ -251,7 +255,7 @@ const calculation = computed(() => {
   const withCap = capSelected.value
   // Numbers follow the order of the steps, so the closing step can refer to the ones it combines.
   const steps: Array<{ title: string; how: string; value: string; muted?: boolean; result?: boolean; concept?: ConceptId }> = [
-    { title: 'Underlier return', how: `${formatAmount(finalLevel.value)} ÷ ${formatAmount(initialLevel.value)} − 1`, value: signedPercent(b.underlierReturn), concept: 'determination' },
+    { title: `${assetName.value.trim() || 'Underlier'} return`, how: `${formatAmount(finalLevel.value)} ÷ ${formatAmount(initialLevel.value)} − 1`, value: signedPercent(b.underlierReturn), concept: 'determination' },
     b.participationRate === undefined
       ? { title: 'Participation', how: `No ${direction} participation is selected, so principal is unchanged`, value: 'Not added', muted: true, concept: b.direction }
       : { title: 'Participation', how: `${formatPercent(b.participationRate)} ${direction} × ${signedPercent(b.underlierReturn)}`, value: signedPercent(b.participatedReturn), concept: b.direction },
@@ -573,11 +577,11 @@ const chart = computed(() => {
               <g v-if="chart.slopeHandle" :class="['handle', { on: highlighted('upside') }]" :style="conceptStyle('upside')" :transform="`translate(${chart.slopeHandle.x} ${chart.slopeHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Upside participation rate" aria-valuemin="5" aria-valuemax="200" :aria-valuenow="participationPercent.upside" :aria-valuetext="`${participationPercent.upside}% upside participation`" @pointerdown="startDrag('slope', $event)" @pointermove="dragMove('slope', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('slope', $event)" @focus="focusHandle('slope')">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
-              <g v-if="chart.finalHandle" class="handle final-dot" :transform="`translate(${chart.finalHandle.x} ${chart.finalHandle.y})`" tabindex="0" role="slider" aria-label="Hypothetical final underlier level" aria-valuemin="0" :aria-valuemax="Math.floor(chart.end)" :aria-valuenow="finalLevel" :aria-valuetext="`Final level ${formatAmount(finalLevel)}, payment ${formatAmount(payment ?? 0)}`" @pointerdown="startDrag('final', $event)" @pointermove="dragMove('final', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('final', $event)">
+              <g v-if="chart.finalHandle" class="handle final-dot" :transform="`translate(${chart.finalHandle.x} ${chart.finalHandle.y})`" tabindex="0" role="slider" :aria-label="`Hypothetical final level of ${underlierLabel}`" aria-valuemin="0" :aria-valuemax="Math.floor(chart.end)" :aria-valuenow="finalLevel" :aria-valuetext="`Final level ${formatAmount(finalLevel)}, payment ${formatAmount(payment ?? 0)}`" @pointerdown="startDrag('final', $event)" @pointermove="dragMove('final', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('final', $event)">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
             </svg>
-            <div class="chart-axis-title">Final underlier level →</div>
+            <div class="chart-axis-title">Final level of {{ underlierLabel }} →</div>
             <ul class="chart-legend" aria-label="What sets the payment"><li v-for="item in chart.legend" :key="item.regime" :style="conceptStyle(item.concept)"><span class="legend-swatch" aria-hidden="true"></span>{{ item.label }}</li></ul>
             <p class="chart-hint">Drag a handle on the chart, or focus one and use the arrow keys. Shift takes bigger steps. A grey line shows the payoff before your last change.</p>
           </template>
@@ -586,8 +590,9 @@ const chart = computed(() => {
 
           <TabGroup v-model="activeTab" :tabs="tabs" label="The payment and its scenarios">
             <template #calculation>
-              <div class="hint-field"><div class="field-heading"><label for="final-level">Hypothetical final level</label><button type="button" class="hint-button" aria-label="About final underlier level" aria-controls="final-level-hint" :aria-expanded="activeHint === 'final-level'" @click="toggleHint('final-level')">ⓘ</button><p v-if="activeHint === 'final-level'" id="final-level-hint" class="hint-text" role="tooltip">A hypothetical level for this scenario. Changing it does not change the note's terms.</p></div><NumberInput id="final-level" v-model="finalLevel" class="final-input" /></div>
+              <div class="hint-field"><div class="field-heading"><label for="final-level">Hypothetical final level of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About final underlier level" aria-controls="final-level-hint" :aria-expanded="activeHint === 'final-level'" @click="toggleHint('final-level')">ⓘ</button><p v-if="activeHint === 'final-level'" id="final-level-hint" class="hint-text" role="tooltip">A hypothetical level for this scenario. Changing it does not change the note's terms.</p></div><NumberInput id="final-level" v-model="finalLevel" class="final-input" /></div>
               <p v-if="finalError" class="errors" role="alert">{{ finalError }}</p>
+              <div class="formula" role="group" aria-label="Payment rule"><div v-for="(line, index) in formula" :key="index" :class="['fline', { limit: !line.lead }]"><span class="flead">{{ line.lead }}</span><span class="feq">{{ line.lead ? '=' : '' }}</span><span class="fexpr"><template v-for="(segment, part) in line.segments" :key="part"><span v-if="segment.concept" :class="['fterm', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)">{{ segment.text }}</span><template v-else>{{ segment.text }}</template></template></span></div></div>
               <ol class="calc-steps" aria-live="polite"><li v-for="step in calculation" :key="step.n" :class="{ hl: step.concept && highlighted(step.concept), muted: step.muted, result: step.result }"><span class="calc-n">{{ step.n }}</span><b>{{ step.title }}</b><span class="calc-value">{{ step.value }}</span><span class="calc-how">{{ step.how }}</span></li></ol>
               <p v-if="outcomeSentence" class="outcome" aria-live="polite">{{ outcomeSentence }}</p>
             </template>

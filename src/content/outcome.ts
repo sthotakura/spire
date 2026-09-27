@@ -24,10 +24,13 @@ export function explainOutcome(note: ProtectedParticipationNote, breakdown: Paym
   }
 
   const reasons: string[] = []
-  if (hasCap) reasons.push(`the ${units(capAmount)} cap ${capApplies ? 'applies' : 'does not apply'}`)
-  if (hasProtection) reasons.push(`the ${units(floor)} floor ${floorApplies ? 'applies' : 'does not apply'}`)
-  else if (unflooredPayment < 0) reasons.push('the payment cannot fall below zero')
-  else if (underlierReturn < 0 && participationRate !== undefined) reasons.push('there is no principal protection')
+  if (hasCap && hasProtection && !capApplies && !floorApplies) reasons.push(`neither the ${units(capAmount)} cap nor the ${units(floor)} floor applies`)
+  else {
+    if (hasCap) reasons.push(`the ${units(capAmount)} cap ${capApplies ? 'applies' : 'does not apply'}`)
+    if (hasProtection) reasons.push(`the ${units(floor)} floor ${floorApplies ? 'applies' : 'does not apply'}`)
+    else if (unflooredPayment < 0) reasons.push('the payment cannot fall below zero')
+    else if (underlierReturn < 0 && participationRate !== undefined) reasons.push('there is no principal protection')
+  }
   const reason = reasons.join(' and ')
 
   const difference = Math.round((payment - principal) * 100) / 100

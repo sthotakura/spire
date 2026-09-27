@@ -13,6 +13,10 @@ const both = [{ direction: 'downside' as const, rate: 1 }, { direction: 'upside'
 const explain = (note: ProtectedParticipationNote, finalLevel: number) => explainOutcome(note, paymentBreakdown(note, finalLevel))
 
 describe('outcome explanation', () => {
+  it('says neither limit applies when the cap and the floor both do not bind', () => {
+    expect(explain(noteWith(both, 0.9, 0.2), 110)).toBe('The underlier rose 10%. Upside participation of 150% adds 15% to principal. Neither the 1,200 cap nor the 900 floor applies, so the contractual payment is 1,150, 150 more than principal.')
+  })
+
   it('explains a rise with upside participation', () => {
     expect(explain(noteWith(both, 0.9), 110)).toBe('The underlier rose 10%. Upside participation of 150% adds 15% to principal. The 900 floor does not apply, so the contractual payment is 1,150, 150 more than principal.')
   })

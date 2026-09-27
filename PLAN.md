@@ -90,6 +90,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Show a one-line meaning under each part of the outline, in neutral wording for investors and structurers alike, with fuller definitions in the ⓘ hints.
 - Make determination a dropdown like the others, show digit separators in number fields, and drop the "units" label from amounts.
 - Keep one **Add feature** entry point for payoff features; the empty payoff names two examples as plain text.
+- Show the payment rule above the worked calculation, built from the features that are added, and name the asset wherever the final level appears, so a basket can later show one final level per asset.
 
 ## Outside this milestone
 
