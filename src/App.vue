@@ -4,6 +4,7 @@ import { amountToY, capFromY, clamp, clampCap, clampFinalLevel, clampProtection,
 import HintToggle from './components/HintToggle.vue'
 import TabGroup from './components/TabGroup.vue'
 import type { ConceptId } from './content/concepts'
+import { marketingNames, type MarketingName } from './content/names'
 import { explainOutcome } from './content/outcome'
 import { scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
@@ -123,7 +124,7 @@ const addFirstMatch = () => {
 }
 const closeOnOutsidePointer = (event: PointerEvent) => {
   if (paletteOpen.value && !paletteRoot.value?.contains(event.target as Node)) paletteOpen.value = false
-  if (activeHint.value && !(event.target as Element).closest('.hint-button, .hint-text')) activeHint.value = null
+  if (activeHint.value && !(event.target as Element).closest('.hint-button, .hint-text, .name-chip')) activeHint.value = null
 }
 onMounted(() => document.addEventListener('pointerdown', closeOnOutsidePointer))
 onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutsidePointer))
@@ -149,6 +150,14 @@ const issues = computed(() => noteIssues(note.value))
 const errors = computed(() => issues.value.map(({ message }) => message))
 const issuesFor = (...fields: NoteIssueField[]) => issues.value.filter(({ field }) => fields.includes(field)).map(({ message }) => message)
 const summary = computed(() => summarize(note.value))
+const names = computed(() => marketingNames(note.value))
+const nameHintKey = (name: MarketingName) => `name:${name.name}`
+const nameHintId = (name: MarketingName) => `${name.name.toLowerCase().replace(/[^a-z]+/g, '-')}-hint`
+// A name that rests on one part of the note selects that part. One that rests on several selects the whole payoff.
+const openName = (name: MarketingName) => {
+  select(name.concepts.length === 1 ? name.concepts[0] : 'payoff')
+  toggleHint(nameHintKey(name))
+}
 const finalError = computed(() => !Number.isFinite(finalLevel.value) || finalLevel.value < 0 ? 'Final level must be zero or greater.' : '')
 const valid = computed(() => errors.value.length === 0 && !finalError.value)
 const breakdown = computed(() => valid.value ? paymentBreakdown(note.value, finalLevel.value) : null)
@@ -353,6 +362,8 @@ const chart = computed(() => {
 
       <p class="summary-sentence" aria-live="polite"><template v-for="(segment, index) in summary" :key="index"><button v-if="segment.concept" type="button" :class="['concept', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)" :aria-pressed="highlighted(segment.concept)" @click="select(segment.concept)">{{ segment.text }}</button><span v-else>{{ segment.text }}</span></template></p>
 
+      <div v-if="names.length" class="names"><span id="names-label" class="names-label">Often marketed as</span><div class="names-list" role="group" aria-labelledby="names-label"><button v-for="name in names" :key="name.name" type="button" class="name-chip" :aria-expanded="activeHint === nameHintKey(name)" :aria-controls="nameHintId(name)" @click="openName(name)">{{ name.name }}</button></div><template v-for="name in names" :key="name.name"><p v-if="activeHint === nameHintKey(name)" :id="nameHintId(name)" class="hint-text" role="tooltip">{{ name.reason }}</p></template></div>
+
       <div class="workspace">
         <section class="panel outline" aria-label="Product structure">
           <h2>Structure</h2>
@@ -449,7 +460,7 @@ const chart = computed(() => {
         </section>
 
         <section class="panel preview" aria-label="Payoff preview">
-          <div class="preview-heading"><div><p class="eyebrow">Live preview</p><h2>Payoff at maturity</h2></div><span class="pill">Note · bullet</span></div>
+          <div class="preview-heading"><div><p class="eyebrow">Live preview</p><h2>Payoff at maturity</h2></div></div>
           <template v-if="chart">
             <svg ref="chartSvg" class="chart" viewBox="0 0 620 270" role="group" :aria-label="chartDescription" :style="{ '--label': `${11 * labelScale}px` }">
               <defs><clipPath id="plot-clip"><rect :x="plot.left" :y="plot.top" :width="plot.right - plot.left" :height="plot.bottom - plot.top"/></clipPath></defs>

@@ -53,6 +53,13 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Show the cap in the outline, summary, structure JSON, chart (a line and a draggable handle), calculation, scenario table and outcome sentence, all from the same payment breakdown.
 - Keep buffers, barriers, coupons and other payoff mechanics outside this increment. Whether a buffer and principal protection can be combined is still open.
 
+## 8. Show marketing names
+
+- Show the generic names a structure is commonly sold under, as chips under the summary sentence. Each chip opens a short reason. Rules and sources are in [docs/marketing-names.md](docs/marketing-names.md).
+- Derive names from the note's terms in a pure function, `src/content/names.ts`. Several names can apply at once, and a note that fits none shows none.
+- Use only generic public names: plain-language US investor material and the Swiss Structured Products Association's product types. Exclude branded names, and names that depend on buffers, barriers or coupons.
+- Treat names as hints. The structure the reader built remains the authoritative description.
+
 ## Deferred questions
 
 - Which payoff mechanics can be combined independently of wrappers?
@@ -60,6 +67,8 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Which terms are product economics, and which belong only to issuance?
 - How should changes to authoritative terms invalidate derived results?
 - Should the payoff kind be renamed now that participation is optional?
+- Would a capped, leveraged note also carry "Outperformance" in its name? The Swiss taxonomy describes that product without a cap, so the name is unverified and not shown.
+- Is a note with upside participation but no downside participation principal-protected, given that it repays principal on a fall? The name rules look only at the protection term.
 
 ## Later exploration
 
