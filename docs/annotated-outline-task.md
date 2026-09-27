@@ -110,7 +110,9 @@ Under the last row of the worked calculation, one short sentence explains the re
 
 ### Worked calculation
 
-Five steps: underlier return, participation, payment before protection, protection floor, payment at maturity. Steps for a feature that is not added stay visible, greyed, labelled "Not added", so the reader can see the slot each feature would fill.
+Steps: underlier return, downside participation, upside participation, payment before cap or protection, cap (only while it is added), protection floor, payment at maturity. Steps for a feature that is not added stay visible, greyed, labelled "Not added", so the reader can see the slot each feature would fill.
+
+Each participation direction is its own step, written as in the payment rule (`rate × max(Return, 0)` or `rate × min(Return, 0)`). A selected direction the return does not reach is greyed with a value of 0%, so every selected rate is visible at every final level. The steps are built by `calculationSteps` in `src/content/calculation.ts` and tested without Vue.
 
 ### Selection ties the views together
 

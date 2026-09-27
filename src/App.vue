@@ -4,6 +4,7 @@ import { amountToY, capBindLevel, capFromY, clamp, clampCap, clampFinalLevel, cl
 import HintToggle from './components/HintToggle.vue'
 import NumberInput from './components/NumberInput.vue'
 import TabGroup from './components/TabGroup.vue'
+import { calculationSteps } from './content/calculation'
 import type { ConceptId } from './content/concepts'
 import { marketingNames, type MarketingName } from './content/names'
 import { paymentFormula, paymentInWords } from './content/formula'
@@ -247,31 +248,10 @@ const scenarios = computed(() => errors.value.length ? [] : scenarioRows(note.va
 // The tabs under the chart.
 const tabs = [{ id: 'calculation', label: 'How the payment is worked out' }, { id: 'scenarios', label: 'Scenarios' }]
 const activeTab = ref('calculation')
-const signedPercent = (fraction: number) => `${fraction < 0 ? '−' : '+'}${formatPercent(Math.abs(fraction))}`
 const calculation = computed(() => {
   const b = breakdown.value
   if (!b) return []
-  const direction = b.direction === 'upside' ? 'upside' : 'downside'
-  const withProtection = protectionSelected.value
-  const withCap = capSelected.value
-  // Numbers follow the order of the steps, so the closing step can refer to the ones it combines.
-  const steps: Array<{ title: string; how: string; value: string; muted?: boolean; result?: boolean; concept?: ConceptId }> = [
-    { title: `${assetName.value.trim() || 'Underlier'} return`, how: `${formatAmount(finalLevel.value)} ÷ ${formatAmount(initialLevel.value)} − 1`, value: signedPercent(b.underlierReturn), concept: 'determination' },
-    b.participationRate === undefined
-      ? { title: 'Participation', how: `No ${direction} participation is selected, so principal is unchanged`, value: 'Not added', muted: true, concept: b.direction }
-      : { title: 'Participation', how: `${formatPercent(b.participationRate)} ${direction} × ${signedPercent(b.underlierReturn)}`, value: signedPercent(b.participatedReturn), concept: b.direction },
-    { title: withCap ? 'Payment before cap' : 'Payment before protection', how: `${formatAmount(principal.value)} × (1 ${b.participatedReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(b.participatedReturn))})`, value: formatAmount(b.uncappedPayment) },
-  ]
-  if (withCap) steps.push({ title: 'Cap', how: `${formatAmount(principal.value)} × (1 + ${formatPercent(capPercent.value / 100)}) · ${b.capApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.capAmount ?? 0), concept: 'cap' })
-  steps.push(withProtection
-    ? { title: 'Protection floor', how: `${formatPercent(protectionPercent.value / 100)} × ${formatAmount(principal.value)} · ${b.floorApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.floor), concept: 'protection' }
-    : { title: 'Protection floor', how: selectedParticipation.downside ? 'No protection selected, so some or all of the principal can be lost' : 'No protection selected. Without downside participation, principal is not reduced', value: 'Not added', muted: true, concept: 'protection' })
-  const [before, cap, floor] = [3, 4, withCap ? 5 : 4]
-  const combine = withCap
-    ? `The lower of steps ${before} and ${cap}, then ${withProtection ? `the higher of that and step ${floor}` : 'not below zero'}`
-    : withProtection ? `The higher of steps ${before} and ${floor}` : `The higher of step ${before} and zero`
-  steps.push({ title: 'Payment at maturity', how: combine, value: formatAmount(b.payment), result: true })
-  return steps.map((step, index) => ({ ...step, n: index + 1 }))
+  return calculationSteps(note.value, b, finalLevel.value)
 })
 
 // The chart. Its vertical axis is fixed (see chart/geometry.ts), and handles on it edit the same values the outline fields edit.
