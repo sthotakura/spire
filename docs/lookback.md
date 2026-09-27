@@ -1,6 +1,6 @@
 # Lookback (planned)
 
-This is a plan, not a built feature. It records what lookback means in public material, the smallest model proposed for it, and the questions to settle before implementing. The work plan is section 13 of [PLAN.md](../PLAN.md).
+This is a plan, not a built feature. It records what lookback means in public material, the smallest model proposed for it, the decisions taken, and the question still open. The work plan is section 13 of [PLAN.md](../PLAN.md).
 
 ## Established concepts
 
@@ -30,7 +30,7 @@ underlier return = final level / lookback level - 1
 - **Final end:** `final-date` (today's point-to-point) or `averaging`.
 - **Point-to-point** is no longer a stored option. It is `given` at the start and `final-date` at the end, and the summary sentence can still call it point-to-point.
 - **The initial-level term stays** beside the asset. With lookback it is the pricing-date level, and the level the return is measured from is derived from it and the observations. Including it in the `min` means the lookback level can never be above it, without a separate rule.
-- **The payoff is unchanged.** It still reads one return.
+- **The payoff rule is unchanged.** It still reads one return. The payment calculation takes the determined initial level as an input instead of reading the initial-level term from the note, because with lookback that level depends on the observed levels.
 - **Observed levels after pricing are scenario inputs**, like the averaging levels, and do not appear in the Structure JSON. Only the count does.
 
 ## Synthetic worked example
@@ -48,14 +48,17 @@ The second row shows that a rise after pricing leaves the pricing level in place
 ## Consequences
 
 - **Breaking change to the JSON shape.** Averaging moves from `determination` to `determination.final`.
-- **Chart.** The payoff bends at the lookback level, below the pricing level, so the chart shows both as separate reference lines. The horizontal axis stays the final level.
+- **Chart.** The payoff bends at the lookback level, below the pricing level, so the chart shows both as separate reference lines. The horizontal axis stays the final level. The payoff line now depends on the observed levels after pricing as well as on the note.
 - **Outline.** The Determination row gets one choice for each end.
 - **Calculation.** A lookback step comes before the return, e.g. `min(100, 97, 92, 95) = 92`, with its own labelled row of observed levels.
 
+## Decisions
+
+1. **Lookback sets the initial level, as the lowest observed level.** This is the form found in current public notes. The final-level form (highest) would be cheaper, since it reuses the averaging input, but teaches a form not found in current retail notes.
+2. **The determination splits into initial and final ends.** The alternative, lookback as a third single option, cannot combine lookback with averaging and leaves "point-to-point" describing both ends at once.
+3. **Observations are counted, without dates,** as for averaging, from 2 to 12. Real lookback periods often observe every trading day for weeks, so the limit is for hand entry only.
+4. **Naming.** "Initial level" stays the name of the term beside the asset, and the derived value is called "Lookback level" wherever it appears.
+
 ## Open questions
 
-1. **Which lookback?** Recommended: the initial level (lowest), the form found in current public notes. The final-level form (highest) would be cheaper, since it reuses the averaging input, but teaches a form not found in current retail notes.
-2. **Split the determination into initial and final ends?** Recommended: yes. The alternative, lookback as a third single option, cannot combine lookback with averaging and leaves "point-to-point" describing both ends at once.
-3. **Observations by count, without dates?** Recommended: yes, as for averaging, from 2 to 12. Real lookback periods often observe every trading day for weeks, so the limit is for hand entry only.
-4. **Naming.** Recommended: keep "Initial level" for the term beside the asset, and call the derived value "Lookback level" wherever it appears. The alternative is to rename the term "Pricing level".
-5. Should the buffer be measured from the lookback level or the pricing level? The model above measures every payoff feature from the lookback level, because the payoff reads one return. This needs checking against public term sheets.
+- Should the buffer be measured from the lookback level or the pricing level? The model above measures every payoff feature from the lookback level, because the payoff reads one return. This needs checking against public term sheets.

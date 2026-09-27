@@ -110,13 +110,13 @@ This plan covers the first useful, public, browser-only version. It records deci
 
 ## 13. Add lookback (planned, not started)
 
-The domain meaning, proposed model, worked example and open questions are in [docs/lookback.md](docs/lookback.md). Settle the open questions there before implementing.
+The domain meaning, model, worked example and decisions are in [docs/lookback.md](docs/lookback.md): lookback sets the initial level as the lowest observed level, the determination splits into initial and final ends, observations are counted from 2 to 12 without dates, and the derived value is called "Lookback level" beside the "Initial level" term. Whether the buffer is measured from the lookback level or the pricing level is still open; this plan measures it from the lookback level, as a stated assumption.
 
-1. Split the determination into its two ends, `initial` and `final`. The initial end is given (today's behaviour) or lookback; the final end is on the final date (today's point-to-point) or averaging. Move averaging under `final`. → verify: every existing test passes with the new shape, and the Structure JSON still matches `JSON.stringify`.
-2. Add lookback on the initial level: the lowest of the pricing-date level (the existing initial-level term) and a stated number of observed levels after it. Reuse the observation count rule from averaging (2 to 12). → verify: domain tests for the worked example, for a lookback level that equals the pricing level, and for lookback combined with averaging.
-3. Keep the payoff unchanged. It reads the return from the determined initial and final levels. → verify: payoff tests are untouched.
-4. Treat the observed levels after pricing as scenario inputs, shown as a second labelled row in the calculation (`min(100, 97, 92, 95) = 92`), and add a calculation step for the lookback level.
-5. Show lookback in the outline (a choice for each end of the determination), summary, payment rule, outcome sentence, chart (the pricing level and the lookback level as separate reference lines; the payoff bends at the lookback level) and scenario table.
+1. Split the determination into its two ends, `initial` and `final`, with only `given` available at the initial end. The final end is on the final date (today's point-to-point) or averaging; move averaging under `final`. Pass the determined initial level into the payment calculation instead of reading the initial-level term from the note. This step is a refactor with no new behaviour. → verify: every existing test passes, changed only in call shape, and the Structure JSON still matches `JSON.stringify`.
+2. Add lookback on the initial level: the lowest of the pricing-date level (the existing initial-level term) and a stated number of observed levels after it. Reuse the observation count rule from averaging (2 to 12). → verify: domain tests for the three rows of the worked example, for a lookback level that equals the pricing level, and for lookback combined with averaging.
+3. Keep the payoff rule unchanged. It reads the return from the determined initial and final levels. → verify: payoff tests change only in call shape.
+4. Treat the observed levels after pricing as scenario inputs, shown as a second labelled row in the calculation (`min(100, 97, 92, 95) = 92`), and add a calculation step for the lookback level. Show lookback in the summary, payment rule, outcome sentence and scenario table. → verify: focused content tests.
+5. Show lookback in the outline (a choice for each end of the determination) and the chart (the pricing level and the lookback level as separate reference lines; the payoff bends at the lookback level). → verify: in the running app.
 6. Update `docs/underlier-model.md`, `docs/averaging.md` and `README.md` for the new shape, and replace the current lookback option wording ("highest or lowest level") with the settled definition.
 
 ## Outside this milestone
