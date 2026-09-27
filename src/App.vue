@@ -17,11 +17,11 @@ import { firstFeatureValues, startingFinalLevel, startingNote } from './domain/s
 const activeHint = ref<string | null>(null)
 const toggleHint = (hint: string) => { activeHint.value = activeHint.value === hint ? null : hint }
 const hints = {
-  wrapper: 'The wrapper describes the form in which the product is issued.',
-  redemption: 'This describes when the note can end. The first example pays at scheduled maturity.',
-  underlier: 'The single synthetic equity or equity index linked to the note.',
-  determination: 'How the underlier return is determined for the maturity payment.',
-  payoff: 'These rules determine the contractual payment at maturity.',
+  wrapper: 'The legal form sets what the holder owns and who owes the payments. A note is a debt of its issuer, so every payment depends on the issuer’s ability to pay.',
+  redemption: 'Sets when the note ends and principal is paid back: at scheduled maturity, or earlier if its terms allow a call or a put. A bullet note pays once, at maturity.',
+  underlier: 'The asset whose level drives the payoff, here a single equity or equity index. Holding the note does not mean owning the underlier.',
+  determination: 'Sets which observed levels measure the underlier’s change. Point-to-point uses the initial level and one final level: final ÷ initial − 1. Moves in between do not count.',
+  payoff: 'The rules that turn the underlier’s change into the maturity payment. With no features the note repays principal. Each feature adds a rule, such as a share of the gain or a minimum payment.',
   principal: 'The amount used as the base for the maturity payment.',
   'initial-level': 'The reference level used to calculate the underlier’s return.',
   downside: 'The share of a negative underlier return deducted from principal before the protection floor applies.',
@@ -552,7 +552,7 @@ const chart = computed(() => {
 
           <TabGroup v-model="activeTab" :tabs="tabs" label="The payment and its scenarios">
             <template #calculation>
-              <div class="hint-field"><div class="field-heading"><label for="final-level">Hypothetical final level</label><button type="button" class="hint-button" aria-label="About final underlier level" aria-controls="final-level-hint" :aria-expanded="activeHint === 'final-level'" @click="toggleHint('final-level')">ⓘ</button><p v-if="activeHint === 'final-level'" id="final-level-hint" class="hint-text" role="tooltip">A hypothetical level for this scenario. Changing it does not change the note's terms.</p></div><input id="final-level" v-model.number="finalLevel" type="number" min="0" step="any" /></div>
+              <div class="hint-field"><div class="field-heading"><label for="final-level">Hypothetical final level</label><button type="button" class="hint-button" aria-label="About final underlier level" aria-controls="final-level-hint" :aria-expanded="activeHint === 'final-level'" @click="toggleHint('final-level')">ⓘ</button><p v-if="activeHint === 'final-level'" id="final-level-hint" class="hint-text" role="tooltip">A hypothetical level for this scenario. Changing it does not change the note's terms.</p></div><NumberInput id="final-level" v-model="finalLevel" /></div>
               <p v-if="finalError" class="errors" role="alert">{{ finalError }}</p>
               <ol class="calc-steps" aria-live="polite"><li v-for="step in calculation" :key="step.n" :class="{ hl: step.concept && highlighted(step.concept), muted: step.muted, result: step.result }"><span class="calc-n">{{ step.n }}</span><b>{{ step.title }}</b><span class="calc-value">{{ step.value }}</span><span class="calc-how">{{ step.how }}</span></li></ol>
               <p v-if="outcomeSentence" class="outcome" aria-live="polite">{{ outcomeSentence }}</p>
