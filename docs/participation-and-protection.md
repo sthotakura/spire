@@ -43,7 +43,7 @@ The cap is above principal and protection is at most principal, so the order of 
 
 ## Synthetic worked example
 
-Assume a principal amount of 1,000 units, an initial underlier level of 100, 90% principal protection, 150% upside participation, and 100% downside participation.
+Assume a principal amount of 1,000, an initial underlier level of 100, 90% principal protection, 150% upside participation, and 100% downside participation.
 
 | Final level | Underlier change | Upside participation | Downside participation | Payment before protection | Final payment |
 | ---: | ---: | :--- | :--- | ---: | ---: |

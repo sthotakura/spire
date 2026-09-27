@@ -34,7 +34,7 @@ export function explainOutcome(note: ProtectedParticipationNote, breakdown: Paym
   const comparison = difference > 0 ? `${units(difference)} more than principal`
     : difference < 0 ? `${units(difference)} less than principal`
       : 'the same as principal'
-  const result = `${reason ? `${reason[0].toUpperCase()}${reason.slice(1)}, so the` : 'The'} contractual payment is ${units(payment)} units, ${comparison}.`
+  const result = `${reason ? `${reason[0].toUpperCase()}${reason.slice(1)}, so the` : 'The'} contractual payment is ${units(payment)}, ${comparison}.`
 
   return [movement, participation, result].join(' ')
 }

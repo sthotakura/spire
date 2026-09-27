@@ -22,7 +22,7 @@ const hints = {
   underlier: 'The single synthetic equity or equity index linked to the note.',
   determination: 'How the underlier return is determined for the maturity payment.',
   payoff: 'These rules determine the contractual payment at maturity.',
-  principal: 'The amount used as the base for the maturity payment, in synthetic currency units.',
+  principal: 'The amount used as the base for the maturity payment.',
   'initial-level': 'The reference level used to calculate the underlier’s return.',
   downside: 'The share of a negative underlier return deducted from principal before the protection floor applies.',
   upside: 'The share of a positive underlier return added to principal.',
@@ -241,7 +241,7 @@ const calculation = computed(() => {
   const combine = withCap
     ? `The lower of steps ${before} and ${cap}, then ${withProtection ? `the higher of that and step ${floor}` : 'not below zero'}`
     : withProtection ? `The higher of steps ${before} and ${floor}` : `The higher of step ${before} and zero`
-  steps.push({ title: 'Payment at maturity', how: combine, value: `${formatAmount(b.payment)} units`, result: true })
+  steps.push({ title: 'Payment at maturity', how: combine, value: formatAmount(b.payment), result: true })
   return steps.map((step, index) => ({ ...step, n: index + 1 }))
 })
 
@@ -342,7 +342,7 @@ const chart = computed(() => {
   const floorAmount = principalAmount * (note.value.payoff.principalProtection ?? 0)
   const capAmount = principalAmount * (1 + (note.value.payoff.cap ?? 0))
   const finalHandle = payment.value === null ? null : { x: x(clamp(finalLevel.value, 0, end)), y: pinnedY(payment.value) }
-  const bubbleText = payment.value === null ? '' : `${formatAmount(finalLevel.value)} → ${formatAmount(payment.value)} units`
+  const bubbleText = payment.value === null ? '' : `${formatAmount(finalLevel.value)} → ${formatAmount(payment.value)}`
   const bubbleWidth = 16 + bubbleText.length * 6.4 * labelScale.value
   const capLabelY = y(capAmount) - 6 < plot.top + 10 ? y(capAmount) + 14 : y(capAmount) - 6 // above the cap line, or below it when the line is at the top of the plot
   // The cap handle sits where the line actually bends flat. When the upside rate is too low for that to be in view,
@@ -524,7 +524,7 @@ const chart = computed(() => {
               </g>
               <line v-if="chart.finalHandle" :x1="chart.finalHandle.x" :y1="chart.finalHandle.y" :x2="chart.finalHandle.x" :y2="plot.bottom" class="final-guide"/>
               <g v-for="tick in chart.amountTicks" :key="tick.y"><line :x1="plot.left - 4" :y1="tick.y" :x2="plot.left" :y2="tick.y" class="axis-line"/><text :x="plot.left - 7" :y="tick.y" text-anchor="end" dominant-baseline="middle" class="axis-label">{{ tick.label }}</text></g>
-              <text :x="plot.left + 2" y="24" class="axis-label">Payment (units)</text>
+              <text :x="plot.left + 2" y="24" class="axis-label">Payment</text>
               <line :x1="plot.left + 4" :y1="chart.principalY - 10" :x2="plot.left + 16" :y2="chart.principalY - 10" class="ref-swatch principal"/><text :x="plot.left + 20" :y="chart.principalY - 6" class="ref-label">Principal {{ formatAmount(principal) }}</text>
               <template v-if="chart.floorY !== null"><line :x1="plot.left + 4" :y1="chart.floorY + 10" :x2="plot.left + 16" :y2="chart.floorY + 10" :class="['ref-swatch', { on: chartHighlight.floor }]" :style="conceptStyle('protection')"/><text :x="plot.left + 20" :y="chart.floorY + 14" :class="['ref-label', { on: chartHighlight.floor }]">Floor {{ formatAmount(chart.floorAmount) }}</text></template>
               <template v-if="chart.capY !== null"><line :x1="chart.capLabelRight - 12" :y1="chart.capLabelY - 4" :x2="chart.capLabelRight" :y2="chart.capLabelY - 4" :class="['ref-swatch', { on: chartHighlight.cap }]" :style="conceptStyle('cap')"/><text :x="chart.capLabelRight - 16" :y="chart.capLabelY" text-anchor="end" :class="['ref-label', { on: chartHighlight.cap }]">Cap {{ formatAmount(chart.capAmount) }}</text></template>
@@ -539,7 +539,7 @@ const chart = computed(() => {
               <g v-if="chart.slopeHandle" :class="['handle', { on: highlighted('upside') }]" :style="conceptStyle('upside')" :transform="`translate(${chart.slopeHandle.x} ${chart.slopeHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Upside participation rate" aria-valuemin="5" aria-valuemax="200" :aria-valuenow="participationPercent.upside" :aria-valuetext="`${participationPercent.upside}% upside participation`" @pointerdown="startDrag('slope', $event)" @pointermove="dragMove('slope', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('slope', $event)" @focus="focusHandle('slope')">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
-              <g v-if="chart.finalHandle" class="handle final-dot" :transform="`translate(${chart.finalHandle.x} ${chart.finalHandle.y})`" tabindex="0" role="slider" aria-label="Hypothetical final underlier level" aria-valuemin="0" :aria-valuemax="Math.floor(chart.end)" :aria-valuenow="finalLevel" :aria-valuetext="`Final level ${formatAmount(finalLevel)}, payment ${formatAmount(payment ?? 0)} units`" @pointerdown="startDrag('final', $event)" @pointermove="dragMove('final', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('final', $event)">
+              <g v-if="chart.finalHandle" class="handle final-dot" :transform="`translate(${chart.finalHandle.x} ${chart.finalHandle.y})`" tabindex="0" role="slider" aria-label="Hypothetical final underlier level" aria-valuemin="0" :aria-valuemax="Math.floor(chart.end)" :aria-valuenow="finalLevel" :aria-valuetext="`Final level ${formatAmount(finalLevel)}, payment ${formatAmount(payment ?? 0)}`" @pointerdown="startDrag('final', $event)" @pointermove="dragMove('final', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('final', $event)">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
             </svg>

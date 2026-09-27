@@ -21,7 +21,7 @@ maturity payment = principal × (1 + participated return)
 
 ## Synthetic worked example
 
-Assume a principal amount of 1,000 units, an initial underlier level of 100, and a 150% participation rate.
+Assume a principal amount of 1,000, an initial underlier level of 100, and a 150% participation rate.
 
 | Final level | Underlier return | Participated return | Maturity payment |
 | ---: | ---: | ---: | ---: |
@@ -30,7 +30,7 @@ Assume a principal amount of 1,000 units, an initial underlier level of 100, and
 | 110 | 10% | 15% | 1,150 |
 | 130 | 30% | 45% | 1,450 |
 
-For the 110 final-level scenario, the positive underlier return is 10%. Multiplying it by the 150% participation rate produces a 15% participated return, so the formula pays 1,150 units at maturity.
+For the 110 final-level scenario, the positive underlier return is 10%. Multiplying it by the 150% participation rate produces a 15% participated return, so the formula pays 1,150 at maturity.
 
 ## Example-specific assumptions
 
