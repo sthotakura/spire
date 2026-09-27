@@ -21,6 +21,7 @@ Only generic, publicly used names appear here. Branded product names are exclude
 | Tracker Certificate (1300) | SSPA: "Reflects underlying price moves 1:1". |
 | Outperformance Certificate (1310) | SSPA: "Disproportionate participation (outperformance) in positive performance above the strike", and 1:1 when below the strike. |
 | Leveraged or enhanced participation with a cap | The SEC bulletin describes notes with a leveraged or enhanced participation rate "only up to a capped, maximum amount" (search excerpt). |
+| Buffer | FINRA: "a buffer typically provides 'hard protection' such that if the buffer level is breached, an investor's potential principal loss is restricted to the extent of losses in excess of the buffer". "Buffered" is also the plain descriptive word US offering documents filed with the SEC use in note titles. |
 
 ## Rules for SPIRe
 
@@ -30,10 +31,11 @@ These are example-specific assumptions about when a name fits the model's terms,
 | :--- | :--- | :--- | :--- |
 | Protection is 100% | Principal-protected note | US descriptive | With upside participation, SSPA calls this a Capital Protection Note with Participation. |
 | Protection is above 0% and below 100% | Partially principal-protected note | US descriptive | Any level in between counts as partial, following FINRA's example of 10%. SSPA's narrower 90%–100% definition is noted in the hint. |
-| Upside rate is 100%, downside rate is 100%, no protection, no cap | Tracker | SSPA (Tracker Certificate) | 1:1 in both directions. |
-| Upside rate is above 100%, downside rate is 100%, no protection, no cap | Outperformance | SSPA (Outperformance Certificate) | Leveraged or enhanced upside in US descriptive wording. |
-| Upside participation selected, no protection, no cap, and neither of the two rules above applies | Participation note | SSPA (category *Participation*) | Covers upside alone, and upside with downside at other rates: for example upside 80% with downside 100%, or upside 100% with downside 90%. Downside participation alone gets no name. This is a category label, not a product type from the SSPA map, so it is the least specific name here. |
+| Upside rate is 100%, downside rate is 100%, no protection, no buffer, no cap | Tracker | SSPA (Tracker Certificate) | 1:1 in both directions. |
+| Upside rate is above 100%, downside rate is 100%, no protection, no buffer, no cap | Outperformance | SSPA (Outperformance Certificate) | Leveraged or enhanced upside in US descriptive wording. |
+| Upside participation selected, no protection, no buffer, no cap, and neither of the two rules above applies | Participation note | SSPA (category *Participation*) | Covers upside alone, and upside with downside at other rates: for example upside 80% with downside 100%, or upside 100% with downside 90%. Downside participation alone gets no name. This is a category label, not a product type from the SSPA map, so it is the least specific name here. |
 | Cap is present with upside participation | Capped participation | US descriptive, SSPA glossary | The cap is a maximum return on principal. |
+| Buffer is present with downside participation | Buffered note | US descriptive | Without downside participation the buffer has nothing to absorb, so it gets no name. |
 
 A protection of 0% counts as no protection. The two pay the same, and the documentation already treats "absent" and "0%" as different descriptions of the same payment.
 
@@ -46,6 +48,7 @@ The names appear as chips under the summary sentence, after the label "Often mar
 - SSPA's Outperformance Certificate is described without a cap. Whether a capped, leveraged note carries "Outperformance" in its name is unverified, so only "Capped participation" is shown for it.
 - With upside participation and no downside participation selected, the model repays principal on a fall. Whether that is a "principal-protected" structure or only resembles one is undecided. The rules look only at the protection term, so a note with upside participation alone is called only a participation note.
 - US usage has no formal taxonomy comparable to SSPA's. The US descriptive names above are plain-language labels from regulator material, not a defined list.
-- Names for structures with buffers, barriers or coupons are outside the model's terms and are not shown.
+- Names for structures with barriers or coupons are outside the model's terms and are not shown.
+- A note with both a buffer and a protection floor shows both names. No generic name for the combination was found.
 
 Names describe how a structure is commonly presented, not what it pays. Payoffs remain illustrations of contractual payments under stated assumptions, not valuations, investment advice, or guarantees of issuer payment.

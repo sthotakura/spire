@@ -31,7 +31,9 @@ export interface ProtectedParticipationNote {
   underlier: SingleUnderlier
   payoff: {
     kind: 'participation'
-    // Features are listed in the order the payment applies them: participation, then the cap, then the protection floor.
+    // Features are listed in the order the payment applies them: the buffer and participation, then the cap, then the protection floor.
+    // The fall the holder does not bear, as a fraction of the initial level. Downside participation applies only to the fall beyond it.
+    buffer?: number
     participations: Participation[]
     // The most the note can pay above principal, as a fraction of principal. Absent means the payment has no ceiling.
     cap?: number
@@ -40,7 +42,7 @@ export interface ProtectedParticipationNote {
   principalAmount: number
 }
 
-export type NoteIssueField = 'principalAmount' | 'underlierName' | 'initialLevel' | 'participations' | 'principalProtection' | 'cap'
+export type NoteIssueField = 'principalAmount' | 'underlierName' | 'initialLevel' | 'buffer' | 'participations' | 'principalProtection' | 'cap'
 
 export interface NoteIssue {
   field: NoteIssueField
@@ -53,6 +55,8 @@ export function noteIssues(note: ProtectedParticipationNote): NoteIssue[] {
   if (!component.asset.name.trim()) issues.push({ field: 'underlierName', message: 'Enter an underlier name.' })
   if (!Number.isFinite(note.principalAmount) || note.principalAmount <= 0) issues.push({ field: 'principalAmount', message: 'Principal must be greater than zero.' })
   if (!Number.isFinite(component.initialLevel) || component.initialLevel <= 0) issues.push({ field: 'initialLevel', message: 'Initial level must be greater than zero.' })
+  const buffer = note.payoff.buffer
+  if (buffer !== undefined && (!Number.isFinite(buffer) || buffer <= 0 || buffer > 1)) issues.push({ field: 'buffer', message: 'Buffer must be greater than 0% and at most 100%.' })
   for (const participation of note.payoff.participations) {
     if (!Number.isFinite(participation.rate) || participation.rate <= 0) issues.push({ field: 'participations', message: `${participation.direction === 'upside' ? 'Upside' : 'Downside'} participation must be greater than zero.` })
   }
@@ -72,6 +76,8 @@ export interface PaymentBreakdown {
   underlierReturn: number
   // The direction the return falls in. A flat return counts as upside.
   direction: ParticipationDirection
+  // Undefined when the note has no buffer. Otherwise the part of a fall the buffer absorbs, as a positive fraction: zero on a rise.
+  bufferAbsorbs?: number
   // Undefined when that direction has no participation, so principal is unchanged.
   participationRate?: number
   participatedReturn: number
@@ -96,7 +102,8 @@ export function paymentBreakdown(note: ProtectedParticipationNote, finalLevel: n
   const underlierReturn = finalLevel / note.underlier.components[0].initialLevel - 1
   const direction: ParticipationDirection = underlierReturn < 0 ? 'downside' : 'upside'
   const participationRate = note.payoff.participations.find((candidate) => candidate.direction === direction)?.rate
-  const participatedReturn = (participationRate ?? 0) * underlierReturn
+  const bufferAbsorbs = note.payoff.buffer === undefined ? undefined : Math.min(note.payoff.buffer, Math.max(0, -underlierReturn))
+  const participatedReturn = (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0))
   const uncappedPayment = note.principalAmount * (1 + participatedReturn)
   // A cap is above principal and so above any floor, which cannot exceed principal. The order of the two cannot change the result.
   const capAmount = note.payoff.cap === undefined ? undefined : note.principalAmount * (1 + note.payoff.cap)
@@ -106,6 +113,7 @@ export function paymentBreakdown(note: ProtectedParticipationNote, finalLevel: n
   return {
     underlierReturn,
     direction,
+    bufferAbsorbs,
     participationRate,
     participatedReturn,
     uncappedPayment,

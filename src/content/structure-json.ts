@@ -25,6 +25,7 @@ export function structureLines(note: ProtectedParticipationNote): StructureLine[
     if (top !== 'payoff') return null
     if (second === 'principalProtection') return 'protection'
     if (second === 'cap') return 'cap'
+    if (second === 'buffer') return 'buffer'
     if (second === 'participations' && typeof third === 'number') return note.payoff.participations[third]?.direction ?? 'payoff'
     return 'payoff'
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { amountToY, capBindLevel, capFromY, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
+import { amountToY, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
 import { paymentBreakdown, type ProtectedParticipationNote } from '../domain/note'
 import { startingNote } from '../domain/starting-note'
 
@@ -64,6 +64,16 @@ describe('drag conversions', () => {
     expect(capBindLevel(100, 0.2, undefined)).toBeUndefined() // no upside participation, so the cap can never bind
   })
 
+  it('sets the buffer from the position as the fall from the initial level, snapped to 1% and limited to 1% to 100%', () => {
+    expect(bufferLevel(100, 0.1)).toBeCloseTo(90, 8)
+    expect(bufferFromX(levelToX(90, 100, plot), 100, plot)).toBe(10)
+    expect(bufferFromX(levelToX(90.3, 100, plot), 100, plot)).toBe(10)
+    expect(bufferFromX(plot.left - 30, 100, plot)).toBe(100)
+    expect(bufferFromX(levelToX(120, 100, plot), 100, plot)).toBe(1)
+    expect(clampBuffer(0)).toBe(1)
+    expect(clampBuffer(140)).toBe(100)
+  })
+
   it('sets the final level from the position, snapped to 1 unit and limited to the axis', () => {
     expect(finalLevelFromX(levelToX(110, 100, plot), 100, plot)).toBe(110)
     expect(finalLevelFromX(levelToX(110.4, 100, plot), 100, plot)).toBe(110)
@@ -120,6 +130,15 @@ describe('payoff regimes', () => {
     expect(regimeAt(bounded, 50)).toBe('floor')
     expect(regimeAt(bounded, 110)).toBe('upside')
     expect(regimeAt(bounded, 150)).toBe('cap')
+  })
+
+  it('names the buffer where it absorbs the whole fall, and downside participation past it', () => {
+    const buffered = note({ participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }], buffer: 0.1, principalProtection: 0.8 })
+    expect(regimeAt(buffered, 95)).toBe('buffer')
+    expect(regimeAt(buffered, 85)).toBe('downside')
+    expect(regimeAt(buffered, 50)).toBe('floor')
+    expect(regimeAt(buffered, 110)).toBe('upside')
+    expect(regimeAt(note({ buffer: 0.1 }), 95)).toBe('principal')
   })
 
   it('splits points into runs that share their joins', () => {

@@ -92,6 +92,15 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Keep one **Add feature** entry point for payoff features; the empty payoff names two examples as plain text.
 - Show the payment rule above the worked calculation, built from the features that are added, and name the asset wherever the final level appears, so a basket can later show one final level per asset.
 
+## 11. Add a buffer
+
+- Add an optional buffer: the fall in the underlier the holder does not bear, as a fraction of the initial level, greater than 0% and at most 100%. Downside participation applies only to the fall beyond it. The model, decisions and worked example are in [docs/buffer.md](docs/buffer.md).
+- Use the existing downside rate beyond the buffer, not a separate buffer rate.
+- Keep a buffer without downside participation valid, with a note on its row that it has no effect, as for a cap without upside participation.
+- Allow a buffer together with a protection floor. This settles the open question from section 7: the holder bears only the losses between the two.
+- Show the buffer in the outline (before downside participation), summary, structure JSON, chart (a vertical guide, a sideways handle, and its own colour, #1aa3b8, checked against the feature colours it can touch), payment rule, calculation, scenario table and outcome sentence.
+- Name a buffer on downside participation a "Buffered note", following FINRA's description ([docs/marketing-names.md](docs/marketing-names.md)).
+
 ## Outside this milestone
 
-Market pricing, implied volatility, Greeks, live data, coupons, buffers, barriers, calls, baskets, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.
+Market pricing, implied volatility, Greeks, live data, coupons, barriers, calls, baskets, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.

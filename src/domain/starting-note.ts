@@ -17,4 +17,4 @@ export const startingNote: ProtectedParticipationNote = {
 export const startingFinalLevel = 110
 
 // Rates in percent, used the first time each payoff feature is added.
-export const firstFeatureValues = { upside: 100, downside: 100, protection: 90, cap: 20 }
+export const firstFeatureValues = { upside: 100, downside: 100, protection: 90, cap: 20, buffer: 10 }

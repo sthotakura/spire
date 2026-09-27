@@ -63,6 +63,18 @@ describe('outcome explanation', () => {
     expect(explain(noteWith([{ direction: 'downside', rate: 1.5 }]), 20)).toBe('The underlier fell 80%. Downside participation of 150% deducts 120% from principal. The payment cannot fall below zero, so the contractual payment is 0, 1,000 less than principal.')
   })
 
+  it('explains a fall the buffer absorbs in full', () => {
+    const buffered = { ...noteWith(both), payoff: { ...noteWith(both).payoff, buffer: 0.1 } }
+    expect(explain(buffered, 95)).toBe('The underlier fell 5%. The 10% buffer absorbs the whole fall, so principal is unchanged. The contractual payment is 1,000, the same as principal.')
+  })
+
+  it('explains a fall beyond the buffer', () => {
+    const buffered = { ...noteWith(both), payoff: { ...noteWith(both).payoff, buffer: 0.1 } }
+    expect(explain(buffered, 60)).toBe('The underlier fell 40%. The buffer absorbs the first 10% of the fall, and downside participation of 100% deducts 30% from principal. There is no principal protection, so the contractual payment is 700, 300 less than principal.')
+    const withFloor = { ...buffered, payoff: { ...buffered.payoff, principalProtection: 0.9 } }
+    expect(explain(withFloor, 60)).toBe('The underlier fell 40%. The buffer absorbs the first 10% of the fall, and downside participation of 100% deducts 30% from principal. The 900 floor applies, so the contractual payment is 900, 100 less than principal.')
+  })
+
   it('explains a note with no features', () => {
     expect(explain(noteWith([]), 110)).toBe('The underlier rose 10%. No upside participation is selected, so principal is unchanged. The contractual payment is 1,000, the same as principal.')
     expect(explain(noteWith([]), 60)).toBe('The underlier fell 40%. No downside participation is selected, so principal is unchanged. The contractual payment is 1,000, the same as principal.')

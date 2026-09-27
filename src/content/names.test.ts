@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Participation, ProtectedParticipationNote } from '../domain/note'
 import { marketingNames } from './names'
 
-const noteWith = (payoff: { participations?: Participation[]; principalProtection?: number; cap?: number }): ProtectedParticipationNote => ({
+const noteWith = (payoff: { participations?: Participation[]; principalProtection?: number; cap?: number; buffer?: number }): ProtectedParticipationNote => ({
   wrapper: 'note',
   redemption: 'bullet',
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { kind: 'point-to-point' } },
@@ -92,7 +92,26 @@ describe('marketing names', () => {
     expect(withoutUpside.reason).not.toContain('Capital Protection Note with Participation')
   })
 
+  it('calls a buffer on downside participation a buffered note', () => {
+    expect(namesOf({ participations: [up(1), down(1)], buffer: 0.1 })).toEqual(['Buffered note'])
+    const [name] = marketingNames(noteWith({ participations: [down(1)], buffer: 0.1 }))
+    expect(name.concepts).toEqual(['buffer', 'downside'])
+    expect(name.reason).toContain('The first 10% of a fall is absorbed.')
+  })
+
+  it('gives a buffer without downside participation no name, and does not call a buffered note a tracker', () => {
+    expect(namesOf({ participations: [up(1)], buffer: 0.1 })).toEqual([])
+    expect(namesOf({ buffer: 0.1 })).toEqual([])
+  })
+
+  it('combines the buffered name with the others that apply', () => {
+    expect(namesOf({ participations: [up(1.5), down(1)], buffer: 0.1, cap: 0.2 })).toEqual(['Buffered note', 'Capped participation'])
+    expect(namesOf({ participations: [up(1), down(1)], buffer: 0.1, principalProtection: 0.9 })).toEqual(['Partially principal-protected note', 'Buffered note'])
+  })
+
   it('gives no name to a draft with invalid terms', () => {
+    expect(namesOf({ participations: [down(1)], buffer: Number.NaN })).toEqual([])
+    expect(namesOf({ participations: [down(1)], buffer: 1.5 })).toEqual([])
     expect(namesOf({ participations: [up(Number.NaN), down(1)], principalProtection: Number.NaN, cap: Number.NaN })).toEqual([])
     expect(namesOf({ principalProtection: 2 })).toEqual([])
     expect(namesOf({ participations: [up(1.5)], cap: -0.1 })).toEqual([])

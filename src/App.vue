@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { amountToY, capBindLevel, capFromY, clamp, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelAxisFactor, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, upsideRateFromY, type Plot, type Regime } from './chart/geometry'
+import { amountToY, bufferFromX, bufferLevel, capBindLevel, capFromY, clamp, clampBuffer, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelAxisFactor, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, upsideRateFromY, type Plot, type Regime } from './chart/geometry'
 import HintToggle from './components/HintToggle.vue'
 import NumberInput from './components/NumberInput.vue'
 import TabGroup from './components/TabGroup.vue'
@@ -27,7 +27,8 @@ const hints = {
   payoff: 'The rules that turn the underlier’s change into the maturity payment. With no features the note repays principal. Each feature adds a rule, such as a share of the gain or a minimum payment.',
   principal: 'The amount used as the base for the maturity payment.',
   'initial-level': 'The reference level used to calculate the underlier’s return. It is a term of this note: two notes on the same asset can start from different levels.',
-  downside: 'The share of a negative underlier return deducted from principal before the protection floor applies.',
+  downside: 'The share of a negative underlier return, beyond any buffer, deducted from principal before the protection floor applies.',
+  buffer: 'The fall the holder does not bear, as a percentage of the initial level. A fall within it leaves principal unchanged. A larger fall reduces principal by the amount beyond it, at the downside participation rate. It has an effect only when downside participation is selected.',
   upside: 'The share of a positive underlier return added to principal.',
   cap: 'The most the note can pay above principal, as a percentage of principal, however far the underlier rises. It has an effect only when upside participation is selected.',
   protection: 'The minimum contractual maturity payment as a percentage of principal. Protection applies at maturity and depends on the issuer’s ability to pay.',
@@ -75,7 +76,7 @@ const finalLevel = ref(startingFinalLevel)
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
 const select = (concept: ConceptId) => { selected.value = concept }
-const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', payoff: '#42536d', protection: '#2369bd', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c' }
+const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', payoff: '#42536d', protection: '#2369bd', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8' }
 const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
@@ -83,7 +84,7 @@ const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concep
 type FeatureId = 'barrier' | 'buffer' | 'cap' | 'coupon' | 'digital' | 'downside' | 'protection' | 'upside'
 const payoffFeatures: ReadonlyArray<{ id: FeatureId; label: string; description: string; available: boolean }> = [
   { id: 'barrier', label: 'Barrier', description: 'A level that changes the payoff if it is reached.', available: false },
-  { id: 'buffer', label: 'Buffer', description: 'Protects against an initial portion of underlier losses.', available: false },
+  { id: 'buffer', label: 'Buffer', description: 'Protects against an initial portion of underlier losses.', available: true },
   { id: 'cap', label: 'Cap', description: 'Limits the maximum contractual payment.', available: true },
   { id: 'coupon', label: 'Coupon', description: 'An additional contractual payment on stated dates.', available: false },
   { id: 'digital', label: 'Digital', description: 'Pays a predefined amount if a stated condition is met.', available: false },
@@ -98,9 +99,11 @@ const protectionSelected = ref(false)
 const protectionPercent = ref(firstFeatureValues.protection)
 const capSelected = ref(false)
 const capPercent = ref(firstFeatureValues.cap)
+const bufferSelected = ref(false)
+const bufferPercent = ref(firstFeatureValues.buffer)
 const selectedDirections = computed(() => (['downside', 'upside'] as ParticipationDirection[]).filter((direction) => selectedParticipation[direction]))
-const isAdded = (id: FeatureId) => id === 'protection' ? protectionSelected.value : id === 'cap' ? capSelected.value : id === 'downside' || id === 'upside' ? selectedParticipation[id] : false
-const hasFeatures = computed(() => protectionSelected.value || capSelected.value || selectedDirections.value.length > 0)
+const isAdded = (id: FeatureId) => id === 'protection' ? protectionSelected.value : id === 'cap' ? capSelected.value : id === 'buffer' ? bufferSelected.value : id === 'downside' || id === 'upside' ? selectedParticipation[id] : false
+const hasFeatures = computed(() => protectionSelected.value || capSelected.value || bufferSelected.value || selectedDirections.value.length > 0)
 
 const paletteOpen = ref(false)
 const paletteQuery = ref('')
@@ -127,6 +130,7 @@ const addFeature = async (id: FeatureId) => {
   beginGesture()
   if (id === 'protection') protectionSelected.value = true
   else if (id === 'cap') capSelected.value = true
+  else if (id === 'buffer') bufferSelected.value = true
   else if (id === 'downside' || id === 'upside') selectedParticipation[id] = true
   paletteOpen.value = false
   await nextTick()
@@ -136,6 +140,7 @@ const removeFeature = async (id: FeatureId) => {
   beginGesture()
   if (id === 'protection') protectionSelected.value = false
   else if (id === 'cap') capSelected.value = false
+  else if (id === 'buffer') bufferSelected.value = false
   else if (id === 'downside' || id === 'upside') selectedParticipation[id] = false
   if (selected.value === id) selected.value = 'payoff'
   await nextTick()
@@ -162,6 +167,7 @@ const note = computed<ProtectedParticipationNote>(() => ({
   },
   payoff: {
     kind: 'participation',
+    buffer: bufferSelected.value ? bufferPercent.value / 100 : undefined,
     participations: selectedDirections.value.map((direction) => ({
       direction,
       rate: participationPercent[direction] / 100,
@@ -213,11 +219,12 @@ const participationSummary = computed(() => selectedDirections.value
   .map((direction) => `${formatPercent(participationPercent[direction] / 100)} ${participationLabels[direction].toLowerCase()}`)
   .join(' and ') || 'none')
 const floorSummary = computed(() => protectionSelected.value ? `${formatPercent(protectionPercent.value / 100)} of principal` : 'zero')
+const bufferSummary = computed(() => formatPercent(bufferPercent.value / 100))
 const capSummary = computed(() => `${formatAmount(principal.value * (1 + capPercent.value / 100))} (a ${formatPercent(capPercent.value / 100)} return on principal)`)
 const chartDescription = computed(() => {
   if (!hasFeatures.value) return 'Contractual maturity payment stays at principal for every final level.'
   const fall = selectedParticipation.downside
-    ? `falls with negative underlier returns${protectionSelected.value ? ' until the protection floor applies' : ', but not below zero'}`
+    ? `${bufferSelected.value ? `stays at principal for falls within the buffer, then falls` : 'falls'} with negative underlier returns${protectionSelected.value ? ' until the protection floor applies' : ', but not below zero'}`
     : 'stays at principal for negative underlier returns'
   const rise = selectedParticipation.upside ? `rises with positive underlier returns${capSelected.value ? ' until the cap applies' : ''}` : 'stays at principal for flat or positive underlier returns'
   return `Contractual maturity payment ${fall}. It ${rise}.`
@@ -235,7 +242,7 @@ const scenarios = computed(() => errors.value.length ? [] : scenarioRows(note.va
   calculations: Object.fromEntries(selectedDirections.value.map((direction) => [
     direction,
     returnValue !== 0 && direction === breakdown.direction && breakdown.participationRate !== undefined
-      ? `${formatPercent(breakdown.participationRate)} × ${formatPercent(returnValue)} = ${formatPercent(breakdown.participatedReturn)}`
+      ? `${formatPercent(breakdown.participationRate)} × ${direction === 'downside' && bufferSelected.value ? `min(${formatPercent(returnValue)} + ${bufferSummary.value}, 0)` : formatPercent(returnValue)} = ${formatPercent(breakdown.participatedReturn)}`
       : null,
   ])) as Record<ParticipationDirection, string | null>,
   uncappedPayment: breakdown.uncappedPayment,
@@ -275,8 +282,8 @@ const ghostNote = ref<ProtectedParticipationNote | null>(null)
 function beginGesture() { ghostNote.value = JSON.parse(JSON.stringify(note.value)) as ProtectedParticipationNote }
 const focusRow = (concept: ConceptId) => { select(concept); beginGesture() }
 
-type HandleId = 'floor' | 'slope' | 'cap' | 'final'
-const handleConcept: Record<HandleId, ConceptId | null> = { floor: 'protection', slope: 'upside', cap: 'cap', final: null }
+type HandleId = 'floor' | 'slope' | 'cap' | 'buffer' | 'final'
+const handleConcept: Record<HandleId, ConceptId | null> = { floor: 'protection', slope: 'upside', cap: 'cap', buffer: 'buffer', final: null }
 const dragging = ref<HandleId | null>(null)
 const svgPoint = (event: PointerEvent) => {
   const matrix = chartSvg.value?.getScreenCTM()
@@ -303,6 +310,7 @@ const dragMove = (id: HandleId, event: PointerEvent) => {
   if (id === 'floor') protectionPercent.value = protectionFromY(point.y, principal.value, plot)
   else if (id === 'slope') participationPercent.upside = upsideRateFromY(point.y, principal.value, plot, capFraction.value)
   else if (id === 'cap') capPercent.value = capFromY(point.y, principal.value, plot)
+  else if (id === 'buffer') bufferPercent.value = bufferFromX(point.x, initialLevel.value, plot)
   else finalLevel.value = finalLevelFromX(point.x, initialLevel.value, plot)
 }
 const endDrag = () => { dragging.value = null }
@@ -313,6 +321,8 @@ const keyHandle = (id: HandleId, event: KeyboardEvent) => {
   if (id === 'floor') protectionPercent.value = clampProtection(protectionPercent.value + delta)
   else if (id === 'slope') participationPercent.upside = clampUpsideRate(participationPercent.upside + delta)
   else if (id === 'cap') capPercent.value = clampCap(capPercent.value + delta)
+  // A larger buffer sits further left, so the left and right keys move the handle the way they point.
+  else if (id === 'buffer') bufferPercent.value = clampBuffer(bufferPercent.value + (event.key === 'ArrowLeft' || event.key === 'ArrowRight' ? -delta : delta))
   else finalLevel.value = clampFinalLevel(finalLevel.value + delta, initialLevel.value)
 }
 
@@ -322,13 +332,14 @@ const chartHighlight = computed(() => ({
   line: selected.value === 'payoff',
   floor: protectionSelected.value && highlighted('protection'),
   cap: capSelected.value && highlighted('cap'),
+  buffer: bufferSelected.value && highlighted('buffer'),
   downside: selectedParticipation.downside && selected.value === 'downside',
   upside: selectedParticipation.upside && selected.value === 'upside',
   initial: highlighted('asset') || highlighted('determination'),
 }))
 // Each regime is drawn in its concept's colour, in the line, the legend and the guides.
-const regimeConcept: Record<Regime, ConceptId> = { principal: 'payoff', downside: 'downside', upside: 'upside', floor: 'protection', cap: 'cap' }
-const regimeLabel: Record<Regime, string> = { principal: 'Principal repaid', downside: 'Downside participation', upside: 'Upside participation', floor: 'Protection floor', cap: 'Cap' }
+const regimeConcept: Record<Regime, ConceptId> = { principal: 'payoff', buffer: 'buffer', downside: 'downside', upside: 'upside', floor: 'protection', cap: 'cap' }
+const regimeLabel: Record<Regime, string> = { principal: 'Principal repaid', buffer: 'Buffer', downside: 'Downside participation', upside: 'Upside participation', floor: 'Protection floor', cap: 'Cap' }
 const chart = computed(() => {
   if (errors.value.length) return null
   const principalAmount = principal.value
@@ -367,6 +378,9 @@ const chart = computed(() => {
   // The tooltip normally sits above its handle. It drops below when that would cover the cap label.
   const bubbleX = finalHandle && clamp(finalHandle.x - bubbleWidth / 2, plot.left + 2, plot.right - bubbleWidth - 2)
   const capLabelLeft = capLabelRight - 16 - capTextWidth
+  // The buffer handle sits where losses start, which is always on the principal line. Its label sits beside the guide at the top of the plot.
+  const bufferX = bufferSelected.value ? x(bufferLevel(initial, bufferPercent.value / 100)) : null
+  const bufferLabelLeft = bufferX !== null && bufferX < plot.left + 90
   const coversCapLabel = capSelected.value && finalHandle !== null && bubbleX !== null && bubbleX + bubbleWidth > capLabelLeft && finalHandle.y - 34 + 22 > capLabelY - 12 * labelScale.value && finalHandle.y - 34 < capLabelY + 4
   return {
     points,
@@ -386,6 +400,9 @@ const chart = computed(() => {
     capAmount,
     initialX: x(initial),
     end,
+    bufferX,
+    bufferLabel: bufferX === null ? null : { x: bufferLabelLeft ? bufferX + 6 : bufferX - 6, anchor: bufferLabelLeft ? 'start' : 'end' },
+    bufferHandle: bufferX === null ? null : { x: bufferX, y: y(principalAmount) },
     capHandle: capHandleX === null ? null : { x: capHandleX, y: pinnedY(capAmount) },
     floorHandle: protectionSelected.value ? { x: plot.left + (plot.right - plot.left) * 0.25, y: y(floorAmount) } : null,
     slopeHandle: selectedParticipation.upside ? { x: x(slopeLevel(initial, capFraction.value)), y: pinnedY(maturityPayment(note.value, slopeLevel(initial, capFraction.value))) } : null,
@@ -468,6 +485,15 @@ const chart = computed(() => {
                   </div>
                   <ul v-if="issuesFor('participations').length" class="errors" role="alert"><li v-for="message in issuesFor('participations')" :key="message">{{ message }}</li></ul>
                   <ul>
+                    <li v-if="bufferSelected" :class="['node', { sel: highlighted('buffer') }]" :style="conceptStyle('buffer')">
+                      <div class="nrow" @click="select('buffer')" @focusin="focusRow('buffer')">
+                        <span class="nlabel">Buffer<HintToggle id="buffer" about="buffer" :text="hints.buffer" :active="activeHint === 'buffer'" @toggle="toggleHint('buffer')" /></span>
+                        <span class="ctrl"><NumberInput id="rate-buffer" v-model="bufferPercent" class="num rate" aria-label="Buffer: fall absorbed (%)" /><span class="unit">%</span></span>
+                        <button type="button" class="xbtn" aria-label="Remove buffer" @click.stop="removeFeature('buffer')">×</button>
+                      </div>
+                      <ul v-if="issuesFor('buffer').length" class="errors" role="alert"><li v-for="message in issuesFor('buffer')" :key="message">{{ message }}</li></ul>
+                      <p v-if="!selectedParticipation.downside" class="row-note">A buffer has no effect unless a fall reduces principal, which takes downside participation.</p>
+                    </li>
                     <li v-if="selectedParticipation.downside" :class="['node', { sel: highlighted('downside') }]" :style="conceptStyle('downside')">
                       <div class="nrow" @click="select('downside')" @focusin="focusRow('downside')">
                         <span class="nlabel">Downside participation<HintToggle id="downside" about="downside participation rate" :text="hints.downside" :active="activeHint === 'downside'" @toggle="toggleHint('downside')" /></span>
@@ -531,7 +557,8 @@ const chart = computed(() => {
               <line :x1="plot.left" :y1="chart.principalY" :x2="plot.right" :y2="chart.principalY" class="ref-line principal"/>
               <line v-if="chart.floorY !== null" :x1="plot.left" :y1="chart.floorY" :x2="plot.right" :y2="chart.floorY" :class="['ref-line', { on: chartHighlight.floor }]" :style="conceptStyle('protection')"/>
               <line v-if="chart.capY !== null" :x1="plot.left" :y1="chart.capY" :x2="plot.right" :y2="chart.capY" :class="['ref-line', { on: chartHighlight.cap }]" :style="conceptStyle('cap')"/>
-              <line v-if="chartHighlight.initial" :x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" class="highlight-line" :style="conceptStyle('determination')"/>
+              <line v-if="chart.bufferX !== null" :x1="chart.bufferX" :y1="plot.top" :x2="chart.bufferX" :y2="plot.bottom" :class="['ref-line', { on: chartHighlight.buffer }]" :style="conceptStyle('buffer')"/>
+              <line v-if="chartHighlight.initial":x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" class="highlight-line" :style="conceptStyle('determination')"/>
               <line :x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" :class="['ref-line initial', { on: chartHighlight.initial }]" :style="conceptStyle('determination')"/>
               <g clip-path="url(#plot-clip)">
                 <polyline v-if="chart.ghostPoints" :points="chart.ghostPoints" class="ghost-line"/>
@@ -547,6 +574,7 @@ const chart = computed(() => {
               <line :x1="plot.left + 4" :y1="chart.principalY - 10" :x2="plot.left + 16" :y2="chart.principalY - 10" class="ref-swatch principal"/><text :x="plot.left + 20" :y="chart.principalY - 6" class="ref-label">Principal {{ formatAmount(principal) }}</text>
               <template v-if="chart.floorY !== null"><line :x1="plot.left + 4" :y1="chart.floorY + 10" :x2="plot.left + 16" :y2="chart.floorY + 10" :class="['ref-swatch', { on: chartHighlight.floor }]" :style="conceptStyle('protection')"/><text :x="plot.left + 20" :y="chart.floorY + 14" :class="['ref-label', { on: chartHighlight.floor }]">Floor {{ formatAmount(chart.floorAmount) }}</text></template>
               <template v-if="chart.capY !== null"><line :x1="chart.capLabelRight - 12" :y1="chart.capLabelY - 4" :x2="chart.capLabelRight" :y2="chart.capLabelY - 4" :class="['ref-swatch', { on: chartHighlight.cap }]" :style="conceptStyle('cap')"/><text :x="chart.capLabelRight - 16" :y="chart.capLabelY" text-anchor="end" :class="['ref-label', { on: chartHighlight.cap }]">Cap {{ formatAmount(chart.capAmount) }}</text></template>
+              <text v-if="chart.bufferLabel" :x="chart.bufferLabel.x" :y="plot.top + 12" :text-anchor="chart.bufferLabel.anchor" :class="['ref-label', { on: chartHighlight.buffer }]">Buffer {{ bufferSummary }}</text>
               <text :x="plot.left - 3" y="251" class="axis-label">0</text><text :x="chart.initialX" y="251" text-anchor="middle" class="axis-label">Initial {{ formatAmount(initialLevel) }}</text><text :x="plot.right" y="251" text-anchor="end" class="axis-label">{{ formatAmount(chart.end) }}</text>
               <g v-if="chart.bubble" class="bubble" :transform="`translate(${chart.bubble.x} ${chart.bubble.y})`"><rect :width="chart.bubble.width" height="22" rx="6"/><text :x="chart.bubble.width / 2" y="15" text-anchor="middle">{{ chart.bubble.text }}</text></g>
               <g v-if="chart.floorHandle" :class="['handle', { on: highlighted('protection') }]" :style="conceptStyle('protection')" :transform="`translate(${chart.floorHandle.x} ${chart.floorHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Principal protection" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="protectionPercent" :aria-valuetext="`${protectionPercent}% protection`" @pointerdown="startDrag('floor', $event)" @pointermove="dragMove('floor', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('floor', $event)" @focus="focusHandle('floor')">
@@ -555,7 +583,10 @@ const chart = computed(() => {
               <g v-if="chart.capHandle" :class="['handle', { on: highlighted('cap') }]" :style="conceptStyle('cap')" :transform="`translate(${chart.capHandle.x} ${chart.capHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Cap" aria-valuemin="1" aria-valuemax="100" :aria-valuenow="capPercent" :aria-valuetext="`${capPercent}% maximum return`" @pointerdown="startDrag('cap', $event)" @pointermove="dragMove('cap', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('cap', $event)" @focus="focusHandle('cap')">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
-              <g v-if="chart.slopeHandle" :class="['handle', { on: highlighted('upside') }]" :style="conceptStyle('upside')" :transform="`translate(${chart.slopeHandle.x} ${chart.slopeHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Upside participation rate" aria-valuemin="5" aria-valuemax="200" :aria-valuenow="participationPercent.upside" :aria-valuetext="`${participationPercent.upside}% upside participation`" @pointerdown="startDrag('slope', $event)" @pointermove="dragMove('slope', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('slope', $event)" @focus="focusHandle('slope')">
+              <g v-if="chart.bufferHandle" :class="['handle', { on: highlighted('buffer') }]" :style="conceptStyle('buffer')" :transform="`translate(${chart.bufferHandle.x} ${chart.bufferHandle.y})`" tabindex="0" role="slider" aria-orientation="horizontal" aria-label="Buffer" aria-valuemin="1" aria-valuemax="100" :aria-valuenow="bufferPercent" :aria-valuetext="`${bufferPercent}% buffer`" @pointerdown="startDrag('buffer', $event)" @pointermove="dragMove('buffer', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('buffer', $event)" @focus="focusHandle('buffer')">
+                <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
+              </g>
+              <g v-if="chart.slopeHandle":class="['handle', { on: highlighted('upside') }]" :style="conceptStyle('upside')" :transform="`translate(${chart.slopeHandle.x} ${chart.slopeHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Upside participation rate" aria-valuemin="5" aria-valuemax="200" :aria-valuenow="participationPercent.upside" :aria-valuetext="`${participationPercent.upside}% upside participation`" @pointerdown="startDrag('slope', $event)" @pointermove="dragMove('slope', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('slope', $event)" @focus="focusHandle('slope')">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
               <g v-if="chart.finalHandle" class="handle final-dot" :transform="`translate(${chart.finalHandle.x} ${chart.finalHandle.y})`" tabindex="0" role="slider" :aria-label="`Hypothetical final level of ${underlierLabel}`" aria-valuemin="0" :aria-valuemax="Math.floor(chart.end)" :aria-valuenow="finalLevel" :aria-valuetext="`Final level ${formatAmount(finalLevel)}, payment ${formatAmount(payment ?? 0)}`" @pointerdown="startDrag('final', $event)" @pointermove="dragMove('final', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('final', $event)">
@@ -582,7 +613,7 @@ const chart = computed(() => {
                 <h3>Example scenarios</h3>
                 <p class="table-scroll-hint">Scroll horizontally to see every scenario column.</p>
                 <div class="table-wrap"><table><thead><tr><th>Final level</th><th>Underlier change</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected">Payment before protection</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}</td><td>{{ formatPercent(row.returnValue) }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="protectionSelected && row.floorApplied" class="floor-note">floor applied</span></td></tr></tbody></table></div>
-                <p class="scenario-formula"><strong>Selected participation:</strong> {{ participationSummary }}. A move in an unselected direction does not change principal before protection. The payment cannot fall below {{ floorSummary }}.<template v-if="capSelected"> It cannot exceed {{ capSummary }}.</template></p>
+                <p class="scenario-formula"><strong>Selected participation:</strong> {{ participationSummary }}. A move in an unselected direction does not change principal before protection.<template v-if="bufferSelected"> The buffer absorbs the first {{ bufferSummary }} of a fall.</template> The payment cannot fall below {{ floorSummary }}.<template v-if="capSelected"> It cannot exceed {{ capSummary }}.</template></p>
               </template>
               <p v-else class="help">Enter valid terms to see the scenarios.</p>
             </template>

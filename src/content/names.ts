@@ -11,11 +11,12 @@ export interface MarketingName {
 }
 
 const isRate = (rate: number | undefined): rate is number => rate !== undefined && Number.isFinite(rate) && rate > 0
+const percentText = (fraction: number) => `${(fraction * 100).toFixed(1).replace(/\.0$/, '')}%`
 
 // Names a structure like this one is commonly sold under. They are hints, not definitions, and several can apply at once.
 // The rules are recorded in docs/marketing-names.md. A note that fits none returns an empty list.
 export function marketingNames(note: ProtectedParticipationNote): MarketingName[] {
-  const { participations, principalProtection: protection, cap } = note.payoff
+  const { participations, principalProtection: protection, cap, buffer } = note.payoff
   const upside = participations.find(({ direction }) => direction === 'upside')?.rate
   const downside = participations.find(({ direction }) => direction === 'downside')?.rate
   const hasProtection = protection !== undefined && Number.isFinite(protection) && protection > 0
@@ -38,9 +39,19 @@ export function marketingNames(note: ProtectedParticipationNote): MarketingName[
     })
   }
 
-  // Without protection or a cap. A value that is present but invalid is not absent, so a draft with one gets no name here.
+  // Losses start only past the buffer, so it needs downside participation to mean anything.
+  if (buffer !== undefined && Number.isFinite(buffer) && buffer > 0 && buffer <= 1 && isRate(downside)) {
+    names.push({
+      name: 'Buffered note',
+      vocabulary: 'US descriptive',
+      reason: `The first ${percentText(buffer)} of a fall is absorbed. A larger fall reduces principal by the amount it goes past the buffer, at the downside participation rate.`,
+      concepts: ['buffer', 'downside'],
+    })
+  }
+
+  // Without protection, a buffer or a cap. A value that is present but invalid is not absent, so a draft with one gets no name here.
   const unprotected = protection === undefined || protection === 0
-  if (unprotected && cap === undefined && isRate(upside) && (downside === undefined || isRate(downside))) {
+  if (unprotected && buffer === undefined && cap === undefined && isRate(upside) && (downside === undefined || isRate(downside))) {
     if (downside === 1 && upside === 1) {
       names.push({ name: 'Tracker', vocabulary: 'SSPA', reason: 'The payment follows the underlier one for one, up and down.', concepts: ['upside', 'downside'] })
     } else if (downside === 1 && upside > 1) {

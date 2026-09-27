@@ -64,6 +64,13 @@ describe('structure lines', () => {
     expect(linesOf(fullNote, 'cap')).toEqual([])
   })
 
+  it('tags the buffer with its own concept', () => {
+    const buffered: ProtectedParticipationNote = { ...fullNote, payoff: { kind: 'participation', buffer: 0.1, participations: fullNote.payoff.participations } }
+    expect(asText(buffered)).toBe(JSON.stringify(buffered, null, 2))
+    expect(linesOf(buffered, 'buffer')).toEqual(['"buffer": 0.1,'])
+    expect(linesOf(fullNote, 'buffer')).toEqual([])
+  })
+
   it('leaves out an absent protection', () => {
     expect(asText(startingNote)).not.toContain('principalProtection')
     expect(linesOf(startingNote, 'protection')).toEqual([])

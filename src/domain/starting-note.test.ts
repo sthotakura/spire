@@ -18,6 +18,7 @@ describe('starting note', () => {
       ...startingNote,
       payoff: {
         kind: 'participation',
+        buffer: firstFeatureValues.buffer / 100,
         participations: [
           { direction: 'downside', rate: firstFeatureValues.downside / 100 },
           { direction: 'upside', rate: firstFeatureValues.upside / 100 },

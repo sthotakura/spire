@@ -2,7 +2,7 @@ import type { ConceptId } from './concepts'
 
 // Selecting a part selects the parts nested under it: the payoff its features, the underlier its asset and determination.
 const nestedConcepts: Partial<Record<ConceptId, readonly ConceptId[]>> = {
-  payoff: ['protection', 'upside', 'downside', 'cap'],
+  payoff: ['protection', 'buffer', 'upside', 'downside', 'cap'],
   underlier: ['asset', 'determination'],
 }
 

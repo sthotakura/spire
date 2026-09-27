@@ -34,6 +34,17 @@ describe('payment formula', () => {
     expect(text(noteWith([up], 0.2)).slice(2)).toEqual(['capped at Principal × (1 + Cap)'])
   })
 
+  it('moves the start of downside participation by the buffer', () => {
+    const buffered = { ...noteWith([down, up]), payoff: { ...noteWith([down, up]).payoff, buffer: 0.1 } }
+    expect(text(buffered)[1]).toBe('Payment = Principal × (1 + Upside × max(Return, 0) + Downside × min(Return + Buffer, 0))')
+    expect(paymentFormula(buffered)[1].segments.flatMap(({ concept }) => concept ?? [])).toEqual(['upside', 'downside', 'buffer', 'downside'])
+  })
+
+  it('leaves the buffer out when there is no downside participation for it to act on', () => {
+    const upsideOnly = { ...noteWith([up]), payoff: { ...noteWith([up]).payoff, buffer: 0.1 } }
+    expect(text(upsideOnly)).toEqual(text(noteWith([up])))
+  })
+
   it('tags each term with the concept it comes from', () => {
     const concepts = paymentFormula(noteWith([down, up], 0.2, 0.9)).flatMap(({ segments }) => segments.flatMap(({ concept }) => concept ?? []))
     expect(concepts).toEqual(['determination', 'upside', 'downside', 'cap', 'protection'])
@@ -64,6 +75,12 @@ describe('payment rule in words', () => {
   it('names only the limits that exist', () => {
     expect(paymentInWords(noteWith([up], 0.2))).toBe('Each 1% rise in Synthetic Index adds 1% of principal. A fall leaves principal unchanged. The payment never goes above 1,200.')
     expect(paymentInWords(noteWith([up], undefined, 0.9))).toBe('Each 1% rise in Synthetic Index adds 1% of principal. A fall leaves principal unchanged. The payment never goes below 900.')
+  })
+
+  it('says the fall only counts beyond the buffer', () => {
+    const withBuffer = (participations: Participation[]) => ({ ...noteWith(participations), payoff: { ...noteWith(participations).payoff, buffer: 0.1 } })
+    expect(paymentInWords(withBuffer([down]))).toBe('Each 1% fall in Synthetic Index beyond the first 10% takes 1% of principal away. A rise leaves principal unchanged. The payment never goes below zero.')
+    expect(paymentInWords(withBuffer([down, up]))).toBe('Each 1% rise in Synthetic Index adds 1% of principal, and each 1% fall beyond the first 10% takes 1% away. The payment never goes below zero.')
   })
 
   it('falls back to a generic name when the asset has none', () => {

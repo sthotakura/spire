@@ -46,6 +46,32 @@ describe('calculation steps', () => {
     expect(step(noteWith(both, undefined, 0.2), 110, 'Payment at maturity')?.how).toBe('The lower of steps 4 and 5, then not below zero')
   })
 
+  describe('with a buffer', () => {
+    const buffered = (participations: Participation[]) => ({ ...noteWith(participations, 0.9), payoff: { ...noteWith(participations, 0.9).payoff, buffer: 0.1 } })
+    const downFull = [{ direction: 'downside' as const, rate: 1 }, { direction: 'upside' as const, rate: 1 }]
+
+    it('adds a buffer step before downside participation', () => {
+      expect(steps(buffered(downFull), 70).map(({ title }) => title).slice(0, 4)).toEqual(['Synthetic Index return', 'Buffer', 'Downside participation', 'Upside participation'])
+      expect(step(buffered(downFull), 70, 'Payment at maturity')?.how).toBe('The higher of steps 5 and 6')
+    })
+
+    it('shows the part of the fall the buffer absorbs, and downside participation on the rest', () => {
+      expect(step(buffered(downFull), 85, 'Buffer')).toMatchObject({ how: 'Absorbs the first 10% of a fall · absorbs 10% of the 15% fall here', value: '+10%', concept: 'buffer' })
+      expect(step(buffered(downFull), 85, 'Downside participation')).toMatchObject({ how: '100% × min(−15% + 10%, 0)', value: '−5%' })
+      expect(step(buffered(downFull), 85, 'Payment at maturity')?.value).toBe('950')
+    })
+
+    it('says when the buffer absorbs the whole fall', () => {
+      expect(step(buffered(downFull), 95, 'Buffer')).toMatchObject({ how: 'Absorbs the first 10% of a fall · absorbs the whole fall here', value: '+5%' })
+      expect(step(buffered(downFull), 95, 'Downside participation')).toMatchObject({ how: '100% × min(−5% + 10%, 0) · the buffer absorbs the whole fall', value: '0%', muted: true })
+    })
+
+    it('mutes the buffer on a rise, or when there is no downside participation', () => {
+      expect(step(buffered(downFull), 110, 'Buffer')).toMatchObject({ how: 'Absorbs the first 10% of a fall · applies only when the return is negative', value: '0%', muted: true })
+      expect(step(buffered([{ direction: 'upside', rate: 1 }]), 80, 'Buffer')).toMatchObject({ value: '0%', muted: true })
+    })
+  })
+
   it('agrees with the payment breakdown', () => {
     const note = noteWith(both, 0.9, 0.2)
     expect(step(note, 110, 'Payment before cap')).toMatchObject({ how: '1,000 × (1 + 10%)', value: '1,100' })

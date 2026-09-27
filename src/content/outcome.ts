@@ -5,7 +5,7 @@ const units = (value: number) => Math.abs(value).toLocaleString('en-US', { maxim
 
 // Explains a contractual maturity payment in words, from the note and its payment breakdown.
 export function explainOutcome(note: ProtectedParticipationNote, breakdown: PaymentBreakdown): string {
-  const { underlierReturn, direction, participationRate, participatedReturn, capAmount, capApplies, unflooredPayment, floor, floorApplies, payment } = breakdown
+  const { underlierReturn, direction, bufferAbsorbs, participationRate, participatedReturn, capAmount, capApplies, unflooredPayment, floor, floorApplies, payment } = breakdown
   const hasProtection = note.payoff.principalProtection !== undefined
   const hasCap = capAmount !== undefined
   const principal = note.principalAmount
@@ -17,6 +17,8 @@ export function explainOutcome(note: ProtectedParticipationNote, breakdown: Paym
   let participation: string
   if (underlierReturn === 0) participation = 'A flat return leaves principal unchanged.'
   else if (participationRate === undefined) participation = `No ${direction} participation is selected, so principal is unchanged.`
+  else if (bufferAbsorbs && participatedReturn === 0) participation = `The ${percent(note.payoff.buffer ?? 0)} buffer absorbs the whole fall, so principal is unchanged.`
+  else if (bufferAbsorbs) participation = `The buffer absorbs the first ${percent(bufferAbsorbs)} of the fall, and downside participation of ${percent(participationRate)} deducts ${percent(participatedReturn)} from principal.`
   else {
     const label = direction === 'upside' ? 'Upside' : 'Downside'
     const change = direction === 'upside' ? `adds ${percent(participatedReturn)} to` : `deducts ${percent(participatedReturn)} from`
@@ -29,7 +31,7 @@ export function explainOutcome(note: ProtectedParticipationNote, breakdown: Paym
     if (hasCap) reasons.push(`the ${units(capAmount)} cap ${capApplies ? 'applies' : 'does not apply'}`)
     if (hasProtection) reasons.push(`the ${units(floor)} floor ${floorApplies ? 'applies' : 'does not apply'}`)
     else if (unflooredPayment < 0) reasons.push('the payment cannot fall below zero')
-    else if (underlierReturn < 0 && participationRate !== undefined) reasons.push('there is no principal protection')
+    else if (participatedReturn < 0) reasons.push('there is no principal protection')
   }
   const reason = reasons.join(' and ')
 

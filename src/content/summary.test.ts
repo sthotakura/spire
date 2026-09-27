@@ -33,6 +33,16 @@ describe('note summary with a cap', () => {
   })
 })
 
+describe('note summary with a buffer', () => {
+  it('names the buffer first, in the order the payment applies it', () => {
+    const buffered = { ...note, payoff: { ...note.payoff, buffer: 0.1 } }
+    expect(sentence(buffered)).toContain('point-to-point from 100, with a 10% buffer and 90% principal protection.')
+    expect(sentence({ ...buffered, payoff: { ...buffered.payoff, cap: 0.2 } })).toContain('with a 10% buffer, 90% principal protection and a maximum return of 20%.')
+    expect(sentence({ ...buffered, payoff: { ...buffered.payoff, principalProtection: undefined } })).toContain('point-to-point from 100, with a 10% buffer.')
+    expect(conceptOf(buffered, 'a 10% buffer')).toBe('buffer')
+  })
+})
+
 describe('note summary', () => {
   it('describes upside and downside participation together', () => {
     expect(sentence(note)).toBe('A note that redeems at maturity and pays 150% of the upside and 100% of the downside of Synthetic Index, measured point-to-point from 100, with 90% principal protection.')

@@ -288,3 +288,64 @@ describe('cap', () => {
     expect(noteIssues(invalid).map(({ field }) => field)).toEqual(['cap'])
   })
 })
+
+describe('buffer', () => {
+  const buffered: ProtectedParticipationNote = { ...note, payoff: { ...note.payoff, principalProtection: undefined, buffer: 0.1 } }
+
+  // FINRA's example: a 10% buffer repays principal after a 5% fall, and loses 40% after a 50% fall.
+  it.each([
+    [0, 100],
+    [50, 600],
+    [80, 900],
+    [90, 1000],
+    [95, 1000],
+    [100, 1000],
+    [110, 1150],
+  ])('pays %s final level as %s units with a 10% buffer and 100% downside participation', (finalLevel, expected) => {
+    expect(maturityPayment(buffered, finalLevel)).toBeCloseTo(expected, 8)
+  })
+
+  it('applies the downside rate to the fall beyond the buffer', () => {
+    const halfRate = { ...buffered, payoff: { ...buffered.payoff, participations: [{ direction: 'downside' as const, rate: 0.5 }] } }
+    expect(maturityPayment(halfRate, 70)).toBeCloseTo(900, 8)
+  })
+
+  it('has no effect without downside participation', () => {
+    const upsideOnly = { ...buffered, payoff: { ...buffered.payoff, participations: [{ direction: 'upside' as const, rate: 1.5 }] } }
+    for (const finalLevel of [0, 50, 95]) expect(maturityPayment(upsideOnly, finalLevel)).toBe(1000)
+  })
+
+  it('combines with a protection floor, so the holder bears only the losses between the two', () => {
+    const both = { ...buffered, payoff: { ...buffered.payoff, principalProtection: 0.9 } }
+    expect(maturityPayment(both, 95)).toBe(1000)
+    expect(maturityPayment(both, 85)).toBeCloseTo(950, 8)
+    expect(maturityPayment(both, 80)).toBeCloseTo(900, 8)
+    expect(maturityPayment(both, 40)).toBeCloseTo(900, 8)
+  })
+
+  it('breaks the buffer into steps', () => {
+    const past = paymentBreakdown(buffered, 70)
+    expect(past.bufferAbsorbs).toBeCloseTo(0.1, 8)
+    expect(past.participatedReturn).toBeCloseTo(-0.2, 8)
+    expect(past.payment).toBeCloseTo(800, 8)
+
+    const within = paymentBreakdown(buffered, 95)
+    expect(within.bufferAbsorbs).toBeCloseTo(0.05, 8)
+    expect(within.participatedReturn).toBeCloseTo(0, 8)
+
+    expect(paymentBreakdown(buffered, 110).bufferAbsorbs).toBe(0)
+    expect(paymentBreakdown(note, 70).bufferAbsorbs).toBeUndefined()
+  })
+
+  it.each([0, -0.1, 1.1, Number.NaN])('rejects a buffer of %s', (buffer) => {
+    const invalid = { ...note, payoff: { ...note.payoff, buffer } }
+    expect(validateNote(invalid)).toContain('Buffer must be greater than 0% and at most 100%.')
+    expect(noteIssues(invalid).map(({ field }) => field)).toEqual(['buffer'])
+  })
+
+  it('allows a buffer of 100%, which absorbs any fall', () => {
+    const full = { ...buffered, payoff: { ...buffered.payoff, buffer: 1 } }
+    expect(validateNote(full)).toEqual([])
+    expect(maturityPayment(full, 0)).toBe(1000)
+  })
+})

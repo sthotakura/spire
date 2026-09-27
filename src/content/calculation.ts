@@ -24,10 +24,22 @@ function participationStep(note: ProtectedParticipationNote, breakdown: PaymentB
     return { title, how, value: 'Not added', muted: true, concept: direction }
   }
   const contribution = direction === breakdown.direction ? breakdown.participatedReturn : 0
-  const how = `${formatPercent(rate)} × ${direction === 'upside' ? 'max' : 'min'}(${signedPercent(breakdown.underlierReturn)}, 0)`
+  const buffer = direction === 'downside' ? note.payoff.buffer : undefined
+  const how = `${formatPercent(rate)} × ${direction === 'upside' ? 'max' : 'min'}(${signedPercent(breakdown.underlierReturn)}${buffer === undefined ? '' : ` + ${formatPercent(buffer)}`}, 0)`
+  const reason = buffer !== undefined && breakdown.underlierReturn < 0 ? 'the buffer absorbs the whole fall' : `applies only when the return is ${direction === 'upside' ? 'positive' : 'negative'}`
   return contribution === 0
-    ? { title, how: `${how} · applies only when the return is ${direction === 'upside' ? 'positive' : 'negative'}`, value: '0%', muted: true, concept: direction }
+    ? { title, how: `${how} · ${reason}`, value: '0%', muted: true, concept: direction }
     : { title, how, value: signedPercent(contribution), concept: direction }
+}
+
+// How much of the fall the buffer absorbs. Downside participation then applies to what is left.
+function bufferStep(buffer: number, breakdown: PaymentBreakdown, hasDownside: boolean): Omit<CalculationStep, 'n'> {
+  const absorbs = breakdown.bufferAbsorbs ?? 0
+  const title = 'Buffer'
+  if (!hasDownside) return { title, how: `Absorbs the first ${formatPercent(buffer)} of a fall · no downside participation, so a fall does not reduce principal anyway`, value: '0%', muted: true, concept: 'buffer' }
+  if (absorbs === 0) return { title, how: `Absorbs the first ${formatPercent(buffer)} of a fall · applies only when the return is negative`, value: '0%', muted: true, concept: 'buffer' }
+  const how = absorbs < buffer ? 'absorbs the whole fall here' : `absorbs ${formatPercent(absorbs)} of the ${formatPercent(-breakdown.underlierReturn)} fall here`
+  return { title, how: `Absorbs the first ${formatPercent(buffer)} of a fall · ${how}`, value: `+${formatPercent(absorbs)}`, concept: 'buffer' }
 }
 
 // The worked calculation of the maturity payment at one final level. Every number comes from the payment breakdown.
@@ -35,16 +47,19 @@ export function calculationSteps(note: ProtectedParticipationNote, breakdown: Pa
   const b = breakdown
   const [component] = note.underlier.components
   const principal = note.principalAmount
-  const { cap, principalProtection } = note.payoff
+  const { cap, principalProtection, buffer } = note.payoff
   const withCap = cap !== undefined
   const withProtection = principalProtection !== undefined
   const hasDownside = note.payoff.participations.some(({ direction }) => direction === 'downside')
   const steps: Array<Omit<CalculationStep, 'n'>> = [
     { title: `${component.asset.name.trim() || 'Underlier'} return`, how: `${formatAmount(finalLevel)} ÷ ${formatAmount(component.initialLevel)} − 1`, value: signedPercent(b.underlierReturn), concept: 'determination' },
+  ]
+  if (buffer !== undefined) steps.push(bufferStep(buffer, b, hasDownside))
+  steps.push(
     participationStep(note, b, 'downside'),
     participationStep(note, b, 'upside'),
     { title: withCap ? 'Payment before cap' : 'Payment before protection', how: `${formatAmount(principal)} × (1 ${b.participatedReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(b.participatedReturn))})`, value: formatAmount(b.uncappedPayment) },
-  ]
+  )
   // Numbers follow the order of the steps, so the closing step can refer to the ones it combines.
   const before = steps.length
   if (withCap) steps.push({ title: 'Cap', how: `${formatAmount(principal)} × (1 + ${formatPercent(cap)}) · ${b.capApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.capAmount ?? 0), concept: 'cap' })
