@@ -114,8 +114,19 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Add lookback on the initial level: the lowest of the initial-level term (the pricing-date level) and a stated number of levels observed after pricing, from 2 to 12.
 - Keep the payoff rule unchanged. The payment calculation takes the determined initial and final levels, and every calculation reads the determined initial level, so the return, scenario table, payoff and buffer are all measured from the lookback level. The chart's axis stays scaled on the initial-level term.
 - Treat the levels after pricing as scenario inputs, edited in the calculation (`min(100, 97, 92, 95) = 92`). Only the count is a note term.
-- Show lookback in the outline ("Initial level" and "Final level" choices), summary, payment rule, calculation, outcome sentence, scenario table and chart (the initial level and the lookback level as separate reference lines).
+- Show lookback in the outline (Initial level and Final level as rows nested under Determination, each its own concept with its own colour and highlights), summary, payment rule, calculation, outcome sentence, scenario table and chart (the initial level and the lookback level as separate reference lines).
 - Measuring the buffer from the lookback level rather than the pricing level is an assumption still to check against public term sheets.
+
+## Later direction: a composable form
+
+Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.
+
+Open questions:
+
+- **Which concepts each slot accepts.** A payoff feature belongs under the payoff, not the underlier; an initial-level method belongs only in the initial level. These rules would sit in framework-independent TypeScript beside the validation.
+- **Order within a slot.** The payment applies payoff features in a fixed order (buffer and participation, then the cap, then the floor), so dragging must not change the calculation. The form should snap features into that order, or show that the order is fixed.
+- **Incomplete trees.** A tree is often unfinished while it is being built. The draft state and per-field issues carry over, but a dropped concept with no terms yet needs its own clear state.
+- **Keyboard access.** Every drag needs a keyboard equivalent, as the Add feature palette and the chart handles have now.
 
 ## Outside this milestone
 
