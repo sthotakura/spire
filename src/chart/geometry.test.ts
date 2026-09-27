@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { amountToY, capFromY, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelToX, protectionFromY, slopeLevel, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
+import { amountToY, capBindLevel, capFromY, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
+import { paymentBreakdown, type ProtectedParticipationNote } from '../domain/note'
+import { startingNote } from '../domain/starting-note'
 
 const plot: Plot = { left: 50, right: 590, top: 35, bottom: 230 }
 
@@ -56,6 +58,12 @@ describe('drag conversions', () => {
     expect(upsideRateFromY(amountToY(1200, 1000, plot), 1000, plot, 0.2)).toBe(200)
   })
 
+  it('finds the level where the cap starts to bind, so the cap handle can sit on the actual bend', () => {
+    expect(capBindLevel(100, 0.2, 1)).toBeCloseTo(120, 8) // full participation reaches a 20% cap at a 20% return
+    expect(capBindLevel(100, 0.2, 0.5)).toBeCloseTo(140, 8) // half participation needs twice the return
+    expect(capBindLevel(100, 0.2, undefined)).toBeUndefined() // no upside participation, so the cap can never bind
+  })
+
   it('sets the final level from the position, snapped to 1 unit and limited to the axis', () => {
     expect(finalLevelFromX(levelToX(110, 100, plot), 100, plot)).toBe(110)
     expect(finalLevelFromX(levelToX(110.4, 100, plot), 100, plot)).toBe(110)
@@ -87,5 +95,37 @@ describe('arrow keys', () => {
 
   it('ignore every other key', () => {
     for (const key of ['Enter', 'Tab', 'a', ' ', 'Home']) expect(keyDelta(key, false, 1)).toBeNull()
+  })
+})
+
+describe('payoff regimes', () => {
+  const note = (payoff: Partial<ProtectedParticipationNote['payoff']>): ProtectedParticipationNote => ({ ...startingNote, payoff: { ...startingNote.payoff, ...payoff } })
+  const regimeAt = (n: ProtectedParticipationNote, level: number) => regimeOf(paymentBreakdown(n, level))
+
+  it('only repays principal when no participation applies', () => {
+    expect(regimeAt(note({}), 60)).toBe('principal')
+    expect(regimeAt(note({}), 140)).toBe('principal')
+  })
+
+  it('names the participation direction, counting a flat return as upside', () => {
+    const both = note({ participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }] })
+    expect(regimeAt(both, 80)).toBe('downside')
+    expect(regimeAt(both, 100)).toBe('upside')
+    expect(regimeAt(both, 130)).toBe('upside')
+  })
+
+  it('names the floor and the cap when they set the payment', () => {
+    const bounded = note({ participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }], principalProtection: 0.9, cap: 0.2 })
+    expect(regimeAt(bounded, 95)).toBe('downside')
+    expect(regimeAt(bounded, 50)).toBe('floor')
+    expect(regimeAt(bounded, 110)).toBe('upside')
+    expect(regimeAt(bounded, 150)).toBe('cap')
+  })
+
+  it('splits points into runs that share their joins', () => {
+    const runs = splitByRegime([
+      { point: '0,0', regime: 'floor' }, { point: '1,0', regime: 'floor' }, { point: '2,1', regime: 'upside' }, { point: '3,2', regime: 'upside' }, { point: '4,2', regime: 'cap' },
+    ])
+    expect(runs).toEqual([{ regime: 'floor', points: '0,0 1,0 2,1' }, { regime: 'upside', points: '2,1 3,2 4,2' }, { regime: 'cap', points: '4,2' }])
   })
 })

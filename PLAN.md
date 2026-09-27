@@ -76,6 +76,12 @@ This plan covers the first useful, public, browser-only version. It records deci
 - The read-only sentence summary now exists, and its phrases select the concept they describe. Making phrases editable remains an idea to try only if the read-only version proves useful.
 - Open question: dates and amounts fit poorly inline, so they may stay as ordinary fields beside the sentence.
 
+## 9. Make the chart evident
+
+- Give each payoff feature its own colour, used the same way in the summary sentence, the outline, and the chart: downside participation orange, principal protection blue, upside participation green, cap magenta, and principal repaid slate. The set passes the dataviz palette check for lightness, chroma and colour-vision separation; red with green was rejected because it fails that check. Direct labels and a legend carry identity as well as colour.
+- Draw the payoff line in the colour of the rule that sets the payment at each level (`regimeOf` in `src/chart/geometry.ts`, derived from the payment breakdown), so the reader sees where the floor or cap binds.
+- Colour the floor and cap guide lines and their handles to match, mark their labels with a matching swatch, and keep the initial-level and principal lines neutral.
+
 ## Outside this milestone
 
 Market pricing, implied volatility, Greeks, live data, coupons, buffers, barriers, calls, baskets, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.

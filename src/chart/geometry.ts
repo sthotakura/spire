@@ -1,6 +1,8 @@
 // Chart geometry and drag math, kept apart from Vue so it can be tested on its own.
 // The vertical axis is fixed at 0 to 2 × principal, so the line does not move under the pointer while the reader drags.
 
+import type { PaymentBreakdown } from '../domain/note'
+
 export interface Plot {
   left: number
   right: number
@@ -37,6 +39,10 @@ export const protectionFromY = (y: number, principal: number, plot: Plot) => cla
 export const slopeReturn = (cap?: number) => Math.min(slopeLevelFactor - 1, cap === undefined ? Infinity : cap / 2)
 export const slopeLevel = (initialLevel: number, cap?: number) => initialLevel * (1 + slopeReturn(cap))
 
+// The level at which the payment first reaches the cap, given the upside participation rate. Undefined when there is
+// no upside participation, since the payment can then never reach a cap.
+export const capBindLevel = (initialLevel: number, cap: number, upsideRate?: number) => (upsideRate ? initialLevel * (1 + cap / upsideRate) : undefined)
+
 // Dragging the slope handle sets the upside rate, snapped to 5%.
 export const upsideRateFromY = (y: number, principal: number, plot: Plot, cap?: number) => {
   const rate = (yToAmount(y, principal, plot) / principal - 1) / slopeReturn(cap) * 100
@@ -53,4 +59,23 @@ export const finalLevelFromX = (x: number, initialLevel: number, plot: Plot) => 
 export const keyDelta = (key: string, shift: boolean, step: number): number | null => {
   const direction = key === 'ArrowUp' || key === 'ArrowRight' ? 1 : key === 'ArrowDown' || key === 'ArrowLeft' ? -1 : 0
   return direction === 0 ? null : direction * step * (shift ? 5 : 1)
+}
+
+// The rule that sets the payment at a final level. The line is drawn in one colour per rule, so the reader can see which one binds where.
+export type Regime = 'principal' | 'downside' | 'upside' | 'floor' | 'cap'
+
+export const regimeOf = (b: PaymentBreakdown): Regime => b.floorApplies ? 'floor' : b.capApplies ? 'cap' : b.participationRate === undefined ? 'principal' : b.direction
+
+// Splits sampled points into runs of one regime. Each run also ends on the first point of the next, so the coloured pieces join without gaps.
+export const splitByRegime = (samples: ReadonlyArray<{ point: string; regime: Regime }>): { regime: Regime; points: string }[] => {
+  const runs: { regime: Regime; points: string[] }[] = []
+  for (const { point, regime } of samples) {
+    const last = runs[runs.length - 1]
+    if (last?.regime === regime) last.points.push(point)
+    else {
+      last?.points.push(point)
+      runs.push({ regime, points: [point] })
+    }
+  }
+  return runs.map((run) => ({ regime: run.regime, points: run.points.join(' ') }))
 }

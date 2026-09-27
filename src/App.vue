@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { amountToY, capFromY, clamp, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelAxisFactor, levelToX, protectionFromY, slopeLevel, upsideRateFromY, type Plot } from './chart/geometry'
+import { amountToY, capBindLevel, capFromY, clamp, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelAxisFactor, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, upsideRateFromY, type Plot, type Regime } from './chart/geometry'
 import HintToggle from './components/HintToggle.vue'
 import TabGroup from './components/TabGroup.vue'
 import type { ConceptId } from './content/concepts'
@@ -52,7 +52,7 @@ const finalLevel = ref(startingFinalLevel)
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
 const select = (concept: ConceptId) => { selected.value = concept }
-const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', determination: '#b7791f', payoff: '#2369bd', protection: '#2369bd', upside: '#2369bd', downside: '#2369bd', cap: '#2369bd' }
+const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', determination: '#b7791f', payoff: '#42536d', protection: '#2369bd', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c' }
 const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
@@ -303,18 +303,24 @@ const chartHighlight = computed(() => ({
   upside: selectedParticipation.upside && selected.value === 'upside',
   initial: selected.value === 'determination',
 }))
+// Each regime is drawn in its concept's colour, in the line, the legend and the guides.
+const regimeConcept: Record<Regime, ConceptId> = { principal: 'payoff', downside: 'downside', upside: 'upside', floor: 'protection', cap: 'cap' }
+const regimeLabel: Record<Regime, string> = { principal: 'Principal repaid', downside: 'Downside participation', upside: 'Upside participation', floor: 'Protection floor', cap: 'Cap' }
 const chart = computed(() => {
   if (errors.value.length) return null
   const principalAmount = principal.value
   const initial = initialLevel.value
   const end = initial * levelAxisFactor
-  const levels = Array.from({ length: 65 }, (_, i) => end * i / 64)
-  const values = levels.map((level) => maturityPayment(note.value, level))
+  const levels = Array.from({ length: 257 }, (_, i) => end * i / 256)
+  const breakdowns = levels.map((level) => paymentBreakdown(note.value, level))
+  const values = breakdowns.map((b) => b.payment)
   const x = (level: number) => levelToX(level, initial, plot)
   const y = (amount: number) => amountToY(amount, principalAmount, plot)
   const pinnedY = (amount: number) => clamp(y(amount), plot.top, plot.bottom)
   const point = (level: number, value: number) => `${x(level)},${y(value)}`
   const points = levels.map((level, i) => point(level, values[i])).join(' ')
+  const segments = splitByRegime(levels.map((level, i) => ({ point: point(level, values[i]), regime: regimeOf(breakdowns[i]) })))
+  const legend = [...new Set(segments.map((segment) => segment.regime))].map((regime) => ({ regime, concept: regimeConcept[regime], label: regimeLabel[regime] }))
   const pointsWhere = (keep: (level: number) => boolean) => levels.flatMap((level, i) => keep(level) ? [point(level, values[i])] : [])
   const atInitial = point(initial, maturityPayment(note.value, initial))
   const ghost = ghostNote.value
@@ -324,8 +330,25 @@ const chart = computed(() => {
   const finalHandle = payment.value === null ? null : { x: x(clamp(finalLevel.value, 0, end)), y: pinnedY(payment.value) }
   const bubbleText = payment.value === null ? '' : `${formatAmount(finalLevel.value)} → ${formatAmount(payment.value)} units`
   const bubbleWidth = 16 + bubbleText.length * 6.4 * labelScale.value
+  const capLabelY = y(capAmount) - 6 < plot.top + 10 ? y(capAmount) + 14 : y(capAmount) - 6 // above the cap line, or below it when the line is at the top of the plot
+  // The cap handle sits where the line actually bends flat. When the upside rate is too low for that to be in view,
+  // it falls back to a fixed spot on the cap's reference line instead of floating over the wrong-coloured segment.
+  const upsideRate = selectedParticipation.upside ? participationPercent.upside / 100 : undefined
+  const bindLevel = capSelected.value ? capBindLevel(initial, note.value.payoff.cap ?? 0, upsideRate) : undefined
+  const capOnCurve = bindLevel !== undefined && bindLevel <= end
+  const capHandleX = capSelected.value ? (capOnCurve ? x(bindLevel as number) : plot.left + (plot.right - plot.left) * 0.8) : null
+  // The cap label normally sits at the right edge. It shifts left of the handle instead only when the handle would otherwise sit on top of it.
+  const capTextWidth = `Cap ${formatAmount(capAmount)}`.length * 6.4 * labelScale.value
+  const capLabelOverlapsHandle = capOnCurve && capHandleX !== null && capHandleX + handleRadius.value + 6 > plot.right - 20 - capTextWidth
+  const capLabelRight = capLabelOverlapsHandle ? Math.min(plot.right - 4, (capHandleX as number) - handleRadius.value - 6) : plot.right - 4
+  // The tooltip normally sits above its handle. It drops below when that would cover the cap label.
+  const bubbleX = finalHandle && clamp(finalHandle.x - bubbleWidth / 2, plot.left + 2, plot.right - bubbleWidth - 2)
+  const capLabelLeft = capLabelRight - 16 - capTextWidth
+  const coversCapLabel = capSelected.value && finalHandle !== null && bubbleX !== null && bubbleX + bubbleWidth > capLabelLeft && finalHandle.y - 34 + 22 > capLabelY - 12 * labelScale.value && finalHandle.y - 34 < capLabelY + 4
   return {
     points,
+    segments,
+    legend,
     ghostPoints: ghostPoints !== points ? ghostPoints : '',
     downsidePoints: [...pointsWhere((level) => level < initial), atInitial].join(' '),
     upsidePoints: [atInitial, ...pointsWhere((level) => level > initial)].join(' '),
@@ -335,14 +358,16 @@ const chart = computed(() => {
     floorY: protectionSelected.value ? y(floorAmount) : null,
     floorAmount,
     capY: capSelected.value ? y(capAmount) : null,
+    capLabelY,
+    capLabelRight,
     capAmount,
     initialX: x(initial),
     end,
-    capHandle: capSelected.value ? { x: plot.left + (plot.right - plot.left) * 0.8, y: pinnedY(capAmount) } : null,
+    capHandle: capHandleX === null ? null : { x: capHandleX, y: pinnedY(capAmount) },
     floorHandle: protectionSelected.value ? { x: plot.left + (plot.right - plot.left) * 0.25, y: y(floorAmount) } : null,
     slopeHandle: selectedParticipation.upside ? { x: x(slopeLevel(initial, capFraction.value)), y: pinnedY(maturityPayment(note.value, slopeLevel(initial, capFraction.value))) } : null,
     finalHandle,
-    bubble: finalHandle && { text: bubbleText, width: bubbleWidth, x: clamp(finalHandle.x - bubbleWidth / 2, plot.left + 2, plot.right - bubbleWidth - 2), y: finalHandle.y < plot.top + 40 ? finalHandle.y + 16 : finalHandle.y - 34 },
+    bubble: finalHandle && bubbleX !== null && { text: bubbleText, width: bubbleWidth, x: bubbleX, y: finalHandle.y < plot.top + 40 || coversCapLabel ? finalHandle.y + 16 : finalHandle.y - 34 },
   }
 })
 </script>
@@ -465,32 +490,33 @@ const chart = computed(() => {
             <svg ref="chartSvg" class="chart" viewBox="0 0 620 270" role="group" :aria-label="chartDescription" :style="{ '--label': `${11 * labelScale}px` }">
               <defs><clipPath id="plot-clip"><rect :x="plot.left" :y="plot.top" :width="plot.right - plot.left" :height="plot.bottom - plot.top"/></clipPath></defs>
               <line :x1="plot.left" :y1="plot.bottom" :x2="plot.right" :y2="plot.bottom" class="axis-line"/><line :x1="plot.left" :y1="plot.top" :x2="plot.left" :y2="plot.bottom" class="axis-line"/>
-              <line :x1="plot.left" :y1="chart.principalY" :x2="plot.right" :y2="chart.principalY" class="grid-line"/>
-              <line v-if="chart.floorY !== null" :x1="plot.left" :y1="chart.floorY" :x2="plot.right" :y2="chart.floorY" :class="['grid-line', { on: chartHighlight.floor }]"/>
-              <line v-if="chart.capY !== null" :x1="plot.left" :y1="chart.capY" :x2="plot.right" :y2="chart.capY" :class="['grid-line', { on: chartHighlight.cap }]"/>
-              <line :x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" :class="['grid-line', { on: chartHighlight.initial }]"/>
+              <line :x1="plot.left" :y1="chart.principalY" :x2="plot.right" :y2="chart.principalY" class="ref-line principal"/>
+              <line v-if="chart.floorY !== null" :x1="plot.left" :y1="chart.floorY" :x2="plot.right" :y2="chart.floorY" :class="['ref-line', { on: chartHighlight.floor }]" :style="conceptStyle('protection')"/>
+              <line v-if="chart.capY !== null" :x1="plot.left" :y1="chart.capY" :x2="plot.right" :y2="chart.capY" :class="['ref-line', { on: chartHighlight.cap }]" :style="conceptStyle('cap')"/>
+              <line :x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" :class="['ref-line initial', { on: chartHighlight.initial }]" :style="conceptStyle('determination')"/>
               <g clip-path="url(#plot-clip)">
                 <polyline v-if="chart.ghostPoints" :points="chart.ghostPoints" class="ghost-line"/>
-                <polyline v-if="chartHighlight.line" :points="chart.points" class="highlight-line"/>
-                <polyline v-if="chartHighlight.downside" :points="chart.downsidePoints" class="highlight-line"/>
-                <polyline v-if="chartHighlight.upside" :points="chart.upsidePoints" class="highlight-line"/>
-                <polyline :points="chart.points" class="payoff-line"/>
+                <polyline :points="chart.points" class="payoff-casing"/>
+                <polyline v-if="chartHighlight.line" :points="chart.points" class="highlight-line" :style="conceptStyle('payoff')"/>
+                <polyline v-if="chartHighlight.downside" :points="chart.downsidePoints" class="highlight-line" :style="conceptStyle('downside')"/>
+                <polyline v-if="chartHighlight.upside" :points="chart.upsidePoints" class="highlight-line" :style="conceptStyle('upside')"/>
+                <polyline v-for="(segment, index) in chart.segments" :key="index" :points="segment.points" class="payoff-line" :style="conceptStyle(regimeConcept[segment.regime])"/>
               </g>
               <line v-if="chart.finalHandle" :x1="chart.finalHandle.x" :y1="chart.finalHandle.y" :x2="chart.finalHandle.x" :y2="plot.bottom" class="final-guide"/>
               <g v-for="tick in chart.amountTicks" :key="tick.y"><line :x1="plot.left - 4" :y1="tick.y" :x2="plot.left" :y2="tick.y" class="axis-line"/><text :x="plot.left - 7" :y="tick.y" text-anchor="end" dominant-baseline="middle" class="axis-label">{{ tick.label }}</text></g>
               <text :x="plot.left + 2" y="24" class="axis-label">Payment (units)</text>
-              <text :x="plot.left + 4" :y="chart.principalY - 6" class="axis-label">Principal {{ formatAmount(principal) }}</text>
-              <text v-if="chart.floorY !== null" :x="plot.left + 4" :y="chart.floorY + 14" :class="['axis-label', { on: chartHighlight.floor }]">Floor {{ formatAmount(chart.floorAmount) }}</text>
-              <text v-if="chart.capY !== null" :x="plot.right - 4" :y="chart.capY + 14" text-anchor="end" :class="['axis-label', { on: chartHighlight.cap }]">Cap {{ formatAmount(chart.capAmount) }}</text>
+              <line :x1="plot.left + 4" :y1="chart.principalY - 10" :x2="plot.left + 16" :y2="chart.principalY - 10" class="ref-swatch principal"/><text :x="plot.left + 20" :y="chart.principalY - 6" class="ref-label">Principal {{ formatAmount(principal) }}</text>
+              <template v-if="chart.floorY !== null"><line :x1="plot.left + 4" :y1="chart.floorY + 10" :x2="plot.left + 16" :y2="chart.floorY + 10" :class="['ref-swatch', { on: chartHighlight.floor }]" :style="conceptStyle('protection')"/><text :x="plot.left + 20" :y="chart.floorY + 14" :class="['ref-label', { on: chartHighlight.floor }]">Floor {{ formatAmount(chart.floorAmount) }}</text></template>
+              <template v-if="chart.capY !== null"><line :x1="chart.capLabelRight - 12" :y1="chart.capLabelY - 4" :x2="chart.capLabelRight" :y2="chart.capLabelY - 4" :class="['ref-swatch', { on: chartHighlight.cap }]" :style="conceptStyle('cap')"/><text :x="chart.capLabelRight - 16" :y="chart.capLabelY" text-anchor="end" :class="['ref-label', { on: chartHighlight.cap }]">Cap {{ formatAmount(chart.capAmount) }}</text></template>
               <text :x="plot.left - 3" y="251" class="axis-label">0</text><text :x="chart.initialX" y="251" text-anchor="middle" class="axis-label">Initial {{ formatAmount(initialLevel) }}</text><text :x="plot.right" y="251" text-anchor="end" class="axis-label">{{ formatAmount(chart.end) }}</text>
               <g v-if="chart.bubble" class="bubble" :transform="`translate(${chart.bubble.x} ${chart.bubble.y})`"><rect :width="chart.bubble.width" height="22" rx="6"/><text :x="chart.bubble.width / 2" y="15" text-anchor="middle">{{ chart.bubble.text }}</text></g>
-              <g v-if="chart.floorHandle" :class="['handle', { on: highlighted('protection') }]" :transform="`translate(${chart.floorHandle.x} ${chart.floorHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Principal protection" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="protectionPercent" :aria-valuetext="`${protectionPercent}% protection`" @pointerdown="startDrag('floor', $event)" @pointermove="dragMove('floor', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('floor', $event)" @focus="focusHandle('floor')">
+              <g v-if="chart.floorHandle" :class="['handle', { on: highlighted('protection') }]" :style="conceptStyle('protection')" :transform="`translate(${chart.floorHandle.x} ${chart.floorHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Principal protection" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="protectionPercent" :aria-valuetext="`${protectionPercent}% protection`" @pointerdown="startDrag('floor', $event)" @pointermove="dragMove('floor', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('floor', $event)" @focus="focusHandle('floor')">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
-              <g v-if="chart.capHandle" :class="['handle', { on: highlighted('cap') }]" :transform="`translate(${chart.capHandle.x} ${chart.capHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Cap" aria-valuemin="1" aria-valuemax="100" :aria-valuenow="capPercent" :aria-valuetext="`${capPercent}% maximum return`" @pointerdown="startDrag('cap', $event)" @pointermove="dragMove('cap', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('cap', $event)" @focus="focusHandle('cap')">
+              <g v-if="chart.capHandle" :class="['handle', { on: highlighted('cap') }]" :style="conceptStyle('cap')" :transform="`translate(${chart.capHandle.x} ${chart.capHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Cap" aria-valuemin="1" aria-valuemax="100" :aria-valuenow="capPercent" :aria-valuetext="`${capPercent}% maximum return`" @pointerdown="startDrag('cap', $event)" @pointermove="dragMove('cap', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('cap', $event)" @focus="focusHandle('cap')">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
-              <g v-if="chart.slopeHandle" :class="['handle', { on: highlighted('upside') }]" :transform="`translate(${chart.slopeHandle.x} ${chart.slopeHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Upside participation rate" aria-valuemin="5" aria-valuemax="200" :aria-valuenow="participationPercent.upside" :aria-valuetext="`${participationPercent.upside}% upside participation`" @pointerdown="startDrag('slope', $event)" @pointermove="dragMove('slope', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('slope', $event)" @focus="focusHandle('slope')">
+              <g v-if="chart.slopeHandle" :class="['handle', { on: highlighted('upside') }]" :style="conceptStyle('upside')" :transform="`translate(${chart.slopeHandle.x} ${chart.slopeHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Upside participation rate" aria-valuemin="5" aria-valuemax="200" :aria-valuenow="participationPercent.upside" :aria-valuetext="`${participationPercent.upside}% upside participation`" @pointerdown="startDrag('slope', $event)" @pointermove="dragMove('slope', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('slope', $event)" @focus="focusHandle('slope')">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
               <g v-if="chart.finalHandle" class="handle final-dot" :transform="`translate(${chart.finalHandle.x} ${chart.finalHandle.y})`" tabindex="0" role="slider" aria-label="Hypothetical final underlier level" aria-valuemin="0" :aria-valuemax="Math.floor(chart.end)" :aria-valuenow="finalLevel" :aria-valuetext="`Final level ${formatAmount(finalLevel)}, payment ${formatAmount(payment ?? 0)} units`" @pointerdown="startDrag('final', $event)" @pointermove="dragMove('final', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('final', $event)">
@@ -498,6 +524,7 @@ const chart = computed(() => {
               </g>
             </svg>
             <div class="chart-axis-title">Final underlier level →</div>
+            <ul class="chart-legend" aria-label="What sets the payment"><li v-for="item in chart.legend" :key="item.regime" :style="conceptStyle(item.concept)"><span class="legend-swatch" aria-hidden="true"></span>{{ item.label }}</li></ul>
             <p class="chart-hint">Drag a handle on the chart, or focus one and use the arrow keys. Shift takes bigger steps. A grey line shows the payoff before your last change.</p>
           </template>
           <p v-else class="help">Enter valid terms to see the payoff.</p>
