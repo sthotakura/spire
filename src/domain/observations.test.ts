@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fitObservations, shiftToAverage } from './observations'
+import { fitLookbackObservations, fitObservations, shiftToAverage } from './observations'
 
 describe('fitting observed levels to a count', () => {
   it('keeps the latest dates when the count falls', () => {
@@ -13,6 +13,20 @@ describe('fitting observed levels to a count', () => {
 
   it('leaves levels that already fit unchanged', () => {
     expect(fitObservations([90, 110], 2)).toEqual([90, 110])
+  })
+})
+
+describe('fitting levels observed after pricing to a count', () => {
+  it('keeps the earliest dates when the count falls', () => {
+    expect(fitLookbackObservations([97, 92, 95], 2)).toEqual([97, 92])
+  })
+
+  it('repeats the latest level on new, later dates when the count rises', () => {
+    expect(fitLookbackObservations([97, 92], 4)).toEqual([97, 92, 92, 92])
+  })
+
+  it('leaves levels that already fit unchanged', () => {
+    expect(fitLookbackObservations([97, 92, 95], 3)).toEqual([97, 92, 95])
   })
 })
 

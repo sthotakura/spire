@@ -26,6 +26,12 @@ describe('scenario rows', () => {
     expect(scenarioRows(startingNote, 100).map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 110, 130])
   })
 
+  it('measures each row from the initial level it is given, such as a lookback level', () => {
+    const rows = scenarioRows(notes[1][1], 92)
+    expect(rows.map(({ finalLevel }) => Math.round(finalLevel * 10) / 10)).toEqual([55.2, 92, 101.2, 119.6])
+    expect(rows[2].breakdown.underlierReturn).toBeCloseTo(0.1, 12)
+  })
+
   it('shows the floor applying only where it does', () => {
     const rows = scenarioRows(notes[3][1], 100)
     expect(rows.map(({ breakdown }) => breakdown.floorApplies)).toEqual([true, false, false, false])

@@ -51,6 +51,20 @@ describe('note summary with averaging', () => {
   })
 })
 
+describe('note summary with lookback', () => {
+  const lookback = { ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'lookback' as const, observationCount: 3 }, final: { kind: 'final-date' as const } } } }
+
+  it('says the change is measured from the lowest of the initial level and the levels after pricing', () => {
+    expect(sentence(lookback)).toContain('of Synthetic Index, measured from the lowest of 100 and 3 levels observed after pricing, with 90% principal protection.')
+    expect(conceptOf(lookback, 'from the lowest of 100 and 3 levels observed after pricing')).toBe('determination')
+  })
+
+  it('names both ends when the note also averages', () => {
+    const both = { ...lookback, underlier: { ...lookback.underlier, determination: { ...lookback.underlier.determination, final: { kind: 'averaging' as const, observationCount: 5 } } } }
+    expect(sentence(both)).toContain('measured from the lowest of 100 and 3 levels observed after pricing to the average of 5 observed levels,')
+  })
+})
+
 describe('note summary', () => {
   it('describes upside and downside participation together', () => {
     expect(sentence(note)).toBe('A note that redeems at maturity and pays 150% of the upside and 100% of the downside of Synthetic Index, measured point-to-point from 100, with 90% principal protection.')

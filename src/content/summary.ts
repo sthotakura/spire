@@ -19,10 +19,12 @@ export function summarize(note: ProtectedParticipationNote): SummarySegment[] {
   const cap = note.payoff.cap
   const buffer = note.payoff.buffer
   const initialLevel = amount(note.underlier.components[0].initialLevel)
-  const final = note.underlier.determination.final
-  const measured = final.kind === 'averaging'
-    ? `from ${initialLevel} to the average of ${Number.isFinite(final.observationCount) ? final.observationCount : '—'} observed levels`
-    : `point-to-point from ${initialLevel}`
+  const { initial, final } = note.underlier.determination
+  const count = (value: number) => Number.isFinite(value) ? value : '—'
+  // Each end of the determination adds its own phrase. With neither, the note is point-to-point.
+  const from = initial.kind === 'lookback' ? `from the lowest of ${initialLevel} and ${count(initial.observationCount)} levels observed after pricing` : `from ${initialLevel}`
+  const to = final.kind === 'averaging' ? ` to the average of ${count(final.observationCount)} observed levels` : ''
+  const measured = initial.kind === 'given' && final.kind === 'final-date' ? `point-to-point ${from}` : `${from}${to}`
 
   const payoff: SummarySegment[] = []
   if (upside || downside) {

@@ -42,8 +42,9 @@ function bufferStep(buffer: number, breakdown: PaymentBreakdown, hasDownside: bo
   return { title, how: `Absorbs the first ${formatPercent(buffer)} of a fall · ${how}`, value: `+${formatPercent(absorbs)}`, concept: 'buffer' }
 }
 
-// The worked calculation of the maturity payment from the observed levels. Every number comes from the payment breakdown.
-export function calculationSteps(note: ProtectedParticipationNote, breakdown: PaymentBreakdown, observedLevels: number[]): CalculationStep[] {
+// The worked calculation of the maturity payment from the observed levels: those on the final dates and, for lookback, those
+// after pricing. Every number comes from the payment breakdown.
+export function calculationSteps(note: ProtectedParticipationNote, breakdown: PaymentBreakdown, observedLevels: number[], afterPricing: number[]): CalculationStep[] {
   const b = breakdown
   const [component] = note.underlier.components
   const name = component.asset.name.trim()
@@ -53,9 +54,12 @@ export function calculationSteps(note: ProtectedParticipationNote, breakdown: Pa
   const withProtection = principalProtection !== undefined
   const hasDownside = note.payoff.participations.some(({ direction }) => direction === 'downside')
   const { determination } = note.underlier
-  const initialLevel = initialLevelFrom(determination.initial, component.initialLevel, [])
+  const initialLevel = initialLevelFrom(determination.initial, component.initialLevel, afterPricing)
   const finalLevel = finalLevelFrom(determination.final, observedLevels)
   const steps: Array<Omit<CalculationStep, 'n'>> = []
+  if (determination.initial.kind === 'lookback') {
+    steps.push({ title: `Lookback level of ${name || 'the underlier'}`, how: `min(${[component.initialLevel, ...afterPricing].map(formatAmount).join(', ')})`, value: formatAmount(initialLevel), concept: 'determination' })
+  }
   if (determination.final.kind === 'averaging') {
     steps.push({ title: `Final level of ${name || 'the underlier'}`, how: `(${observedLevels.map(formatAmount).join(' + ')}) ÷ ${observedLevels.length}`, value: formatAmount(finalLevel), concept: 'determination' })
   }

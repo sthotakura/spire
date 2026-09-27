@@ -6,6 +6,13 @@ export function fitObservations(levels: number[], count: number): number[] {
   return [...Array<number>(count - levels.length).fill(levels[0]), ...levels]
 }
 
+// Fits levels observed after pricing, for lookback, to a count. Dropping keeps the earliest dates, the ones closest to
+// pricing; adding repeats the latest level on new, later dates.
+export function fitLookbackObservations(levels: number[], count: number): number[] {
+  if (levels.length >= count) return levels.slice(0, count)
+  return [...levels, ...Array<number>(count - levels.length).fill(levels[levels.length - 1])]
+}
+
 // Moves every level by the same whole number of units so their average lands as close to the target as it can, keeping
 // the shape of the path. Whole units keep whole levels whole, so the average can differ from the target by up to half a unit.
 // A level cannot go below zero, so near zero the average can also end above the target.

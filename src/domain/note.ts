@@ -128,6 +128,8 @@ export function finalLevelFrom(determination: FinalDetermination, observedLevels
 }
 
 export interface PaymentBreakdown {
+  // The level the return is measured from, as the initial end of the determination produced it.
+  initialLevel: number
   underlierReturn: number
   // The direction the return falls in. A flat return counts as upside.
   direction: ParticipationDirection
@@ -169,6 +171,7 @@ export function paymentBreakdown(note: ProtectedParticipationNote, levels: Deter
   const unflooredPayment = capApplies ? capAmount : uncappedPayment
   const floor = note.principalAmount * (note.payoff.principalProtection ?? 0)
   return {
+    initialLevel: levels.initial,
     underlierReturn,
     direction,
     bufferAbsorbs,

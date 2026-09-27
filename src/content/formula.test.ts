@@ -51,6 +51,14 @@ describe('payment formula', () => {
     expect(paymentFormula(averaged)[0].segments[0].concept).toBe('determination')
   })
 
+  it('defines the lookback level, and measures the return from it, when the note looks back', () => {
+    const lookback = { ...noteWith([up]), underlier: { ...startingNote.underlier, determination: { initial: { kind: 'lookback' as const, observationCount: 3 }, final: { kind: 'final-date' as const } } } }
+    expect(text(lookback).slice(0, 2)).toEqual(['Lookback level = Lowest of the initial level and the levels observed after pricing', 'Return = Final level ÷ Lookback level − 1'])
+    expect(paymentFormula(lookback)[0].segments[0].concept).toBe('determination')
+    const both = { ...lookback, underlier: { ...lookback.underlier, determination: { ...lookback.underlier.determination, final: { kind: 'averaging' as const, observationCount: 5 } } } }
+    expect(text(both).slice(0, 3).map((line) => line.split(' = ')[0])).toEqual(['Lookback level', 'Final level', 'Return'])
+  })
+
   it('tags each term with the concept it comes from', () => {
     const concepts = paymentFormula(noteWith([down, up], 0.2, 0.9)).flatMap(({ segments }) => segments.flatMap(({ concept }) => concept ?? []))
     expect(concepts).toEqual(['determination', 'upside', 'downside', 'cap', 'protection'])

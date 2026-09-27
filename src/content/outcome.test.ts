@@ -81,6 +81,13 @@ describe('outcome explanation', () => {
     expect(explain(averaged, 100)).toMatch(/^Averaged over 5 observations, the underlier ended unchanged\./)
   })
 
+  it('names the lookback level the move is measured from', () => {
+    const lookback = { ...noteWith([{ direction: 'upside', rate: 1 }]), underlier: { ...noteWith([]).underlier, determination: { initial: { kind: 'lookback' as const, observationCount: 3 }, final: { kind: 'final-date' as const } } } }
+    expect(explainOutcome(lookback, paymentBreakdown(lookback, { initial: 92, final: 110 }))).toBe('Measured from its lookback level of 92, the underlier rose 19.6%. Upside participation of 100% adds 19.6% to principal. The contractual payment is 1,195.65, 195.65 more than principal.')
+    const both = { ...lookback, underlier: { ...lookback.underlier, determination: { ...lookback.underlier.determination, final: { kind: 'averaging' as const, observationCount: 5 } } } }
+    expect(explainOutcome(both, paymentBreakdown(both, { initial: 92, final: 110 }))).toMatch(/^Averaged over 5 observations and measured from its lookback level of 92, the underlier rose 19\.6%\./)
+  })
+
   it('explains a note with no features', () => {
     expect(explain(noteWith([]), 110)).toBe('The underlier rose 10%. No upside participation is selected, so principal is unchanged. The contractual payment is 1,000, the same as principal.')
     expect(explain(noteWith([]), 60)).toBe('The underlier fell 40%. No downside participation is selected, so principal is unchanged. The contractual payment is 1,000, the same as principal.')

@@ -5,13 +5,17 @@ const units = (value: number) => Math.abs(value).toLocaleString('en-US', { maxim
 
 // Explains a contractual maturity payment in words, from the note and its payment breakdown.
 export function explainOutcome(note: ProtectedParticipationNote, breakdown: PaymentBreakdown): string {
-  const { underlierReturn, direction, bufferAbsorbs, participationRate, participatedReturn, capAmount, capApplies, unflooredPayment, floor, floorApplies, payment } = breakdown
+  const { initialLevel, underlierReturn, direction, bufferAbsorbs, participationRate, participatedReturn, capAmount, capApplies, unflooredPayment, floor, floorApplies, payment } = breakdown
   const hasProtection = note.payoff.principalProtection !== undefined
   const hasCap = capAmount !== undefined
   const principal = note.principalAmount
 
-  const final = note.underlier.determination.final
-  const measured = final.kind === 'averaging' ? `Averaged over ${final.observationCount} observations, the underlier` : 'The underlier'
+  const { initial, final } = note.underlier.determination
+  const how = [
+    final.kind === 'averaging' ? `averaged over ${final.observationCount} observations` : '',
+    initial.kind === 'lookback' ? `measured from its lookback level of ${units(initialLevel)}` : '',
+  ].filter(Boolean).join(' and ')
+  const measured = how ? `${how[0].toUpperCase()}${how.slice(1)}, the underlier` : 'The underlier'
   const movement = underlierReturn > 0 ? `${measured} rose ${percent(underlierReturn)}.`
     : underlierReturn < 0 ? `${measured} fell ${percent(underlierReturn)}.`
       : `${measured} ended unchanged.`

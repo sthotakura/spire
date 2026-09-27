@@ -277,7 +277,7 @@ const activeTab = ref('calculation')
 const calculation = computed(() => {
   const b = breakdown.value
   if (!b) return []
-  return calculationSteps(note.value, b, observations.value)
+  return calculationSteps(note.value, b, observations.value, [])
 })
 
 // The chart. Its vertical axis is fixed (see chart/geometry.ts), and handles on it edit the same values the outline fields edit.

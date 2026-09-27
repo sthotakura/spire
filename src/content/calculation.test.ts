@@ -10,7 +10,7 @@ const noteWith = (participations: Participation[], principalProtection?: number,
   principalAmount: 1000,
 })
 const both = [{ direction: 'downside' as const, rate: 0.1 }, { direction: 'upside' as const, rate: 1 }]
-const steps = (note: ProtectedParticipationNote, finalLevel: number) => calculationSteps(note, paymentBreakdown(note, { initial: 100, final: finalLevel }), [finalLevel])
+const steps = (note: ProtectedParticipationNote, finalLevel: number) => calculationSteps(note, paymentBreakdown(note, { initial: 100, final: finalLevel }), [finalLevel], [])
 const step = (note: ProtectedParticipationNote, finalLevel: number, title: string) => steps(note, finalLevel).find((candidate) => candidate.title === title)
 
 describe('calculation steps', () => {
@@ -75,12 +75,29 @@ describe('calculation steps', () => {
   it('adds a step that averages the observed levels before the return', () => {
     const note = { ...noteWith(both), underlier: { ...noteWith(both).underlier, determination: { initial: { kind: 'given' as const }, final: { kind: 'averaging' as const, observationCount: 4 } } } }
     const observed = [100, 120, 90, 130]
-    const averaged = calculationSteps(note, paymentBreakdown(note, { initial: 100, final: 110 }), observed)
+    const averaged = calculationSteps(note, paymentBreakdown(note, { initial: 100, final: 110 }), observed, [])
     expect(averaged.slice(0, 2)).toMatchObject([
       { n: 1, title: 'Final level of Synthetic Index', how: '(100 + 120 + 90 + 130) ÷ 4', value: '110', concept: 'determination' },
       { n: 2, title: 'Synthetic Index return', how: '110 ÷ 100 − 1', value: '+10%', concept: 'determination' },
     ])
     expect(averaged[averaged.length - 1].how).toBe('The higher of step 5 and zero')
+  })
+
+  it('adds a step that takes the lookback level before the return', () => {
+    const upsideOnly = noteWith([{ direction: 'upside', rate: 1 }])
+    const note = { ...upsideOnly, underlier: { ...upsideOnly.underlier, determination: { initial: { kind: 'lookback' as const, observationCount: 3 }, final: { kind: 'final-date' as const } } } }
+    const lookback = calculationSteps(note, paymentBreakdown(note, { initial: 92, final: 110 }), [110], [97, 92, 95])
+    expect(lookback.slice(0, 2)).toMatchObject([
+      { n: 1, title: 'Lookback level of Synthetic Index', how: 'min(100, 97, 92, 95)', value: '92', concept: 'determination' },
+      { n: 2, title: 'Synthetic Index return', how: '110 ÷ 92 − 1', value: '+19.6%', concept: 'determination' },
+    ])
+    expect(lookback[lookback.length - 1]).toMatchObject({ how: 'The higher of step 5 and zero', value: '1,195.65' })
+  })
+
+  it('takes the lookback level, then averages the final level, when the note does both', () => {
+    const note = { ...noteWith(both), underlier: { ...noteWith(both).underlier, determination: { initial: { kind: 'lookback' as const, observationCount: 3 }, final: { kind: 'averaging' as const, observationCount: 4 } } } }
+    const titles = calculationSteps(note, paymentBreakdown(note, { initial: 92, final: 110 }), [100, 120, 90, 130], [97, 92, 95]).map(({ title }) => title)
+    expect(titles.slice(0, 3)).toEqual(['Lookback level of Synthetic Index', 'Final level of Synthetic Index', 'Synthetic Index return'])
   })
 
   it('agrees with the payment breakdown', () => {

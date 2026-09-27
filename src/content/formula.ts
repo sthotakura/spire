@@ -28,10 +28,12 @@ export function paymentFormula(note: ProtectedParticipationNote): FormulaLine[] 
   const payment: FormulaSegment[] = terms.length ? [{ text: 'Principal × (1 + ' }, ...terms, { text: ')' }] : [{ text: 'Principal' }]
 
   const lines: FormulaLine[] = []
-  // Averaging defines the final level before the return reads it. Point-to-point needs no line: the final level is the one observed level.
-  if (note.underlier.determination.final.kind === 'averaging') lines.push({ lead: 'Final level', segments: [{ text: 'Average of the observed levels', concept: 'determination' }] })
+  const { initial, final } = note.underlier.determination
+  // Lookback and averaging define their levels before the return reads them. Point-to-point needs no line: each level is one observed level.
+  if (initial.kind === 'lookback') lines.push({ lead: 'Lookback level', segments: [{ text: 'Lowest of the initial level and the levels observed after pricing', concept: 'determination' }] })
+  if (final.kind === 'averaging') lines.push({ lead: 'Final level', segments: [{ text: 'Average of the observed levels', concept: 'determination' }] })
   lines.push(
-    { lead: 'Return', segments: [{ text: 'Final level ÷ Initial level − 1', concept: 'determination' }] },
+    { lead: 'Return', segments: [{ text: `Final level ÷ ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level − 1`, concept: 'determination' }] },
     { lead: 'Payment', segments: payment },
   )
   if (cap !== undefined) lines.push({ segments: [{ text: 'capped at ' }, { text: 'Principal × (1 + Cap)', concept: 'cap' }] })
