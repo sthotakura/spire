@@ -14,6 +14,7 @@ These decisions override the sections below wherever they disagree.
 - **Structure JSON is its own panel**, always visible in the third column (below the other panels at narrower widths). It is not a tab. One of the intended readers is technical, so the structure is in plain view, with the selected concept's lines highlighted.
 - **The tabs under the chart are "How the payment is worked out" (the default) and "Scenarios".**
 - **Intro:** two lines, with no label above them. The headline is "Structured products, built from their parts." and the line under it is "See how each feature changes what a note pays at maturity, and why."
+- **Outline copy for newcomers:** each part shows a one-line meaning under its name, in neutral wording (no "you" or "your"), because the reader may be an investor or a structurer. The ⓘ hints keep the fuller definitions. Determination is a dropdown like wrapper and redemption, with averaging and lookback listed as unavailable, and a "Final level" line points to the chart. Principal and initial level show digit separators, and principal has no unit label.
 - **Attribution and disclaimers:** the name stays in the footer, and the line under the tabs reads "All amounts are illustrative." The footer carries only the name and the build time.
 
 ## Why this task exists

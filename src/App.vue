@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { amountToY, capBindLevel, capFromY, clamp, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelAxisFactor, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, upsideRateFromY, type Plot, type Regime } from './chart/geometry'
 import HintToggle from './components/HintToggle.vue'
+import NumberInput from './components/NumberInput.vue'
 import TabGroup from './components/TabGroup.vue'
 import type { ConceptId } from './content/concepts'
 import { marketingNames, type MarketingName } from './content/names'
@@ -39,6 +40,19 @@ const redemptionOptions = [
   { id: 'issuer-callable', label: 'Issuer callable', description: 'The issuer may redeem the note early under defined terms.', available: false },
   { id: 'puttable', label: 'Puttable', description: 'The holder may require redemption under defined terms.', available: false },
 ] as const
+const determinationOptions = [
+  { id: 'averaging', label: 'Averaging', description: 'Uses the average of levels observed on several stated dates.', available: false },
+  { id: 'lookback', label: 'Lookback', description: 'Uses the highest or lowest level observed on stated dates.', available: false },
+  { id: 'point-to-point', label: 'Point-to-point', description: 'Compares one initial level with one final level.', available: true },
+] as const
+// A one-line meaning under each part's name, so the outline reads without opening every hint.
+const partDescriptions = {
+  wrapper: 'The form the product takes',
+  redemption: 'When principal is repaid',
+  underlier: 'What the return is linked to',
+  determination: 'How the underlier’s change is measured',
+  payoff: 'What the note pays at maturity',
+}
 const underlierOptions: ReadonlyArray<{ id: UnderlierKind; label: string }> = [
   { id: 'equity-index', label: 'Single equity index' },
   { id: 'equity', label: 'Single equity' },
@@ -392,26 +406,29 @@ const chart = computed(() => {
       <div class="workspace">
         <section class="panel outline" aria-label="Product structure">
           <h2>Structure</h2>
-          <p class="help">Edit each part where it sits. Add payoff features under the payoff.</p>
+          <p class="help">A structured product is built from separate parts. Each one answers a single question about what the product is and what it pays.</p>
           <ul class="tree">
             <li :class="['node', { sel: highlighted('wrapper') }]" :style="conceptStyle('wrapper')">
               <div class="nrow" @click="select('wrapper')" @focusin="focusRow('wrapper')">
                 <span class="nlabel">Wrapper<HintToggle id="wrapper" about="wrapper" :text="hints.wrapper" :active="activeHint === 'wrapper'" @toggle="toggleHint('wrapper')" /></span>
-                <span class="ctrl"><select aria-label="Wrapper" :value="note.wrapper"><option v-for="option in wrapperOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
-                <span class="ctrl block"><label for="principal">Principal</label><HintToggle id="principal" about="principal" :text="hints.principal" :active="activeHint === 'principal'" @toggle="toggleHint('principal')" /><input id="principal" v-model.number="principal" type="number" min="0.01" step="any" /><span class="unit">units</span></span>
+                <span class="ctrl pick"><select aria-label="Wrapper" :value="note.wrapper"><option v-for="option in wrapperOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
+                <span class="ndesc">{{ partDescriptions.wrapper }}</span>
+                <span class="ctrl block"><label for="principal">Principal</label><HintToggle id="principal" about="principal" :text="hints.principal" :active="activeHint === 'principal'" @toggle="toggleHint('principal')" /><NumberInput id="principal" v-model="principal" class="num" /></span>
               </div>
               <ul v-if="issuesFor('principalAmount').length" class="errors" role="alert"><li v-for="message in issuesFor('principalAmount')" :key="message">{{ message }}</li></ul>
               <ul>
                 <li :class="['node', { sel: highlighted('redemption') }]" :style="conceptStyle('redemption')">
                   <div class="nrow" @click="select('redemption')" @focusin="focusRow('redemption')">
                     <span class="nlabel">Redemption<HintToggle id="redemption" about="redemption" :text="hints.redemption" :active="activeHint === 'redemption'" @toggle="toggleHint('redemption')" /></span>
-                    <span class="ctrl"><select aria-label="Redemption" :value="note.redemption"><option v-for="option in redemptionOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
+                    <span class="ctrl pick"><select aria-label="Redemption" :value="note.redemption"><option v-for="option in redemptionOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
+                    <span class="ndesc">{{ partDescriptions.redemption }}</span>
                   </div>
                 </li>
                 <li :class="['node', { sel: highlighted('underlier') }]" :style="conceptStyle('underlier')">
                   <div class="nrow" @click="select('underlier')" @focusin="focusRow('underlier')">
                     <span class="nlabel">Underlier<HintToggle id="underlier" about="underlier" :text="hints.underlier" :active="activeHint === 'underlier'" @toggle="toggleHint('underlier')" /></span>
-                    <span class="ctrl"><select v-model="underlierKind" aria-label="Underlier type"><option v-for="option in underlierOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
+                    <span class="ctrl pick wide"><select v-model="underlierKind" aria-label="Underlier type"><option v-for="option in underlierOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
+                    <span class="ndesc">{{ partDescriptions.underlier }}</span>
                     <span class="ctrl block"><label for="underlier-name">Name</label><input id="underlier-name" v-model="underlierName" type="text" placeholder="Synthetic Index" /></span>
                   </div>
                   <ul v-if="issuesFor('underlierName').length" class="errors" role="alert"><li v-for="message in issuesFor('underlierName')" :key="message">{{ message }}</li></ul>
@@ -419,14 +436,17 @@ const chart = computed(() => {
                 <li :class="['node', { sel: highlighted('determination') }]" :style="conceptStyle('determination')">
                   <div class="nrow" @click="select('determination')" @focusin="focusRow('determination')">
                     <span class="nlabel">Determination<HintToggle id="determination" about="determination" :text="hints.determination" :active="activeHint === 'determination'" @toggle="toggleHint('determination')" /></span>
-                    <span class="ctrl"><span class="badge">Point-to-point</span></span>
-                    <span class="ctrl block"><label for="initial-level">Initial level</label><HintToggle id="initial-level" about="initial level" :text="hints['initial-level']" :active="activeHint === 'initial-level'" @toggle="toggleHint('initial-level')" /><input id="initial-level" v-model.number="initialLevel" type="number" min="0.01" step="any" /></span>
+                    <span class="ctrl pick"><select aria-label="Determination" :value="note.determination.kind"><option v-for="option in determinationOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
+                    <span class="ndesc">{{ partDescriptions.determination }}</span>
+                    <span class="ctrl block"><label for="initial-level">Initial level</label><HintToggle id="initial-level" about="initial level" :text="hints['initial-level']" :active="activeHint === 'initial-level'" @toggle="toggleHint('initial-level')" /><NumberInput id="initial-level" v-model="initialLevel" class="num" /></span>
+                    <span class="ctrl block"><span class="flabel">Final level</span><span class="unit">Hypothetical, set on the chart</span></span>
                   </div>
                   <ul v-if="issuesFor('initialLevel').length" class="errors" role="alert"><li v-for="message in issuesFor('initialLevel')" :key="message">{{ message }}</li></ul>
                 </li>
                 <li :class="['node', { sel: highlighted('payoff') }]" :style="conceptStyle('payoff')">
                   <div class="nrow" @click="select('payoff')" @focusin="focusRow('payoff')">
                     <span class="nlabel">Payoff<HintToggle id="payoff" about="payoff" :text="hints.payoff" :active="activeHint === 'payoff'" @toggle="toggleHint('payoff')" /></span>
+                    <span class="ndesc">{{ partDescriptions.payoff }}</span>
                   </div>
                   <ul v-if="issuesFor('participations').length" class="errors" role="alert"><li v-for="message in issuesFor('participations')" :key="message">{{ message }}</li></ul>
                   <ul>
