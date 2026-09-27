@@ -164,8 +164,8 @@ const note = computed<ProtectedParticipationNote>(() => ({
       direction,
       rate: participationPercent[direction] / 100,
     })),
-    principalProtection: protectionSelected.value ? protectionPercent.value / 100 : undefined,
     cap: capSelected.value ? capPercent.value / 100 : undefined,
+    principalProtection: protectionSelected.value ? protectionPercent.value / 100 : undefined,
   },
   principalAmount: principal.value,
 }))
@@ -468,6 +468,20 @@ const chart = computed(() => {
                   </div>
                   <ul v-if="issuesFor('participations').length" class="errors" role="alert"><li v-for="message in issuesFor('participations')" :key="message">{{ message }}</li></ul>
                   <ul>
+                    <li v-if="selectedParticipation.downside" :class="['node', { sel: highlighted('downside') }]" :style="conceptStyle('downside')">
+                      <div class="nrow" @click="select('downside')" @focusin="focusRow('downside')">
+                        <span class="nlabel">Downside participation<HintToggle id="downside" about="downside participation rate" :text="hints.downside" :active="activeHint === 'downside'" @toggle="toggleHint('downside')" /></span>
+                        <span class="ctrl"><input id="rate-downside" v-model.number="participationPercent.downside" type="number" min="0.01" step="any" aria-label="Downside participation rate (%)" /><span class="unit">%</span></span>
+                        <button type="button" class="xbtn" aria-label="Remove downside participation" @click.stop="removeFeature('downside')">×</button>
+                      </div>
+                    </li>
+                    <li v-if="selectedParticipation.upside" :class="['node', { sel: highlighted('upside') }]" :style="conceptStyle('upside')">
+                      <div class="nrow" @click="select('upside')" @focusin="focusRow('upside')">
+                        <span class="nlabel">Upside participation<HintToggle id="upside" about="upside participation rate" :text="hints.upside" :active="activeHint === 'upside'" @toggle="toggleHint('upside')" /></span>
+                        <span class="ctrl"><input id="rate-upside" v-model.number="participationPercent.upside" type="number" min="0.01" step="any" aria-label="Upside participation rate (%)" /><span class="unit">%</span></span>
+                        <button type="button" class="xbtn" aria-label="Remove upside participation" @click.stop="removeFeature('upside')">×</button>
+                      </div>
+                    </li>
                     <li v-if="capSelected" :class="['node', { sel: highlighted('cap') }]" :style="conceptStyle('cap')">
                       <div class="nrow" @click="select('cap')" @focusin="focusRow('cap')">
                         <span class="nlabel">Cap<HintToggle id="cap" about="cap" :text="hints.cap" :active="activeHint === 'cap'" @toggle="toggleHint('cap')" /></span>
@@ -477,13 +491,6 @@ const chart = computed(() => {
                       <ul v-if="issuesFor('cap').length" class="errors" role="alert"><li v-for="message in issuesFor('cap')" :key="message">{{ message }}</li></ul>
                       <p v-if="!selectedParticipation.upside" class="row-note">A cap has no meaning unless there is some upside exposure to cap.</p>
                     </li>
-                    <li v-if="selectedParticipation.downside" :class="['node', { sel: highlighted('downside') }]" :style="conceptStyle('downside')">
-                      <div class="nrow" @click="select('downside')" @focusin="focusRow('downside')">
-                        <span class="nlabel">Downside participation<HintToggle id="downside" about="downside participation rate" :text="hints.downside" :active="activeHint === 'downside'" @toggle="toggleHint('downside')" /></span>
-                        <span class="ctrl"><input id="rate-downside" v-model.number="participationPercent.downside" type="number" min="0.01" step="any" aria-label="Downside participation rate (%)" /><span class="unit">%</span></span>
-                        <button type="button" class="xbtn" aria-label="Remove downside participation" @click.stop="removeFeature('downside')">×</button>
-                      </div>
-                    </li>
                     <li v-if="protectionSelected" :class="['node', { sel: highlighted('protection') }]" :style="conceptStyle('protection')">
                       <div class="nrow" @click="select('protection')" @focusin="focusRow('protection')">
                         <span class="nlabel">Principal protection<HintToggle id="protection" about="principal protection" :text="hints.protection" :active="activeHint === 'protection'" @toggle="toggleHint('protection')" /></span>
@@ -491,13 +498,6 @@ const chart = computed(() => {
                         <button type="button" class="xbtn" aria-label="Remove principal protection" @click.stop="removeFeature('protection')">×</button>
                       </div>
                       <ul v-if="issuesFor('principalProtection').length" class="errors" role="alert"><li v-for="message in issuesFor('principalProtection')" :key="message">{{ message }}</li></ul>
-                    </li>
-                    <li v-if="selectedParticipation.upside" :class="['node', { sel: highlighted('upside') }]" :style="conceptStyle('upside')">
-                      <div class="nrow" @click="select('upside')" @focusin="focusRow('upside')">
-                        <span class="nlabel">Upside participation<HintToggle id="upside" about="upside participation rate" :text="hints.upside" :active="activeHint === 'upside'" @toggle="toggleHint('upside')" /></span>
-                        <span class="ctrl"><input id="rate-upside" v-model.number="participationPercent.upside" type="number" min="0.01" step="any" aria-label="Upside participation rate (%)" /><span class="unit">%</span></span>
-                        <button type="button" class="xbtn" aria-label="Remove upside participation" @click.stop="removeFeature('upside')">×</button>
-                      </div>
                     </li>
                     <li v-if="!hasFeatures" class="empty-payoff">
                       <p>This note only repays principal. Add a feature, such as upside participation or principal protection, to change what it pays.</p>

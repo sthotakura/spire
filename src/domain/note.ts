@@ -31,10 +31,11 @@ export interface ProtectedParticipationNote {
   underlier: SingleUnderlier
   payoff: {
     kind: 'participation'
+    // Features are listed in the order the payment applies them: participation, then the cap, then the protection floor.
     participations: Participation[]
-    principalProtection?: number
     // The most the note can pay above principal, as a fraction of principal. Absent means the payment has no ceiling.
     cap?: number
+    principalProtection?: number
   }
   principalAmount: number
 }

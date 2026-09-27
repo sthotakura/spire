@@ -78,4 +78,4 @@ The same note with a 20% cap. The cap payment is 1,000 × (1 + 20%) = 1,200.
 
 ## Interface decision
 
-Payoff features are added one at a time to a payoff that starts with none. They are listed alphabetically. An unavailable feature may appear in that list for learning context, but its presence does not assign it domain behavior.
+Payoff features are added one at a time to a payoff that starts with none. The Add feature list is alphabetical. Once added, features appear in the order the payment applies them: participation, then the cap, then the protection floor. An unavailable feature may appear in that list for learning context, but its presence does not assign it domain behavior.
