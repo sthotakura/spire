@@ -482,7 +482,7 @@ const chart = computed(() => {
                       </div>
                     </li>
                     <li v-if="!hasFeatures" class="empty-payoff">
-                      <p>This note only repays principal. Add a feature to change what it pays.</p>
+                      <p>This note only repays principal. Add a feature, such as upside participation or principal protection, to change what it pays.</p>
                     </li>
                     <li ref="paletteRoot" class="addrow"@keydown.esc="closePalette(true)">
                       <button ref="addButton" type="button" class="addbtn" aria-haspopup="dialog" :aria-expanded="paletteOpen" @click="paletteOpen ? closePalette() : openPalette()">＋ Add feature</button>
