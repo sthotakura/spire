@@ -108,16 +108,14 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Treat the observed levels as scenario inputs, edited in the calculation. The chart handle moves them all together; the count is a note term, shown in the outline and the Structure JSON.
 - Show averaging in the summary, payment rule, calculation (a step that averages the levels), outcome sentence, chart axis and scenario table. Lookback stays unavailable.
 
-## 13. Add lookback (planned, not started)
+## 13. Add lookback
 
-The domain meaning, model, worked example and decisions are in [docs/lookback.md](docs/lookback.md): lookback sets the initial level as the lowest observed level, the determination splits into initial and final ends, observations are counted from 2 to 12 without dates, and the derived value is called "Lookback level" beside the "Initial level" term. Whether the buffer is measured from the lookback level or the pricing level is still open; this plan measures it from the lookback level, as a stated assumption.
-
-1. Split the determination into its two ends, `initial` and `final`, with only `given` available at the initial end. The final end is on the final date (today's point-to-point) or averaging; move averaging under `final`. Pass the determined initial level into the payment calculation instead of reading the initial-level term from the note. This step is a refactor with no new behaviour. → verify: every existing test passes, changed only in call shape, and the Structure JSON still matches `JSON.stringify`.
-2. Add lookback on the initial level: the lowest of the pricing-date level (the existing initial-level term) and a stated number of observed levels after it. Reuse the observation count rule from averaging (2 to 12). → verify: domain tests for the three rows of the worked example, for a lookback level that equals the pricing level, and for lookback combined with averaging.
-3. Keep the payoff rule unchanged. It reads the return from the determined initial and final levels. → verify: payoff tests change only in call shape.
-4. Treat the observed levels after pricing as scenario inputs, shown as a second labelled row in the calculation (`min(100, 97, 92, 95) = 92`), and add a calculation step for the lookback level. Show lookback in the summary, payment rule, outcome sentence and scenario table. → verify: focused content tests.
-5. Show lookback in the outline (a choice for each end of the determination) and the chart (the pricing level and the lookback level as separate reference lines; the payoff bends at the lookback level). → verify: in the running app.
-6. Update `docs/underlier-model.md`, `docs/averaging.md` and `README.md` for the new shape, and replace the current lookback option wording ("highest or lowest level") with the settled definition.
+- Split the determination into its two ends: the initial level is fixed (`given`) or by lookback, and the final level is on the final date or averaged. Point-to-point is a fixed initial level and a final level on the final date. The model, decisions and worked example are in [docs/lookback.md](docs/lookback.md).
+- Add lookback on the initial level: the lowest of the initial-level term (the pricing-date level) and a stated number of levels observed after pricing, from 2 to 12.
+- Keep the payoff rule unchanged. The payment calculation takes the determined initial and final levels, and every calculation reads the determined initial level, so the return, scenario table, payoff and buffer are all measured from the lookback level. The chart's axis stays scaled on the initial-level term.
+- Treat the levels after pricing as scenario inputs, edited in the calculation (`min(100, 97, 92, 95) = 92`). Only the count is a note term.
+- Show lookback in the outline ("Initial level" and "Final level" choices), summary, payment rule, calculation, outcome sentence, scenario table and chart (the initial level and the lookback level as separate reference lines).
+- Measuring the buffer from the lookback level rather than the pricing level is an assumption still to check against public term sheets.
 
 ## Outside this milestone
 

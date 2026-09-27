@@ -17,8 +17,13 @@ underlier return   = final level / initial level - 1
 
 Everything after the return is the payoff, and it does not change: the buffer, participation, cap and floor read the return as before. This is why determination sits in the underlier and not in the payoff ([underlier-model.md](underlier-model.md)).
 
+Averaging is the final end of the determination; the initial end is set on its own, as a fixed term or by lookback ([lookback.md](lookback.md)):
+
 ```json
-"determination": { "kind": "averaging", "observationCount": 5 }
+"determination": {
+  "initial": { "kind": "given" },
+  "final": { "kind": "averaging", "observationCount": 5 }
+}
 ```
 
 ## Decisions
@@ -28,7 +33,7 @@ Everything after the return is the payoff, and it does not change: the buffer, p
 - **From 2 to 12 observations.** Real notes can average over many more dates, such as monthly over several years. The limit keeps each observed level small enough to set by hand; it is a limit of this reference, not a contractual rule.
 - **Observed levels are scenario inputs.** Like the hypothetical final level before them, they are not note terms and do not appear in the Structure JSON. They are listed earliest first, so the last one is the final date.
 - **The chart keeps one handle.** The horizontal axis is the final level, which for averaging is the average. Dragging the handle moves every observed level by the same whole number of units, so the path keeps its shape. Each level is edited in the calculation.
-- **Changing the count keeps the latest dates.** Fewer observations drop the earliest levels. More observations repeat the earliest level on new, earlier dates. Switching back to point-to-point keeps the level on the last date.
+- **Changing the count keeps the latest dates.** Fewer observations drop the earliest levels. More observations repeat the earliest level on new, earlier dates. Switching back to the final date keeps the level on the last date.
 
 ## Synthetic worked example
 
@@ -51,4 +56,3 @@ The first row shows a late fall softened. The second shows a late rise diluted. 
 
 - Where do observation dates belong once they are modelled? They look like part of the determination.
 - Should the initial level also be averageable (averaging in)?
-- Would lookback, which reads the highest or lowest observed level, reuse the same observed-level scenario input?

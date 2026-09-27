@@ -6,7 +6,7 @@ SPIRe uses generic public concepts and synthetic examples. It does not describe 
 
 ## First example
 
-The first structure is a bullet note linked to one equity or equity index, with point-to-point participation. The example compares an initial and a hypothetical final underlier level (or, with averaging, the average of several observed levels), applies selected participation rules to positive or negative performance, enforces a configurable contractual protection floor, and displays a maturity payment, scenario table, diagram, and plain-English explanation. Upside participation, downside participation, principal protection, a buffer against the first part of a fall, and a cap on the maximum return are each optional; a note with none of them repays principal.
+The first structure is a bullet note linked to one equity or equity index, with point-to-point participation. The example compares an initial and a hypothetical final underlier level (with lookback, the initial level is the lowest of it and several levels observed after pricing; with averaging, the final level is the average of several observed levels), applies selected participation rules to positive or negative performance, enforces a configurable contractual protection floor, and displays a maturity payment, scenario table, diagram, and plain-English explanation. Upside participation, downside participation, principal protection, a buffer against the first part of a fall, and a cap on the maximum return are each optional; a note with none of them repays principal.
 
 The wrapper is a **note**; **bullet** describes its one-payment-at-maturity redemption behavior. Principal protection is a separate economic rule that sets the contractual maturity-payment floor as a percentage of principal. Upside and downside participation determine the payment above that floor. Contractual payment depends on the issuer's ability to pay.
 
@@ -30,7 +30,7 @@ The first milestone does not cover real market pricing, volatility, Greeks, live
 
 See [PLAN.md](PLAN.md) for the immediate work and open questions.
 
-The original first-milestone concepts and example are recorded in [docs/milestone-1.md](docs/milestone-1.md). The subsequent separation of protection, upside participation, and downside participation is recorded in [docs/participation-and-protection.md](docs/participation-and-protection.md), and the buffer in [docs/buffer.md](docs/buffer.md).
+The original first-milestone concepts and example are recorded in [docs/milestone-1.md](docs/milestone-1.md). The subsequent separation of protection, upside participation, and downside participation is recorded in [docs/participation-and-protection.md](docs/participation-and-protection.md), the buffer in [docs/buffer.md](docs/buffer.md), averaging in [docs/averaging.md](docs/averaging.md), and lookback in [docs/lookback.md](docs/lookback.md).
 
 ## Run locally
 
