@@ -118,6 +118,7 @@ const addFirstMatch = () => {
 }
 const closeOnOutsidePointer = (event: PointerEvent) => {
   if (paletteOpen.value && !paletteRoot.value?.contains(event.target as Node)) paletteOpen.value = false
+  if (activeHint.value && !(event.target as Element).closest('.hint-button, .hint-text')) activeHint.value = null
 }
 onMounted(() => document.addEventListener('pointerdown', closeOnOutsidePointer))
 onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutsidePointer))
