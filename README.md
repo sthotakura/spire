@@ -44,3 +44,7 @@ Use `npm test` for the domain scenarios and `npm run build` for type checking an
 ## GitHub Pages
 
 The workflow in `.github/workflows/pages.yml` tests and builds the site on pushes to `main`, then deploys `dist` to GitHub Pages. In the repository's **Settings → Pages**, set **Build and deployment → Source** to **GitHub Actions**. The workflow builds with `/spire/` as the asset base for the repository site at `https://sthotakura.github.io/spire/`.
+
+## Analytics
+
+The published site counts visits with [GoatCounter](https://www.goatcounter.com/), which records aggregate page views without cookies or personal data. Visits from `localhost` are not counted.
