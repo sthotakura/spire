@@ -170,6 +170,20 @@ const note = computed<ProtectedParticipationNote>(() => ({
   principalAmount: principal.value,
 }))
 const jsonLines = computed(() => structureLines(note.value))
+// Copies the JSON exactly as shown. The label says whether it worked, then returns to "Copy" after a moment.
+const copyState = ref<'idle' | 'copied' | 'failed'>('idle')
+let copyReset: ReturnType<typeof setTimeout> | undefined
+const copyJson = async () => {
+  try {
+    await navigator.clipboard.writeText(jsonLines.value.map(({ text }) => text).join('\n'))
+    copyState.value = 'copied'
+  } catch {
+    copyState.value = 'failed'
+  }
+  clearTimeout(copyReset)
+  copyReset = setTimeout(() => { copyState.value = 'idle' }, 2000)
+}
+onBeforeUnmount(() => clearTimeout(copyReset))
 const issues = computed(() => noteIssues(note.value))
 const errors = computed(() => issues.value.map(({ message }) => message))
 const issuesFor = (...fields: NoteIssueField[]) => issues.value.filter(({ field }) => fields.includes(field)).map(({ message }) => message)
@@ -594,7 +608,17 @@ const chart = computed(() => {
           <p class="eyebrow">{{ errors.length ? 'Draft structure · invalid terms' : 'Selected structure' }}</p>
           <h2 id="structure-json-heading">Structure JSON</h2>
           <p class="help">{{ errors.length ? 'A live draft containing invalid terms. Correct the highlighted terms before treating it as a valid structure.' : "A live representation of the note's contractual terms." }}</p>
-          <pre><code><span v-for="(line, index) in jsonLines" :key="index" :class="['jl', { on: line.concept && highlighted(line.concept) }]">{{ line.text }}</span></code></pre>
+          <div class="json-wrap">
+            <button type="button" :class="['copybtn', copyState]" aria-label="Copy the structure JSON" :title="copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : 'Copy JSON'" @click="copyJson">
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path v-if="copyState === 'copied'" d="M3 8.5l3.2 3L13 4.5"/>
+                <path v-else-if="copyState === 'failed'" d="M8 3.5v5.5M8 12v.01"/>
+                <template v-else><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3.5v-.5A1.5 1.5 0 0 0 9 1.5H3.5A1.5 1.5 0 0 0 2 3v5.5A1.5 1.5 0 0 0 3.5 10h.5"/></template>
+              </svg>
+            </button>
+            <span class="visually-hidden" role="status">{{ copyState === 'copied' ? 'Structure JSON copied' : copyState === 'failed' ? 'Could not copy the structure JSON' : '' }}</span>
+            <pre><code><span v-for="(line, index) in jsonLines" :key="index" :class="['jl', { on: line.concept && highlighted(line.concept) }]">{{ line.text }}</span></code></pre>
+          </div>
           <p class="aside">Sample representation, not an industry standard.</p>
         </aside>
       </div>
