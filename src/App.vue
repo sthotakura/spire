@@ -11,7 +11,7 @@ import { scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
-import { maturityPayment, noteIssues, paymentBreakdown, type NoteIssueField, type ParticipationDirection, type ProtectedParticipationNote, type UnderlierKind } from './domain/note'
+import { maturityPayment, noteIssues, paymentBreakdown, type NoteIssueField, type ParticipationDirection, type ProtectedParticipationNote, type AssetKind } from './domain/note'
 import { firstFeatureValues, startingFinalLevel, startingNote } from './domain/starting-note'
 
 const activeHint = ref<string | null>(null)
@@ -19,11 +19,12 @@ const toggleHint = (hint: string) => { activeHint.value = activeHint.value === h
 const hints = {
   wrapper: 'The legal form sets what the holder owns and who owes the payments. A note is a debt of its issuer, so every payment depends on the issuer’s ability to pay.',
   redemption: 'Sets when the note ends and principal is paid back: at scheduled maturity, or earlier if its terms allow a call or a put. A bullet note pays once, at maturity.',
-  underlier: 'The asset whose level drives the payoff, here a single equity or equity index. Holding the note does not mean owning the underlier.',
+  underlier: 'What the payoff reads: the asset it tracks, where that asset starts, and how its change is measured. A single underlier tracks one asset. A basket tracks several and combines their changes into one return.',
+  asset: 'The equity or equity index the note tracks. Holding the note does not mean owning the asset.',
   determination: 'Sets which observed levels measure the underlier’s change. Point-to-point uses the initial level and one final level: final ÷ initial − 1. Moves in between do not count.',
   payoff: 'The rules that turn the underlier’s change into the maturity payment. With no features the note repays principal. Each feature adds a rule, such as a share of the gain or a minimum payment.',
   principal: 'The amount used as the base for the maturity payment.',
-  'initial-level': 'The reference level used to calculate the underlier’s return.',
+  'initial-level': 'The reference level used to calculate the underlier’s return. It is a term of this note: two notes on the same asset can start from different levels.',
   downside: 'The share of a negative underlier return deducted from principal before the protection floor applies.',
   upside: 'The share of a positive underlier return added to principal.',
   cap: 'The most the note can pay above principal, as a percentage of principal, however far the underlier rises. It has an effect only when upside participation is selected.',
@@ -50,23 +51,29 @@ const partDescriptions = {
   wrapper: 'The form the product takes',
   redemption: 'When principal is repaid',
   underlier: 'What the return is linked to',
+  asset: 'What is tracked, and where it starts',
   determination: 'How the underlier’s change is measured',
   payoff: 'What the note pays at maturity',
 }
-const underlierOptions: ReadonlyArray<{ id: UnderlierKind; label: string }> = [
-  { id: 'equity-index', label: 'Single equity index' },
-  { id: 'equity', label: 'Single equity' },
+const underlierOptions = [
+  { id: 'basket', label: 'Basket', description: 'Several assets whose changes are combined into one return.', available: false },
+  { id: 'single', label: 'Single', description: 'One asset.', available: true },
+] as const
+const assetOptions: ReadonlyArray<{ id: AssetKind; label: string }> = [
+  { id: 'equity-index', label: 'Equity index' },
+  { id: 'equity', label: 'Equity' },
 ]
-const underlierKind = ref<UnderlierKind>(startingNote.underlier.kind)
-const underlierName = ref(startingNote.underlier.name)
+const [startingComponent] = startingNote.underlier.components
+const assetKind = ref<AssetKind>(startingComponent.asset.kind)
+const assetName = ref(startingComponent.asset.name)
 const principal = ref(startingNote.principalAmount)
-const initialLevel = ref(startingNote.determination.initialLevel)
+const initialLevel = ref(startingComponent.initialLevel)
 const finalLevel = ref(startingFinalLevel)
 
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
 const select = (concept: ConceptId) => { selected.value = concept }
-const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', determination: '#b7791f', payoff: '#42536d', protection: '#2369bd', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c' }
+const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', payoff: '#42536d', protection: '#2369bd', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c' }
 const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
@@ -146,8 +153,11 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutside
 const note = computed<ProtectedParticipationNote>(() => ({
   wrapper: 'note',
   redemption: 'bullet',
-  underlier: { kind: underlierKind.value, name: underlierName.value },
-  determination: { kind: 'point-to-point', initialLevel: initialLevel.value },
+  underlier: {
+    kind: 'single',
+    components: [{ asset: { kind: assetKind.value, name: assetName.value }, initialLevel: initialLevel.value }],
+    determination: { kind: 'point-to-point' },
+  },
   payoff: {
     kind: 'participation',
     participations: selectedDirections.value.map((direction) => ({
@@ -315,7 +325,7 @@ const chartHighlight = computed(() => ({
   cap: capSelected.value && highlighted('cap'),
   downside: selectedParticipation.downside && selected.value === 'downside',
   upside: selectedParticipation.upside && selected.value === 'upside',
-  initial: selected.value === 'determination',
+  initial: highlighted('asset') || highlighted('determination'),
 }))
 // Each regime is drawn in its concept's colour, in the line, the legend and the guides.
 const regimeConcept: Record<Regime, ConceptId> = { principal: 'payoff', downside: 'downside', upside: 'upside', floor: 'protection', cap: 'cap' }
@@ -427,21 +437,29 @@ const chart = computed(() => {
                 <li :class="['node', { sel: highlighted('underlier') }]" :style="conceptStyle('underlier')">
                   <div class="nrow" @click="select('underlier')" @focusin="focusRow('underlier')">
                     <span class="nlabel">Underlier<HintToggle id="underlier" about="underlier" :text="hints.underlier" :active="activeHint === 'underlier'" @toggle="toggleHint('underlier')" /></span>
-                    <span class="ctrl pick wide"><select v-model="underlierKind" aria-label="Underlier type"><option v-for="option in underlierOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
+                    <span class="ctrl pick"><select aria-label="Underlier" :value="note.underlier.kind"><option v-for="option in underlierOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
                     <span class="ndesc">{{ partDescriptions.underlier }}</span>
-                    <span class="ctrl block"><label for="underlier-name">Name</label><input id="underlier-name" v-model="underlierName" type="text" placeholder="Synthetic Index" /></span>
                   </div>
-                  <ul v-if="issuesFor('underlierName').length" class="errors" role="alert"><li v-for="message in issuesFor('underlierName')" :key="message">{{ message }}</li></ul>
-                </li>
-                <li :class="['node', { sel: highlighted('determination') }]" :style="conceptStyle('determination')">
-                  <div class="nrow" @click="select('determination')" @focusin="focusRow('determination')">
-                    <span class="nlabel">Determination<HintToggle id="determination" about="determination" :text="hints.determination" :active="activeHint === 'determination'" @toggle="toggleHint('determination')" /></span>
-                    <span class="ctrl pick"><select aria-label="Determination" :value="note.determination.kind"><option v-for="option in determinationOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
-                    <span class="ndesc">{{ partDescriptions.determination }}</span>
-                    <span class="ctrl block"><label for="initial-level">Initial level</label><HintToggle id="initial-level" about="initial level" :text="hints['initial-level']" :active="activeHint === 'initial-level'" @toggle="toggleHint('initial-level')" /><NumberInput id="initial-level" v-model="initialLevel" class="num" /></span>
-                    <span class="ctrl block"><span class="flabel">Final level</span><span class="unit">Hypothetical, set on the chart</span></span>
-                  </div>
-                  <ul v-if="issuesFor('initialLevel').length" class="errors" role="alert"><li v-for="message in issuesFor('initialLevel')" :key="message">{{ message }}</li></ul>
+                  <ul>
+                    <li :class="['node', { sel: highlighted('asset') }]" :style="conceptStyle('asset')">
+                      <div class="nrow" @click="select('asset')" @focusin="focusRow('asset')">
+                        <span class="nlabel">Asset<HintToggle id="asset" about="asset" :text="hints.asset" :active="activeHint === 'asset'" @toggle="toggleHint('asset')" /></span>
+                        <span class="ctrl pick"><select v-model="assetKind" aria-label="Asset type"><option v-for="option in assetOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
+                        <span class="ndesc">{{ partDescriptions.asset }}</span>
+                        <span class="ctrl block"><label for="asset-name">Name</label><input id="asset-name" v-model="assetName" type="text" placeholder="Synthetic Index" /></span>
+                        <span class="ctrl block"><label for="initial-level">Initial level</label><HintToggle id="initial-level" about="initial level" :text="hints['initial-level']" :active="activeHint === 'initial-level'" @toggle="toggleHint('initial-level')" /><NumberInput id="initial-level" v-model="initialLevel" class="num" /></span>
+                      </div>
+                      <ul v-if="issuesFor('underlierName', 'initialLevel').length" class="errors" role="alert"><li v-for="message in issuesFor('underlierName', 'initialLevel')" :key="message">{{ message }}</li></ul>
+                    </li>
+                    <li :class="['node', { sel: highlighted('determination') }]" :style="conceptStyle('determination')">
+                      <div class="nrow" @click="select('determination')" @focusin="focusRow('determination')">
+                        <span class="nlabel">Determination<HintToggle id="determination" about="determination" :text="hints.determination" :active="activeHint === 'determination'" @toggle="toggleHint('determination')" /></span>
+                        <span class="ctrl pick"><select aria-label="Determination" :value="note.underlier.determination.kind"><option v-for="option in determinationOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
+                        <span class="ndesc">{{ partDescriptions.determination }}</span>
+                        <span class="ctrl block"><span class="flabel">Final level</span><span class="unit">Hypothetical, set on the chart</span></span>
+                      </div>
+                    </li>
+                  </ul>
                 </li>
                 <li :class="['node', { sel: highlighted('payoff') }]" :style="conceptStyle('payoff')">
                   <div class="nrow" @click="select('payoff')" @focusin="focusRow('payoff')">

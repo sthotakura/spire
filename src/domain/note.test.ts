@@ -4,8 +4,11 @@ import { maturityPayment, noteIssues, paymentBreakdown, validateNote, type Prote
 const note: ProtectedParticipationNote = {
   wrapper: 'note',
   redemption: 'bullet',
-  underlier: { kind: 'equity-index', name: 'Synthetic Index' },
-  determination: { kind: 'point-to-point', initialLevel: 100 },
+  underlier: {
+    kind: 'single',
+    components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }],
+    determination: { kind: 'point-to-point' },
+  },
   payoff: {
     kind: 'participation',
     participations: [
@@ -16,6 +19,10 @@ const note: ProtectedParticipationNote = {
   },
   principalAmount: 1000,
 }
+const withComponent = (name: string, initialLevel: number): ProtectedParticipationNote => ({
+  ...note,
+  underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name }, initialLevel }] },
+})
 
 describe('protected participation note', () => {
   it.each([
@@ -28,9 +35,9 @@ describe('protected participation note', () => {
   })
 
   it.each([
-    [{ ...note, underlier: { ...note.underlier, name: ' ' } }, 'Enter an underlier name.'],
+    [withComponent(' ', 100), 'Enter an underlier name.'],
     [{ ...note, principalAmount: 0 }, 'Principal must be greater than zero.'],
-    [{ ...note, determination: { kind: 'point-to-point' as const, initialLevel: 0 } }, 'Initial level must be greater than zero.'],
+    [withComponent('Synthetic Index', 0), 'Initial level must be greater than zero.'],
     [{ ...note, payoff: { ...note.payoff, participations: [{ direction: 'upside' as const, rate: 0 }] } }, 'Upside participation must be greater than zero.'],
   ])('rejects an invalid note term', (invalidNote, expectedError) => {
     expect(validateNote(invalidNote)).toContain(expectedError)
@@ -122,8 +129,8 @@ describe('protected participation note', () => {
 
   it.each([
     [{ ...note, principalAmount: 0 }, 'principalAmount'],
-    [{ ...note, underlier: { ...note.underlier, name: ' ' } }, 'underlierName'],
-    [{ ...note, determination: { kind: 'point-to-point' as const, initialLevel: 0 } }, 'initialLevel'],
+    [withComponent(' ', 100), 'underlierName'],
+    [withComponent('Synthetic Index', 0), 'initialLevel'],
     [{ ...note, payoff: { ...note.payoff, participations: [{ direction: 'upside' as const, rate: 0 }] } }, 'participations'],
     [{ ...note, payoff: { ...note.payoff, principalProtection: 1.1 } }, 'principalProtection'],
   ])('reports the field that owns an invalid term', (invalidNote, expectedField) => {

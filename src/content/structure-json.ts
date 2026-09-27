@@ -17,8 +17,11 @@ export function structureLines(note: ProtectedParticipationNote): StructureLine[
     const [top, second, third] = path
     if (top === 'wrapper' || top === 'principalAmount') return 'wrapper'
     if (top === 'redemption') return 'redemption'
-    if (top === 'underlier') return 'underlier'
-    if (top === 'determination') return 'determination'
+    if (top === 'underlier') {
+      if (second === 'components' && typeof third === 'number') return 'asset'
+      if (second === 'determination') return 'determination'
+      return 'underlier'
+    }
     if (top !== 'payoff') return null
     if (second === 'principalProtection') return 'protection'
     if (second === 'cap') return 'cap'

@@ -14,7 +14,7 @@ const amount = (value: number) => Number.isFinite(value) ? value.toLocaleString(
 export function summarize(note: ProtectedParticipationNote): SummarySegment[] {
   const upside = note.payoff.participations.find(({ direction }) => direction === 'upside')
   const downside = note.payoff.participations.find(({ direction }) => direction === 'downside')
-  const underlier: SummarySegment = { text: note.underlier.name.trim() || 'the underlier', concept: 'underlier' }
+  const underlier: SummarySegment = { text: note.underlier.components[0].asset.name.trim() || 'the underlier', concept: 'asset' }
   const protection = note.payoff.principalProtection
   const cap = note.payoff.cap
 
@@ -42,7 +42,7 @@ export function summarize(note: ProtectedParticipationNote): SummarySegment[] {
     { text: 'at maturity', concept: 'redemption' },
     ...payoff,
     { text: ', measured ' },
-    { text: `point-to-point from ${amount(note.determination.initialLevel)}`, concept: 'determination' },
+    { text: `point-to-point from ${amount(note.underlier.components[0].initialLevel)}`, concept: 'determination' },
     ...features,
     { text: '.' },
   ]

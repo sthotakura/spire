@@ -5,8 +5,7 @@ import { summarize } from './summary'
 const note: ProtectedParticipationNote = {
   wrapper: 'note',
   redemption: 'bullet',
-  underlier: { kind: 'equity-index', name: 'Synthetic Index' },
-  determination: { kind: 'point-to-point', initialLevel: 100 },
+  underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { kind: 'point-to-point' } },
   payoff: {
     kind: 'participation',
     participations: [
@@ -58,7 +57,7 @@ describe('note summary', () => {
   it('names the concept each phrase describes', () => {
     expect(conceptOf(note, 'note')).toBe('wrapper')
     expect(conceptOf(note, 'at maturity')).toBe('redemption')
-    expect(conceptOf(note, 'Synthetic Index')).toBe('underlier')
+    expect(conceptOf(note, 'Synthetic Index')).toBe('asset')
     expect(conceptOf(note, 'point-to-point from 100')).toBe('determination')
     expect(conceptOf(note, '90% principal protection')).toBe('protection')
   })
@@ -80,7 +79,7 @@ describe('note summary', () => {
   })
 
   it('keeps describing a draft that is not valid yet', () => {
-    const draft = { ...note, underlier: { ...note.underlier, name: ' ' }, payoff: { ...note.payoff, participations: [], principalProtection: Number.NaN } }
+    const draft: ProtectedParticipationNote = { ...note, underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name: ' ' }, initialLevel: 100 }] }, payoff: { ...note.payoff, participations: [], principalProtection: Number.NaN } }
     expect(sentence(draft)).toBe('A note that redeems at maturity and repays its principal, linked to the underlier, measured point-to-point from 100, with — principal protection.')
   })
 })

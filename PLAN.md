@@ -19,7 +19,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 
 ## 3. Build the interface
 
-- Show the note as an outline of its concepts: wrapper, redemption behavior, underlier, determination method, and payoff. Each term sits beside the concept it belongs to: principal with the wrapper, name and type with the underlier, initial level with the determination method, and rates and protection with the payoff features.
+- Show the note as an outline of its concepts: wrapper, redemption behavior, underlier, determination method, and payoff. Each term sits beside the concept it belongs to: principal with the wrapper, name, type and initial level with the asset under the underlier, the determination method under the underlier, and rates and protection with the payoff features. The underlier model is recorded in [docs/underlier-model.md](docs/underlier-model.md).
 - Start with a valid note whose payoff has no features. It only repays principal, and the reader adds downside participation, principal protection, and upside participation one at a time.
 - Support only the verified first structure. Unsupported wrappers, redemption behaviors, and payoff features stay visible and are marked unavailable.
 - Keep these in step and let the reader select a concept to highlight it everywhere: a one-sentence summary of the note, the structure JSON, the payoff diagram with draggable handles, the worked calculation, and the scenario table.

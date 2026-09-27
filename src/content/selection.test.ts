@@ -23,6 +23,18 @@ describe('selection', () => {
   })
 
   it('does not spread beyond the payoff', () => {
-    for (const concept of ['wrapper', 'redemption', 'underlier', 'determination'] as const) expect(isHighlighted('payoff', concept)).toBe(false)
+    for (const concept of ['wrapper', 'redemption', 'underlier', 'asset', 'determination'] as const) expect(isHighlighted('payoff', concept)).toBe(false)
+  })
+
+  it('selects the asset and determination together with the underlier', () => {
+    expect(isHighlighted('underlier', 'asset')).toBe(true)
+    expect(isHighlighted('underlier', 'determination')).toBe(true)
+    for (const concept of ['wrapper', 'redemption', 'payoff', 'upside'] as const) expect(isHighlighted('underlier', concept)).toBe(false)
+  })
+
+  it('highlights only the asset or determination that is selected, not its sibling or the underlier', () => {
+    expect(isHighlighted('asset', 'determination')).toBe(false)
+    expect(isHighlighted('asset', 'underlier')).toBe(false)
+    expect(isHighlighted('determination', 'asset')).toBe(false)
   })
 })

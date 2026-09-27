@@ -1,4 +1,4 @@
-export type UnderlierKind = 'equity' | 'equity-index'
+export type AssetKind = 'equity' | 'equity-index'
 export type ParticipationDirection = 'downside' | 'upside'
 
 export interface Participation {
@@ -6,16 +6,29 @@ export interface Participation {
   rate: number
 }
 
-export interface SingleUnderlier {
-  kind: UnderlierKind
+// What is tracked. Its identity only: the level it starts from is a term of the note, so it sits beside the asset.
+export interface Asset {
+  kind: AssetKind
   name: string
+}
+
+export interface UnderlierComponent {
+  asset: Asset
+  initialLevel: number
+}
+
+// The underlier produces the one return the payoff reads: which assets, where each starts, and how its change is measured.
+// A single underlier has exactly one component. A basket will hold several, and a rule that combines them, which only a basket can have.
+export interface SingleUnderlier {
+  kind: 'single'
+  components: [UnderlierComponent]
+  determination: { kind: 'point-to-point' }
 }
 
 export interface ProtectedParticipationNote {
   wrapper: 'note'
   redemption: 'bullet'
   underlier: SingleUnderlier
-  determination: { kind: 'point-to-point'; initialLevel: number }
   payoff: {
     kind: 'participation'
     participations: Participation[]
@@ -35,9 +48,10 @@ export interface NoteIssue {
 
 export function noteIssues(note: ProtectedParticipationNote): NoteIssue[] {
   const issues: NoteIssue[] = []
-  if (!note.underlier.name.trim()) issues.push({ field: 'underlierName', message: 'Enter an underlier name.' })
+  const [component] = note.underlier.components
+  if (!component.asset.name.trim()) issues.push({ field: 'underlierName', message: 'Enter an underlier name.' })
   if (!Number.isFinite(note.principalAmount) || note.principalAmount <= 0) issues.push({ field: 'principalAmount', message: 'Principal must be greater than zero.' })
-  if (!Number.isFinite(note.determination.initialLevel) || note.determination.initialLevel <= 0) issues.push({ field: 'initialLevel', message: 'Initial level must be greater than zero.' })
+  if (!Number.isFinite(component.initialLevel) || component.initialLevel <= 0) issues.push({ field: 'initialLevel', message: 'Initial level must be greater than zero.' })
   for (const participation of note.payoff.participations) {
     if (!Number.isFinite(participation.rate) || participation.rate <= 0) issues.push({ field: 'participations', message: `${participation.direction === 'upside' ? 'Upside' : 'Downside'} participation must be greater than zero.` })
   }
@@ -78,7 +92,7 @@ export function paymentBreakdown(note: ProtectedParticipationNote, finalLevel: n
   if (errors.length) throw new Error(errors.join(' '))
   if (!Number.isFinite(finalLevel) || finalLevel < 0) throw new Error('Final level must be zero or greater.')
 
-  const underlierReturn = finalLevel / note.determination.initialLevel - 1
+  const underlierReturn = finalLevel / note.underlier.components[0].initialLevel - 1
   const direction: ParticipationDirection = underlierReturn < 0 ? 'downside' : 'upside'
   const participationRate = note.payoff.participations.find((candidate) => candidate.direction === direction)?.rate
   const participatedReturn = (participationRate ?? 0) * underlierReturn

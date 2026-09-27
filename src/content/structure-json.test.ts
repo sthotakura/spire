@@ -15,7 +15,12 @@ const fullNote: ProtectedParticipationNote = {
   },
 }
 const cappedNote: ProtectedParticipationNote = { ...fullNote, payoff: { ...fullNote.payoff, cap: 0.2 } }
-const asText = (note: ProtectedParticipationNote) => structureLines(note).map(({ text }) => text).join('\n')
+const draftNote: ProtectedParticipationNote = {
+  ...fullNote,
+  principalAmount: Number.NaN,
+  underlier: { ...startingNote.underlier, components: [{ asset: { kind: 'equity', name: 'A "quoted" name é' }, initialLevel: Number.NaN }] },
+}
+const asText =(note: ProtectedParticipationNote) => structureLines(note).map(({ text }) => text).join('\n')
 const linesOf = (note: ProtectedParticipationNote, concept: string) => structureLines(note).filter((line) => line.concept === concept).map(({ text }) => text.trim())
 
 describe('structure lines', () => {
@@ -24,7 +29,7 @@ describe('structure lines', () => {
     ['a note with every feature', fullNote],
     ['a capped note', cappedNote],
     ['a protection-only note', { ...startingNote, payoff: { kind: 'participation' as const, participations: [], principalProtection: 0 } }],
-    ['a draft that is not valid yet', { ...fullNote, principalAmount: Number.NaN, underlier: { kind: 'equity' as const, name: 'A "quoted" name é' } }],
+    ['a draft that is not valid yet', draftNote],
   ])('matches JSON.stringify for %s', (_, note) => {
     expect(asText(note)).toBe(JSON.stringify(note, null, 2))
   })
@@ -38,8 +43,9 @@ describe('structure lines', () => {
   it('gives each concept its own lines', () => {
     expect(linesOf(fullNote, 'wrapper')).toEqual(['"wrapper": "note",', '"principalAmount": 1000'])
     expect(linesOf(fullNote, 'redemption')).toEqual(['"redemption": "bullet",'])
-    expect(linesOf(fullNote, 'underlier')).toEqual(['"underlier": {', '"kind": "equity-index",', '"name": "Synthetic Index"', '},'])
-    expect(linesOf(fullNote, 'determination')).toEqual(['"determination": {', '"kind": "point-to-point",', '"initialLevel": 100', '},'])
+    expect(linesOf(fullNote, 'underlier')).toEqual(['"underlier": {', '"kind": "single",', '"components": [', '],', '},'])
+    expect(linesOf(fullNote, 'asset')).toEqual(['{', '"asset": {', '"kind": "equity-index",', '"name": "Synthetic Index"', '},', '"initialLevel": 100', '}'])
+    expect(linesOf(fullNote, 'determination')).toEqual(['"determination": {', '"kind": "point-to-point"', '}'])
     expect(linesOf(fullNote, 'protection')).toEqual(['"principalProtection": 0.9'])
   })
 

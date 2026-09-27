@@ -50,10 +50,10 @@ Choice catalogs drive the wrapper, redemption, payoff, and underlier controls. A
 ## Open questions for later milestones
 
 - Which payoff mechanics can be combined independently of wrappers?
-- When should observation and valuation schedules become explicit model concepts? They are expected to belong to the payoff, not the determination method.
+- When should observation and valuation schedules become explicit model concepts? Observation dates look like part of the determination method; see [underlier-model.md](underlier-model.md).
 - Which terms are product economics, and which belong only to issuance?
 - How should changes to authoritative terms invalidate derived results?
-- How should a basket be represented as an underlier? Aggregation methods such as worst-of and best-of are expected to become options of the determination method.
+- How should a basket be represented as an underlier? Decided: a basket is an underlier kind with several components and a combination rule such as worst-of or best-of, beside the shared determination method. See [underlier-model.md](underlier-model.md).
 - How should coupons and downside exposure be composed before introducing examples such as reverse convertibles?
 
 Pricing, live market data, Greeks, booking, issuance workflows, identifiers, document generation, regulatory processing, AI, microservices, and distributed infrastructure remain outside this milestone.

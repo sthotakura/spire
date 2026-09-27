@@ -5,8 +5,7 @@ import { explainOutcome } from './outcome'
 const noteWith = (participations: Participation[], principalProtection?: number, cap?: number): ProtectedParticipationNote => ({
   wrapper: 'note',
   redemption: 'bullet',
-  underlier: { kind: 'equity-index', name: 'Synthetic Index' },
-  determination: { kind: 'point-to-point', initialLevel: 100 },
+  underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { kind: 'point-to-point' } },
   payoff: { kind: 'participation', participations, principalProtection, cap },
   principalAmount: 1000,
 })
