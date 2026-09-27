@@ -63,7 +63,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 ## Deferred questions
 
 - Which payoff mechanics can be combined independently of wrappers?
-- When should observation and valuation schedules become explicit model concepts? They are expected to belong to the payoff.
+- When should observation and valuation schedules become explicit model concepts? Observation dates look like part of the determination method, inside the underlier ([docs/underlier-model.md](docs/underlier-model.md)).
 - Which terms are product economics, and which belong only to issuance?
 - How should changes to authoritative terms invalidate derived results?
 - Should the payoff kind be renamed now that participation is optional?
@@ -81,6 +81,14 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Give each payoff feature its own colour, used the same way in the summary sentence, the outline, and the chart: downside participation orange, principal protection blue, upside participation green, cap magenta, and principal repaid slate. The set passes the dataviz palette check for lightness, chroma and colour-vision separation; red with green was rejected because it fails that check. Direct labels and a legend carry identity as well as colour.
 - Draw the payoff line in the colour of the rule that sets the payment at each level (`regimeOf` in `src/chart/geometry.ts`, derived from the payment breakdown), so the reader sees where the floor or cap binds.
 - Colour the floor and cap guide lines and their handles to match, mark their labels with a matching swatch, and keep the initial-level and principal lines neutral.
+
+## 10. Model the underlier and explain the outline
+
+- Nest the asset and the determination method under the underlier, in the domain, the Structure JSON and the outline alike. The outline and the JSON must keep the same shape: the JSON is how we test whether a product is expressed correctly.
+- Give a single underlier a `components` list with exactly one entry, so a basket later only adds entries and a combination rule. Keep the initial level beside the asset, as a term of the note. The model, decisions and open questions are in [docs/underlier-model.md](docs/underlier-model.md).
+- Show a one-line meaning under each part of the outline, in neutral wording for investors and structurers alike, with fuller definitions in the ⓘ hints.
+- Make determination a dropdown like the others, show digit separators in number fields, and drop the "units" label from amounts.
+- Keep one **Add feature** entry point for payoff features; the empty payoff names two examples as plain text.
 
 ## Outside this milestone
 
