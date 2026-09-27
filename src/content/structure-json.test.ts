@@ -45,7 +45,9 @@ describe('structure lines', () => {
     expect(linesOf(fullNote, 'redemption')).toEqual(['"redemption": "bullet",'])
     expect(linesOf(fullNote, 'underlier')).toEqual(['"underlier": {', '"kind": "single",', '"components": [', '],', '},'])
     expect(linesOf(fullNote, 'asset')).toEqual(['{', '"asset": {', '"kind": "equity-index",', '"name": "Synthetic Index"', '},', '"initialLevel": 100', '}'])
-    expect(linesOf(fullNote, 'determination')).toEqual(['"determination": {', '"initial": {', '"kind": "given"', '},', '"final": {', '"kind": "final-date"', '}', '}'])
+    expect(linesOf(fullNote, 'determination')).toEqual(['"determination": {', '}'])
+    expect(linesOf(fullNote, 'initial-level')).toEqual(['"initial": {', '"kind": "given"', '},'])
+    expect(linesOf(fullNote, 'final-level')).toEqual(['"final": {', '"kind": "final-date"', '}'])
     expect(linesOf(fullNote, 'protection')).toEqual(['"principalProtection": 0.9'])
   })
 
@@ -74,7 +76,7 @@ describe('structure lines', () => {
   it('keeps the observation count under the determination', () => {
     const averaged: ProtectedParticipationNote = { ...fullNote, underlier: { ...fullNote.underlier, determination: { initial: { kind: 'given' }, final: { kind: 'averaging', observationCount: 5 } } } }
     expect(asText(averaged)).toBe(JSON.stringify(averaged, null, 2))
-    expect(linesOf(averaged, 'determination')).toEqual(['"determination": {', '"initial": {', '"kind": "given"', '},', '"final": {', '"kind": "averaging",', '"observationCount": 5', '}', '}'])
+    expect(linesOf(averaged, 'final-level')).toEqual(['"final": {', '"kind": "averaging",', '"observationCount": 5', '}'])
   })
 
   it('leaves out an absent protection', () => {

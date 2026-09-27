@@ -19,7 +19,7 @@ export function structureLines(note: ProtectedParticipationNote): StructureLine[
     if (top === 'redemption') return 'redemption'
     if (top === 'underlier') {
       if (second === 'components' && typeof third === 'number') return 'asset'
-      if (second === 'determination') return 'determination'
+      if (second === 'determination') return third === 'initial' ? 'initial-level' : third === 'final' ? 'final-level' : 'determination'
       return 'underlier'
     }
     if (top !== 'payoff') return null

@@ -33,6 +33,20 @@ describe('selection', () => {
     for (const concept of ['wrapper', 'redemption', 'payoff', 'upside'] as const) expect(isHighlighted('underlier', concept)).toBe(false)
   })
 
+  it('selects the initial and final levels together with the determination, and with the underlier above it', () => {
+    for (const parent of ['determination', 'underlier'] as const) {
+      expect(isHighlighted(parent, 'initial-level')).toBe(true)
+      expect(isHighlighted(parent, 'final-level')).toBe(true)
+    }
+    expect(isHighlighted('asset', 'initial-level')).toBe(false)
+  })
+
+  it('highlights only the level that is selected, not its sibling or the determination', () => {
+    expect(isHighlighted('initial-level', 'final-level')).toBe(false)
+    expect(isHighlighted('final-level', 'initial-level')).toBe(false)
+    expect(isHighlighted('initial-level', 'determination')).toBe(false)
+  })
+
   it('highlights only the asset or determination that is selected, not its sibling or the underlier', () => {
     expect(isHighlighted('asset', 'determination')).toBe(false)
     expect(isHighlighted('asset', 'underlier')).toBe(false)

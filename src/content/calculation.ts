@@ -58,10 +58,10 @@ export function calculationSteps(note: ProtectedParticipationNote, breakdown: Pa
   const finalLevel = finalLevelFrom(determination.final, observedLevels)
   const steps: Array<Omit<CalculationStep, 'n'>> = []
   if (determination.initial.kind === 'lookback') {
-    steps.push({ title: `Lookback level of ${name || 'the underlier'}`, how: `min(${[component.initialLevel, ...afterPricing].map(formatAmount).join(', ')})`, value: formatAmount(initialLevel), concept: 'determination' })
+    steps.push({ title: `Lookback level of ${name || 'the underlier'}`, how: `min(${[component.initialLevel, ...afterPricing].map(formatAmount).join(', ')})`, value: formatAmount(initialLevel), concept: 'initial-level' })
   }
   if (determination.final.kind === 'averaging') {
-    steps.push({ title: `Final level of ${name || 'the underlier'}`, how: `(${observedLevels.map(formatAmount).join(' + ')}) ÷ ${observedLevels.length}`, value: formatAmount(finalLevel), concept: 'determination' })
+    steps.push({ title: `Final level of ${name || 'the underlier'}`, how: `(${observedLevels.map(formatAmount).join(' + ')}) ÷ ${observedLevels.length}`, value: formatAmount(finalLevel), concept: 'final-level' })
   }
   steps.push({ title: `${name || 'Underlier'} return`, how: `${formatAmount(finalLevel)} ÷ ${formatAmount(initialLevel)} − 1`, value: signedPercent(b.underlierReturn), concept: 'determination' })
   if (buffer !== undefined) steps.push(bufferStep(buffer, b, hasDownside))

@@ -21,10 +21,11 @@ export function summarize(note: ProtectedParticipationNote): SummarySegment[] {
   const initialLevel = amount(note.underlier.components[0].initialLevel)
   const { initial, final } = note.underlier.determination
   const count = (value: number) => Number.isFinite(value) ? value : '—'
-  // Each end of the determination adds its own phrase. With neither, the note is point-to-point.
-  const from = initial.kind === 'lookback' ? `from the lowest of ${initialLevel} and ${count(initial.observationCount)} levels observed after pricing` : `from ${initialLevel}`
-  const to = final.kind === 'averaging' ? ` to the average of ${count(final.observationCount)} observed levels` : ''
-  const measured = initial.kind === 'given' && final.kind === 'final-date' ? `point-to-point ${from}` : `${from}${to}`
+  // Each level of the determination adds its own phrase. A fixed initial level and a final level on the final date is point-to-point.
+  const measured: SummarySegment[] = []
+  if (initial.kind === 'given' && final.kind === 'final-date') measured.push({ text: 'point-to-point', concept: 'determination' }, { text: ' ' })
+  measured.push({ text: initial.kind === 'lookback' ? `from the lowest of ${initialLevel} and ${count(initial.observationCount)} levels observed after pricing` : `from ${initialLevel}`, concept: 'initial-level' })
+  if (final.kind === 'averaging') measured.push({ text: ' to ' }, { text: `the average of ${count(final.observationCount)} observed levels`, concept: 'final-level' })
 
   const payoff: SummarySegment[] = []
   if (upside || downside) {
@@ -50,7 +51,7 @@ export function summarize(note: ProtectedParticipationNote): SummarySegment[] {
     { text: 'at maturity', concept: 'redemption' },
     ...payoff,
     { text: ', measured ' },
-    { text: measured, concept: 'determination' },
+    ...measured,
     ...features,
     { text: '.' },
   ]

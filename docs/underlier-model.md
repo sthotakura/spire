@@ -54,7 +54,9 @@ The outline nests the same parts. A JSON list is shown as repeated rows without 
 ```
 ├ Underlier  Single ▾
 │  ├ Asset  Equity index ▾ · Name · Initial level
-│  └ Determination · Initial level  Fixed ▾ · Final level  Final date ▾
+│  └ Determination
+│     ├ Initial level  Fixed ▾
+│     └ Final level  Final date ▾
 ```
 
 ## Decisions
@@ -66,6 +68,7 @@ The outline nests the same parts. A JSON list is shown as repeated rows without 
 - **The initial level sits beside the asset, not inside it.** The asset is what is tracked; the initial level is a term of this note. Two notes on the same index can start from different levels, and each basket component has its own.
 - **One determination for the whole underlier.** Averaging normally uses the same dates for every component. Per-component methods wait for a product that needs them.
 - **Each end of the determination is set on its own.** The payment reads the two levels the ends produce, so a lookback initial level can combine with an averaged final level, and the payoff does not depend on how either was measured.
+- **Each level is its own concept.** The outline nests Initial level and Final level under Determination, as the JSON nests `initial` and `final`. Each has its own colour (#8b4f2b and #6b6412, in the determination's family and checked against the downside and upside colours they sit beside on the chart) and highlights its own summary phrase, JSON lines, payment-rule line, calculation step and chart line. Selecting the determination or the underlier highlights both.
 - **Asset kind and underlier kind are separate choices.** "Equity index" answers what is tracked; "single" answers how many.
 
 ## Assumptions

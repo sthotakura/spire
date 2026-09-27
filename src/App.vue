@@ -63,6 +63,8 @@ const partDescriptions = {
   underlier: 'What the return is linked to',
   asset: 'What is tracked, and where it starts',
   determination: 'How the underlier’s change is measured',
+  'initial-level': 'Where the change is measured from',
+  'final-level': 'Where the change is measured to',
   payoff: 'What the note pays at maturity',
 }
 const underlierOptions = [
@@ -100,7 +102,7 @@ const observedLevels = ref<number[]>([startingFinalLevel])
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
 const select = (concept: ConceptId) => { selected.value = concept }
-const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', payoff: '#42536d', protection: '#2369bd', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8' }
+const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', payoff: '#42536d', protection: '#2369bd', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8' }
 const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
@@ -373,7 +375,10 @@ const chartHighlight = computed(() => ({
   buffer: bufferSelected.value && highlighted('buffer'),
   downside: selectedParticipation.downside && selected.value === 'downside',
   upside: selectedParticipation.upside && selected.value === 'upside',
-  initial: highlighted('asset') || highlighted('determination'),
+  // The initial-level term belongs to the asset and is where the initial level starts; the lookback level is the initial level itself.
+  initial: highlighted('asset') || highlighted('initial-level'),
+  lookback: highlighted('initial-level'),
+  final: highlighted('final-level'),
 }))
 // Each regime is drawn in its concept's colour, in the line, the legend and the guides.
 const regimeConcept: Record<Regime, ConceptId> = { principal: 'payoff', buffer: 'buffer', downside: 'downside', upside: 'upside', floor: 'protection', cap: 'cap' }
@@ -524,14 +529,29 @@ const chart = computed(() => {
                       <div class="nrow" @click="select('determination')" @focusin="focusRow('determination')">
                         <span class="nlabel">Determination<HintToggle id="determination" about="determination" :text="hints.determination" :active="activeHint === 'determination'" @toggle="toggleHint('determination')" /></span>
                         <span class="ndesc">{{ partDescriptions.determination }}</span>
-                        <span class="ctrl block"><label for="initial-determination">Initial level</label><select id="initial-determination" v-model="initialKind"><option v-for="option in initialDeterminationOptions" :key="option.id" :value="option.id" :title="option.description">{{ option.label }}</option></select></span>
-                        <span v-if="lookingBack" class="ctrl block"><label for="lookback-count">Observations after pricing</label><HintToggle id="lookback-count" about="observations after pricing" :text="hints['lookback-observations']" :active="activeHint === 'lookback-observations'" @toggle="toggleHint('lookback-observations')" /><NumberInput id="lookback-count" v-model="lookbackCount" class="num" /></span>
-                        <span v-if="lookingBack" class="ctrl block wraps"><span class="flabel">Levels after pricing</span><span class="unit">Hypothetical, set in the calculation</span></span>
-                        <span class="ctrl block"><label for="final-determination">Final level</label><select id="final-determination" v-model="finalKind"><option v-for="option in finalDeterminationOptions" :key="option.id" :value="option.id" :title="option.description">{{ option.label }}</option></select></span>
-                        <span v-if="averaging" class="ctrl block"><label for="observation-count">Observations</label><HintToggle id="observation-count" about="observations" :text="hints.observations" :active="activeHint === 'observations'" @toggle="toggleHint('observations')" /><NumberInput id="observation-count" v-model="observationCount" class="num" /></span>
-                        <span class="ctrl block wraps"><span class="flabel">{{ averaging ? 'Observed levels' : 'Level on the final date' }}</span><span class="unit">{{ averaging ? 'Hypothetical, set in the calculation' : 'Hypothetical, set on the chart' }}</span></span>
                       </div>
-                      <ul v-if="issuesFor('lookbackObservationCount', 'observationCount').length" class="errors" role="alert"><li v-for="message in issuesFor('lookbackObservationCount', 'observationCount')" :key="message">{{ message }}</li></ul>
+                      <ul>
+                        <li :class="['node', { sel: highlighted('initial-level') }]" :style="conceptStyle('initial-level')">
+                          <div class="nrow" @click="select('initial-level')" @focusin="focusRow('initial-level')">
+                            <span class="nlabel">Initial level</span>
+                            <span class="ctrl pick"><select id="initial-determination" v-model="initialKind" aria-label="Initial level"><option v-for="option in initialDeterminationOptions" :key="option.id" :value="option.id" :title="option.description">{{ option.label }}</option></select></span>
+                            <span class="ndesc">{{ partDescriptions['initial-level'] }}</span>
+                            <span v-if="lookingBack" class="ctrl block wraps"><label for="lookback-count">Observations after pricing</label><HintToggle id="lookback-count" about="observations after pricing" :text="hints['lookback-observations']" :active="activeHint === 'lookback-observations'" @toggle="toggleHint('lookback-observations')" /><NumberInput id="lookback-count" v-model="lookbackCount" class="num" /></span>
+                            <span v-if="lookingBack" class="ctrl block wraps"><span class="flabel">Levels after pricing</span><span class="unit">Hypothetical, set in the calculation</span></span>
+                          </div>
+                          <ul v-if="issuesFor('lookbackObservationCount').length" class="errors" role="alert"><li v-for="message in issuesFor('lookbackObservationCount')" :key="message">{{ message }}</li></ul>
+                        </li>
+                        <li :class="['node', { sel: highlighted('final-level') }]" :style="conceptStyle('final-level')">
+                          <div class="nrow" @click="select('final-level')" @focusin="focusRow('final-level')">
+                            <span class="nlabel">Final level</span>
+                            <span class="ctrl pick"><select id="final-determination" v-model="finalKind" aria-label="Final level"><option v-for="option in finalDeterminationOptions" :key="option.id" :value="option.id" :title="option.description">{{ option.label }}</option></select></span>
+                            <span class="ndesc">{{ partDescriptions['final-level'] }}</span>
+                            <span v-if="averaging" class="ctrl block"><label for="observation-count">Observations</label><HintToggle id="observation-count" about="observations" :text="hints.observations" :active="activeHint === 'observations'" @toggle="toggleHint('observations')" /><NumberInput id="observation-count" v-model="observationCount" class="num" /></span>
+                            <span class="ctrl block wraps"><span class="flabel">{{ averaging ? 'Observed levels' : 'Level on the final date' }}</span><span class="unit">{{ averaging ? 'Hypothetical, set in the calculation' : 'Hypothetical, set on the chart' }}</span></span>
+                          </div>
+                          <ul v-if="issuesFor('observationCount').length" class="errors" role="alert"><li v-for="message in issuesFor('observationCount')" :key="message">{{ message }}</li></ul>
+                        </li>
+                      </ul>
                     </li>
                   </ul>
                 </li>
@@ -615,9 +635,9 @@ const chart = computed(() => {
               <line v-if="chart.floorY !== null" :x1="plot.left" :y1="chart.floorY" :x2="plot.right" :y2="chart.floorY" :class="['ref-line', { on: chartHighlight.floor }]" :style="conceptStyle('protection')"/>
               <line v-if="chart.capY !== null" :x1="plot.left" :y1="chart.capY" :x2="plot.right" :y2="chart.capY" :class="['ref-line', { on: chartHighlight.cap }]" :style="conceptStyle('cap')"/>
               <line v-if="chart.bufferX !== null" :x1="chart.bufferX" :y1="plot.top" :x2="chart.bufferX" :y2="plot.bottom" :class="['ref-line', { on: chartHighlight.buffer }]" :style="conceptStyle('buffer')"/>
-              <line v-if="chartHighlight.initial":x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" class="highlight-line" :style="conceptStyle('determination')"/>
-              <line :x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" :class="['ref-line initial', { on: chartHighlight.initial }]" :style="conceptStyle('determination')"/>
-              <line v-if="chart.lookbackX !== null" :x1="chart.lookbackX" :y1="plot.top" :x2="chart.lookbackX" :y2="plot.bottom" :class="['ref-line', { on: chartHighlight.initial }]" :style="conceptStyle('determination')"/>
+              <line v-if="chartHighlight.initial":x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" class="highlight-line" :style="conceptStyle('initial-level')"/>
+              <line :x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" :class="['ref-line initial', { on: chartHighlight.initial }]" :style="conceptStyle('initial-level')"/>
+              <line v-if="chart.lookbackX !== null" :x1="chart.lookbackX" :y1="plot.top" :x2="chart.lookbackX" :y2="plot.bottom" :class="['ref-line', { on: chartHighlight.lookback }]" :style="conceptStyle('initial-level')"/>
               <g clip-path="url(#plot-clip)">
                 <polyline v-if="chart.ghostPoints" :points="chart.ghostPoints" class="ghost-line"/>
                 <polyline :points="chart.points" class="payoff-casing"/>
@@ -626,6 +646,7 @@ const chart = computed(() => {
                 <polyline v-if="chartHighlight.upside" :points="chart.upsidePoints" class="highlight-line" :style="conceptStyle('upside')"/>
                 <polyline v-for="(segment, index) in chart.segments" :key="index" :points="segment.points" class="payoff-line" :style="conceptStyle(regimeConcept[segment.regime])"/>
               </g>
+              <line v-if="chart.finalHandle && chartHighlight.final" :x1="chart.finalHandle.x" :y1="chart.finalHandle.y" :x2="chart.finalHandle.x" :y2="plot.bottom" class="highlight-line" :style="conceptStyle('final-level')"/>
               <line v-if="chart.finalHandle" :x1="chart.finalHandle.x" :y1="chart.finalHandle.y" :x2="chart.finalHandle.x" :y2="plot.bottom" class="final-guide"/>
               <g v-for="tick in chart.amountTicks" :key="tick.y"><line :x1="plot.left - 4" :y1="tick.y" :x2="plot.left" :y2="tick.y" class="axis-line"/><text :x="plot.left - 7" :y="tick.y" text-anchor="end" dominant-baseline="middle" class="axis-label">{{ tick.label }}</text></g>
               <text :x="plot.left + 2" y="24" class="axis-label">Payment</text>

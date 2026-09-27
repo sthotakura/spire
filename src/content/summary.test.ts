@@ -47,7 +47,8 @@ describe('note summary with averaging', () => {
   it('says the change is measured to the average of the observed levels', () => {
     const averaged = { ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'given' as const }, final: { kind: 'averaging' as const, observationCount: 5 } } } }
     expect(sentence(averaged)).toContain('of Synthetic Index, measured from 100 to the average of 5 observed levels, with 90% principal protection.')
-    expect(conceptOf(averaged, 'from 100 to the average of 5 observed levels')).toBe('determination')
+    expect(conceptOf(averaged, 'from 100')).toBe('initial-level')
+    expect(conceptOf(averaged, 'the average of 5 observed levels')).toBe('final-level')
   })
 })
 
@@ -56,7 +57,7 @@ describe('note summary with lookback', () => {
 
   it('says the change is measured from the lowest of the initial level and the levels after pricing', () => {
     expect(sentence(lookback)).toContain('of Synthetic Index, measured from the lowest of 100 and 3 levels observed after pricing, with 90% principal protection.')
-    expect(conceptOf(lookback, 'from the lowest of 100 and 3 levels observed after pricing')).toBe('determination')
+    expect(conceptOf(lookback, 'from the lowest of 100 and 3 levels observed after pricing')).toBe('initial-level')
   })
 
   it('names both ends when the note also averages', () => {
@@ -90,7 +91,8 @@ describe('note summary', () => {
     expect(conceptOf(note, 'note')).toBe('wrapper')
     expect(conceptOf(note, 'at maturity')).toBe('redemption')
     expect(conceptOf(note, 'Synthetic Index')).toBe('asset')
-    expect(conceptOf(note, 'point-to-point from 100')).toBe('determination')
+    expect(conceptOf(note, 'point-to-point')).toBe('determination')
+    expect(conceptOf(note, 'from 100')).toBe('initial-level')
     expect(conceptOf(note, '90% principal protection')).toBe('protection')
   })
 
