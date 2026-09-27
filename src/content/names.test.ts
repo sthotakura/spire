@@ -42,10 +42,21 @@ describe('marketing names', () => {
     expect(namesOf({ participations: [up(1.5), down(1)] })).toEqual(['Outperformance'])
   })
 
-  it('gives no tracker or outperformance name to other rates or a missing direction', () => {
-    expect(namesOf({ participations: [up(0.5), down(1)] })).toEqual([])
-    expect(namesOf({ participations: [up(1.5), down(0.5)] })).toEqual([])
-    expect(namesOf({ participations: [up(1.5)] })).toEqual([])
+  it('calls any other pair of participation rates a participation note', () => {
+    expect(namesOf({ participations: [up(0.8), down(1)] })).toEqual(['Participation note'])
+    expect(namesOf({ participations: [up(1), down(0.9)] })).toEqual(['Participation note'])
+    expect(namesOf({ participations: [up(1.5), down(0.5)] })).toEqual(['Participation note'])
+  })
+
+  it('calls upside participation alone a participation note, at any rate', () => {
+    expect(namesOf({ participations: [up(1)] })).toEqual(['Participation note'])
+    expect(namesOf({ participations: [up(1.5)] })).toEqual(['Participation note'])
+    const [name] = marketingNames(noteWith({ participations: [up(1)] }))
+    expect(name.concepts).toEqual(['upside'])
+    expect(name.reason).toContain('A fall does not reduce principal')
+  })
+
+  it('gives downside participation alone no name', () => {
     expect(namesOf({ participations: [down(1)] })).toEqual([])
   })
 
@@ -61,6 +72,7 @@ describe('marketing names', () => {
   it('does not call a capped or protected note a tracker or outperformance', () => {
     expect(namesOf({ participations: [up(1.5), down(1)], cap: 0.2 })).toEqual(['Capped participation'])
     expect(namesOf({ participations: [up(1), down(1)], principalProtection: 0.9 })).toEqual(['Partially principal-protected note'])
+    expect(namesOf({ participations: [up(0.8), down(1)], principalProtection: 0.9 })).toEqual(['Partially principal-protected note'])
   })
 
   it('returns every name that applies', () => {
@@ -85,5 +97,8 @@ describe('marketing names', () => {
     expect(namesOf({ participations: [up(Number.NaN), down(1)], principalProtection: Number.NaN, cap: Number.NaN })).toEqual([])
     expect(namesOf({ principalProtection: 2 })).toEqual([])
     expect(namesOf({ participations: [up(1.5)], cap: -0.1 })).toEqual([])
+    expect(namesOf({ participations: [up(0), down(1)] })).toEqual([])
+    expect(namesOf({ participations: [up(1), down(Number.NaN)] })).toEqual([])
+    expect(namesOf({ participations: [up(Number.NaN)] })).toEqual([])
   })
 })

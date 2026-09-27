@@ -10,6 +10,8 @@ export interface MarketingName {
   concepts: ConceptId[]
 }
 
+const isRate = (rate: number | undefined): rate is number => rate !== undefined && Number.isFinite(rate) && rate > 0
+
 // Names a structure like this one is commonly sold under. They are hints, not definitions, and several can apply at once.
 // The rules are recorded in docs/marketing-names.md. A note that fits none returns an empty list.
 export function marketingNames(note: ProtectedParticipationNote): MarketingName[] {
@@ -36,10 +38,23 @@ export function marketingNames(note: ProtectedParticipationNote): MarketingName[
     })
   }
 
-  if (!hasProtection && !hasCap && downside === 1 && upside === 1) {
-    names.push({ name: 'Tracker', vocabulary: 'SSPA', reason: 'The payment follows the underlier one for one, up and down.', concepts: ['upside', 'downside'] })
-  } else if (!hasProtection && !hasCap && downside === 1 && upside !== undefined && upside > 1) {
-    names.push({ name: 'Outperformance', vocabulary: 'SSPA', reason: 'The payment gains more than one for one when the underlier rises and follows it one for one when it falls.', concepts: ['upside', 'downside'] })
+  // Without protection or a cap. A value that is present but invalid is not absent, so a draft with one gets no name here.
+  const unprotected = protection === undefined || protection === 0
+  if (unprotected && cap === undefined && isRate(upside) && (downside === undefined || isRate(downside))) {
+    if (downside === 1 && upside === 1) {
+      names.push({ name: 'Tracker', vocabulary: 'SSPA', reason: 'The payment follows the underlier one for one, up and down.', concepts: ['upside', 'downside'] })
+    } else if (downside === 1 && upside > 1) {
+      names.push({ name: 'Outperformance', vocabulary: 'SSPA', reason: 'The payment gains more than one for one when the underlier rises and follows it one for one when it falls.', concepts: ['upside', 'downside'] })
+    } else {
+      names.push({
+        name: 'Participation note',
+        vocabulary: 'SSPA',
+        reason: downside === undefined
+          ? 'The payment shares in a rise of the underlier at the upside participation rate. A fall does not reduce principal.'
+          : 'The payment follows the underlier up and down, at a participation rate for each direction.',
+        concepts: downside === undefined ? ['upside'] : ['upside', 'downside'],
+      })
+    }
   }
 
   if (hasCap && upside !== undefined) {
