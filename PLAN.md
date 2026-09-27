@@ -108,6 +108,17 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Treat the observed levels as scenario inputs, edited in the calculation. The chart handle moves them all together; the count is a note term, shown in the outline and the Structure JSON.
 - Show averaging in the summary, payment rule, calculation (a step that averages the levels), outcome sentence, chart axis and scenario table. Lookback stays unavailable.
 
+## 13. Add lookback (planned, not started)
+
+The domain meaning, proposed model, worked example and open questions are in [docs/lookback.md](docs/lookback.md). Settle the open questions there before implementing.
+
+1. Split the determination into its two ends, `initial` and `final`. The initial end is given (today's behaviour) or lookback; the final end is on the final date (today's point-to-point) or averaging. Move averaging under `final`. → verify: every existing test passes with the new shape, and the Structure JSON still matches `JSON.stringify`.
+2. Add lookback on the initial level: the lowest of the pricing-date level (the existing initial-level term) and a stated number of observed levels after it. Reuse the observation count rule from averaging (2 to 12). → verify: domain tests for the worked example, for a lookback level that equals the pricing level, and for lookback combined with averaging.
+3. Keep the payoff unchanged. It reads the return from the determined initial and final levels. → verify: payoff tests are untouched.
+4. Treat the observed levels after pricing as scenario inputs, shown as a second labelled row in the calculation (`min(100, 97, 92, 95) = 92`), and add a calculation step for the lookback level.
+5. Show lookback in the outline (a choice for each end of the determination), summary, payment rule, outcome sentence, chart (the pricing level and the lookback level as separate reference lines; the payoff bends at the lookback level) and scenario table.
+6. Update `docs/underlier-model.md`, `docs/averaging.md` and `README.md` for the new shape, and replace the current lookback option wording ("highest or lowest level") with the settled definition.
+
 ## Outside this milestone
 
 Market pricing, implied volatility, Greeks, live data, coupons, barriers, calls, baskets, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.
