@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { paymentBreakdown, type Participation, type ProtectedParticipationNote } from '../domain/note'
 import { explainOutcome } from './outcome'
 
-const noteWith = (participations: Participation[], principalProtection?: number): ProtectedParticipationNote => ({
+const noteWith = (participations: Participation[], principalProtection?: number, cap?: number): ProtectedParticipationNote => ({
   wrapper: 'note',
   redemption: 'bullet',
   underlier: { kind: 'equity-index', name: 'Synthetic Index' },
   determination: { kind: 'point-to-point', initialLevel: 100 },
-  payoff: { kind: 'participation', participations, principalProtection },
+  payoff: { kind: 'participation', participations, principalProtection, cap },
   principalAmount: 1000,
 })
 const both = [{ direction: 'downside' as const, rate: 1 }, { direction: 'upside' as const, rate: 1.5 }]
@@ -21,6 +21,18 @@ describe('outcome explanation', () => {
   it('explains a rise when upside is not selected', () => {
     const downsideOnly = noteWith([{ direction: 'downside', rate: 1 }], 0.9)
     expect(explain(downsideOnly, 110)).toBe('The underlier rose 10%. No upside participation is selected, so principal is unchanged. The 900 floor does not apply, so the contractual payment is 1,000 units, the same as principal.')
+  })
+
+  it('explains a rise where the cap applies', () => {
+    expect(explain(noteWith(both, 0.9, 0.2), 130)).toBe('The underlier rose 30%. Upside participation of 150% adds 45% to principal, so the payment before the cap is 1,450. The 1,200 cap applies and the 900 floor does not apply, so the contractual payment is 1,200 units, 200 more than principal.')
+  })
+
+  it('explains a rise below the cap', () => {
+    expect(explain(noteWith(both, undefined, 0.2), 110)).toBe('The underlier rose 10%. Upside participation of 150% adds 15% to principal, so the payment before the cap is 1,150. The 1,200 cap does not apply, so the contractual payment is 1,150 units, 150 more than principal.')
+  })
+
+  it('explains a fall with a cap and no protection', () => {
+    expect(explain(noteWith(both, undefined, 0.2), 60)).toBe('The underlier fell 40%. Downside participation of 100% deducts 40% from principal, so the payment before the cap is 600. The 1,200 cap does not apply and there is no principal protection, so the contractual payment is 600 units, 400 less than principal.')
   })
 
   it('explains a fall above the floor', () => {

@@ -21,6 +21,19 @@ const note: ProtectedParticipationNote = {
 const sentence = (n: ProtectedParticipationNote) => summarize(n).map(({ text }) => text).join('')
 const conceptOf = (n: ProtectedParticipationNote, phrase: string) => summarize(n).find(({ text }) => text === phrase)?.concept
 
+describe('note summary with a cap', () => {
+  it('adds the cap after the protection', () => {
+    const capped = { ...note, payoff: { ...note.payoff, cap: 0.2 } }
+    expect(sentence(capped)).toBe('A note that redeems at maturity and pays 150% of the upside and 100% of the downside of Synthetic Index, measured point-to-point from 100, with 90% principal protection and a maximum return of 20%.')
+    expect(conceptOf(capped, 'a maximum return of 20%')).toBe('cap')
+  })
+
+  it('starts the clause with the cap when there is no protection', () => {
+    const capOnly = { ...note, payoff: { ...note.payoff, principalProtection: undefined, cap: 0.2 } }
+    expect(sentence(capOnly)).toContain('point-to-point from 100, with a maximum return of 20%.')
+  })
+})
+
 describe('note summary', () => {
   it('describes upside and downside participation together', () => {
     expect(sentence(note)).toBe('A note that redeems at maturity and pays 150% of the upside and 100% of the downside of Synthetic Index, measured point-to-point from 100, with 90% principal protection.')

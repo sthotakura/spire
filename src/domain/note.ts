@@ -20,11 +20,13 @@ export interface ProtectedParticipationNote {
     kind: 'participation'
     participations: Participation[]
     principalProtection?: number
+    // The most the note can pay above principal, as a fraction of principal. Absent means the payment has no ceiling.
+    cap?: number
   }
   principalAmount: number
 }
 
-export type NoteIssueField = 'principalAmount' | 'underlierName' | 'initialLevel' | 'participations' | 'principalProtection'
+export type NoteIssueField = 'principalAmount' | 'underlierName' | 'initialLevel' | 'participations' | 'principalProtection' | 'cap'
 
 export interface NoteIssue {
   field: NoteIssueField
@@ -42,6 +44,8 @@ export function noteIssues(note: ProtectedParticipationNote): NoteIssue[] {
   if (new Set(note.payoff.participations.map(({ direction }) => direction)).size !== note.payoff.participations.length) issues.push({ field: 'participations', message: 'Each participation direction can be selected only once.' })
   const protection = note.payoff.principalProtection
   if (protection !== undefined && (!Number.isFinite(protection) || protection < 0 || protection > 1)) issues.push({ field: 'principalProtection', message: 'Principal protection must be between 0% and 100%.' })
+  const cap = note.payoff.cap
+  if (cap !== undefined && (!Number.isFinite(cap) || cap <= 0)) issues.push({ field: 'cap', message: 'Cap must be greater than zero.' })
   return issues
 }
 
@@ -56,6 +60,12 @@ export interface PaymentBreakdown {
   // Undefined when that direction has no participation, so principal is unchanged.
   participationRate?: number
   participatedReturn: number
+  // Principal plus the participated return, before any cap or floor.
+  uncappedPayment: number
+  // Undefined when the note has no cap. Otherwise principal plus the maximum return.
+  capAmount?: number
+  capApplies: boolean
+  // The payment after the cap and before the floor.
   unflooredPayment: number
   // Zero when the note has no principal protection: a holder cannot lose more than the principal amount.
   floor: number
@@ -72,13 +82,20 @@ export function paymentBreakdown(note: ProtectedParticipationNote, finalLevel: n
   const direction: ParticipationDirection = underlierReturn < 0 ? 'downside' : 'upside'
   const participationRate = note.payoff.participations.find((candidate) => candidate.direction === direction)?.rate
   const participatedReturn = (participationRate ?? 0) * underlierReturn
-  const unflooredPayment = note.principalAmount * (1 + participatedReturn)
+  const uncappedPayment = note.principalAmount * (1 + participatedReturn)
+  // A cap is above principal and so above any floor, which cannot exceed principal. The order of the two cannot change the result.
+  const capAmount = note.payoff.cap === undefined ? undefined : note.principalAmount * (1 + note.payoff.cap)
+  const capApplies = capAmount !== undefined && uncappedPayment > capAmount
+  const unflooredPayment = capApplies ? capAmount : uncappedPayment
   const floor = note.principalAmount * (note.payoff.principalProtection ?? 0)
   return {
     underlierReturn,
     direction,
     participationRate,
     participatedReturn,
+    uncappedPayment,
+    capAmount,
+    capApplies,
     unflooredPayment,
     floor,
     floorApplies: floor > unflooredPayment,

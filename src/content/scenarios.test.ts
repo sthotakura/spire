@@ -12,6 +12,7 @@ const notes: Array<[string, ProtectedParticipationNote]> = [
   ['upside only', withFeatures([{ direction: 'upside', rate: 1.5 }])],
   ['downside only, no protection', withFeatures([{ direction: 'downside', rate: 1 }])],
   ['every feature', withFeatures([{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1.5 }], 0.9)],
+  ['a cap', { ...withFeatures([{ direction: 'upside', rate: 1.5 }]), payoff: { kind: 'participation', participations: [{ direction: 'upside', rate: 1.5 }], cap: 0.2 } }],
 ]
 
 describe('scenario rows', () => {
@@ -29,5 +30,13 @@ describe('scenario rows', () => {
     const rows = scenarioRows(notes[3][1])
     expect(rows.map(({ breakdown }) => breakdown.floorApplies)).toEqual([true, false, false, false])
     expect(rows.map(({ breakdown }) => Math.round(breakdown.payment))).toEqual([900, 1000, 1150, 1450])
+  })
+})
+
+describe('scenario rows with a cap', () => {
+  it('show the cap applying only where it does', () => {
+    const rows = scenarioRows(notes[4][1])
+    expect(rows.map(({ breakdown }) => breakdown.capApplies)).toEqual([false, false, false, true])
+    expect(rows.map(({ breakdown }) => Math.round(breakdown.payment))).toEqual([1000, 1000, 1150, 1200])
   })
 })

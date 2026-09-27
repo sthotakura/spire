@@ -14,6 +14,7 @@ const fullNote: ProtectedParticipationNote = {
     principalProtection: 0.9,
   },
 }
+const cappedNote: ProtectedParticipationNote = { ...fullNote, payoff: { ...fullNote.payoff, cap: 0.2 } }
 const asText = (note: ProtectedParticipationNote) => structureLines(note).map(({ text }) => text).join('\n')
 const linesOf = (note: ProtectedParticipationNote, concept: string) => structureLines(note).filter((line) => line.concept === concept).map(({ text }) => text.trim())
 
@@ -21,6 +22,7 @@ describe('structure lines', () => {
   it.each([
     ['the starting note', startingNote],
     ['a note with every feature', fullNote],
+    ['a capped note', cappedNote],
     ['a protection-only note', { ...startingNote, payoff: { kind: 'participation' as const, participations: [], principalProtection: 0 } }],
     ['a draft that is not valid yet', { ...fullNote, principalAmount: Number.NaN, underlier: { kind: 'equity' as const, name: 'A "quoted" name é' } }],
   ])('matches JSON.stringify for %s', (_, note) => {
@@ -49,6 +51,11 @@ describe('structure lines', () => {
   it('keeps the rest of the payoff under the payoff', () => {
     expect(linesOf(fullNote, 'payoff')).toEqual(['"payoff": {', '"kind": "participation",', '"participations": [', '],', '},'])
     expect(linesOf(startingNote, 'payoff')).toEqual(['"payoff": {', '"kind": "participation",', '"participations": []', '},'])
+  })
+
+  it('tags the cap with its own concept', () => {
+    expect(linesOf(cappedNote, 'cap')).toEqual(['"cap": 0.2'])
+    expect(linesOf(fullNote, 'cap')).toEqual([])
   })
 
   it('leaves out an absent protection', () => {

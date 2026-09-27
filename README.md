@@ -6,13 +6,13 @@ SPIRe uses generic public concepts and synthetic examples. It does not describe 
 
 ## First example
 
-The first structure is a bullet note linked to one equity or equity index, with point-to-point participation. The example compares an initial and a hypothetical final underlier level, applies selected participation rules to positive or negative performance, enforces a configurable contractual protection floor, and displays a maturity payment, scenario table, diagram, and plain-English explanation. Upside participation, downside participation, and principal protection are each optional; a note with none of them repays principal.
+The first structure is a bullet note linked to one equity or equity index, with point-to-point participation. The example compares an initial and a hypothetical final underlier level, applies selected participation rules to positive or negative performance, enforces a configurable contractual protection floor, and displays a maturity payment, scenario table, diagram, and plain-English explanation. Upside participation, downside participation, principal protection, and a cap on the maximum return are each optional; a note with none of them repays principal.
 
 The wrapper is a **note**; **bullet** describes its one-payment-at-maturity redemption behavior. Principal protection is a separate economic rule that sets the contractual maturity-payment floor as a percentage of principal. Upside and downside participation determine the payment above that floor. Contractual payment depends on the issuer's ability to pay.
 
 ## Interface direction
 
-The single-page application shows the product as an outline of its concepts: wrapper, redemption behavior, underlier, determination method, and payoff. Each term sits beside the concept it belongs to. The note starts with no payoff features, so it only repays principal, and the reader adds downside participation, principal protection, and upside participation one at a time.
+The single-page application shows the product as an outline of its concepts: wrapper, redemption behavior, underlier, determination method, and payoff. Each term sits beside the concept it belongs to. The note starts with no payoff features, so it only repays principal, and the reader adds a cap, downside participation, principal protection, and upside participation one at a time.
 
 Beside the outline the page shows a one-sentence summary of the note, a payoff diagram with draggable handles, a worked calculation of the maturity payment, a scenario table, and the note's structure as JSON. Selecting a concept highlights it in each of them.
 

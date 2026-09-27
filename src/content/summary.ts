@@ -10,12 +10,13 @@ const percent = (fraction: number) => Number.isFinite(fraction) ? `${(fraction *
 const amount = (value: number) => Number.isFinite(value) ? value.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'
 
 // Describes a note in plain words. Segments with a concept name the part of the note they describe.
-// A note with no participation only repays principal, and the protection clause appears only when protection is present.
+// A note with no participation only repays principal. The protection and cap clauses appear only when those features are present.
 export function summarize(note: ProtectedParticipationNote): SummarySegment[] {
   const upside = note.payoff.participations.find(({ direction }) => direction === 'upside')
   const downside = note.payoff.participations.find(({ direction }) => direction === 'downside')
   const underlier: SummarySegment = { text: note.underlier.name.trim() || 'the underlier', concept: 'underlier' }
   const protection = note.payoff.principalProtection
+  const cap = note.payoff.cap
 
   const payoff: SummarySegment[] = []
   if (upside || downside) {
@@ -28,6 +29,12 @@ export function summarize(note: ProtectedParticipationNote): SummarySegment[] {
     payoff.push({ text: ' and ' }, { text: 'repays its principal', concept: 'payoff' }, { text: ', linked to ' }, underlier)
   }
 
+  const protectionClause: SummarySegment[] = protection === undefined ? [] : [{ text: `${percent(protection)} principal protection`, concept: 'protection' }]
+  const capClause: SummarySegment[] = cap === undefined ? [] : [{ text: `a maximum return of ${percent(cap)}`, concept: 'cap' }]
+  const features: SummarySegment[] = protectionClause.length && capClause.length
+    ? [{ text: ', with ' }, ...protectionClause, { text: ' and ' }, ...capClause]
+    : protectionClause.length || capClause.length ? [{ text: ', with ' }, ...protectionClause, ...capClause] : []
+
   return [
     { text: 'A ' },
     { text: 'note', concept: 'wrapper' },
@@ -36,7 +43,7 @@ export function summarize(note: ProtectedParticipationNote): SummarySegment[] {
     ...payoff,
     { text: ', measured ' },
     { text: `point-to-point from ${amount(note.determination.initialLevel)}`, concept: 'determination' },
-    ...(protection === undefined ? [] : [{ text: ', with ' }, { text: `${percent(protection)} principal protection`, concept: 'protection' as const }]),
+    ...features,
     { text: '.' },
   ]
 }

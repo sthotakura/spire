@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { amountToY, clamp, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelAxisFactor, levelToX, protectionFromY, slopeLevelFactor, upsideRateFromY, type Plot } from './chart/geometry'
+import { amountToY, capFromY, clamp, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelAxisFactor, levelToX, protectionFromY, slopeLevel, upsideRateFromY, type Plot } from './chart/geometry'
 import HintToggle from './components/HintToggle.vue'
 import TabGroup from './components/TabGroup.vue'
 import type { ConceptId } from './content/concepts'
@@ -20,10 +20,11 @@ const hints = {
   underlier: 'The single synthetic equity or equity index linked to the note.',
   determination: 'How the underlier return is determined for the maturity payment.',
   payoff: 'These rules determine the contractual payment at maturity.',
-  principal: 'The amount used as the base for the maturity payment, in synthetic units.',
+  principal: 'The amount used as the base for the maturity payment, in synthetic currency units.',
   'initial-level': 'The reference level used to calculate the underlier’s return.',
   downside: 'The share of a negative underlier return deducted from principal before the protection floor applies.',
   upside: 'The share of a positive underlier return added to principal.',
+  cap: 'The most the note can pay above principal, as a percentage of principal, however far the underlier rises. It has an effect only when upside participation is selected.',
   protection: 'The minimum contractual maturity payment as a percentage of principal. Protection applies at maturity and depends on the issuer’s ability to pay.',
 }
 const wrapperOptions = [
@@ -50,7 +51,7 @@ const finalLevel = ref(startingFinalLevel)
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
 const select = (concept: ConceptId) => { selected.value = concept }
-const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', determination: '#b7791f', payoff: '#2369bd', protection: '#2369bd', upside: '#2369bd', downside: '#2369bd' }
+const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', determination: '#b7791f', payoff: '#2369bd', protection: '#2369bd', upside: '#2369bd', downside: '#2369bd', cap: '#2369bd' }
 const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
@@ -59,7 +60,7 @@ type FeatureId = 'barrier' | 'buffer' | 'cap' | 'coupon' | 'digital' | 'downside
 const payoffFeatures: ReadonlyArray<{ id: FeatureId; label: string; description: string; available: boolean }> = [
   { id: 'barrier', label: 'Barrier', description: 'A level that changes the payoff if it is reached.', available: false },
   { id: 'buffer', label: 'Buffer', description: 'Protects against an initial portion of underlier losses.', available: false },
-  { id: 'cap', label: 'Cap', description: 'Limits the maximum contractual payment.', available: false },
+  { id: 'cap', label: 'Cap', description: 'Limits the maximum contractual payment.', available: true },
   { id: 'coupon', label: 'Coupon', description: 'An additional contractual payment on stated dates.', available: false },
   { id: 'digital', label: 'Digital', description: 'Pays a predefined amount if a stated condition is met.', available: false },
   { id: 'downside', label: 'Downside participation', description: 'Negative underlier return is multiplied by the downside participation rate until the protection floor applies.', available: true },
@@ -71,9 +72,11 @@ const participationPercent = reactive<Record<ParticipationDirection, number>>({ 
 const selectedParticipation = reactive<Record<ParticipationDirection, boolean>>({ downside: false, upside: false })
 const protectionSelected = ref(false)
 const protectionPercent = ref(firstFeatureValues.protection)
+const capSelected = ref(false)
+const capPercent = ref(firstFeatureValues.cap)
 const selectedDirections = computed(() => (['downside', 'upside'] as ParticipationDirection[]).filter((direction) => selectedParticipation[direction]))
-const isAdded = (id: FeatureId) => id === 'protection' ? protectionSelected.value : id === 'downside' || id === 'upside' ? selectedParticipation[id] : false
-const hasFeatures = computed(() => protectionSelected.value || selectedDirections.value.length > 0)
+const isAdded = (id: FeatureId) => id === 'protection' ? protectionSelected.value : id === 'cap' ? capSelected.value : id === 'downside' || id === 'upside' ? selectedParticipation[id] : false
+const hasFeatures = computed(() => protectionSelected.value || capSelected.value || selectedDirections.value.length > 0)
 
 const paletteOpen = ref(false)
 const paletteQuery = ref('')
@@ -99,6 +102,7 @@ const addFeature = async (id: FeatureId) => {
   if (!feature?.available || isAdded(id)) return
   beginGesture()
   if (id === 'protection') protectionSelected.value = true
+  else if (id === 'cap') capSelected.value = true
   else if (id === 'downside' || id === 'upside') selectedParticipation[id] = true
   paletteOpen.value = false
   await nextTick()
@@ -107,6 +111,7 @@ const addFeature = async (id: FeatureId) => {
 const removeFeature = async (id: FeatureId) => {
   beginGesture()
   if (id === 'protection') protectionSelected.value = false
+  else if (id === 'cap') capSelected.value = false
   else if (id === 'downside' || id === 'upside') selectedParticipation[id] = false
   if (selected.value === id) selected.value = 'payoff'
   await nextTick()
@@ -135,6 +140,7 @@ const note = computed<ProtectedParticipationNote>(() => ({
       rate: participationPercent[direction] / 100,
     })),
     principalProtection: protectionSelected.value ? protectionPercent.value / 100 : undefined,
+    cap: capSelected.value ? capPercent.value / 100 : undefined,
   },
   principalAmount: principal.value,
 }))
@@ -154,12 +160,13 @@ const participationSummary = computed(() => selectedDirections.value
   .map((direction) => `${formatPercent(participationPercent[direction] / 100)} ${participationLabels[direction].toLowerCase()}`)
   .join(' and ') || 'none')
 const floorSummary = computed(() => protectionSelected.value ? `${formatPercent(protectionPercent.value / 100)} of principal` : 'zero')
+const capSummary = computed(() => `${formatAmount(principal.value * (1 + capPercent.value / 100))} (a ${formatPercent(capPercent.value / 100)} return on principal)`)
 const chartDescription = computed(() => {
   if (!hasFeatures.value) return 'Contractual maturity payment stays at principal for every final level.'
   const fall = selectedParticipation.downside
     ? `falls with negative underlier returns${protectionSelected.value ? ' until the protection floor applies' : ', but not below zero'}`
     : 'stays at principal for negative underlier returns'
-  const rise = selectedParticipation.upside ? 'rises with positive underlier returns' : 'stays at principal for flat or positive underlier returns'
+  const rise = selectedParticipation.upside ? `rises with positive underlier returns${capSelected.value ? ' until the cap applies' : ''}` : 'stays at principal for flat or positive underlier returns'
   return `Contractual maturity payment ${fall}. It ${rise}.`
 })
 const buildTimestampIso = __BUILD_TIMESTAMP__
@@ -178,8 +185,10 @@ const scenarios = computed(() => errors.value.length ? [] : scenarioRows(note.va
       ? `${formatPercent(breakdown.participationRate)} × ${formatPercent(returnValue)} = ${formatPercent(breakdown.participatedReturn)}`
       : null,
   ])) as Record<ParticipationDirection, string | null>,
+  uncappedPayment: breakdown.uncappedPayment,
   unflooredPayment: breakdown.unflooredPayment,
   payment: breakdown.payment,
+  capApplied: breakdown.capApplies,
   floorApplied: breakdown.floorApplies,
 })))
 
@@ -192,17 +201,25 @@ const calculation = computed(() => {
   if (!b) return []
   const direction = b.direction === 'upside' ? 'upside' : 'downside'
   const withProtection = protectionSelected.value
-  return [
-    { n: 1, title: 'Underlier return', how: `${formatAmount(finalLevel.value)} ÷ ${formatAmount(initialLevel.value)} − 1`, value: signedPercent(b.underlierReturn), concept: 'determination' as ConceptId },
+  const withCap = capSelected.value
+  // Numbers follow the order of the steps, so the closing step can refer to the ones it combines.
+  const steps: Array<{ title: string; how: string; value: string; muted?: boolean; result?: boolean; concept?: ConceptId }> = [
+    { title: 'Underlier return', how: `${formatAmount(finalLevel.value)} ÷ ${formatAmount(initialLevel.value)} − 1`, value: signedPercent(b.underlierReturn), concept: 'determination' },
     b.participationRate === undefined
-      ? { n: 2, title: 'Participation', how: `No ${direction} participation is selected, so principal is unchanged`, value: 'Not added', muted: true, concept: b.direction }
-      : { n: 2, title: 'Participation', how: `${formatPercent(b.participationRate)} ${direction} × ${signedPercent(b.underlierReturn)}`, value: signedPercent(b.participatedReturn), concept: b.direction },
-    { n: 3, title: 'Payment before protection', how: `${formatAmount(principal.value)} × (1 ${b.participatedReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(b.participatedReturn))})`, value: formatAmount(b.unflooredPayment) },
-    withProtection
-      ? { n: 4, title: 'Protection floor', how: `${formatPercent(protectionPercent.value / 100)} × ${formatAmount(principal.value)} · ${b.floorApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.floor), concept: 'protection' as ConceptId }
-      : { n: 4, title: 'Protection floor', how: selectedParticipation.downside ? 'No protection selected, so some or all of the principal can be lost' : 'No protection selected. Without downside participation, principal is not reduced', value: 'Not added', muted: true, concept: 'protection' as ConceptId },
-    { n: 5, title: 'Payment at maturity', how: withProtection ? 'The higher of steps 3 and 4' : 'The higher of step 3 and zero', value: `${formatAmount(b.payment)} units`, result: true },
+      ? { title: 'Participation', how: `No ${direction} participation is selected, so principal is unchanged`, value: 'Not added', muted: true, concept: b.direction }
+      : { title: 'Participation', how: `${formatPercent(b.participationRate)} ${direction} × ${signedPercent(b.underlierReturn)}`, value: signedPercent(b.participatedReturn), concept: b.direction },
+    { title: withCap ? 'Payment before cap' : 'Payment before protection', how: `${formatAmount(principal.value)} × (1 ${b.participatedReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(b.participatedReturn))})`, value: formatAmount(b.uncappedPayment) },
   ]
+  if (withCap) steps.push({ title: 'Cap', how: `${formatAmount(principal.value)} × (1 + ${formatPercent(capPercent.value / 100)}) · ${b.capApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.capAmount ?? 0), concept: 'cap' })
+  steps.push(withProtection
+    ? { title: 'Protection floor', how: `${formatPercent(protectionPercent.value / 100)} × ${formatAmount(principal.value)} · ${b.floorApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.floor), concept: 'protection' }
+    : { title: 'Protection floor', how: selectedParticipation.downside ? 'No protection selected, so some or all of the principal can be lost' : 'No protection selected. Without downside participation, principal is not reduced', value: 'Not added', muted: true, concept: 'protection' })
+  const [before, cap, floor] = [3, 4, withCap ? 5 : 4]
+  const combine = withCap
+    ? `The lower of steps ${before} and ${cap}, then ${withProtection ? `the higher of that and step ${floor}` : 'not below zero'}`
+    : withProtection ? `The higher of steps ${before} and ${floor}` : `The higher of step ${before} and zero`
+  steps.push({ title: 'Payment at maturity', how: combine, value: `${formatAmount(b.payment)} units`, result: true })
+  return steps.map((step, index) => ({ ...step, n: index + 1 }))
 })
 
 // The chart. Its vertical axis is fixed (see chart/geometry.ts), and handles on it edit the same values the outline fields edit.
@@ -226,8 +243,8 @@ const ghostNote = ref<ProtectedParticipationNote | null>(null)
 function beginGesture() { ghostNote.value = JSON.parse(JSON.stringify(note.value)) as ProtectedParticipationNote }
 const focusRow = (concept: ConceptId) => { select(concept); beginGesture() }
 
-type HandleId = 'floor' | 'slope' | 'final'
-const handleConcept: Record<HandleId, ConceptId | null> = { floor: 'protection', slope: 'upside', final: null }
+type HandleId = 'floor' | 'slope' | 'cap' | 'final'
+const handleConcept: Record<HandleId, ConceptId | null> = { floor: 'protection', slope: 'upside', cap: 'cap', final: null }
 const dragging = ref<HandleId | null>(null)
 const svgPoint = (event: PointerEvent) => {
   const matrix = chartSvg.value?.getScreenCTM()
@@ -252,7 +269,8 @@ const dragMove = (id: HandleId, event: PointerEvent) => {
   if (dragging.value !== id) return
   const point = svgPoint(event)
   if (id === 'floor') protectionPercent.value = protectionFromY(point.y, principal.value, plot)
-  else if (id === 'slope') participationPercent.upside = upsideRateFromY(point.y, principal.value, plot)
+  else if (id === 'slope') participationPercent.upside = upsideRateFromY(point.y, principal.value, plot, capFraction.value)
+  else if (id === 'cap') capPercent.value = capFromY(point.y, principal.value, plot)
   else finalLevel.value = finalLevelFromX(point.x, initialLevel.value, plot)
 }
 const endDrag = () => { dragging.value = null }
@@ -262,12 +280,16 @@ const keyHandle = (id: HandleId, event: KeyboardEvent) => {
   event.preventDefault()
   if (id === 'floor') protectionPercent.value = clampProtection(protectionPercent.value + delta)
   else if (id === 'slope') participationPercent.upside = clampUpsideRate(participationPercent.upside + delta)
+  else if (id === 'cap') capPercent.value = clampCap(capPercent.value + delta)
   else finalLevel.value = clampFinalLevel(finalLevel.value + delta, initialLevel.value)
 }
 
+// The cap as a fraction of principal, or undefined when the note has none. The slope handle's position depends on it.
+const capFraction = computed(() => capSelected.value ? capPercent.value / 100 : undefined)
 const chartHighlight = computed(() => ({
   line: selected.value === 'payoff',
   floor: protectionSelected.value && highlighted('protection'),
+  cap: capSelected.value && highlighted('cap'),
   downside: selectedParticipation.downside && selected.value === 'downside',
   upside: selectedParticipation.upside && selected.value === 'upside',
   initial: selected.value === 'determination',
@@ -289,7 +311,7 @@ const chart = computed(() => {
   const ghost = ghostNote.value
   const ghostPoints = ghost && noteIssues(ghost).length === 0 ? levels.map((level) => point(level, maturityPayment(ghost, level))).join(' ') : ''
   const floorAmount = principalAmount * (note.value.payoff.principalProtection ?? 0)
-  const slopeLevel = initial * slopeLevelFactor
+  const capAmount = principalAmount * (1 + (note.value.payoff.cap ?? 0))
   const finalHandle = payment.value === null ? null : { x: x(clamp(finalLevel.value, 0, end)), y: pinnedY(payment.value) }
   const bubbleText = payment.value === null ? '' : `${formatAmount(finalLevel.value)} → ${formatAmount(payment.value)} units`
   const bubbleWidth = 16 + bubbleText.length * 6.4 * labelScale.value
@@ -303,10 +325,13 @@ const chart = computed(() => {
     amountTicks: [0, 0.5, 1, 1.5, 2].map((multiple) => ({ y: y(principalAmount * multiple), label: (principalAmount * multiple).toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: 1 }) })),
     floorY: protectionSelected.value ? y(floorAmount) : null,
     floorAmount,
+    capY: capSelected.value ? y(capAmount) : null,
+    capAmount,
     initialX: x(initial),
     end,
+    capHandle: capSelected.value ? { x: plot.left + (plot.right - plot.left) * 0.8, y: pinnedY(capAmount) } : null,
     floorHandle: protectionSelected.value ? { x: plot.left + (plot.right - plot.left) * 0.25, y: y(floorAmount) } : null,
-    slopeHandle: selectedParticipation.upside ? { x: x(slopeLevel), y: pinnedY(maturityPayment(note.value, slopeLevel)) } : null,
+    slopeHandle: selectedParticipation.upside ? { x: x(slopeLevel(initial, capFraction.value)), y: pinnedY(maturityPayment(note.value, slopeLevel(initial, capFraction.value))) } : null,
     finalHandle,
     bubble: finalHandle && { text: bubbleText, width: bubbleWidth, x: clamp(finalHandle.x - bubbleWidth / 2, plot.left + 2, plot.right - bubbleWidth - 2), y: finalHandle.y < plot.top + 40 ? finalHandle.y + 16 : finalHandle.y - 34 },
   }
@@ -369,6 +394,15 @@ const chart = computed(() => {
                   </div>
                   <ul v-if="issuesFor('participations').length" class="errors" role="alert"><li v-for="message in issuesFor('participations')" :key="message">{{ message }}</li></ul>
                   <ul>
+                    <li v-if="capSelected" :class="['node', { sel: highlighted('cap') }]" :style="conceptStyle('cap')">
+                      <div class="nrow" @click="select('cap')" @focusin="focusRow('cap')">
+                        <span class="nlabel">Cap<HintToggle id="cap" about="cap" :text="hints.cap" :active="activeHint === 'cap'" @toggle="toggleHint('cap')" /></span>
+                        <span class="ctrl"><input id="rate-cap" v-model.number="capPercent" type="number" min="0.01" step="any" aria-label="Cap: maximum return on principal (%)" /><span class="unit">%</span></span>
+                        <button type="button" class="xbtn" aria-label="Remove cap" @click.stop="removeFeature('cap')">×</button>
+                      </div>
+                      <ul v-if="issuesFor('cap').length" class="errors" role="alert"><li v-for="message in issuesFor('cap')" :key="message">{{ message }}</li></ul>
+                      <p v-if="!selectedParticipation.upside" class="row-note">Has no effect until upside participation is added.</p>
+                    </li>
                     <li v-if="selectedParticipation.downside" :class="['node', { sel: highlighted('downside') }]" :style="conceptStyle('downside')">
                       <div class="nrow" @click="select('downside')" @focusin="focusRow('downside')">
                         <span class="nlabel">Downside participation<HintToggle id="downside" about="downside participation rate" :text="hints.downside" :active="activeHint === 'downside'" @toggle="toggleHint('downside')" /></span>
@@ -422,6 +456,7 @@ const chart = computed(() => {
               <line :x1="plot.left" :y1="plot.bottom" :x2="plot.right" :y2="plot.bottom" class="axis-line"/><line :x1="plot.left" :y1="plot.top" :x2="plot.left" :y2="plot.bottom" class="axis-line"/>
               <line :x1="plot.left" :y1="chart.principalY" :x2="plot.right" :y2="chart.principalY" class="grid-line"/>
               <line v-if="chart.floorY !== null" :x1="plot.left" :y1="chart.floorY" :x2="plot.right" :y2="chart.floorY" :class="['grid-line', { on: chartHighlight.floor }]"/>
+              <line v-if="chart.capY !== null" :x1="plot.left" :y1="chart.capY" :x2="plot.right" :y2="chart.capY" :class="['grid-line', { on: chartHighlight.cap }]"/>
               <line :x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" :class="['grid-line', { on: chartHighlight.initial }]"/>
               <g clip-path="url(#plot-clip)">
                 <polyline v-if="chart.ghostPoints" :points="chart.ghostPoints" class="ghost-line"/>
@@ -435,9 +470,13 @@ const chart = computed(() => {
               <text :x="plot.left + 2" y="24" class="axis-label">Payment (units)</text>
               <text :x="plot.left + 4" :y="chart.principalY - 6" class="axis-label">Principal {{ formatAmount(principal) }}</text>
               <text v-if="chart.floorY !== null" :x="plot.left + 4" :y="chart.floorY + 14" :class="['axis-label', { on: chartHighlight.floor }]">Floor {{ formatAmount(chart.floorAmount) }}</text>
+              <text v-if="chart.capY !== null" :x="plot.right - 4" :y="chart.capY + 14" text-anchor="end" :class="['axis-label', { on: chartHighlight.cap }]">Cap {{ formatAmount(chart.capAmount) }}</text>
               <text :x="plot.left - 3" y="251" class="axis-label">0</text><text :x="chart.initialX" y="251" text-anchor="middle" class="axis-label">Initial {{ formatAmount(initialLevel) }}</text><text :x="plot.right" y="251" text-anchor="end" class="axis-label">{{ formatAmount(chart.end) }}</text>
               <g v-if="chart.bubble" class="bubble" :transform="`translate(${chart.bubble.x} ${chart.bubble.y})`"><rect :width="chart.bubble.width" height="22" rx="6"/><text :x="chart.bubble.width / 2" y="15" text-anchor="middle">{{ chart.bubble.text }}</text></g>
               <g v-if="chart.floorHandle" :class="['handle', { on: highlighted('protection') }]" :transform="`translate(${chart.floorHandle.x} ${chart.floorHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Principal protection" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="protectionPercent" :aria-valuetext="`${protectionPercent}% protection`" @pointerdown="startDrag('floor', $event)" @pointermove="dragMove('floor', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('floor', $event)" @focus="focusHandle('floor')">
+                <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
+              </g>
+              <g v-if="chart.capHandle" :class="['handle', { on: highlighted('cap') }]" :transform="`translate(${chart.capHandle.x} ${chart.capHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Cap" aria-valuemin="1" aria-valuemax="100" :aria-valuenow="capPercent" :aria-valuetext="`${capPercent}% maximum return`" @pointerdown="startDrag('cap', $event)" @pointermove="dragMove('cap', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('cap', $event)" @focus="focusHandle('cap')">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
               <g v-if="chart.slopeHandle" :class="['handle', { on: highlighted('upside') }]" :transform="`translate(${chart.slopeHandle.x} ${chart.slopeHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Upside participation rate" aria-valuemin="5" aria-valuemax="200" :aria-valuenow="participationPercent.upside" :aria-valuetext="`${participationPercent.upside}% upside participation`" @pointerdown="startDrag('slope', $event)" @pointermove="dragMove('slope', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('slope', $event)" @focus="focusHandle('slope')">
@@ -464,8 +503,8 @@ const chart = computed(() => {
               <template v-if="chart">
                 <h3>Example scenarios</h3>
                 <p class="table-scroll-hint">Scroll horizontally to see every scenario column.</p>
-                <div class="table-wrap"><table><thead><tr><th>Final level</th><th>Underlier change</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="protectionSelected">Payment before protection</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}</td><td>{{ formatPercent(row.returnValue) }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="protectionSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="protectionSelected && row.floorApplied" class="floor-note">floor applied</span></td></tr></tbody></table></div>
-                <p class="scenario-formula"><strong>Selected participation:</strong> {{ participationSummary }}. A move in an unselected direction does not change principal before protection. The payment cannot fall below {{ floorSummary }}.</p>
+                <div class="table-wrap"><table><thead><tr><th>Final level</th><th>Underlier change</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected">Payment before protection</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}</td><td>{{ formatPercent(row.returnValue) }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="protectionSelected && row.floorApplied" class="floor-note">floor applied</span></td></tr></tbody></table></div>
+                <p class="scenario-formula"><strong>Selected participation:</strong> {{ participationSummary }}. A move in an unselected direction does not change principal before protection. The payment cannot fall below {{ floorSummary }}.<template v-if="capSelected"> It cannot exceed {{ capSummary }}.</template></p>
               </template>
               <p v-else class="help">Enter valid terms to see the scenarios.</p>
             </template>

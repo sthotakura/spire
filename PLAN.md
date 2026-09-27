@@ -46,6 +46,13 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Make principal protection optional. Without it the floor is zero, because a holder cannot lose more than the principal amount.
 - Derive the calculation, scenario table, and outcome sentence from one payment breakdown, so they cannot disagree with the maturity payment.
 
+## 7. Cap the upside
+
+- Add an optional cap: the maximum return on principal, greater than zero, applied to the payment before the protection floor.
+- Allow participation above 100%, so that a cap can bind at a modest underlier rise.
+- Show the cap in the outline, summary, structure JSON, chart (a line and a draggable handle), calculation, scenario table and outcome sentence, all from the same payment breakdown.
+- Keep buffers, barriers, coupons and other payoff mechanics outside this increment. Whether a buffer and principal protection can be combined is still open.
+
 ## Deferred questions
 
 - Which payoff mechanics can be combined independently of wrappers?
@@ -62,4 +69,4 @@ This plan covers the first useful, public, browser-only version. It records deci
 
 ## Outside this milestone
 
-Market pricing, implied volatility, Greeks, live data, coupons, caps, buffers, barriers, calls, baskets, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.
+Market pricing, implied volatility, Greeks, live data, coupons, buffers, barriers, calls, baskets, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.

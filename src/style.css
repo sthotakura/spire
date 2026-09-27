@@ -29,3 +29,4 @@
 .tabs{margin-top:22px}.tablist{display:flex;gap:4px;border-bottom:1px solid #e5ebf2}.tab{border:0;border-bottom:3px solid transparent;background:none;color:#66758b;padding:10px 12px;font-size:14px;font-weight:650;text-align:left}.tab:hover{color:#195aa9}.tab.active{color:#195aa9;border-bottom-color:#2369bd}.tab:focus-visible,.tabpanel:focus-visible{outline:2px solid #2a70c9;outline-offset:2px;border-radius:6px}.tabpanel{padding-top:14px}.tabpanel h3{font-size:15px;margin:0 0 10px}
 @media(max-width:1399px){.workspace{grid-template-columns:minmax(300px,390px) minmax(0,1fr);grid-template-areas:"outline preview" "json preview"}}
 @media(max-width:899px){.workspace{grid-template-columns:minmax(0,1fr);grid-template-areas:"outline" "preview" "json"}}
+.tree .row-note{margin:0 0 6px 14px;color:#66758b;font-size:13px;line-height:1.45}

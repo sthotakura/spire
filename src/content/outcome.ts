@@ -5,8 +5,9 @@ const units = (value: number) => Math.abs(value).toLocaleString('en-US', { maxim
 
 // Explains a contractual maturity payment in words, from the note and its payment breakdown.
 export function explainOutcome(note: ProtectedParticipationNote, breakdown: PaymentBreakdown): string {
-  const { underlierReturn, direction, participationRate, participatedReturn, unflooredPayment, floor, floorApplies, payment } = breakdown
+  const { underlierReturn, direction, participationRate, participatedReturn, uncappedPayment, capAmount, capApplies, unflooredPayment, floor, floorApplies, payment } = breakdown
   const hasProtection = note.payoff.principalProtection !== undefined
+  const hasCap = capAmount !== undefined
   const principal = note.principalAmount
 
   const movement = underlierReturn > 0 ? `The underlier rose ${percent(underlierReturn)}.`
@@ -19,19 +20,21 @@ export function explainOutcome(note: ProtectedParticipationNote, breakdown: Paym
   else {
     const label = direction === 'upside' ? 'Upside' : 'Downside'
     const change = direction === 'upside' ? `adds ${percent(participatedReturn)} to` : `deducts ${percent(participatedReturn)} from`
-    participation = `${label} participation of ${percent(participationRate)} ${change} principal${hasProtection && unflooredPayment >= 0 ? `, so the payment before protection is ${units(unflooredPayment)}` : ''}.`
+    participation = `${label} participation of ${percent(participationRate)} ${change} principal${(hasProtection || hasCap) && uncappedPayment >= 0 ? `, so the payment before ${hasCap ? 'the cap' : 'protection'} is ${units(uncappedPayment)}` : ''}.`
   }
 
-  let reason = ''
-  if (hasProtection) reason = `The ${units(floor)} floor ${floorApplies ? 'applies' : 'does not apply'}`
-  else if (unflooredPayment < 0) reason = 'The payment cannot fall below zero'
-  else if (underlierReturn < 0 && participationRate !== undefined) reason = 'There is no principal protection'
+  const reasons: string[] = []
+  if (hasCap) reasons.push(`the ${units(capAmount)} cap ${capApplies ? 'applies' : 'does not apply'}`)
+  if (hasProtection) reasons.push(`the ${units(floor)} floor ${floorApplies ? 'applies' : 'does not apply'}`)
+  else if (unflooredPayment < 0) reasons.push('the payment cannot fall below zero')
+  else if (underlierReturn < 0 && participationRate !== undefined) reasons.push('there is no principal protection')
+  const reason = reasons.join(' and ')
 
   const difference = Math.round((payment - principal) * 100) / 100
   const comparison = difference > 0 ? `${units(difference)} more than principal`
     : difference < 0 ? `${units(difference)} less than principal`
       : 'the same as principal'
-  const result = `${reason ? `${reason}, so the` : 'The'} contractual payment is ${units(payment)} units, ${comparison}.`
+  const result = `${reason ? `${reason[0].toUpperCase()}${reason.slice(1)}, so the` : 'The'} contractual payment is ${units(payment)} units, ${comparison}.`
 
   return [movement, participation, result].join(' ')
 }

@@ -213,3 +213,71 @@ describe('payment breakdown', () => {
     expect(() => paymentBreakdown({ ...protectedNote, principalAmount: 0 }, 100)).toThrow('Principal must be greater than zero.')
   })
 })
+
+describe('cap', () => {
+  const capped: ProtectedParticipationNote = { ...note, payoff: { ...note.payoff, principalProtection: 0.9, cap: 0.2 } }
+
+  it.each([
+    [60, 900],
+    [100, 1000],
+    [110, 1150],
+    [113, 1195],
+    [114, 1200],
+    [130, 1200],
+    [500, 1200],
+  ])('pays %s final level as %s units with 150% upside participation and a 20% cap', (finalLevel, expected) => {
+    expect(maturityPayment(capped, finalLevel)).toBeCloseTo(expected, 8)
+  })
+
+  it('limits the return on principal, so participation above 100% reaches the cap sooner', () => {
+    const at100 = { ...capped, payoff: { ...capped.payoff, participations: [{ direction: 'upside' as const, rate: 1 }] } }
+    expect(maturityPayment(at100, 119)).toBeCloseTo(1190, 8)
+    expect(maturityPayment(at100, 121)).toBeCloseTo(1200, 8)
+  })
+
+  it('never binds below the cap, whatever the participation rate', () => {
+    const lowRate = { ...capped, payoff: { ...capped.payoff, participations: [{ direction: 'upside' as const, rate: 0.1 }] } }
+    expect(maturityPayment(lowRate, 300)).toBeCloseTo(1200, 8)
+    expect(maturityPayment(lowRate, 160)).toBeCloseTo(1060, 8)
+  })
+
+  it('has no effect without upside participation or on a fall', () => {
+    const downsideOnly = { ...capped, payoff: { ...capped.payoff, participations: [{ direction: 'downside' as const, rate: 1 }] } }
+    expect(maturityPayment(downsideOnly, 200)).toBe(1000)
+    expect(maturityPayment(downsideOnly, 95)).toBeCloseTo(950, 8)
+    expect(maturityPayment(capped, 60)).toBe(maturityPayment({ ...capped, payoff: { ...capped.payoff, cap: undefined } }, 60))
+  })
+
+  it('works without protection', () => {
+    const unprotected = { ...capped, payoff: { ...capped.payoff, principalProtection: undefined } }
+    expect(maturityPayment(unprotected, 130)).toBeCloseTo(1200, 8)
+    expect(maturityPayment(unprotected, 60)).toBeCloseTo(600, 8)
+  })
+
+  it('breaks the cap into steps', () => {
+    const atCap = paymentBreakdown(capped, 130)
+    expect(atCap.uncappedPayment).toBeCloseTo(1450, 8)
+    expect(atCap.capAmount).toBeCloseTo(1200, 8)
+    expect(atCap.capApplies).toBe(true)
+    expect(atCap.unflooredPayment).toBeCloseTo(1200, 8)
+    expect(atCap.payment).toBeCloseTo(1200, 8)
+
+    const belowCap = paymentBreakdown(capped, 110)
+    expect(belowCap.capApplies).toBe(false)
+    expect(belowCap.unflooredPayment).toBeCloseTo(1150, 8)
+    expect(belowCap.uncappedPayment).toBe(belowCap.unflooredPayment)
+  })
+
+  it('leaves the cap out of the breakdown when the note has none', () => {
+    const breakdown = paymentBreakdown(note, 130)
+    expect(breakdown.capAmount).toBeUndefined()
+    expect(breakdown.capApplies).toBe(false)
+    expect(breakdown.payment).toBeCloseTo(1450, 8)
+  })
+
+  it.each([0, -0.1, Number.NaN, Number.POSITIVE_INFINITY])('rejects a cap of %s', (cap) => {
+    const invalid = { ...note, payoff: { ...note.payoff, cap } }
+    expect(validateNote(invalid)).toContain('Cap must be greater than zero.')
+    expect(noteIssues(invalid).map(({ field }) => field)).toEqual(['cap'])
+  })
+})

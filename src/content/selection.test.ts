@@ -12,12 +12,13 @@ describe('selection', () => {
   })
 
   it('selects every payoff feature together with the payoff', () => {
-    for (const feature of ['protection', 'upside', 'downside'] as const) expect(isHighlighted('payoff', feature)).toBe(true)
+    for (const feature of ['protection', 'upside', 'downside', 'cap'] as const) expect(isHighlighted('payoff', feature)).toBe(true)
   })
 
   it('highlights only the feature that is selected, not its siblings or the payoff', () => {
     expect(isHighlighted('upside', 'downside')).toBe(false)
     expect(isHighlighted('upside', 'protection')).toBe(false)
+    expect(isHighlighted('upside', 'cap')).toBe(false)
     expect(isHighlighted('upside', 'payoff')).toBe(false)
   })
 
