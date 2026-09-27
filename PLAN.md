@@ -63,7 +63,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 ## Deferred questions
 
 - Which payoff mechanics can be combined independently of wrappers?
-- When should observation and valuation schedules become explicit model concepts? Observation dates look like part of the determination method, inside the underlier ([docs/underlier-model.md](docs/underlier-model.md)).
+- When should observation and valuation schedules become explicit model concepts? Observation dates look like part of the determination method, inside the underlier ([docs/underlier-model.md](docs/underlier-model.md)). Averaging states a count of observations but not their dates.
 - Which terms are product economics, and which belong only to issuance?
 - How should changes to authoritative terms invalidate derived results?
 - Should the payoff kind be renamed now that participation is optional?
@@ -100,6 +100,13 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Allow a buffer together with a protection floor. This settles the open question from section 7: the holder bears only the losses between the two.
 - Show the buffer in the outline (before downside participation), summary, structure JSON, chart (a vertical guide, a sideways handle, and its own colour, #1aa3b8, checked against the feature colours it can touch), payment rule, calculation, scenario table and outcome sentence.
 - Name a buffer on downside participation a "Buffered note", following FINRA's description ([docs/marketing-names.md](docs/marketing-names.md)).
+
+## 12. Add averaging
+
+- Add averaging as a second determination method: the final level is the arithmetic average of a stated number of observed levels, from 2 to 12. The initial level stays a single term (averaging out only). The model, decisions and worked example are in [docs/averaging.md](docs/averaging.md).
+- Keep the payoff unchanged: it reads the final level the determination produces, however it was measured.
+- Treat the observed levels as scenario inputs, edited in the calculation. The chart handle moves them all together; the count is a note term, shown in the outline and the Structure JSON.
+- Show averaging in the summary, payment rule, calculation (a step that averages the levels), outcome sentence, chart axis and scenario table. Lookback stays unavailable.
 
 ## Outside this milestone
 

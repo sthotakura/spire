@@ -43,6 +43,14 @@ describe('note summary with a buffer', () => {
   })
 })
 
+describe('note summary with averaging', () => {
+  it('says the change is measured to the average of the observed levels', () => {
+    const averaged = { ...note, underlier: { ...note.underlier, determination: { kind: 'averaging' as const, observationCount: 5 } } }
+    expect(sentence(averaged)).toContain('of Synthetic Index, measured from 100 to the average of 5 observed levels, with 90% principal protection.')
+    expect(conceptOf(averaged, 'from 100 to the average of 5 observed levels')).toBe('determination')
+  })
+})
+
 describe('note summary', () => {
   it('describes upside and downside participation together', () => {
     expect(sentence(note)).toBe('A note that redeems at maturity and pays 150% of the upside and 100% of the downside of Synthetic Index, measured point-to-point from 100, with 90% principal protection.')

@@ -18,6 +18,11 @@ export function summarize(note: ProtectedParticipationNote): SummarySegment[] {
   const protection = note.payoff.principalProtection
   const cap = note.payoff.cap
   const buffer = note.payoff.buffer
+  const initialLevel = amount(note.underlier.components[0].initialLevel)
+  const determination = note.underlier.determination
+  const measured = determination.kind === 'averaging'
+    ? `from ${initialLevel} to the average of ${Number.isFinite(determination.observationCount) ? determination.observationCount : '—'} observed levels`
+    : `point-to-point from ${initialLevel}`
 
   const payoff: SummarySegment[] = []
   if (upside || downside) {
@@ -43,7 +48,7 @@ export function summarize(note: ProtectedParticipationNote): SummarySegment[] {
     { text: 'at maturity', concept: 'redemption' },
     ...payoff,
     { text: ', measured ' },
-    { text: `point-to-point from ${amount(note.underlier.components[0].initialLevel)}`, concept: 'determination' },
+    { text: measured, concept: 'determination' },
     ...features,
     { text: '.' },
   ]

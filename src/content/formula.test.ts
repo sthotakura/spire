@@ -45,6 +45,12 @@ describe('payment formula', () => {
     expect(text(upsideOnly)).toEqual(text(noteWith([up])))
   })
 
+  it('defines the final level as the average when the note averages', () => {
+    const averaged = { ...noteWith([up]), underlier: { ...startingNote.underlier, determination: { kind: 'averaging' as const, observationCount: 5 } } }
+    expect(text(averaged).slice(0, 2)).toEqual(['Final level = Average of the observed levels', 'Return = Final level ÷ Initial level − 1'])
+    expect(paymentFormula(averaged)[0].segments[0].concept).toBe('determination')
+  })
+
   it('tags each term with the concept it comes from', () => {
     const concepts = paymentFormula(noteWith([down, up], 0.2, 0.9)).flatMap(({ segments }) => segments.flatMap(({ concept }) => concept ?? []))
     expect(concepts).toEqual(['determination', 'upside', 'downside', 'cap', 'protection'])

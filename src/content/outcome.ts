@@ -10,9 +10,11 @@ export function explainOutcome(note: ProtectedParticipationNote, breakdown: Paym
   const hasCap = capAmount !== undefined
   const principal = note.principalAmount
 
-  const movement = underlierReturn > 0 ? `The underlier rose ${percent(underlierReturn)}.`
-    : underlierReturn < 0 ? `The underlier fell ${percent(underlierReturn)}.`
-      : 'The underlier ended unchanged.'
+  const determination = note.underlier.determination
+  const measured = determination.kind === 'averaging' ? `Averaged over ${determination.observationCount} observations, the underlier` : 'The underlier'
+  const movement = underlierReturn > 0 ? `${measured} rose ${percent(underlierReturn)}.`
+    : underlierReturn < 0 ? `${measured} fell ${percent(underlierReturn)}.`
+      : `${measured} ended unchanged.`
 
   let participation: string
   if (underlierReturn === 0) participation = 'A flat return leaves principal unchanged.'

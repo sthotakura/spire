@@ -71,6 +71,12 @@ describe('structure lines', () => {
     expect(linesOf(fullNote, 'buffer')).toEqual([])
   })
 
+  it('keeps the observation count under the determination', () => {
+    const averaged: ProtectedParticipationNote = { ...fullNote, underlier: { ...fullNote.underlier, determination: { kind: 'averaging', observationCount: 5 } } }
+    expect(asText(averaged)).toBe(JSON.stringify(averaged, null, 2))
+    expect(linesOf(averaged, 'determination')).toEqual(['"determination": {', '"kind": "averaging",', '"observationCount": 5', '}'])
+  })
+
   it('leaves out an absent protection', () => {
     expect(asText(startingNote)).not.toContain('principalProtection')
     expect(linesOf(startingNote, 'protection')).toEqual([])

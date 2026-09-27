@@ -13,8 +13,9 @@ import { scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
-import { maturityPayment, noteIssues, paymentBreakdown, type NoteIssueField, type ParticipationDirection, type ProtectedParticipationNote, type AssetKind } from './domain/note'
-import { firstFeatureValues, startingFinalLevel, startingNote } from './domain/starting-note'
+import { finalLevelFrom, maturityPayment, noteIssues, observationCountOf, paymentBreakdown, type Determination, type NoteIssueField, type ParticipationDirection, type ProtectedParticipationNote, type AssetKind } from './domain/note'
+import { fitObservations, shiftToAverage } from './domain/observations'
+import { firstFeatureValues, firstObservationCount, startingFinalLevel, startingNote } from './domain/starting-note'
 
 const activeHint = ref<string | null>(null)
 const toggleHint = (hint: string) => { activeHint.value = activeHint.value === hint ? null : hint }
@@ -23,7 +24,8 @@ const hints = {
   redemption: 'Sets when the note ends and principal is paid back: at scheduled maturity, or earlier if its terms allow a call or a put. A bullet note pays once, at maturity.',
   underlier: 'What the payoff reads: the asset it tracks, where that asset starts, and how its change is measured. A single underlier tracks one asset. A basket tracks several and combines their changes into one return.',
   asset: 'The equity or equity index the note tracks. Holding the note does not mean owning the asset.',
-  determination: 'Sets which observed levels measure the underlier’s change. Point-to-point uses the initial level and one final level: final ÷ initial − 1. Moves in between do not count.',
+  determination: 'Sets which observed levels measure the underlier’s change. Point-to-point uses the initial level and one final level: final ÷ initial − 1. Moves in between do not count. Averaging takes the final level as the average of the levels observed on several dates before maturity, so a sharp move on the last date counts for less.',
+  observations: 'The number of dates whose levels are averaged into the final level. Each observed level counts equally.',
   payoff: 'The rules that turn the underlier’s change into the maturity payment. With no features the note repays principal. Each feature adds a rule, such as a share of the gain or a minimum payment.',
   principal: 'The amount used as the base for the maturity payment.',
   'initial-level': 'The reference level used to calculate the underlier’s return. It is a term of this note: two notes on the same asset can start from different levels.',
@@ -45,7 +47,7 @@ const redemptionOptions = [
   { id: 'puttable', label: 'Puttable', description: 'The holder may require redemption under defined terms.', available: false },
 ] as const
 const determinationOptions = [
-  { id: 'averaging', label: 'Averaging', description: 'Uses the average of levels observed on several stated dates.', available: false },
+  { id: 'averaging', label: 'Averaging', description: 'Uses the average of levels observed on several stated dates.', available: true },
   { id: 'lookback', label: 'Lookback', description: 'Uses the highest or lowest level observed on stated dates.', available: false },
   { id: 'point-to-point', label: 'Point-to-point', description: 'Compares one initial level with one final level.', available: true },
 ] as const
@@ -71,7 +73,12 @@ const assetKind = ref<AssetKind>(startingComponent.asset.kind)
 const assetName = ref(startingComponent.asset.name)
 const principal = ref(startingNote.principalAmount)
 const initialLevel = ref(startingComponent.initialLevel)
-const finalLevel = ref(startingFinalLevel)
+const determinationKind = ref<Determination['kind']>(startingNote.underlier.determination.kind)
+const observationCount = ref(firstObservationCount)
+const determination = computed<Determination>(() => determinationKind.value === 'averaging' ? { kind: 'averaging', observationCount: observationCount.value } : { kind: 'point-to-point' })
+const averaging = computed(() => determinationKind.value === 'averaging')
+// Hypothetical observed levels, in date order, as last edited. They are a scenario input, not a note term.
+const observedLevels = ref<number[]>([startingFinalLevel])
 
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
@@ -163,7 +170,7 @@ const note = computed<ProtectedParticipationNote>(() => ({
   underlier: {
     kind: 'single',
     components: [{ asset: { kind: assetKind.value, name: assetName.value }, initialLevel: initialLevel.value }],
-    determination: { kind: 'point-to-point' },
+    determination: determination.value,
   },
   payoff: {
     kind: 'participation',
@@ -208,8 +215,14 @@ const openName = (name: MarketingName) => {
   select(name.concepts.length === 1 ? name.concepts[0] : 'payoff')
   toggleHint(nameHintKey(name))
 }
-const finalError = computed(() => !Number.isFinite(finalLevel.value) || finalLevel.value < 0 ? 'Final level must be zero or greater.' : '')
+// The observed levels fitted to the count the determination reads. While the count is invalid they are left as they are.
+const observations = computed(() => issuesFor('observationCount').length ? observedLevels.value : fitObservations(observedLevels.value, observationCountOf(determination.value)))
+const setObservation = (index: number, level: number) => { observedLevels.value = observations.value.map((current, i) => i === index ? level : current) }
+// The chart handle sets the final level. With averaging it moves every observed level together, so the path keeps its shape.
+const setFinalLevel = (level: number) => { observedLevels.value = shiftToAverage(observations.value, level) }
+const finalError = computed(() => observations.value.every((level) => Number.isFinite(level) && level >= 0) ? '' : averaging.value ? 'Each observed level must be zero or greater.' : 'Final level must be zero or greater.')
 const valid = computed(() => errors.value.length === 0 && !finalError.value)
+const finalLevel = computed(() => valid.value ? finalLevelFrom(determination.value, observations.value) : Number.NaN)
 const breakdown = computed(() => valid.value ? paymentBreakdown(note.value, finalLevel.value) : null)
 const payment = computed(() => breakdown.value?.payment ?? null)
 const outcomeSentence = computed(() => breakdown.value ? explainOutcome(note.value, breakdown.value) : '')
@@ -258,7 +271,7 @@ const activeTab = ref('calculation')
 const calculation = computed(() => {
   const b = breakdown.value
   if (!b) return []
-  return calculationSteps(note.value, b, finalLevel.value)
+  return calculationSteps(note.value, b, observations.value)
 })
 
 // The chart. Its vertical axis is fixed (see chart/geometry.ts), and handles on it edit the same values the outline fields edit.
@@ -311,7 +324,7 @@ const dragMove = (id: HandleId, event: PointerEvent) => {
   else if (id === 'slope') participationPercent.upside = upsideRateFromY(point.y, principal.value, plot, capFraction.value)
   else if (id === 'cap') capPercent.value = capFromY(point.y, principal.value, plot)
   else if (id === 'buffer') bufferPercent.value = bufferFromX(point.x, initialLevel.value, plot)
-  else finalLevel.value = finalLevelFromX(point.x, initialLevel.value, plot)
+  else setFinalLevel(finalLevelFromX(point.x, initialLevel.value, plot))
 }
 const endDrag = () => { dragging.value = null }
 const keyHandle = (id: HandleId, event: KeyboardEvent) => {
@@ -323,7 +336,7 @@ const keyHandle = (id: HandleId, event: KeyboardEvent) => {
   else if (id === 'cap') capPercent.value = clampCap(capPercent.value + delta)
   // A larger buffer sits further left, so the left and right keys move the handle the way they point.
   else if (id === 'buffer') bufferPercent.value = clampBuffer(bufferPercent.value + (event.key === 'ArrowLeft' || event.key === 'ArrowRight' ? -delta : delta))
-  else finalLevel.value = clampFinalLevel(finalLevel.value + delta, initialLevel.value)
+  else setFinalLevel(clampFinalLevel(finalLevel.value + delta, initialLevel.value))
 }
 
 // The cap as a fraction of principal, or undefined when the note has none. The slope handle's position depends on it.
@@ -471,10 +484,12 @@ const chart = computed(() => {
                     <li :class="['node', { sel: highlighted('determination') }]" :style="conceptStyle('determination')">
                       <div class="nrow" @click="select('determination')" @focusin="focusRow('determination')">
                         <span class="nlabel">Determination<HintToggle id="determination" about="determination" :text="hints.determination" :active="activeHint === 'determination'" @toggle="toggleHint('determination')" /></span>
-                        <span class="ctrl pick"><select aria-label="Determination" :value="note.underlier.determination.kind"><option v-for="option in determinationOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
+                        <span class="ctrl pick"><select v-model="determinationKind" aria-label="Determination"><option v-for="option in determinationOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
                         <span class="ndesc">{{ partDescriptions.determination }}</span>
-                        <span class="ctrl block"><span class="flabel">Final level</span><span class="unit">Hypothetical, set on the chart</span></span>
+                        <span v-if="averaging" class="ctrl block"><label for="observation-count">Observations</label><HintToggle id="observation-count" about="observations" :text="hints.observations" :active="activeHint === 'observations'" @toggle="toggleHint('observations')" /><NumberInput id="observation-count" v-model="observationCount" class="num" /></span>
+                        <span class="ctrl block wraps"><span class="flabel">{{ averaging ? 'Observed levels' : 'Final level' }}</span><span class="unit">{{ averaging ? 'Hypothetical, set in the calculation' : 'Hypothetical, set on the chart' }}</span></span>
                       </div>
+                      <ul v-if="issuesFor('observationCount').length" class="errors" role="alert"><li v-for="message in issuesFor('observationCount')" :key="message">{{ message }}</li></ul>
                     </li>
                   </ul>
                 </li>
@@ -593,7 +608,7 @@ const chart = computed(() => {
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
             </svg>
-            <div class="chart-axis-title">Final level of {{ underlierLabel }} →</div>
+            <div class="chart-axis-title">Final level of {{ underlierLabel }}{{ averaging ? `, the average of ${observations.length} observed levels` : '' }} →</div>
             <ul class="chart-legend" aria-label="What sets the payment"><li v-for="item in chart.legend" :key="item.regime" :style="conceptStyle(item.concept)"><span class="legend-swatch" aria-hidden="true"></span>{{ item.label }}</li></ul>
             <p class="chart-hint">Drag a handle on the chart, or focus one and use the arrow keys. Shift takes bigger steps. A grey line shows the payoff before your last change.</p>
           </template>
@@ -602,7 +617,8 @@ const chart = computed(() => {
 
           <TabGroup v-model="activeTab" :tabs="tabs" label="The payment and its scenarios">
             <template #calculation>
-              <div class="hint-field"><div class="field-heading"><label for="final-level">Hypothetical final level of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About final underlier level" aria-controls="final-level-hint" :aria-expanded="activeHint === 'final-level'" @click="toggleHint('final-level')">ⓘ</button><p v-if="activeHint === 'final-level'" id="final-level-hint" class="hint-text" role="tooltip">A hypothetical level for this scenario. Changing it does not change the note's terms.</p></div><NumberInput id="final-level" v-model="finalLevel" class="final-input" /></div>
+              <div v-if="averaging" class="hint-field"><div class="field-heading"><span id="observed-levels-label" class="observed-heading">Hypothetical observed levels of {{ underlierLabel }}</span><button type="button" class="hint-button" aria-label="About observed levels" aria-controls="observed-levels-hint" :aria-expanded="activeHint === 'observed-levels'" @click="toggleHint('observed-levels')">ⓘ</button><p v-if="activeHint === 'observed-levels'" id="observed-levels-hint" class="hint-text" role="tooltip">Hypothetical levels on each averaging date, earliest first. Their average is the final level. Changing them does not change the note's terms.</p></div><div class="observed-levels" role="group" aria-labelledby="observed-levels-label"><template v-for="(level, index) in observations" :key="index"><span v-if="index > 0" class="observed-op" aria-hidden="true">+</span><span class="observed-cell"><label :for="`observation-${index}`" class="observed-name">Obs {{ index + 1 }}<template v-if="index === observations.length - 1"> · final date</template></label><NumberInput :id="`observation-${index}`" :model-value="level" class="observed-input" @update:model-value="setObservation(index, $event)" /></span></template><span class="observed-op" aria-hidden="true">÷ {{ observations.length }} =</span><span class="observed-cell"><span class="observed-name">Final level</span><output class="observed-result" aria-live="polite">{{ Number.isFinite(finalLevel) ? formatAmount(finalLevel) : '—' }}</output></span></div></div>
+              <div v-else class="hint-field"><div class="field-heading"><label for="final-level">Hypothetical final level of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About final underlier level" aria-controls="final-level-hint" :aria-expanded="activeHint === 'final-level'" @click="toggleHint('final-level')">ⓘ</button><p v-if="activeHint === 'final-level'" id="final-level-hint" class="hint-text" role="tooltip">A hypothetical level for this scenario. Changing it does not change the note's terms.</p></div><NumberInput id="final-level" :model-value="observations[0]" class="final-input" @update:model-value="setObservation(0, $event)" /></div>
               <p v-if="finalError" class="errors" role="alert">{{ finalError }}</p>
               <div class="formula" role="group" aria-label="Payment rule"><div v-for="(line, index) in formula" :key="index" :class="['fline', { limit: !line.lead }]"><span class="flead">{{ line.lead }}</span><span class="feq">{{ line.lead ? '=' : '' }}</span><span class="fexpr"><template v-for="(segment, part) in line.segments" :key="part"><span v-if="segment.concept" :class="['fterm', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)">{{ segment.text }}</span><template v-else>{{ segment.text }}</template></template></span></div><p class="fwords"><b>In words:</b> {{ formulaWords }}</p></div>
               <ol class="calc-steps" aria-live="polite"><li v-for="step in calculation" :key="step.n" :class="{ hl: step.concept && highlighted(step.concept), muted: step.muted, result: step.result }"><span class="calc-n">{{ step.n }}</span><b>{{ step.title }}</b><span class="calc-value">{{ step.value }}</span><span class="calc-how">{{ step.how }}</span></li></ol>
@@ -613,7 +629,7 @@ const chart = computed(() => {
                 <h3>Example scenarios</h3>
                 <p class="table-scroll-hint">Scroll horizontally to see every scenario column.</p>
                 <div class="table-wrap"><table><thead><tr><th>Final level</th><th>Underlier change</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected">Payment before protection</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}</td><td>{{ formatPercent(row.returnValue) }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="protectionSelected && row.floorApplied" class="floor-note">floor applied</span></td></tr></tbody></table></div>
-                <p class="scenario-formula"><strong>Selected participation:</strong> {{ participationSummary }}. A move in an unselected direction does not change principal before protection.<template v-if="bufferSelected"> The buffer absorbs the first {{ bufferSummary }} of a fall.</template> The payment cannot fall below {{ floorSummary }}.<template v-if="capSelected"> It cannot exceed {{ capSummary }}.</template></p>
+                <p class="scenario-formula"><template v-if="averaging">Each final level is the average of the observed levels. </template><strong>Selected participation:</strong> {{ participationSummary }}. A move in an unselected direction does not change principal before protection.<template v-if="bufferSelected"> The buffer absorbs the first {{ bufferSummary }} of a fall.</template> The payment cannot fall below {{ floorSummary }}.<template v-if="capSelected"> It cannot exceed {{ capSummary }}.</template></p>
               </template>
               <p v-else class="help">Enter valid terms to see the scenarios.</p>
             </template>

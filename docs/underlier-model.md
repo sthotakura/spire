@@ -23,6 +23,12 @@ A single underlier, as built:
 }
 ```
 
+With averaging, the determination also states how many levels are averaged ([averaging.md](averaging.md)):
+
+```json
+"determination": { "kind": "averaging", "observationCount": 5 }
+```
+
 A basket, expected later and not built:
 
 ```json
@@ -58,10 +64,10 @@ The outline nests the same parts. A JSON list is shown as repeated rows without 
 ## Assumptions
 
 - Initial levels are given as terms. In practice they are usually observed on a start date, sometimes averaged over several dates.
-- Only a single underlier, the equity and equity-index asset kinds, and point-to-point determination are supported.
+- Only a single underlier, the equity and equity-index asset kinds, and point-to-point and averaging determination are supported.
 
 ## Open questions
 
-- Where do observation dates belong? They look like part of the determination, which would replace the earlier expectation that schedules belong to the payoff.
+- Where do observation dates belong? They look like part of the determination, which would replace the earlier expectation that schedules belong to the payoff. Averaging states a count of observations but not their dates.
 - Basket weights only mean something for a weighted combination. They probably belong inside `combination` rather than on each component.
 - A basket has one final level per asset, so the chart's horizontal axis would need to show something else, such as the worst performance.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { maturityPayment, noteIssues, paymentBreakdown, validateNote, type ProtectedParticipationNote } from './note'
+import { finalLevelFrom, maturityPayment, noteIssues, paymentBreakdown, validateNote, type ProtectedParticipationNote } from './note'
 
 const note: ProtectedParticipationNote = {
   wrapper: 'note',
@@ -347,5 +347,40 @@ describe('buffer', () => {
     const full = { ...buffered, payoff: { ...buffered.payoff, buffer: 1 } }
     expect(validateNote(full)).toEqual([])
     expect(maturityPayment(full, 0)).toBe(1000)
+  })
+})
+
+describe('averaging determination', () => {
+  const averaging = (observationCount: number): ProtectedParticipationNote => ({ ...note, underlier: { ...note.underlier, determination: { kind: 'averaging', observationCount } } })
+
+  it('takes the final level as the arithmetic average of the observed levels', () => {
+    expect(finalLevelFrom({ kind: 'averaging', observationCount: 4 }, [100, 120, 90, 130])).toBe(110)
+  })
+
+  it('reads the one observed level for point-to-point', () => {
+    expect(finalLevelFrom({ kind: 'point-to-point' }, [110])).toBe(110)
+  })
+
+  it('pays on the average, not on the level on the last date', () => {
+    const observed = [120, 130, 140, 150, 60]
+    const finalLevel = finalLevelFrom(averaging(5).underlier.determination, observed)
+    expect(finalLevel).toBe(120)
+    expect(maturityPayment(averaging(5), finalLevel)).toBeCloseTo(1300, 8)
+    expect(maturityPayment(note, observed[observed.length - 1])).toBe(1000)
+  })
+
+  it('rejects observed levels that do not match the count, or are negative', () => {
+    expect(() => finalLevelFrom({ kind: 'averaging', observationCount: 3 }, [100, 110])).toThrow('Expected 3 observed levels.')
+    expect(() => finalLevelFrom({ kind: 'point-to-point' }, [100, 110])).toThrow('Expected 1 observed levels.')
+    expect(() => finalLevelFrom({ kind: 'averaging', observationCount: 2 }, [100, -1])).toThrow('Observed levels must be zero or greater.')
+  })
+
+  it('accepts from 2 to 12 observations', () => {
+    expect(validateNote(averaging(2))).toEqual([])
+    expect(validateNote(averaging(12))).toEqual([])
+  })
+
+  it.each([1, 13, 2.5, Number.NaN])('rejects %s observations', (count) => {
+    expect(noteIssues(averaging(count))).toEqual([{ field: 'observationCount', message: 'Observations must be a whole number from 2 to 12.' }])
   })
 })

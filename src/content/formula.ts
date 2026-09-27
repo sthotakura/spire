@@ -27,10 +27,13 @@ export function paymentFormula(note: ProtectedParticipationNote): FormulaLine[] 
   else if (downside) terms.push({ text: 'Downside × min(Return, 0)', concept: 'downside' })
   const payment: FormulaSegment[] = terms.length ? [{ text: 'Principal × (1 + ' }, ...terms, { text: ')' }] : [{ text: 'Principal' }]
 
-  const lines: FormulaLine[] = [
+  const lines: FormulaLine[] = []
+  // Averaging defines the final level before the return reads it. Point-to-point needs no line: the final level is the one observed level.
+  if (note.underlier.determination.kind === 'averaging') lines.push({ lead: 'Final level', segments: [{ text: 'Average of the observed levels', concept: 'determination' }] })
+  lines.push(
     { lead: 'Return', segments: [{ text: 'Final level ÷ Initial level − 1', concept: 'determination' }] },
     { lead: 'Payment', segments: payment },
-  ]
+  )
   if (cap !== undefined) lines.push({ segments: [{ text: 'capped at ' }, { text: 'Principal × (1 + Cap)', concept: 'cap' }] })
   // Without protection the payment still cannot fall below zero. That only matters when a fall reduces principal.
   if (principalProtection !== undefined) lines.push({ segments: [{ text: 'floored at ' }, { text: 'Principal × Protection', concept: 'protection' }] })

@@ -1,4 +1,4 @@
-import type { ParticipationDirection, PaymentBreakdown, ProtectedParticipationNote } from '../domain/note'
+import { finalLevelFrom, type ParticipationDirection, type PaymentBreakdown, type ProtectedParticipationNote } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface CalculationStep {
@@ -42,18 +42,22 @@ function bufferStep(buffer: number, breakdown: PaymentBreakdown, hasDownside: bo
   return { title, how: `Absorbs the first ${formatPercent(buffer)} of a fall · ${how}`, value: `+${formatPercent(absorbs)}`, concept: 'buffer' }
 }
 
-// The worked calculation of the maturity payment at one final level. Every number comes from the payment breakdown.
-export function calculationSteps(note: ProtectedParticipationNote, breakdown: PaymentBreakdown, finalLevel: number): CalculationStep[] {
+// The worked calculation of the maturity payment from the observed levels. Every number comes from the payment breakdown.
+export function calculationSteps(note: ProtectedParticipationNote, breakdown: PaymentBreakdown, observedLevels: number[]): CalculationStep[] {
   const b = breakdown
   const [component] = note.underlier.components
+  const name = component.asset.name.trim()
   const principal = note.principalAmount
   const { cap, principalProtection, buffer } = note.payoff
   const withCap = cap !== undefined
   const withProtection = principalProtection !== undefined
   const hasDownside = note.payoff.participations.some(({ direction }) => direction === 'downside')
-  const steps: Array<Omit<CalculationStep, 'n'>> = [
-    { title: `${component.asset.name.trim() || 'Underlier'} return`, how: `${formatAmount(finalLevel)} ÷ ${formatAmount(component.initialLevel)} − 1`, value: signedPercent(b.underlierReturn), concept: 'determination' },
-  ]
+  const finalLevel = finalLevelFrom(note.underlier.determination, observedLevels)
+  const steps: Array<Omit<CalculationStep, 'n'>> = []
+  if (note.underlier.determination.kind === 'averaging') {
+    steps.push({ title: `Final level of ${name || 'the underlier'}`, how: `(${observedLevels.map(formatAmount).join(' + ')}) ÷ ${observedLevels.length}`, value: formatAmount(finalLevel), concept: 'determination' })
+  }
+  steps.push({ title: `${name || 'Underlier'} return`, how: `${formatAmount(finalLevel)} ÷ ${formatAmount(component.initialLevel)} − 1`, value: signedPercent(b.underlierReturn), concept: 'determination' })
   if (buffer !== undefined) steps.push(bufferStep(buffer, b, hasDownside))
   steps.push(
     participationStep(note, b, 'downside'),

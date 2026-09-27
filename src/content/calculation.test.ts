@@ -10,7 +10,7 @@ const noteWith = (participations: Participation[], principalProtection?: number,
   principalAmount: 1000,
 })
 const both = [{ direction: 'downside' as const, rate: 0.1 }, { direction: 'upside' as const, rate: 1 }]
-const steps = (note: ProtectedParticipationNote, finalLevel: number) => calculationSteps(note, paymentBreakdown(note, finalLevel), finalLevel)
+const steps = (note: ProtectedParticipationNote, finalLevel: number) => calculationSteps(note, paymentBreakdown(note, finalLevel), [finalLevel])
 const step = (note: ProtectedParticipationNote, finalLevel: number, title: string) => steps(note, finalLevel).find((candidate) => candidate.title === title)
 
 describe('calculation steps', () => {
@@ -70,6 +70,17 @@ describe('calculation steps', () => {
       expect(step(buffered(downFull), 110, 'Buffer')).toMatchObject({ how: 'Absorbs the first 10% of a fall · applies only when the return is negative', value: '0%', muted: true })
       expect(step(buffered([{ direction: 'upside', rate: 1 }]), 80, 'Buffer')).toMatchObject({ value: '0%', muted: true })
     })
+  })
+
+  it('adds a step that averages the observed levels before the return', () => {
+    const note = { ...noteWith(both), underlier: { ...noteWith(both).underlier, determination: { kind: 'averaging' as const, observationCount: 4 } } }
+    const observed = [100, 120, 90, 130]
+    const averaged = calculationSteps(note, paymentBreakdown(note, 110), observed)
+    expect(averaged.slice(0, 2)).toMatchObject([
+      { n: 1, title: 'Final level of Synthetic Index', how: '(100 + 120 + 90 + 130) ÷ 4', value: '110', concept: 'determination' },
+      { n: 2, title: 'Synthetic Index return', how: '110 ÷ 100 − 1', value: '+10%', concept: 'determination' },
+    ])
+    expect(averaged[averaged.length - 1].how).toBe('The higher of step 5 and zero')
   })
 
   it('agrees with the payment breakdown', () => {

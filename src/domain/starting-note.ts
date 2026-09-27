@@ -16,5 +16,8 @@ export const startingNote: ProtectedParticipationNote = {
 // A hypothetical final level for exploring the starting note. It is a scenario input, not a note term.
 export const startingFinalLevel = 110
 
+// The number of observations the first time averaging is chosen.
+export const firstObservationCount = 5
+
 // Rates in percent, used the first time each payoff feature is added.
 export const firstFeatureValues = { upside: 100, downside: 100, protection: 90, cap: 20, buffer: 10 }
