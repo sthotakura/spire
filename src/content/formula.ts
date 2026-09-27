@@ -35,3 +35,32 @@ export function paymentFormula(note: ProtectedParticipationNote): FormulaLine[] 
   else if (downside) lines.push({ segments: [{ text: 'floored at 0' }] })
   return lines
 }
+
+const amount = (value: number) => Number.isFinite(value) ? value.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'
+// A rate applied to a 1% move, so 150% participation reads as 1.5%.
+const perPoint = (rate: number) => Number.isFinite(rate) ? `${rate.toLocaleString('en-US', { maximumFractionDigits: 4 })}%` : '—'
+
+// The same rule in words, with the note's own terms filled in: how a move in the underlier changes the payment, then the
+// limits on it. It says nothing about a particular final level; the worked calculation does that.
+export function paymentInWords(note: ProtectedParticipationNote): string {
+  const { participations, cap, principalProtection } = note.payoff
+  const principal = note.principalAmount
+  const name = note.underlier.components[0].asset.name.trim() || 'the underlier'
+  const upside = participations.find(({ direction }) => direction === 'upside')
+  const downside = participations.find(({ direction }) => direction === 'downside')
+
+  if (!upside && !downside) return `The payment is always principal, ${amount(principal)}, whatever ${name} does.`
+
+  const rise = upside && `each 1% rise in ${name} adds ${perPoint(upside.rate)} of principal`
+  const fall = downside && (upside ? `each 1% fall takes ${perPoint(downside.rate)} away` : `each 1% fall in ${name} takes ${perPoint(downside.rate)} of principal away`)
+  const moves = [rise, fall].filter(Boolean).join(', and ')
+  const unchanged = !upside ? ' A rise leaves principal unchanged.' : !downside ? ' A fall leaves principal unchanged.' : ''
+
+  const floor = principalProtection !== undefined ? amount(principal * principalProtection) : downside ? 'zero' : undefined
+  const ceiling = cap !== undefined ? amount(principal * (1 + cap)) : undefined
+  const limits = ceiling && floor ? ` The payment never goes above ${ceiling} or below ${floor}.`
+    : ceiling ? ` The payment never goes above ${ceiling}.`
+      : floor ? ` The payment never goes below ${floor}.` : ''
+
+  return `${moves[0].toUpperCase()}${moves.slice(1)}.${unchanged}${limits}`
+}

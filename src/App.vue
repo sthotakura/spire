@@ -6,7 +6,7 @@ import NumberInput from './components/NumberInput.vue'
 import TabGroup from './components/TabGroup.vue'
 import type { ConceptId } from './content/concepts'
 import { marketingNames, type MarketingName } from './content/names'
-import { paymentFormula } from './content/formula'
+import { paymentFormula, paymentInWords } from './content/formula'
 import { explainOutcome } from './content/outcome'
 import { scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
@@ -172,6 +172,7 @@ const note = computed<ProtectedParticipationNote>(() => ({
 }))
 const jsonLines = computed(() => structureLines(note.value))
 const formula = computed(() => paymentFormula(note.value))
+const formulaWords = computed(() => paymentInWords(note.value))
 // The asset the final level belongs to. A basket will need one final level per asset, each named this way.
 const underlierLabel = computed(() => assetName.value.trim() || 'the underlier')
 // Copies the JSON exactly as shown. The label says whether it worked, then returns to "Copy" after a moment.
@@ -592,7 +593,7 @@ const chart = computed(() => {
             <template #calculation>
               <div class="hint-field"><div class="field-heading"><label for="final-level">Hypothetical final level of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About final underlier level" aria-controls="final-level-hint" :aria-expanded="activeHint === 'final-level'" @click="toggleHint('final-level')">ⓘ</button><p v-if="activeHint === 'final-level'" id="final-level-hint" class="hint-text" role="tooltip">A hypothetical level for this scenario. Changing it does not change the note's terms.</p></div><NumberInput id="final-level" v-model="finalLevel" class="final-input" /></div>
               <p v-if="finalError" class="errors" role="alert">{{ finalError }}</p>
-              <div class="formula" role="group" aria-label="Payment rule"><div v-for="(line, index) in formula" :key="index" :class="['fline', { limit: !line.lead }]"><span class="flead">{{ line.lead }}</span><span class="feq">{{ line.lead ? '=' : '' }}</span><span class="fexpr"><template v-for="(segment, part) in line.segments" :key="part"><span v-if="segment.concept" :class="['fterm', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)">{{ segment.text }}</span><template v-else>{{ segment.text }}</template></template></span></div></div>
+              <div class="formula" role="group" aria-label="Payment rule"><div v-for="(line, index) in formula" :key="index" :class="['fline', { limit: !line.lead }]"><span class="flead">{{ line.lead }}</span><span class="feq">{{ line.lead ? '=' : '' }}</span><span class="fexpr"><template v-for="(segment, part) in line.segments" :key="part"><span v-if="segment.concept" :class="['fterm', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)">{{ segment.text }}</span><template v-else>{{ segment.text }}</template></template></span></div><p class="fwords"><b>In words:</b> {{ formulaWords }}</p></div>
               <ol class="calc-steps" aria-live="polite"><li v-for="step in calculation" :key="step.n" :class="{ hl: step.concept && highlighted(step.concept), muted: step.muted, result: step.result }"><span class="calc-n">{{ step.n }}</span><b>{{ step.title }}</b><span class="calc-value">{{ step.value }}</span><span class="calc-how">{{ step.how }}</span></li></ol>
               <p v-if="outcomeSentence" class="outcome" aria-live="polite">{{ outcomeSentence }}</p>
             </template>
