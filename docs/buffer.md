@@ -5,7 +5,7 @@ This increment adds an optional buffer to the payoff of the synthetic bullet not
 ## Established concepts
 
 - A **buffer** absorbs the first part of a fall in the underlier. FINRA describes it as "hard protection": if the buffer level is breached, "an investor's potential principal loss is restricted to the extent of losses in excess of the buffer". Its example: with a 10% buffer, a 5% fall repays full principal and a 50% fall loses 40% ([FINRA, Understanding Structured Notes With Principal Protection](https://www.finra.org/investors/insights/structured-notes-principal-protection)).
-- A **barrier** is different. FINRA calls it "soft protection": once the barrier is breached, principal becomes fully at risk, so the same 50% fall loses 50%. Barriers are not modelled.
+- A **barrier** is different. FINRA calls it "soft protection": once the barrier is breached, principal becomes fully at risk, so the same 50% fall loses 50%. Barriers are modelled separately ([barrier.md](barrier.md)).
 - A **protection floor** limits how much can be lost. A buffer limits which losses count. They protect opposite ends of the loss range:
 
 | | Small falls | Large falls |

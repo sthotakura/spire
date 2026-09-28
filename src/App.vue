@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { amountToY, bufferFromX, fitAmountAxis, bufferLevel, capBindLevel, capFromY, clamp, clampBuffer, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelAxisFactor, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, upsideRateFromY, type AmountAxis, type Plot, type Regime } from './chart/geometry'
+import { amountToY, barrierFromX, bufferFromX, fitAmountAxis, bufferLevel, capBindLevel, capFromY, clamp, clampBarrier, clampBuffer, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelAxisFactor, levelToX, protectionFromY, regimeOf, slopeLevel, splitAtJumps, splitByRegime, upsideRateFromY, type Sample, type AmountAxis, type Plot, type Regime } from './chart/geometry'
 import HintToggle from './components/HintToggle.vue'
 import NumberInput from './components/NumberInput.vue'
 import TabGroup from './components/TabGroup.vue'
@@ -13,7 +13,7 @@ import { scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
-import { finalLevelFrom, initialLevelFrom, lookbackCountOf, maturityPayment, noteIssues, observationCountOf, paymentBreakdown, upsideOf, withBufferAndCap, type Determination, type FinalDetermination, type InitialDetermination, type NoteIssueField, type ParticipationDirection, type ProtectedParticipationNote, type AssetKind } from './domain/note'
+import { finalLevelFrom, initialLevelFrom, lookbackCountOf, maturityPayment, noteIssues, observationCountOf, paymentBreakdown, downsideOf, upsideOf, withSubFeatures, type Determination, type FinalDetermination, type InitialDetermination, type NoteIssueField, type ParticipationDirection, type ProtectedParticipationNote, type AssetKind } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingNote } from './domain/starting-note'
 
@@ -32,6 +32,7 @@ const hints = {
   'initial-level': 'The reference level used to calculate the underlier’s return, unless lookback lowers it. It is a term of this note: two notes on the same asset can start from different levels. When a note’s strike is set at 100% of it, it is often called the strike level.',
   downside: 'The share of a negative underlier return, beyond any buffer, deducted from principal before the protection floor applies.',
   buffer: 'The fall the holder does not bear, as a percentage of the initial level. A fall within it leaves principal unchanged. A larger fall reduces principal by the amount beyond it, at the downside participation rate.',
+  barrier: 'A level of the underlier, as a percentage of the initial level. If the final level ends below it, downside participation applies to the whole fall; at or above it, a fall leaves principal unchanged. It is observed on the final observation date.',
   upside: 'The share of a positive underlier return added to principal.',
   cap: 'The most the note can pay above principal, as a percentage of principal, however far the underlier rises.',
   protection: 'The minimum contractual maturity payment as a percentage of principal. Protection applies at maturity and depends on the issuer’s ability to pay.',
@@ -102,15 +103,15 @@ const observedLevels = ref<number[]>([startingFinalLevel])
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
 const select = (concept: ConceptId) => { selected.value = concept }
-const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', payoff: '#42536d', protection: '#2369bd', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8' }
+const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', payoff: '#42536d', protection: '#2369bd', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa' }
 const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
 // Payoff features are added one at a time to a payoff that starts with none. A removed feature keeps its last value.
-// A buffer belongs to downside participation and a cap to upside participation, so each is added under its direction.
+// A buffer or barrier belongs to downside participation and a cap to upside participation, so each is added under its direction.
 type FeatureId = 'barrier' | 'buffer' | 'cap' | 'coupon' | 'digital' | 'downside' | 'protection' | 'upside'
 const payoffFeatures: ReadonlyArray<{ id: FeatureId; label: string; description: string; available: boolean; requires?: ParticipationDirection }> = [
-  { id: 'barrier', label: 'Barrier', description: 'A level that changes the payoff if it is reached.', available: false },
+  { id: 'barrier', label: 'Barrier', description: 'Downside participation applies only if the underlier ends below a stated level.', available: true, requires: 'downside' },
   { id: 'buffer', label: 'Buffer', description: 'Protects against an initial portion of underlier losses.', available: true, requires: 'downside' },
   { id: 'cap', label: 'Cap', description: 'Limits the return upside participation can add.', available: true, requires: 'upside' },
   { id: 'coupon', label: 'Coupon', description: 'An additional contractual payment on stated dates.', available: false },
@@ -128,14 +129,19 @@ const capSelected = ref(false)
 const capPercent = ref(firstFeatureValues.cap)
 const bufferSelected = ref(false)
 const bufferPercent = ref(firstFeatureValues.buffer)
+const barrierSelected = ref(false)
+const barrierPercent = ref(firstFeatureValues.barrier)
 const selectedDirections = computed(() => (['downside', 'upside'] as ParticipationDirection[]).filter((direction) => selectedParticipation[direction]))
-const isAdded = (id: FeatureId) => id === 'protection' ? protectionSelected.value : id === 'cap' ? capSelected.value : id === 'buffer' ? bufferSelected.value : id === 'downside' || id === 'upside' ? selectedParticipation[id] : false
-// The direction a feature still needs before it can be added, or null when nothing is missing.
-const missingDirection = (id: FeatureId) => {
+const isAdded = (id: FeatureId) => id === 'protection' ? protectionSelected.value : id === 'cap' ? capSelected.value : id === 'buffer' ? bufferSelected.value : id === 'barrier' ? barrierSelected.value : id === 'downside' || id === 'upside' ? selectedParticipation[id] : false
+// Why a feature cannot be added yet, or null when it can: it needs its direction first, and a buffer and a barrier are not combined.
+const blockedReason = (id: FeatureId) => {
   const requires = payoffFeatures.find((feature) => feature.id === id)?.requires
-  return requires && !selectedParticipation[requires] ? requires : null
+  if (requires && !selectedParticipation[requires]) return `Needs ${participationLabels[requires].toLowerCase()}`
+  if (id === 'barrier' && bufferSelected.value) return 'Not with a buffer'
+  if (id === 'buffer' && barrierSelected.value) return 'Not with a barrier'
+  return null
 }
-const hasFeatures = computed(() => protectionSelected.value || capSelected.value || bufferSelected.value || selectedDirections.value.length > 0)
+const hasFeatures = computed(() => protectionSelected.value || capSelected.value || bufferSelected.value || barrierSelected.value || selectedDirections.value.length > 0)
 
 const paletteOpen = ref(false)
 const paletteQuery = ref('')
@@ -158,11 +164,12 @@ const closePalette = (returnFocus = false) => {
 }
 const addFeature = async (id: FeatureId) => {
   const feature = payoffFeatures.find((candidate) => candidate.id === id)
-  if (!feature?.available || isAdded(id) || missingDirection(id)) return
+  if (!feature?.available || isAdded(id) || blockedReason(id)) return
   beginGesture()
   if (id === 'protection') protectionSelected.value = true
   else if (id === 'cap') capSelected.value = true
   else if (id === 'buffer') bufferSelected.value = true
+  else if (id === 'barrier') barrierSelected.value = true
   else if (id === 'downside' || id === 'upside') selectedParticipation[id] = true
   paletteOpen.value = false
   await nextTick()
@@ -173,16 +180,17 @@ const removeFeature = async (id: FeatureId) => {
   if (id === 'protection') protectionSelected.value = false
   else if (id === 'cap') capSelected.value = false
   else if (id === 'buffer') bufferSelected.value = false
+  else if (id === 'barrier') barrierSelected.value = false
   else if (id === 'downside' || id === 'upside') selectedParticipation[id] = false
-  // Removing a direction removes the buffer or cap that belongs to it.
-  if (id === 'downside') bufferSelected.value = false
+  // Removing a direction removes the buffer, barrier or cap that belongs to it.
+  if (id === 'downside') { bufferSelected.value = false; barrierSelected.value = false }
   if (id === 'upside') capSelected.value = false
-  if (selected.value === id || (id === 'downside' && selected.value === 'buffer') || (id === 'upside' && selected.value === 'cap')) selected.value = 'payoff'
+  if (selected.value === id || (id === 'downside' && (selected.value === 'buffer' || selected.value === 'barrier')) || (id === 'upside' && selected.value === 'cap')) selected.value = 'payoff'
   await nextTick()
   addButton.value?.focus()
 }
 const addFirstMatch = () => {
-  const first = matchingFeatures.value.find(({ id, available }) => available && !isAdded(id) && !missingDirection(id))
+  const first = matchingFeatures.value.find(({ id, available }) => available && !isAdded(id) && !blockedReason(id))
   if (first) addFeature(first.id)
 }
 const closeOnOutsidePointer = (event: PointerEvent) => {
@@ -202,11 +210,11 @@ const note = computed<ProtectedParticipationNote>(() => ({
   },
   payoff: {
     kind: 'participation',
-    participations: withBufferAndCap(
-      selectedDirections.value.map((direction) => ({ direction, rate: participationPercent[direction] / 100 })),
-      bufferSelected.value ? bufferPercent.value / 100 : undefined,
-      capSelected.value ? capPercent.value / 100 : undefined,
-    ),
+    participations: withSubFeatures(selectedDirections.value.map((direction) => ({ direction, rate: participationPercent[direction] / 100 })), {
+      buffer: bufferSelected.value ? bufferPercent.value / 100 : undefined,
+      barrier: barrierSelected.value ? { level: barrierPercent.value / 100, observation: 'final' } : undefined,
+      cap: capSelected.value ? capPercent.value / 100 : undefined,
+    }),
     principalProtection: protectionSelected.value ? protectionPercent.value / 100 : undefined,
   },
   principalAmount: principal.value,
@@ -272,7 +280,7 @@ const capSummary = computed(() => `${formatAmount(principal.value * (1 + capPerc
 const chartDescription = computed(() => {
   if (!hasFeatures.value) return 'Contractual maturity payment stays at principal for every final level.'
   const fall = selectedParticipation.downside
-    ? `${bufferSelected.value ? `stays at principal for falls within the buffer, then falls` : 'falls'} with negative underlier returns${protectionSelected.value ? ' until the protection floor applies' : ', but not below zero'}`
+    ? `${bufferSelected.value ? `stays at principal for falls within the buffer, then falls` : barrierSelected.value ? 'stays at principal for falls that end at or above the barrier, then drops by the whole fall below it and falls' : 'falls'} with negative underlier returns${protectionSelected.value ? ' until the protection floor applies' : ', but not below zero'}`
     : 'stays at principal for negative underlier returns'
   const rise = selectedParticipation.upside ? `rises with positive underlier returns${capSelected.value ? ' until the cap applies' : ''}` : 'stays at principal for flat or positive underlier returns'
   return `Contractual maturity payment ${fall}. It ${rise}.`
@@ -289,7 +297,7 @@ const scenarios = computed(() => !initialValid.value ? [] : scenarioRows(note.va
   returnValue,
   calculations: Object.fromEntries(selectedDirections.value.map((direction) => [
     direction,
-    returnValue !== 0 && direction === breakdown.direction && breakdown.participationRate !== undefined
+    returnValue !== 0 && direction === breakdown.direction && breakdown.participationRate !== undefined && !(direction === 'downside' && breakdown.belowBarrier === false)
       ? `${formatPercent(breakdown.participationRate)} × ${direction === 'downside' && bufferSelected.value ? `min(${formatPercent(returnValue)} + ${bufferSummary.value}, 0)` : formatPercent(returnValue)} = ${formatPercent(breakdown.participatedReturn)}`
       : null,
   ])) as Record<ParticipationDirection, string | null>,
@@ -330,8 +338,8 @@ const ghostNote = ref<ProtectedParticipationNote | null>(null)
 function beginGesture() { ghostNote.value = JSON.parse(JSON.stringify(note.value)) as ProtectedParticipationNote }
 const focusRow = (concept: ConceptId) => { select(concept); beginGesture() }
 
-type HandleId = 'floor' | 'slope' | 'cap' | 'buffer' | 'final'
-const handleConcept: Record<HandleId, ConceptId | null> = { floor: 'protection', slope: 'upside', cap: 'cap', buffer: 'buffer', final: null }
+type HandleId = 'floor' | 'slope' | 'cap' | 'buffer' | 'barrier' | 'final'
+const handleConcept: Record<HandleId, ConceptId | null> = { floor: 'protection', slope: 'upside', cap: 'cap', buffer: 'buffer', barrier: 'barrier', final: null }
 const dragging = ref<HandleId | null>(null)
 // The axis in view when a drag starts, held until it ends so the line does not move under the pointer.
 const frozenAxis = ref<AmountAxis | null>(null)
@@ -363,6 +371,7 @@ const dragMove = (id: HandleId, event: PointerEvent) => {
   else if (id === 'slope') participationPercent.upside = upsideRateFromY(point.y, principal.value, top, plot, capFraction.value)
   else if (id === 'cap') capPercent.value = capFromY(point.y, principal.value, top, plot)
   else if (id === 'buffer') bufferPercent.value = bufferFromX(point.x, initialLevel.value, plot, determinedInitialLevel.value)
+  else if (id === 'barrier') barrierPercent.value = barrierFromX(point.x, initialLevel.value, plot, determinedInitialLevel.value)
   else setFinalLevel(finalLevelFromX(point.x, initialLevel.value, plot))
 }
 const endDrag = () => {
@@ -378,6 +387,7 @@ const keyHandle = (id: HandleId, event: KeyboardEvent) => {
   else if (id === 'cap') capPercent.value = clampCap(capPercent.value + delta)
   // A larger buffer sits further left, so the left and right keys move the handle the way they point.
   else if (id === 'buffer') bufferPercent.value = clampBuffer(bufferPercent.value + (event.key === 'ArrowLeft' || event.key === 'ArrowRight' ? -delta : delta))
+  else if (id === 'barrier') barrierPercent.value = clampBarrier(barrierPercent.value + delta)
   else setFinalLevel(clampFinalLevel(finalLevel.value + delta, initialLevel.value))
 }
 
@@ -388,6 +398,7 @@ const chartHighlight = computed(() => ({
   floor: protectionSelected.value && highlighted('protection'),
   cap: capSelected.value && highlighted('cap'),
   buffer: bufferSelected.value && highlighted('buffer'),
+  barrier: barrierSelected.value && highlighted('barrier'),
   downside: selectedParticipation.downside && selected.value === 'downside',
   upside: selectedParticipation.upside && selected.value === 'upside',
   // The initial-level term belongs to the asset and is where the initial level starts; the lookback level is the initial level itself.
@@ -396,8 +407,8 @@ const chartHighlight = computed(() => ({
   final: highlighted('final-level'),
 }))
 // Each regime is drawn in its concept's colour, in the line, the legend and the guides.
-const regimeConcept: Record<Regime, ConceptId> = { principal: 'payoff', buffer: 'buffer', downside: 'downside', upside: 'upside', floor: 'protection', cap: 'cap' }
-const regimeLabel: Record<Regime, string> = { principal: 'Principal repaid', buffer: 'Buffer', downside: 'Downside participation', upside: 'Upside participation', floor: 'Protection floor', cap: 'Cap' }
+const regimeConcept: Record<Regime, ConceptId> = { principal: 'payoff', buffer: 'buffer', barrier: 'barrier', downside: 'downside', upside: 'upside', floor: 'protection', cap: 'cap' }
+const regimeLabel: Record<Regime, string> = { principal: 'Principal repaid', buffer: 'Buffer', barrier: 'Barrier', downside: 'Downside participation', upside: 'Upside participation', floor: 'Protection floor', cap: 'Cap' }
 const chart = computed(() => {
   if (!initialValid.value) return null
   const principalAmount = principal.value
@@ -406,11 +417,19 @@ const chart = computed(() => {
   const scale = initialLevel.value
   const initial = determinedInitialLevel.value
   const end = scale * levelAxisFactor
-  const levels = Array.from({ length: 257 }, (_, i) => end * i / 256)
+  const axisLevels = Array.from({ length: 257 }, (_, i) => end * i / 256)
+  // The final levels to sample for a note. A barrier adds one just below it and one at it, so the line can break at the jump.
+  const levelsFor = (barrierLevel?: number) => barrierLevel === undefined || !(barrierLevel > 0 && barrierLevel < end) ? axisLevels
+    : [...axisLevels.filter((level) => level < barrierLevel), barrierLevel * (1 - 1e-9), barrierLevel, ...axisLevels.filter((level) => level > barrierLevel)]
+  // A jump is where the payment changes at once between two neighbouring samples at the same place.
+  const jumpsIn = (levels: number[], values: number[]) => levels.map((level, i) => i > 0 && level - levels[i - 1] < end * 1e-6 && Math.abs(values[i] - values[i - 1]) > principalAmount * 1e-9)
   // The payment at each final level on the axis, measured from the determined initial level.
   const at = (level: number) => ({ initial, final: level })
+  const barrierAt = barrierSelected.value ? initial * barrierPercent.value / 100 : undefined
+  const levels = levelsFor(barrierAt)
   const breakdowns = levels.map((level) => paymentBreakdown(note.value, at(level)))
   const values = breakdowns.map((b) => b.payment)
+  const jumps = jumpsIn(levels, values)
   const floorAmount = principalAmount * (note.value.payoff.principalProtection ?? 0)
   const capAmount = principalAmount * (1 + (upsideOf(note.value)?.cap ?? 0))
   // The cap line stays in view even where the payoff does not reach it.
@@ -419,17 +438,22 @@ const chart = computed(() => {
   const y = (amount: number) => amountToY(amount, axis.top, plot)
   const pinnedY = (amount: number) => clamp(y(amount), plot.top, plot.bottom)
   const point = (level: number, value: number) => `${x(level)},${y(value)}`
-  const points = levels.map((level, i) => point(level, values[i])).join(' ')
-  const segments = splitByRegime(levels.map((level, i) => ({ point: point(level, values[i]), regime: regimeOf(breakdowns[i]) })))
+  const samples: Sample[] = levels.map((level, i) => ({ point: point(level, values[i]), regime: regimeOf(breakdowns[i]), jump: jumps[i] }))
+  const pieces = splitAtJumps(samples)
+  const segments = splitByRegime(samples)
   const legend = [...new Set(segments.map((segment) => segment.regime))].map((regime) => ({ regime, concept: regimeConcept[regime], label: regimeLabel[regime] }))
-  const pointsWhere = (keep: (level: number) => boolean) => levels.flatMap((level, i) => keep(level) ? [point(level, values[i])] : [])
+  const samplesWhere = (keep: (level: number) => boolean) => samples.filter((_, i) => keep(levels[i]))
   const atInitial = point(initial, maturityPayment(note.value, at(initial)))
   const ghost = ghostNote.value
   // The levels after pricing are not note terms, so the ghost reads the current ones, fitted to its own lookback count.
   const ghostAfterPricing = ghost ? fitLookbackObservations(lookbackLevels.value, lookbackCountOf(ghost.underlier.determination.initial)) : []
   const ghostDrawable = ghost !== null && noteIssues(ghost).length === 0 && ghostAfterPricing.every((level) => Number.isFinite(level) && level > 0)
   const ghostInitial = ghostDrawable ? initialLevelFrom(ghost.underlier.determination.initial, ghost.underlier.components[0].initialLevel, ghostAfterPricing) : Number.NaN
-  const ghostPoints = ghostDrawable ? levels.map((level) => point(level, maturityPayment(ghost, { initial: ghostInitial, final: level }))).join(' ') : ''
+  const ghostBarrier = ghostDrawable ? downsideOf(ghost)?.barrier : undefined
+  const ghostLevels = levelsFor(ghostBarrier && ghostInitial * ghostBarrier.level)
+  const ghostValues = ghostDrawable ? ghostLevels.map((level) => maturityPayment(ghost, { initial: ghostInitial, final: level })) : []
+  const ghostJumps = jumpsIn(ghostLevels, ghostValues)
+  const ghostPieces = ghostDrawable ? splitAtJumps(ghostLevels.map((level, i) => ({ point: point(level, ghostValues[i]), jump: ghostJumps[i] }))) : []
   const finalHandle = payment.value === null ? null : { x: x(clamp(finalLevel.value, 0, end)), y: pinnedY(payment.value) }
   const bubbleText = payment.value === null ? '' : `${formatAmount(finalLevel.value)} → ${formatAmount(payment.value)}`
   const labelWidth = (text: string) => text.length * 6.4 * labelScale.value
@@ -451,6 +475,9 @@ const chart = computed(() => {
   // The buffer handle sits where losses start, which is always on the principal line. Its label sits beside the guide at the top of the plot.
   const bufferX = bufferSelected.value ? x(bufferLevel(initial, bufferPercent.value / 100)) : null
   const bufferLabelLeft = bufferX !== null && bufferX < plot.left + 90
+  // The barrier handle sits at the barrier on the principal line, where the payment is still principal. Its label sits beside the guide.
+  const barrierX = barrierAt === undefined ? null : x(barrierAt)
+  const barrierLabelLeft = barrierX !== null && barrierX < plot.left + 90
   const coversCapLabel = capSelected.value && finalHandle !== null && bubbleX !== null && bubbleX + bubbleWidth > capLabelLeft && finalHandle.y - 34 + 22 > capLabelY - 12 * labelScale.value && finalHandle.y - 34 < capLabelY + 4
   const ring = handleRadius.value + 5
   const slopeAt = slopeLevel(initial, capFraction.value)
@@ -461,12 +488,12 @@ const chart = computed(() => {
   const coversHandle = finalHandle !== null && bubbleX !== null && otherHandles.some((handle) => handle !== null && bubbleX < handle.x + ring && bubbleX + bubbleWidth > handle.x - ring && finalHandle.y - 34 < handle.y + ring && finalHandle.y - 12 > handle.y - ring)
   return {
     axis,
-    points,
+    pieces,
     segments,
     legend,
-    ghostPoints: ghostPoints !== points ? ghostPoints : '',
-    downsidePoints: [...pointsWhere((level) => level < initial), atInitial].join(' '),
-    upsidePoints: [atInitial, ...pointsWhere((level) => level > initial)].join(' '),
+    ghostPieces: ghostPieces.join('|') !== pieces.join('|') ? ghostPieces : [],
+    downsidePieces: splitAtJumps([...samplesWhere((level) => level < initial), { point: atInitial }]),
+    upsidePoints: [atInitial, ...samplesWhere((level) => level > initial).map(({ point }) => point)].join(' '),
     principalY: y(principalAmount),
     // Compact labels (such as 1.5K) keep large principals inside the left margin.
     amountTicks: Array.from({ length: Math.round(axis.top / axis.step) + 1 }, (_, i) => axis.step * i).map((amount) => ({ y: y(amount), label: amount.toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: 2 }) })),
@@ -485,6 +512,10 @@ const chart = computed(() => {
     bufferX,
     bufferLabel: bufferX === null ? null : { x: bufferLabelLeft ? bufferX + 6 : bufferX - 6, anchor: bufferLabelLeft ? 'start' : 'end' },
     bufferHandle: bufferX === null ? null : { x: bufferX, y: y(principalAmount) },
+    barrierX,
+    barrierLevel: barrierAt,
+    barrierLabel: barrierX === null ? null : { x: barrierLabelLeft ? barrierX + 6 : barrierX - 6, anchor: barrierLabelLeft ? 'start' : 'end' },
+    barrierHandle: barrierX === null ? null : { x: barrierX, y: y(principalAmount) },
     capHandle: otherHandles[0],
     floorHandle: protectionSelected.value ? { x: plot.left + (plot.right - plot.left) * 0.25, y: y(floorAmount) } : null,
     slopeHandle: otherHandles[1],
@@ -602,6 +633,15 @@ const chart = computed(() => {
                           </div>
                           <ul v-if="issuesFor('buffer').length" class="errors" role="alert"><li v-for="message in issuesFor('buffer')" :key="message">{{ message }}</li></ul>
                         </li>
+                        <li v-if="barrierSelected" :class="['node', { sel: highlighted('barrier') }]" :style="conceptStyle('barrier')">
+                          <div class="nrow" @click="select('barrier')" @focusin="focusRow('barrier')">
+                            <span class="nlabel">Barrier<HintToggle id="barrier" about="barrier" :text="hints.barrier" :active="activeHint === 'barrier'" @toggle="toggleHint('barrier')" /></span>
+                            <span class="ctrl"><NumberInput id="rate-barrier" v-model="barrierPercent" class="num rate" :aria-label="`Barrier: level (% of the ${lookingBack ? 'lookback' : 'initial'} level)`" /><span class="unit">%</span></span>
+                            <button type="button" class="xbtn" aria-label="Remove barrier" @click.stop="removeFeature('barrier')">×</button>
+                            <span class="ctrl block"><label for="barrier-observation">Observed</label><select id="barrier-observation" value="final"><option value="final">Final date</option><option value="daily" disabled>Daily (unavailable)</option></select></span>
+                          </div>
+                          <ul v-if="issuesFor('barrier').length" class="errors" role="alert"><li v-for="message in issuesFor('barrier')" :key="message">{{ message }}</li></ul>
+                        </li>
                       </ul>
                     </li>
                     <li v-if="selectedParticipation.upside" :class="['node', { sel: highlighted('upside') }]" :style="conceptStyle('upside')">
@@ -637,8 +677,8 @@ const chart = computed(() => {
                       <div v-if="paletteOpen" class="menu" role="dialog" aria-label="Add a payoff feature">
                         <input ref="paletteSearch" v-model="paletteQuery" type="search" class="search" placeholder="Search features" aria-label="Search features" @keydown.enter.prevent="addFirstMatch" />
                         <div class="mlist">
-                          <button v-for="feature in matchingFeatures" :key="feature.id" type="button" :class="['mitem', { off: !feature.available || isAdded(feature.id) || missingDirection(feature.id) }]" :aria-disabled="!feature.available || isAdded(feature.id) || missingDirection(feature.id) ? 'true' : undefined" @click="addFeature(feature.id)">
-                            <b>{{ feature.label }}<span v-if="!feature.available" class="badge">Unavailable</span><span v-else-if="isAdded(feature.id)" class="badge">Added</span><span v-else-if="missingDirection(feature.id)" class="badge">Needs {{ participationLabels[missingDirection(feature.id)!].toLowerCase() }}</span></b>
+                          <button v-for="feature in matchingFeatures" :key="feature.id" type="button" :class="['mitem', { off: !feature.available || isAdded(feature.id) || blockedReason(feature.id) }]" :aria-disabled="!feature.available || isAdded(feature.id) || blockedReason(feature.id) ? 'true' : undefined" @click="addFeature(feature.id)">
+                            <b>{{ feature.label }}<span v-if="!feature.available" class="badge">Unavailable</span><span v-else-if="isAdded(feature.id)" class="badge">Added</span><span v-else-if="blockedReason(feature.id)" class="badge">{{ blockedReason(feature.id) }}</span></b>
                             <small>{{ feature.description }}</small>
                           </button>
                           <p v-if="!matchingFeatures.length" class="empty-menu">No matching feature.</p>
@@ -662,14 +702,15 @@ const chart = computed(() => {
               <line v-if="chart.floorY !== null" :x1="plot.left" :y1="chart.floorY" :x2="plot.right" :y2="chart.floorY" :class="['ref-line', { on: chartHighlight.floor }]" :style="conceptStyle('protection')"/>
               <line v-if="chart.capY !== null" :x1="plot.left" :y1="chart.capY" :x2="plot.right" :y2="chart.capY" :class="['ref-line', { on: chartHighlight.cap }]" :style="conceptStyle('cap')"/>
               <line v-if="chart.bufferX !== null" :x1="chart.bufferX" :y1="plot.top" :x2="chart.bufferX" :y2="plot.bottom" :class="['ref-line', { on: chartHighlight.buffer }]" :style="conceptStyle('buffer')"/>
+              <line v-if="chart.barrierX !== null" :x1="chart.barrierX" :y1="plot.top" :x2="chart.barrierX" :y2="plot.bottom" :class="['ref-line', { on: chartHighlight.barrier }]" :style="conceptStyle('barrier')"/>
               <line v-if="chartHighlight.initial":x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" class="highlight-line" :style="conceptStyle('initial-level')"/>
               <line :x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" :class="['ref-line initial', { on: chartHighlight.initial }]" :style="conceptStyle('initial-level')"/>
               <line v-if="chart.lookbackX !== null" :x1="chart.lookbackX" :y1="plot.top" :x2="chart.lookbackX" :y2="plot.bottom" :class="['ref-line', { on: chartHighlight.lookback }]" :style="conceptStyle('initial-level')"/>
               <g clip-path="url(#plot-clip)">
-                <polyline v-if="chart.ghostPoints" :points="chart.ghostPoints" class="ghost-line"/>
-                <polyline :points="chart.points" class="payoff-casing"/>
-                <polyline v-if="chartHighlight.line" :points="chart.points" class="highlight-line" :style="conceptStyle('payoff')"/>
-                <polyline v-if="chartHighlight.downside" :points="chart.downsidePoints" class="highlight-line" :style="conceptStyle('downside')"/>
+                <polyline v-for="(piece, index) in chart.ghostPieces" :key="`ghost-${index}`" :points="piece" class="ghost-line"/>
+                <polyline v-for="(piece, index) in chart.pieces" :key="`casing-${index}`" :points="piece" class="payoff-casing"/>
+                <template v-if="chartHighlight.line"><polyline v-for="(piece, index) in chart.pieces" :key="`line-${index}`" :points="piece" class="highlight-line" :style="conceptStyle('payoff')"/></template>
+                <template v-if="chartHighlight.downside"><polyline v-for="(piece, index) in chart.downsidePieces" :key="`downside-${index}`" :points="piece" class="highlight-line" :style="conceptStyle('downside')"/></template>
                 <polyline v-if="chartHighlight.upside" :points="chart.upsidePoints" class="highlight-line" :style="conceptStyle('upside')"/>
                 <polyline v-for="(segment, index) in chart.segments" :key="index" :points="segment.points" class="payoff-line" :style="conceptStyle(regimeConcept[segment.regime])"/>
               </g>
@@ -681,6 +722,7 @@ const chart = computed(() => {
               <template v-if="chart.floorY !== null"><line :x1="plot.left + 4" :y1="chart.floorY + 10" :x2="plot.left + 16" :y2="chart.floorY + 10" :class="['ref-swatch', { on: chartHighlight.floor }]" :style="conceptStyle('protection')"/><text :x="plot.left + 20" :y="chart.floorY + 14" :class="['ref-label', { on: chartHighlight.floor }]">Floor {{ formatAmount(chart.floorAmount) }}</text></template>
               <template v-if="chart.capY !== null"><line :x1="chart.capLabelRight - 12" :y1="chart.capLabelY - 4" :x2="chart.capLabelRight" :y2="chart.capLabelY - 4" :class="['ref-swatch', { on: chartHighlight.cap }]" :style="conceptStyle('cap')"/><text :x="chart.capLabelRight - 16" :y="chart.capLabelY" text-anchor="end" :class="['ref-label', { on: chartHighlight.cap }]">Cap {{ formatAmount(chart.capAmount) }}</text></template>
               <text v-if="chart.bufferLabel" :x="chart.bufferLabel.x" :y="plot.top + 12" :text-anchor="chart.bufferLabel.anchor" :class="['ref-label', { on: chartHighlight.buffer }]">Buffer {{ bufferSummary }}</text>
+              <text v-if="chart.barrierLabel" :x="chart.barrierLabel.x" :y="plot.top + 12" :text-anchor="chart.barrierLabel.anchor" :class="['ref-label', { on: chartHighlight.barrier }]">Barrier {{ formatAmount(chart.barrierLevel ?? 0) }}</text>
               <text v-if="chart.lookbackX !== null" :x="chart.lookbackLabelX" y="331" text-anchor="middle" class="axis-label">Lookback {{ formatAmount(determinedInitialLevel) }}</text>
               <text :x="plot.left - 3" y="331" class="axis-label">0</text><text :x="chart.initialX" y="331" text-anchor="middle" class="axis-label">Initial {{ formatAmount(initialLevel) }}</text><text :x="plot.right" y="331" text-anchor="end" class="axis-label">{{ formatAmount(chart.end) }}</text>
               <g v-if="chart.bubble" class="bubble" :transform="`translate(${chart.bubble.x} ${chart.bubble.y})`"><rect :width="chart.bubble.width" height="22" rx="6"/><text :x="chart.bubble.width / 2" y="15" text-anchor="middle">{{ chart.bubble.text }}</text></g>
@@ -691,6 +733,9 @@ const chart = computed(() => {
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
               <g v-if="chart.bufferHandle" :class="['handle', { on: highlighted('buffer') }]" :style="conceptStyle('buffer')" :transform="`translate(${chart.bufferHandle.x} ${chart.bufferHandle.y})`" tabindex="0" role="slider" aria-orientation="horizontal" aria-label="Buffer" aria-valuemin="1" aria-valuemax="100" :aria-valuenow="bufferPercent" :aria-valuetext="`${bufferPercent}% buffer`" @pointerdown="startDrag('buffer', $event)" @pointermove="dragMove('buffer', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('buffer', $event)" @focus="focusHandle('buffer')">
+                <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
+              </g>
+              <g v-if="chart.barrierHandle" :class="['handle', { on: highlighted('barrier') }]" :style="conceptStyle('barrier')" :transform="`translate(${chart.barrierHandle.x} ${chart.barrierHandle.y})`" tabindex="0" role="slider" aria-orientation="horizontal" aria-label="Barrier" aria-valuemin="1" aria-valuemax="99" :aria-valuenow="barrierPercent" :aria-valuetext="`Barrier at ${barrierPercent}% of the ${lookingBack ? 'lookback' : 'initial'} level`" @pointerdown="startDrag('barrier', $event)" @pointermove="dragMove('barrier', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('barrier', $event)" @focus="focusHandle('barrier')">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
               <g v-if="chart.slopeHandle":class="['handle', { on: highlighted('upside') }]" :style="conceptStyle('upside')" :transform="`translate(${chart.slopeHandle.x} ${chart.slopeHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Upside participation rate" aria-valuemin="5" aria-valuemax="200" :aria-valuenow="participationPercent.upside" :aria-valuetext="`${participationPercent.upside}% upside participation`" @pointerdown="startDrag('slope', $event)" @pointermove="dragMove('slope', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('slope', $event)" @focus="focusHandle('slope')">

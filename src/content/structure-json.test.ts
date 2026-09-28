@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { withBufferAndCap, type ProtectedParticipationNote } from '../domain/note'
+import { withSubFeatures, type ProtectedParticipationNote } from '../domain/note'
 import { startingNote } from '../domain/starting-note'
 import { structureLines } from './structure-json'
 
@@ -14,7 +14,7 @@ const fullNote: ProtectedParticipationNote = {
     principalProtection: 0.9,
   },
 }
-const cappedNote: ProtectedParticipationNote = { ...fullNote, payoff: { ...fullNote.payoff, participations: withBufferAndCap(fullNote.payoff.participations, undefined, 0.2) } }
+const cappedNote: ProtectedParticipationNote = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { cap: 0.2 }) } }
 const draftNote: ProtectedParticipationNote = {
   ...fullNote,
   principalAmount: Number.NaN,
@@ -66,8 +66,14 @@ describe('structure lines', () => {
     expect(linesOf(fullNote, 'cap')).toEqual([])
   })
 
+  it('tags the barrier and its terms with their own concept', () => {
+    const barriered: ProtectedParticipationNote = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const } }) } }
+    expect(asText(barriered)).toBe(JSON.stringify(barriered, null, 2))
+    expect(linesOf(barriered, 'barrier')).toEqual(['"barrier": {', '"level": 0.7,', '"observation": "final"', '},'])
+  })
+
   it('tags the buffer with its own concept', () => {
-    const buffered: ProtectedParticipationNote = { ...fullNote, payoff: { ...fullNote.payoff, participations: withBufferAndCap(fullNote.payoff.participations, 0.1) } }
+    const buffered: ProtectedParticipationNote = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { buffer: 0.1 }) } }
     expect(asText(buffered)).toBe(JSON.stringify(buffered, null, 2))
     expect(linesOf(buffered, 'buffer')).toEqual(['"buffer": 0.1,'])
     expect(linesOf(fullNote, 'buffer')).toEqual([])

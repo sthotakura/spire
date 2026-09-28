@@ -360,6 +360,61 @@ describe('buffer', () => {
   })
 })
 
+describe('barrier', () => {
+  // The worked example in docs/barrier.md: 150% upside, 100% downside, a 70% barrier, no protection.
+  const barriered = withDownside({ ...note, payoff: { ...note.payoff, principalProtection: undefined } }, { barrier: { level: 0.7, observation: 'final' } })
+
+  it.each([
+    [120, 1300],
+    [100, 1000],
+    [80, 1000],
+    [70, 1000],
+    [69, 690],
+    [50, 500],
+    [0, 0],
+  ])('pays %s final level as %s units with a 70% barrier', (finalLevel, expected) => {
+    expect(maturityPayment(barriered, { initial: 100, final: finalLevel })).toBeCloseTo(expected, 8)
+  })
+
+  // A public note's table: 70.00 repays principal and 69.99 loses the whole fall.
+  it('repays principal at the barrier and counts the whole fall just below it', () => {
+    expect(maturityPayment(barriered, { initial: 100, final: 70 })).toBe(1000)
+    expect(maturityPayment(barriered, { initial: 100, final: 69.99 })).toBeCloseTo(699.9, 8)
+  })
+
+  it('applies the downside rate to the whole fall below the barrier', () => {
+    expect(maturityPayment(withDownside(barriered, { rate: 0.5 }), { initial: 100, final: 60 })).toBeCloseTo(800, 8)
+  })
+
+  it('is measured from the determined initial level, such as a lookback level', () => {
+    // Lookback level 80, so the barrier is 56: a final level of 60 is a 25% fall that the barrier holds.
+    expect(maturityPayment(barriered, { initial: 80, final: 60 })).toBe(1000)
+    expect(maturityPayment(barriered, { initial: 80, final: 40 })).toBeCloseTo(500, 8)
+  })
+
+  it('combines with a protection floor, which still bounds the payment', () => {
+    const floored = { ...barriered, payoff: { ...barriered.payoff, principalProtection: 0.9 } }
+    expect(maturityPayment(floored, { initial: 100, final: 69 })).toBe(900)
+    expect(maturityPayment(floored, { initial: 100, final: 75 })).toBe(1000)
+  })
+
+  it('reports the barrier level and whether the final level is below it', () => {
+    expect(paymentBreakdown(barriered, { initial: 100, final: 65 })).toMatchObject({ barrierLevel: 70, belowBarrier: true, participatedReturn: -0.35 })
+    expect(paymentBreakdown(barriered, { initial: 100, final: 75 })).toMatchObject({ barrierLevel: 70, belowBarrier: false, participatedReturn: 0 })
+    expect(paymentBreakdown(note, { initial: 100, final: 75 }).barrierLevel).toBeUndefined()
+  })
+
+  it.each([0, -0.1, 1, 1.2, Number.NaN])('rejects a barrier level of %s', (level) => {
+    const invalid = withDownside(note, { barrier: { level, observation: 'final' } })
+    expect(noteIssues(invalid)).toEqual([{ field: 'barrier', message: 'Barrier must be greater than 0% and less than 100% of the initial level.' }])
+  })
+
+  it('is not combined with a buffer', () => {
+    const both = withDownside(barriered, { buffer: 0.1 })
+    expect(noteIssues(both)).toEqual([{ field: 'barrier', message: 'A barrier and a buffer cannot both apply to downside participation.' }])
+  })
+})
+
 describe('averaging determination', () => {
   const averaging = (observationCount: number): ProtectedParticipationNote => ({ ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'given' }, final: { kind: 'averaging', observationCount } } } })
 

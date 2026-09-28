@@ -1,6 +1,6 @@
 # Barrier
 
-This is the agreed proposal. It adds a barrier as a sub-feature of downside participation, observed on the final observation date. It does not add daily observation, knock-out barriers, barriers on upside participation, coupons, digital amounts, or pricing. The work follows section 15 of [PLAN.md](../PLAN.md), which nested the buffer and cap under their directions.
+This increment adds a barrier as a sub-feature of downside participation, observed on the final observation date. It does not add daily observation, knock-out barriers, barriers on upside participation, coupons, digital amounts, or pricing. The work follows section 15 of [PLAN.md](../PLAN.md), which nested the buffer and cap under their directions.
 
 ## Established concepts
 
@@ -11,6 +11,7 @@ This is the agreed proposal. It adds a barrier as a sub-feature of downside part
 - The switch is sharp. The same filing's table shows a final value of 70.00 paying $1,000.00 and 69.99 paying $699.90.
 - FINRA calls a barrier "soft protection" and a buffer "hard protection": once a barrier is breached, the whole fall counts, not only the part beyond the barrier ([FINRA](https://www.finra.org/investors/insights/structured-notes-principal-protection); see [buffer.md](buffer.md)).
 - A barrier may be observed only on the final observation date, or on every trading day in a period ([observation-dates.md](observation-dates.md)). The note above observes the final value only.
+- A barrier belongs to the feature it switches, and one note can carry both a barrier and a buffer on different features. One public note has a "Digital Barrier" at 85% of the initial value and a 20% buffer amount ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390025119557/ea0268903-01_424b2.htm)). The barrier gates a fixed digital return, paid when the final value is "greater than or equal to its Digital Barrier", so a 10% fall still pays $1,087.00. The buffer sits on the downside as usual: a final value of 84.99 repays $1,000.00 and 70.00 pays $900.00. Crossing the barrier takes away the digital return; it does not make the fall count. The note is also linked to the lesser performing of two indices, a worst-of basket, and its digital return is a payoff feature not yet modelled.
 
 ## Barrier and buffer compared
 
@@ -52,10 +53,10 @@ Everything after that is unchanged: the upside, the cap and the protection floor
 
 ## Consequences
 
-- **Outline.** Barrier nests under Downside participation, beside where a buffer would sit. The Add feature menu marks it "Needs downside participation" until that exists, as for the buffer.
-- **Summary, payment rule and outcome.** The summary says the downside applies "only below a barrier at 70% of the initial level". The payment rule shows the condition on the downside term. The outcome sentence says whether the final level is below the barrier and, if it is, that the whole fall counts.
+- **Outline.** Barrier nests under Downside participation, beside where a buffer would sit, with an "Observed" choice of Final date (Daily is shown as unavailable). The Add feature menu marks it "Needs downside participation" until that exists, as for the buffer, and marks a barrier and a buffer "Not with a buffer" and "Not with a barrier".
+- **Summary, payment rule and outcome.** The summary adds "with a barrier at 70% of the initial level" (or "of the lookback level"). The payment rule adds a line, "downside only when Final level < Barrier × Initial level", and the words say each fall counts "only if" the underlier ends below the barrier. The outcome sentence says whether the final level is below the barrier and, if it is, that the whole fall counts.
 - **Calculation.** A barrier step before downside participation, e.g. `Barrier 70 (70% of 100) · final level 65 is below it, so downside participation applies`, muted when the final level is at or above it.
-- **Chart.** A vertical guide at the barrier level, in its own colour, with a sideways handle as the buffer has. The payoff line jumps at the barrier: principal at and just above it, the full loss just below. It is drawn as two pieces with no connecting segment, since a steep line would show payments the note never makes. The new colour is checked against the feature colours it can touch.
+- **Chart.** A vertical guide at the barrier level, in its own colour, with a sideways handle as the buffer has. The payoff line jumps at the barrier: principal at and just above it, the full loss just below. It is drawn as two pieces with no connecting segment, since a steep line would show payments the note never makes. The colour, violet #9775fa, passes the dataviz palette checks against every colour it can touch: downside, protection, upside, principal, cap and buffer.
 - **Scenarios.** The existing rows (−40%, 0%, +10%, +30%) show a breach at a 70% barrier but not the protected range above it. See open question 4.
 - **Marketing names.** None at first. "Barrier note" appears in issuer product names (for example, "Accelerated Barrier Notes"), but a generic public definition has not been checked against [marketing-names.md](marketing-names.md).
 
@@ -77,7 +78,7 @@ With a 90% protection floor added, the last two rows pay 900: the floor still bo
 ## Decisions
 
 0. **A barrier and a buffer are separate features.** Both limit losses on downside participation, but they are not two ways of expressing one protection: a buffer always removes the first part of a fall, and a barrier decides whether the fall counts at all. Each is its own sub-feature of downside participation.
-1. **A barrier and a buffer on the same downside participation are not allowed together** at first. No public note combining them was verified; the "Contingent Buffer" notes found are a buffer with a steeper loss rate, not a barrier ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/9631/000183988226020010/bns_424b2-12863.htm)). The Add feature menu would mark whichever is second as unavailable, with a short reason.
+1. **A barrier and a buffer on the same downside participation are not allowed together** at first. No public note combining them was verified; the "Contingent Buffer" notes found are a buffer with a steeper loss rate, not a barrier ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/9631/000183988226020010/bns_424b2-12863.htm)). The Add feature menu would mark whichever is second as unavailable, with a short reason. A note with a barrier on a digital return and a buffer on the downside (above) is a different case: each belongs to a different feature, which the model allows by its shape.
 2. **Below the barrier, the downside rate applies to the whole fall.** Public barrier notes found use 1% per 1%, which is a 100% rate. Other rates are allowed, as they are for downside participation without a barrier.
 3. **A barrier with a protection floor is allowed.** The floor bounds the payment as it does today. A floor at or above the breached payment makes the barrier irrelevant, as 100% protection does for downside participation.
 4. **Observation on the final date only** until observation dates are modelled.

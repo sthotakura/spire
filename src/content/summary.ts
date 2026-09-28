@@ -10,7 +10,7 @@ const percent = (fraction: number) => Number.isFinite(fraction) ? `${(fraction *
 const amount = (value: number) => Number.isFinite(value) ? value.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'
 
 // Describes a note in plain words. Segments with a concept name the part of the note they describe.
-// A note with no participation only repays principal. The buffer, protection and cap clauses appear only when those features are present.
+// A note with no participation only repays principal. The buffer, barrier, protection and cap clauses appear only when those features are present.
 export function summarize(note: ProtectedParticipationNote): SummarySegment[] {
   const upside = note.payoff.participations.find(({ direction }) => direction === 'upside')
   const downside = note.payoff.participations.find(({ direction }) => direction === 'downside')
@@ -18,6 +18,7 @@ export function summarize(note: ProtectedParticipationNote): SummarySegment[] {
   const protection = note.payoff.principalProtection
   const cap = upsideOf(note)?.cap
   const buffer = downsideOf(note)?.buffer
+  const barrier = downsideOf(note)?.barrier
   const initialLevel = amount(note.underlier.components[0].initialLevel)
   const { initial, final } = note.underlier.determination
   const count = (value: number) => Number.isFinite(value) ? value : '—'
@@ -40,6 +41,8 @@ export function summarize(note: ProtectedParticipationNote): SummarySegment[] {
 
   const clauses: SummarySegment[] = []
   if (buffer !== undefined) clauses.push({ text: `a ${percent(buffer)} buffer`, concept: 'buffer' })
+  // The barrier is a fraction of the level the return is measured from, which with lookback is the lookback level.
+  if (barrier !== undefined) clauses.push({ text: `a barrier at ${percent(barrier.level)} of the ${initial.kind === 'lookback' ? 'lookback' : 'initial'} level`, concept: 'barrier' })
   if (protection !== undefined) clauses.push({ text: `${percent(protection)} principal protection`, concept: 'protection' })
   if (cap !== undefined) clauses.push({ text: `a maximum return of ${percent(cap)}`, concept: 'cap' })
   const features: SummarySegment[] = clauses.flatMap((clause, index) => [{ text: index === 0 ? ', with ' : index === clauses.length - 1 ? ' and ' : ', ' }, clause])

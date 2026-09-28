@@ -20,6 +20,7 @@ export function paymentFormula(note: ProtectedParticipationNote): FormulaLine[] 
   const downside = downsideOf(note) !== undefined
   const cap = upsideOf(note)?.cap
   const buffer = downsideOf(note)?.buffer
+  const barrier = downsideOf(note)?.barrier
 
   const terms: FormulaSegment[] = []
   if (upside) terms.push({ text: 'Upside × max(Return, 0)', concept: 'upside' })
@@ -38,6 +39,8 @@ export function paymentFormula(note: ProtectedParticipationNote): FormulaLine[] 
     { lead: 'Return', segments: [{ text: `Final level ÷ ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level − 1`, concept: 'determination' }] },
     { lead: 'Payment', segments: payment },
   )
+  // The barrier decides whether the downside term counts at all, so it qualifies the payment rather than changing the term.
+  if (barrier !== undefined) lines.push({ segments: [{ text: 'downside only when ' }, { text: `Final level < Barrier × ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level`, concept: 'barrier' }] })
   if (cap !== undefined) lines.push({ segments: [{ text: 'capped at ' }, { text: 'Principal × (1 + Cap)', concept: 'cap' }] })
   // Without protection the payment still cannot fall below zero. That only matters when a fall reduces principal.
   if (principalProtection !== undefined) lines.push({ segments: [{ text: 'floored at ' }, { text: 'Principal × Protection', concept: 'protection' }] })
@@ -60,13 +63,16 @@ export function paymentInWords(note: ProtectedParticipationNote): string {
   const downside = downsideOf(note)
   const cap = upside?.cap
   const buffer = downside?.buffer
+  const barrier = downside?.barrier
+  const from = note.underlier.determination.initial.kind === 'lookback' ? 'lookback' : 'initial'
 
   if (!upside && !downside) return `The payment is always principal, ${amount(principal)}, whatever ${name} does.`
 
   const rise = upside && `each 1% rise in ${name} adds ${perPoint(upside.rate)} of principal`
   const beyond = buffer === undefined ? '' : ` beyond the first ${percent(buffer)}`
   const fall = downside && (upside ? `each 1% fall${beyond} takes ${perPoint(downside.rate)} away` : `each 1% fall in ${name}${beyond} takes ${perPoint(downside.rate)} of principal away`)
-  const moves = [rise, fall].filter(Boolean).join(', and ')
+  const onlyBelow = barrier === undefined ? '' : `, but only if ${name} ends below ${percent(barrier.level)} of its ${from} level`
+  const moves = [rise, fall && `${fall}${onlyBelow}`].filter(Boolean).join(', and ')
   const unchanged = !upside ? ' A rise leaves principal unchanged.' : !downside ? ' A fall leaves principal unchanged.' : ''
 
   const floor = principalProtection !== undefined ? amount(principal * principalProtection) : downside ? 'zero' : undefined

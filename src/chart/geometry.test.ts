@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { amountToY, fitAmountAxis, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
-import { paymentBreakdown, withBufferAndCap, type ProtectedParticipationNote } from '../domain/note'
+import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
+import { paymentBreakdown, withSubFeatures, type ProtectedParticipationNote } from '../domain/note'
 import { startingNote } from '../domain/starting-note'
 
 const plot: Plot = { left: 50, right: 590, top: 35, bottom: 230 }
@@ -118,6 +118,33 @@ describe('drag conversions', () => {
   })
 })
 
+describe('barrier handle', () => {
+  it('sets the barrier from the position as a percentage of the level the return is measured from, limited to 1% to 99%', () => {
+    expect(barrierFromX(levelToX(70, 100, plot), 100, plot, 100)).toBe(70)
+    expect(barrierFromX(levelToX(56, 100, plot), 100, plot, 80)).toBe(70) // a lookback level of 80
+    expect(barrierFromX(plot.left - 30, 100, plot, 100)).toBe(1)
+    expect(barrierFromX(levelToX(130, 100, plot), 100, plot, 100)).toBe(99)
+    expect(clampBarrier(0)).toBe(1)
+    expect(clampBarrier(100)).toBe(99)
+  })
+})
+
+describe('line breaks at a jump', () => {
+  const samples = [
+    { point: '0,9', regime: 'downside' as const }, { point: '1,8', regime: 'downside' as const },
+    { point: '2,5', regime: 'barrier' as const, jump: true }, { point: '3,5', regime: 'barrier' as const }, { point: '4,4', regime: 'upside' as const },
+  ]
+
+  it('does not join the regimes on either side of a jump', () => {
+    expect(splitByRegime(samples)).toEqual([{ regime: 'downside', points: '0,9 1,8' }, { regime: 'barrier', points: '2,5 3,5 4,4' }, { regime: 'upside', points: '4,4' }])
+  })
+
+  it('splits the whole line into pieces only at jumps', () => {
+    expect(splitAtJumps(samples)).toEqual(['0,9 1,8', '2,5 3,5 4,4'])
+    expect(splitAtJumps(samples.map(({ point }) => ({ point })))).toEqual(['0,9 1,8 2,5 3,5 4,4'])
+  })
+})
+
 describe('arrow keys', () => {
   it('step by the handle step, and by 5 times as much with Shift', () => {
     expect(keyDelta('ArrowUp', false, 1)).toBe(1)
@@ -135,7 +162,7 @@ describe('arrow keys', () => {
 describe('payoff regimes', () => {
   const note = ({ buffer, cap, ...payoff }: Partial<ProtectedParticipationNote['payoff']> & { buffer?: number; cap?: number }): ProtectedParticipationNote => {
     const merged = { ...startingNote.payoff, ...payoff }
-    return { ...startingNote, payoff: { ...merged, participations: withBufferAndCap(merged.participations, buffer, cap) } }
+    return { ...startingNote, payoff: { ...merged, participations: withSubFeatures(merged.participations, { buffer, cap }) } }
   }
   const regimeAt = (n: ProtectedParticipationNote, level: number) => regimeOf(paymentBreakdown(n, { initial: 100, final: level }))
 
@@ -157,6 +184,14 @@ describe('payoff regimes', () => {
     expect(regimeAt(bounded, 50)).toBe('floor')
     expect(regimeAt(bounded, 110)).toBe('upside')
     expect(regimeAt(bounded, 150)).toBe('cap')
+  })
+
+  it('names the barrier where it holds the payment at principal, and downside participation below it', () => {
+    const barriered: ProtectedParticipationNote = { ...startingNote, payoff: { kind: 'participation', participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }, { direction: 'upside', rate: 1 }] } }
+    expect(regimeAt(barriered, 80)).toBe('barrier')
+    expect(regimeAt(barriered, 70)).toBe('barrier')
+    expect(regimeAt(barriered, 69)).toBe('downside')
+    expect(regimeAt(barriered, 110)).toBe('upside')
   })
 
   it('names the buffer where it absorbs the whole fall, and downside participation past it', () => {

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { paymentBreakdown, withBufferAndCap, type Participation, type ProtectedParticipationNote } from '../domain/note'
+import { paymentBreakdown, withSubFeatures, type Participation, type ProtectedParticipationNote } from '../domain/note'
 import { calculationSteps } from './calculation'
 
 const noteWith = (participations: Participation[], principalProtection?: number, cap?: number, buffer?: number): ProtectedParticipationNote => ({
   wrapper: 'note',
   redemption: 'bullet',
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } } },
-  payoff: { kind: 'participation', participations: withBufferAndCap(participations, buffer, cap), principalProtection },
+  payoff: { kind: 'participation', participations: withSubFeatures(participations, { buffer, cap }), principalProtection },
   principalAmount: 1000,
 })
 const both = [{ direction: 'downside' as const, rate: 0.1 }, { direction: 'upside' as const, rate: 1 }]
@@ -68,6 +68,27 @@ describe('calculation steps', () => {
 
     it('mutes the buffer on a rise', () => {
       expect(step(buffered(downFull), 110, 'Buffer')).toMatchObject({ how: 'Absorbs the first 10% of a fall · applies only when the return is negative', value: '0%', muted: true })
+    })
+  })
+
+  describe('with a barrier', () => {
+    const barriered = noteWith([{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }])
+    const withBarrier = { ...barriered, payoff: { ...barriered.payoff, participations: withSubFeatures(barriered.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const } }) } }
+
+    it('adds a barrier step before downside participation', () => {
+      expect(steps(withBarrier, 65).map(({ title }) => title).slice(0, 3)).toEqual(['Synthetic Index return', 'Barrier', 'Downside participation'])
+    })
+
+    it('applies downside participation to the whole fall below the barrier', () => {
+      expect(step(withBarrier, 65, 'Barrier')).toMatchObject({ how: '70% × 100 · final level 65 is below it, so downside participation applies', value: '70', concept: 'barrier' })
+      expect(step(withBarrier, 65, 'Barrier')?.muted).toBeFalsy()
+      expect(step(withBarrier, 65, 'Downside participation')).toMatchObject({ value: '−35%' })
+    })
+
+    it('mutes the barrier and downside participation at or above it', () => {
+      expect(step(withBarrier, 80, 'Barrier')).toMatchObject({ how: '70% × 100 · final level 80 is not below it, so a fall does not reduce principal', muted: true })
+      expect(step(withBarrier, 80, 'Downside participation')).toMatchObject({ how: '100% × min(−20%, 0) · the final level is not below the barrier', value: '0%', muted: true })
+      expect(step(withBarrier, 80, 'Payment at maturity')?.value).toBe('1,000')
     })
   })
 

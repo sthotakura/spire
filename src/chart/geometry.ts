@@ -48,11 +48,13 @@ export const protectionRange = { min: 0, max: 100 }
 export const upsideRateRange = { min: 5, max: 200 }
 export const capRange = { min: 1, max: 100 }
 export const bufferRange = { min: 1, max: 100 }
+export const barrierRange = { min: 1, max: 99 }
 
 export const clampProtection = (percent: number) => clamp(Math.round(percent), protectionRange.min, protectionRange.max)
 export const clampUpsideRate = (percent: number) => clamp(Math.round(percent), upsideRateRange.min, upsideRateRange.max)
 export const clampCap = (percent: number) => clamp(Math.round(percent), capRange.min, capRange.max)
 export const clampBuffer = (percent: number) => clamp(Math.round(percent), bufferRange.min, bufferRange.max)
+export const clampBarrier = (percent: number) => clamp(Math.round(percent), barrierRange.min, barrierRange.max)
 export const clampFinalLevel = (level: number, initialLevel: number) => clamp(Math.round(level), 0, Math.floor(initialLevel * levelAxisFactor))
 
 // Dragging the floor handle to a height sets protection, snapped to 1%.
@@ -83,6 +85,9 @@ export const bufferLevel = (initialLevel: number, buffer: number) => initialLeve
 // The axis stays scaled on the initial-level term, so with lookback the two levels differ.
 export const bufferFromX = (x: number, initialLevel: number, plot: Plot, measuredFrom: number) => clampBuffer((1 - xToLevel(x, initialLevel, plot) / measuredFrom) * 100)
 
+// Dragging the barrier handle sideways sets the barrier as a percentage of the level the return is measured from, snapped to 1%.
+export const barrierFromX = (x: number, initialLevel: number, plot: Plot, measuredFrom: number) => clampBarrier(xToLevel(x, initialLevel, plot) / measuredFrom * 100)
+
 // Dragging the final-level handle sets the level, snapped to 1 unit.
 export const finalLevelFromX = (x: number, initialLevel: number, plot: Plot) => clampFinalLevel(xToLevel(x, initialLevel, plot), initialLevel)
 
@@ -93,22 +98,43 @@ export const keyDelta = (key: string, shift: boolean, step: number): number | nu
 }
 
 // The rule that sets the payment at a final level. The line is drawn in one colour per rule, so the reader can see which one binds where.
-export type Regime = 'principal' | 'buffer' | 'downside' | 'upside' | 'floor' | 'cap'
+export type Regime = 'principal' | 'buffer' | 'barrier' | 'downside' | 'upside' | 'floor' | 'cap'
 
 // A fall the buffer absorbs in full leaves principal unchanged, but it is the buffer, not the absence of participation, that holds the payment there.
+// A fall that ends at or above a barrier is held at principal by the barrier in the same way.
 export const regimeOf = (b: PaymentBreakdown): Regime => b.floorApplies ? 'floor' : b.capApplies ? 'cap' : b.participationRate === undefined ? 'principal'
-  : b.direction === 'downside' && b.bufferAbsorbs && b.participatedReturn === 0 ? 'buffer' : b.direction
+  : b.direction === 'downside' && b.belowBarrier === false ? 'barrier'
+    : b.direction === 'downside' && b.bufferAbsorbs && b.participatedReturn === 0 ? 'buffer' : b.direction
 
-// Splits sampled points into runs of one regime. Each run also ends on the first point of the next, so the coloured pieces join without gaps.
-export const splitByRegime = (samples: ReadonlyArray<{ point: string; regime: Regime }>): { regime: Regime; points: string }[] => {
+// A sampled point on the payoff line. A jump marks where the payment changes at once, such as at a barrier: the line breaks
+// there instead of joining the two sides, since a joining segment would show payments the note never makes.
+export interface Sample {
+  point: string
+  regime: Regime
+  jump?: boolean
+}
+
+// Splits sampled points into runs of one regime. Each run also ends on the first point of the next, so the coloured pieces
+// join without gaps, except across a jump.
+export const splitByRegime = (samples: ReadonlyArray<Sample>): { regime: Regime; points: string }[] => {
   const runs: { regime: Regime; points: string[] }[] = []
-  for (const { point, regime } of samples) {
+  for (const { point, regime, jump } of samples) {
     const last = runs[runs.length - 1]
-    if (last?.regime === regime) last.points.push(point)
+    if (last?.regime === regime && !jump) last.points.push(point)
     else {
-      last?.points.push(point)
+      if (!jump) last?.points.push(point)
       runs.push({ regime, points: [point] })
     }
   }
   return runs.map((run) => ({ regime: run.regime, points: run.points.join(' ') }))
+}
+
+// Splits sampled points into pieces of the line, breaking only at jumps.
+export const splitAtJumps = (samples: ReadonlyArray<Pick<Sample, 'point' | 'jump'>>): string[] => {
+  const pieces: string[][] = []
+  for (const { point, jump } of samples) {
+    if (jump || !pieces.length) pieces.push([point])
+    else pieces[pieces.length - 1].push(point)
+  }
+  return pieces.map((piece) => piece.join(' '))
 }

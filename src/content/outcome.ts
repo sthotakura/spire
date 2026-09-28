@@ -5,7 +5,7 @@ const units = (value: number) => Math.abs(value).toLocaleString('en-US', { maxim
 
 // Explains a contractual maturity payment in words, from the note and its payment breakdown.
 export function explainOutcome(note: ProtectedParticipationNote, breakdown: PaymentBreakdown): string {
-  const { initialLevel, underlierReturn, direction, bufferAbsorbs, participationRate, participatedReturn, capAmount, capApplies, unflooredPayment, floor, floorApplies, payment } = breakdown
+  const { initialLevel, underlierReturn, direction, bufferAbsorbs, barrierLevel, belowBarrier, participationRate, participatedReturn, capAmount, capApplies, unflooredPayment, floor, floorApplies, payment } = breakdown
   const hasProtection = note.payoff.principalProtection !== undefined
   const hasCap = capAmount !== undefined
   const principal = note.principalAmount
@@ -23,6 +23,8 @@ export function explainOutcome(note: ProtectedParticipationNote, breakdown: Paym
   let participation: string
   if (underlierReturn === 0) participation = 'A flat return leaves principal unchanged.'
   else if (participationRate === undefined) participation = `No ${direction} participation is selected, so principal is unchanged.`
+  else if (direction === 'downside' && belowBarrier === false) participation = `It ended at or above the ${units(barrierLevel ?? 0)} barrier, so downside participation does not apply and principal is unchanged.`
+  else if (direction === 'downside' && belowBarrier) participation = `It ended below the ${units(barrierLevel ?? 0)} barrier, so downside participation of ${percent(participationRate)} deducts the whole ${percent(participatedReturn)} from principal.`
   else if (bufferAbsorbs && participatedReturn === 0) participation = `The ${percent(downsideOf(note)?.buffer ?? 0)} buffer absorbs the whole fall, so principal is unchanged.`
   else if (bufferAbsorbs) participation = `The buffer absorbs the first ${percent(bufferAbsorbs)} of the fall, and downside participation of ${percent(participationRate)} deducts ${percent(participatedReturn)} from principal.`
   else {

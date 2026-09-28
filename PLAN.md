@@ -139,6 +139,15 @@ Open questions:
 - **A cap stated as an underlier level.** Some notes may state the cap as a level of the underlier rather than a maximum return. With a rate above 100% the two differ. Not yet verified in current public notes.
 - **One barrier gating several features.** Some notes appear to switch more than one feature on a single barrier event. Not yet verified.
 
+## 16. Add a barrier on downside participation
+
+- Add a barrier as a sub-feature of downside participation: `{ "direction": "downside", "barrier": { "level": 0.7, "observation": "final" }, "rate": 1 }`. Downside participation applies, to the whole fall, only when the final level is strictly below the barrier; at or above it a fall leaves principal unchanged. The model, sources and worked example are in [docs/barrier.md](docs/barrier.md).
+- Measure the barrier from the determined initial level: the initial level, or the lookback level when the note has lookback.
+- Observe it on the final observation date only. Daily observation waits for observation dates.
+- Keep the barrier and the buffer as separate features, not combined on the same downside participation until a public note is verified.
+- Show the barrier in the outline, summary, Structure JSON, payment rule, calculation, outcome sentence, scenario table and chart, where the payoff line breaks at the jump rather than joining the two sides.
+- Open: whether a note with a barrier should add a scenario row just above it, to be decided once the chart and table can be seen with real numbers.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.

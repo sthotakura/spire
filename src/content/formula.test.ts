@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { withBufferAndCap, type Participation, type ProtectedParticipationNote } from '../domain/note'
+import { withSubFeatures, type Participation, type ProtectedParticipationNote } from '../domain/note'
 import { startingNote } from '../domain/starting-note'
 import { paymentFormula, paymentInWords } from './formula'
 
 const noteWith = (participations: Participation[], cap?: number, principalProtection?: number, buffer?: number): ProtectedParticipationNote => ({
   ...startingNote,
-  payoff: { kind: 'participation', participations: withBufferAndCap(participations, buffer, cap), principalProtection },
+  payoff: { kind: 'participation', participations: withSubFeatures(participations, { buffer, cap }), principalProtection },
 })
 const up = { direction: 'upside', rate: 1 } as const
 const down = { direction: 'downside', rate: 1 } as const
@@ -57,6 +57,17 @@ describe('payment formula', () => {
   it('tags each term with the concept it comes from', () => {
     const concepts = paymentFormula(noteWith([down, up], 0.2, 0.9)).flatMap(({ segments }) => segments.flatMap(({ concept }) => concept ?? []))
     expect(concepts).toEqual(['determination', 'upside', 'downside', 'cap', 'protection'])
+  })
+  it('says downside participation counts only below the barrier', () => {
+    const barriered = { ...noteWith([down, up]), payoff: { kind: 'participation' as const, participations: withSubFeatures([down, up], { barrier: { level: 0.7, observation: 'final' as const } }) } }
+    expect(text(barriered)).toEqual([
+      'Return = Final level ÷ Initial level − 1',
+      'Payment = Principal × (1 + Upside × max(Return, 0) + Downside × min(Return, 0))',
+      'downside only when Final level < Barrier × Initial level',
+      'floored at 0',
+    ])
+    expect(paymentFormula(barriered)[2].segments.find(({ concept }) => concept)?.concept).toBe('barrier')
+    expect(paymentInWords(barriered)).toBe('Each 1% rise in Synthetic Index adds 1% of principal, and each 1% fall takes 1% away, but only if Synthetic Index ends below 70% of its initial level. The payment never goes below zero.')
   })
 })
 

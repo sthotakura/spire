@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { withBufferAndCap, type ProtectedParticipationNote } from '../domain/note'
+import { withSubFeatures, type ProtectedParticipationNote } from '../domain/note'
 import { summarize } from './summary'
 
 const note: ProtectedParticipationNote = {
@@ -17,7 +17,7 @@ const note: ProtectedParticipationNote = {
   principalAmount: 1000,
 }
 
-const withTerms = (n: ProtectedParticipationNote, buffer?: number, cap?: number): ProtectedParticipationNote => ({ ...n, payoff: { ...n.payoff, participations: withBufferAndCap(n.payoff.participations, buffer, cap) } })
+const withTerms = (n: ProtectedParticipationNote, buffer?: number, cap?: number): ProtectedParticipationNote => ({ ...n, payoff: { ...n.payoff, participations: withSubFeatures(n.payoff.participations, { buffer, cap }) } })
 const sentence = (n: ProtectedParticipationNote) => summarize(n).map(({ text }) => text).join('')
 const conceptOf = (n: ProtectedParticipationNote, phrase: string) => summarize(n).find(({ text }) => text === phrase)?.concept
 
@@ -116,5 +116,15 @@ describe('note summary', () => {
   it('keeps describing a draft that is not valid yet', () => {
     const draft: ProtectedParticipationNote = { ...note, underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name: ' ' }, initialLevel: 100 }] }, payoff: { ...note.payoff, participations: [], principalProtection: Number.NaN } }
     expect(sentence(draft)).toBe('A note that redeems at maturity and repays its principal, linked to the underlier, measured point-to-point from 100, with — principal protection.')
+  })
+})
+
+describe('note summary with a barrier', () => {
+  it('names the barrier as a fraction of the level the return is measured from', () => {
+    const barriered = { ...note, payoff: { ...note.payoff, participations: withSubFeatures(note.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const } }) } }
+    expect(sentence(barriered)).toContain('point-to-point from 100, with a barrier at 70% of the initial level and 90% principal protection.')
+    expect(conceptOf(barriered, 'a barrier at 70% of the initial level')).toBe('barrier')
+    const lookback = { ...barriered, underlier: { ...barriered.underlier, determination: { initial: { kind: 'lookback' as const, observationCount: 3 }, final: { kind: 'final-date' as const } } } }
+    expect(sentence(lookback)).toContain('a barrier at 70% of the lookback level')
   })
 })

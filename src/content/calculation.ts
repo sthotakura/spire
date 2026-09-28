@@ -26,7 +26,8 @@ function participationStep(note: ProtectedParticipationNote, breakdown: PaymentB
   const contribution = direction === breakdown.direction ? breakdown.participatedReturn : 0
   const buffer = direction === 'downside' ? downsideOf(note)?.buffer : undefined
   const how = `${formatPercent(rate)} × ${direction === 'upside' ? 'max' : 'min'}(${signedPercent(breakdown.underlierReturn)}${buffer === undefined ? '' : ` + ${formatPercent(buffer)}`}, 0)`
-  const reason = buffer !== undefined && breakdown.underlierReturn < 0 ? 'the buffer absorbs the whole fall' : `applies only when the return is ${direction === 'upside' ? 'positive' : 'negative'}`
+  const reason = buffer !== undefined && breakdown.underlierReturn < 0 ? 'the buffer absorbs the whole fall'
+    : breakdown.belowBarrier === false && breakdown.underlierReturn < 0 ? 'the final level is not below the barrier' : `applies only when the return is ${direction === 'upside' ? 'positive' : 'negative'}`
   return contribution === 0
     ? { title, how: `${how} · ${reason}`, value: '0%', muted: true, concept: direction }
     : { title, how, value: signedPercent(contribution), concept: direction }
@@ -41,6 +42,13 @@ function bufferStep(buffer: number, breakdown: PaymentBreakdown): Omit<Calculati
   return { title, how: `Absorbs the first ${formatPercent(buffer)} of a fall · ${how}`, value: `+${formatPercent(absorbs)}`, concept: 'buffer' }
 }
 
+// Whether the final level is below the barrier. Only then does downside participation apply, to the whole fall.
+function barrierStep(level: number, breakdown: PaymentBreakdown, finalLevel: number): Omit<CalculationStep, 'n'> {
+  const barrierLevel = breakdown.barrierLevel ?? 0
+  const how = `${formatPercent(level)} × ${formatAmount(breakdown.initialLevel)} · final level ${formatAmount(finalLevel)} is ${breakdown.belowBarrier ? 'below it, so downside participation applies' : 'not below it, so a fall does not reduce principal'}`
+  return { title: 'Barrier', how, value: formatAmount(barrierLevel), muted: !breakdown.belowBarrier, concept: 'barrier' }
+}
+
 // The worked calculation of the maturity payment from the observed levels: those on the final dates and, for lookback, those
 // after pricing. Every number comes from the payment breakdown.
 export function calculationSteps(note: ProtectedParticipationNote, breakdown: PaymentBreakdown, observedLevels: number[], afterPricing: number[]): CalculationStep[] {
@@ -51,6 +59,7 @@ export function calculationSteps(note: ProtectedParticipationNote, breakdown: Pa
   const { principalProtection } = note.payoff
   const cap = upsideOf(note)?.cap
   const buffer = downsideOf(note)?.buffer
+  const barrier = downsideOf(note)?.barrier
   const withCap = cap !== undefined
   const withProtection = principalProtection !== undefined
   const hasDownside = downsideOf(note) !== undefined
@@ -66,6 +75,7 @@ export function calculationSteps(note: ProtectedParticipationNote, breakdown: Pa
   }
   steps.push({ title: `${name || 'Underlier'} return`, how: `${formatAmount(finalLevel)} ÷ ${formatAmount(initialLevel)} − 1`, value: signedPercent(b.underlierReturn), concept: 'determination' })
   if (buffer !== undefined) steps.push(bufferStep(buffer, b))
+  if (barrier !== undefined) steps.push(barrierStep(barrier.level, b, finalLevel))
   steps.push(
     participationStep(note, b, 'downside'),
     participationStep(note, b, 'upside'),

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { withBufferAndCap, type Participation, type ProtectedParticipationNote } from '../domain/note'
+import { withSubFeatures, type Participation, type ProtectedParticipationNote } from '../domain/note'
 import { marketingNames } from './names'
 
 const noteWith = ({ participations = [], principalProtection, cap, buffer }: { participations?: Participation[]; principalProtection?: number; cap?: number; buffer?: number }): ProtectedParticipationNote => ({
   wrapper: 'note',
   redemption: 'bullet',
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } } },
-  payoff: { kind: 'participation', participations: withBufferAndCap(participations, buffer, cap), principalProtection },
+  payoff: { kind: 'participation', participations: withSubFeatures(participations, { buffer, cap }), principalProtection },
   principalAmount: 1000,
 })
 
@@ -97,6 +97,12 @@ describe('marketing names', () => {
   it('combines the buffered name with the others that apply', () => {
     expect(namesOf({ participations: [up(1.5), down(1)], buffer: 0.1, cap: 0.2 })).toEqual(['Buffered note', 'Capped participation'])
     expect(namesOf({ participations: [up(1), down(1)], buffer: 0.1, principalProtection: 0.9 })).toEqual(['Partially principal-protected note', 'Buffered note'])
+  })
+
+  it('does not call a note with a barrier a tracker or outperformance', () => {
+    const barriered = (participations: Participation[]) => marketingNames({ ...noteWith({ participations }), payoff: { kind: 'participation', participations: withSubFeatures(participations, { barrier: { level: 0.7, observation: 'final' as const } }) } }).map(({ name }) => name)
+    expect(barriered([up(1), down(1)])).toEqual([])
+    expect(barriered([up(1.5), down(1)])).toEqual([])
   })
 
   it('gives no name to a draft with invalid terms', () => {

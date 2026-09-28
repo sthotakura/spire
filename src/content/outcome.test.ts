@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { paymentBreakdown, withBufferAndCap, type Participation, type ProtectedParticipationNote } from '../domain/note'
+import { paymentBreakdown, withSubFeatures, type Participation, type ProtectedParticipationNote } from '../domain/note'
 import { explainOutcome } from './outcome'
 
 const noteWith = (participations: Participation[], principalProtection?: number, cap?: number, buffer?: number): ProtectedParticipationNote => ({
   wrapper: 'note',
   redemption: 'bullet',
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } } },
-  payoff: { kind: 'participation', participations: withBufferAndCap(participations, buffer, cap), principalProtection },
+  payoff: { kind: 'participation', participations: withSubFeatures(participations, { buffer, cap }), principalProtection },
   principalAmount: 1000,
 })
 const both = [{ direction: 'downside' as const, rate: 1 }, { direction: 'upside' as const, rate: 1.5 }]
@@ -75,6 +75,11 @@ describe('outcome explanation', () => {
     expect(explain(withFloor, 60)).toBe('The underlier fell 40%. The buffer absorbs the first 10% of the fall, and downside participation of 100% deducts 30% from principal. The 900 floor applies, so the contractual payment is 900, 100 less than principal.')
   })
 
+  it('says whether the underlier ended below the barrier', () => {
+    const barriered = { ...noteWith(both), payoff: { kind: 'participation' as const, participations: withSubFeatures(both, { barrier: { level: 0.7, observation: 'final' as const } }) } }
+    expect(explain(barriered, 80)).toBe('The underlier fell 20%. It ended at or above the 70 barrier, so downside participation does not apply and principal is unchanged. The contractual payment is 1,000, the same as principal.')
+    expect(explain(barriered, 65)).toBe('The underlier fell 35%. It ended below the 70 barrier, so downside participation of 100% deducts the whole 35% from principal. There is no principal protection, so the contractual payment is 650, 350 less than principal.')
+  })
   it('says the move is an average when the note averages', () => {
     const averaged = { ...noteWith(both, 0.9), underlier: { ...noteWith(both).underlier, determination: { initial: { kind: 'given' as const }, final: { kind: 'averaging' as const, observationCount: 5 } } } }
     expect(explain(averaged, 110)).toBe('Averaged over 5 observations, the underlier rose 10%. Upside participation of 150% adds 15% to principal. The 900 floor does not apply, so the contractual payment is 1,150, 150 more than principal.')

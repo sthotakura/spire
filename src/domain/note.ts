@@ -2,12 +2,21 @@ export type AssetKind = 'equity' | 'equity-index'
 export type ParticipationDirection = 'downside' | 'upside'
 
 // Each direction carries the features that only make sense with it: a buffer changes the fall downside participation
-// applies to, and a cap limits the return upside participation can add. Their keys are listed in the order the payment applies them.
+// applies to, a barrier decides whether downside participation applies at all, and a cap limits the return upside
+// participation can add. Their keys are listed in the order the payment applies them.
 export interface DownsideParticipation {
   direction: 'downside'
   // The fall the holder does not bear, as a fraction of the initial level. Downside participation applies only to the fall beyond it.
   buffer?: number
+  barrier?: Barrier
   rate: number
+}
+
+// A level, as a fraction of the initial level. Downside participation applies, to the whole fall, only when the final
+// level is below it. It is observed on the final observation date only: it reads the final level the determination produces.
+export interface Barrier {
+  level: number
+  observation: 'final'
 }
 
 export interface UpsideParticipation {
@@ -74,13 +83,13 @@ export interface ProtectedParticipationNote {
 export const downsideOf = (note: ProtectedParticipationNote) => note.payoff.participations.find((participation): participation is DownsideParticipation => participation.direction === 'downside')
 export const upsideOf = (note: ProtectedParticipationNote) => note.payoff.participations.find((participation): participation is UpsideParticipation => participation.direction === 'upside')
 
-// Puts a buffer on downside participation and a cap on upside participation. Either is dropped when its direction is absent.
-export const withBufferAndCap = (participations: Participation[], buffer?: number, cap?: number): Participation[] =>
+// Puts a buffer or barrier on downside participation and a cap on upside participation. Each is dropped when its direction is absent.
+export const withSubFeatures = (participations: Participation[], { buffer, barrier, cap }: { buffer?: number; barrier?: Barrier; cap?: number }): Participation[] =>
   participations.map((participation) => participation.direction === 'downside'
-    ? { direction: 'downside', buffer, rate: participation.rate }
+    ? { direction: 'downside', buffer, barrier, rate: participation.rate }
     : { direction: 'upside', rate: participation.rate, cap })
 
-export type NoteIssueField = 'principalAmount' | 'underlierName' | 'initialLevel' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'participations' | 'principalProtection' | 'cap'
+export type NoteIssueField = 'principalAmount' | 'underlierName' | 'initialLevel' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'participations' | 'principalProtection' | 'cap'
 
 // Real notes can average over many more dates, such as monthly over several years, and a lookback period often observes
 // every trading day for weeks. This reference keeps the count small enough for each observed level to be set by hand.
@@ -107,6 +116,11 @@ export function noteIssues(note: ProtectedParticipationNote): NoteIssue[] {
   }
   const buffer = downsideOf(note)?.buffer
   if (buffer !== undefined && (!Number.isFinite(buffer) || buffer <= 0 || buffer > 1)) issues.push({ field: 'buffer', message: 'Buffer must be greater than 0% and at most 100%.' })
+  const barrier = downsideOf(note)?.barrier
+  // A barrier at 100% would switch downside participation on for any fall, which is downside participation without one.
+  if (barrier !== undefined && (!Number.isFinite(barrier.level) || barrier.level <= 0 || barrier.level >= 1)) issues.push({ field: 'barrier', message: 'Barrier must be greater than 0% and less than 100% of the initial level.' })
+  // No public note combining the two was verified, so they are not combined.
+  if (barrier !== undefined && buffer !== undefined) issues.push({ field: 'barrier', message: 'A barrier and a buffer cannot both apply to downside participation.' })
   for (const participation of note.payoff.participations) {
     if (!Number.isFinite(participation.rate) || participation.rate <= 0) issues.push({ field: 'participations', message: `${participation.direction === 'upside' ? 'Upside' : 'Downside'} participation must be greater than zero.` })
   }
@@ -153,6 +167,9 @@ export interface PaymentBreakdown {
   direction: ParticipationDirection
   // Undefined when the note has no buffer. Otherwise the part of a fall the buffer absorbs, as a positive fraction: zero on a rise.
   bufferAbsorbs?: number
+  // Undefined when the note has no barrier. Otherwise the barrier as an underlier level, and whether the final level is below it.
+  barrierLevel?: number
+  belowBarrier?: boolean
   // Undefined when that direction has no participation, so principal is unchanged.
   participationRate?: number
   participatedReturn: number
@@ -182,7 +199,12 @@ export function paymentBreakdown(note: ProtectedParticipationNote, levels: Deter
   const participationRate = note.payoff.participations.find((candidate) => candidate.direction === direction)?.rate
   const buffer = downsideOf(note)?.buffer
   const bufferAbsorbs = buffer === undefined ? undefined : Math.min(buffer, Math.max(0, -underlierReturn))
-  const participatedReturn = (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0))
+  const barrier = downsideOf(note)?.barrier
+  const barrierLevel = barrier === undefined ? undefined : barrier.level * levels.initial
+  const belowBarrier = barrierLevel === undefined ? undefined : levels.final < barrierLevel
+  // At or above the barrier, downside participation does not apply, so a fall leaves principal unchanged.
+  const barrierHolds = direction === 'downside' && belowBarrier === false
+  const participatedReturn = barrierHolds ? 0 : (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0))
   const uncappedPayment = note.principalAmount * (1 + participatedReturn)
   // A cap is above principal and so above any floor, which cannot exceed principal. The order of the two cannot change the result.
   const cap = upsideOf(note)?.cap
@@ -195,6 +217,8 @@ export function paymentBreakdown(note: ProtectedParticipationNote, levels: Deter
     underlierReturn,
     direction,
     bufferAbsorbs,
+    barrierLevel,
+    belowBarrier,
     participationRate,
     participatedReturn,
     uncappedPayment,
