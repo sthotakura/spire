@@ -1,4 +1,4 @@
-import type { PaymentBreakdown, ProtectedParticipationNote } from '../domain/note'
+import { downsideOf, type PaymentBreakdown, type ProtectedParticipationNote } from '../domain/note'
 
 const percent = (fraction: number) => `${(Math.abs(fraction) * 100).toFixed(1).replace(/\.0$/, '')}%`
 const units = (value: number) => Math.abs(value).toLocaleString('en-US', { maximumFractionDigits: 2 })
@@ -23,7 +23,7 @@ export function explainOutcome(note: ProtectedParticipationNote, breakdown: Paym
   let participation: string
   if (underlierReturn === 0) participation = 'A flat return leaves principal unchanged.'
   else if (participationRate === undefined) participation = `No ${direction} participation is selected, so principal is unchanged.`
-  else if (bufferAbsorbs && participatedReturn === 0) participation = `The ${percent(note.payoff.buffer ?? 0)} buffer absorbs the whole fall, so principal is unchanged.`
+  else if (bufferAbsorbs && participatedReturn === 0) participation = `The ${percent(downsideOf(note)?.buffer ?? 0)} buffer absorbs the whole fall, so principal is unchanged.`
   else if (bufferAbsorbs) participation = `The buffer absorbs the first ${percent(bufferAbsorbs)} of the fall, and downside participation of ${percent(participationRate)} deducts ${percent(participatedReturn)} from principal.`
   else {
     const label = direction === 'upside' ? 'Upside' : 'Downside'

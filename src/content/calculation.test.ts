@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { paymentBreakdown, type Participation, type ProtectedParticipationNote } from '../domain/note'
+import { paymentBreakdown, withBufferAndCap, type Participation, type ProtectedParticipationNote } from '../domain/note'
 import { calculationSteps } from './calculation'
 
-const noteWith = (participations: Participation[], principalProtection?: number, cap?: number): ProtectedParticipationNote => ({
+const noteWith = (participations: Participation[], principalProtection?: number, cap?: number, buffer?: number): ProtectedParticipationNote => ({
   wrapper: 'note',
   redemption: 'bullet',
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } } },
-  payoff: { kind: 'participation', participations, principalProtection, cap },
+  payoff: { kind: 'participation', participations: withBufferAndCap(participations, buffer, cap), principalProtection },
   principalAmount: 1000,
 })
 const both = [{ direction: 'downside' as const, rate: 0.1 }, { direction: 'upside' as const, rate: 1 }]
@@ -47,7 +47,7 @@ describe('calculation steps', () => {
   })
 
   describe('with a buffer', () => {
-    const buffered = (participations: Participation[]) => ({ ...noteWith(participations, 0.9), payoff: { ...noteWith(participations, 0.9).payoff, buffer: 0.1 } })
+    const buffered = (participations: Participation[]) => noteWith(participations, 0.9, undefined, 0.1)
     const downFull = [{ direction: 'downside' as const, rate: 1 }, { direction: 'upside' as const, rate: 1 }]
 
     it('adds a buffer step before downside participation', () => {
@@ -66,9 +66,8 @@ describe('calculation steps', () => {
       expect(step(buffered(downFull), 95, 'Downside participation')).toMatchObject({ how: '100% × min(−5% + 10%, 0) · the buffer absorbs the whole fall', value: '0%', muted: true })
     })
 
-    it('mutes the buffer on a rise, or when there is no downside participation', () => {
+    it('mutes the buffer on a rise', () => {
       expect(step(buffered(downFull), 110, 'Buffer')).toMatchObject({ how: 'Absorbs the first 10% of a fall · applies only when the return is negative', value: '0%', muted: true })
-      expect(step(buffered([{ direction: 'upside', rate: 1 }]), 80, 'Buffer')).toMatchObject({ value: '0%', muted: true })
     })
   })
 

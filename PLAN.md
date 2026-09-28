@@ -95,7 +95,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 
 - Add an optional buffer: the fall in the underlier the holder does not bear, as a fraction of the initial level, greater than 0% and at most 100%. Downside participation applies only to the fall beyond it. The model, decisions and worked example are in [docs/buffer.md](docs/buffer.md).
 - Use the existing downside rate beyond the buffer, not a separate buffer rate.
-- Keep a buffer without downside participation valid, with a note on its row that it has no effect, as for a cap without upside participation.
+- Keep a buffer without downside participation valid, with a note on its row that it has no effect, as for a cap without upside participation. (Superseded by section 15.)
 - Allow a buffer together with a protection floor. This settles the open question from section 7: the holder bears only the losses between the two.
 - Show the buffer in the outline (before downside participation), summary, structure JSON, chart (a vertical guide, a sideways handle, and its own colour, #1aa3b8, checked against the feature colours it can touch), payment rule, calculation, scenario table and outcome sentence.
 - Name a buffer on downside participation a "Buffered note", following FINRA's description ([docs/marketing-names.md](docs/marketing-names.md)).
@@ -123,6 +123,21 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Hold the axis still during a pointer drag and refit it when the drag ends, so the line does not move under the pointer. A drag stops at the top of the axis in view; after release the axis refits with headroom, so the next drag can go further. Keys and typed values refit at once.
 - The drag limits (upside rate 5% to 200%, cap 1% to 100%) are fixed values now, no longer derived from the axis.
 - The final-level tooltip drops below its handle when it would cover the cap or upside handle, which the taller band made more likely.
+
+## 15. Nest the buffer and cap under their directions
+
+- A buffer only changes the fall downside participation applies to, and a cap only limits the return upside participation adds. Each is now a sub-feature of its direction, in the domain, the Structure JSON and the outline alike: `{ "direction": "downside", "buffer": 0.1, "rate": 1 }` and `{ "direction": "upside", "rate": 1.5, "cap": 0.2 }`. Keys stay in the order the payment applies them.
+- A buffer without downside participation, or a cap without upside participation, can no longer be written, so the rows that said they had no effect are gone. The payment is unchanged in every case that could be written before and had an effect.
+- The Add feature menu still lists Buffer and Cap, marked "Needs downside participation" or "Needs upside participation" until their direction is added. Removing a direction removes its buffer or cap.
+- Selecting a direction highlights its buffer or cap as well, as selecting the determination highlights its levels.
+- Principal protection stays a feature of the whole payoff. It bounds the payment, whatever raised or lowered it.
+- Next: a barrier as a sub-feature of a direction. It does no arithmetic of its own; it switches the feature it belongs to on or off (knock-in or knock-out) when the underlier crosses a level. The first case is a knock-in on downside participation, observed on the final observation date.
+
+Open questions:
+
+- **One cap in several places.** A cap could limit more than one feature, or the whole payment, once something other than upside participation can raise it (a coupon or a digital amount). Nesting it under upside participation leaves that open; it does not need solving yet.
+- **A cap stated as an underlier level.** Some notes may state the cap as a level of the underlier rather than a maximum return. With a rate above 100% the two differ. Not yet verified in current public notes.
+- **One barrier gating several features.** Some notes appear to switch more than one feature on a single barrier event. Not yet verified.
 
 ## Later direction: a composable form
 

@@ -1,10 +1,23 @@
 export type AssetKind = 'equity' | 'equity-index'
 export type ParticipationDirection = 'downside' | 'upside'
 
-export interface Participation {
-  direction: ParticipationDirection
+// Each direction carries the features that only make sense with it: a buffer changes the fall downside participation
+// applies to, and a cap limits the return upside participation can add. Their keys are listed in the order the payment applies them.
+export interface DownsideParticipation {
+  direction: 'downside'
+  // The fall the holder does not bear, as a fraction of the initial level. Downside participation applies only to the fall beyond it.
+  buffer?: number
   rate: number
 }
+
+export interface UpsideParticipation {
+  direction: 'upside'
+  rate: number
+  // The most the note can pay above principal, as a fraction of principal. Absent means the payment has no ceiling.
+  cap?: number
+}
+
+export type Participation = DownsideParticipation | UpsideParticipation
 
 // What is tracked. Its identity only: the level it starts from is a term of the note, so it sits beside the asset.
 export interface Asset {
@@ -51,16 +64,21 @@ export interface ProtectedParticipationNote {
   underlier: SingleUnderlier
   payoff: {
     kind: 'participation'
-    // Features are listed in the order the payment applies them: the buffer and participation, then the cap, then the protection floor.
-    // The fall the holder does not bear, as a fraction of the initial level. Downside participation applies only to the fall beyond it.
-    buffer?: number
+    // Features are listed in the order the payment applies them: participation with its buffer and cap, then the protection floor.
     participations: Participation[]
-    // The most the note can pay above principal, as a fraction of principal. Absent means the payment has no ceiling.
-    cap?: number
     principalProtection?: number
   }
   principalAmount: number
 }
+
+export const downsideOf = (note: ProtectedParticipationNote) => note.payoff.participations.find((participation): participation is DownsideParticipation => participation.direction === 'downside')
+export const upsideOf = (note: ProtectedParticipationNote) => note.payoff.participations.find((participation): participation is UpsideParticipation => participation.direction === 'upside')
+
+// Puts a buffer on downside participation and a cap on upside participation. Either is dropped when its direction is absent.
+export const withBufferAndCap = (participations: Participation[], buffer?: number, cap?: number): Participation[] =>
+  participations.map((participation) => participation.direction === 'downside'
+    ? { direction: 'downside', buffer, rate: participation.rate }
+    : { direction: 'upside', rate: participation.rate, cap })
 
 export type NoteIssueField = 'principalAmount' | 'underlierName' | 'initialLevel' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'participations' | 'principalProtection' | 'cap'
 
@@ -87,7 +105,7 @@ export function noteIssues(note: ProtectedParticipationNote): NoteIssue[] {
   if (final.kind === 'averaging' && !isObservationCount(final.observationCount)) {
     issues.push({ field: 'observationCount', message: `Observations must be a whole number from ${observationCountRange.min} to ${observationCountRange.max}.` })
   }
-  const buffer = note.payoff.buffer
+  const buffer = downsideOf(note)?.buffer
   if (buffer !== undefined && (!Number.isFinite(buffer) || buffer <= 0 || buffer > 1)) issues.push({ field: 'buffer', message: 'Buffer must be greater than 0% and at most 100%.' })
   for (const participation of note.payoff.participations) {
     if (!Number.isFinite(participation.rate) || participation.rate <= 0) issues.push({ field: 'participations', message: `${participation.direction === 'upside' ? 'Upside' : 'Downside'} participation must be greater than zero.` })
@@ -95,7 +113,7 @@ export function noteIssues(note: ProtectedParticipationNote): NoteIssue[] {
   if (new Set(note.payoff.participations.map(({ direction }) => direction)).size !== note.payoff.participations.length) issues.push({ field: 'participations', message: 'Each participation direction can be selected only once.' })
   const protection = note.payoff.principalProtection
   if (protection !== undefined && (!Number.isFinite(protection) || protection < 0 || protection > 1)) issues.push({ field: 'principalProtection', message: 'Principal protection must be between 0% and 100%.' })
-  const cap = note.payoff.cap
+  const cap = upsideOf(note)?.cap
   if (cap !== undefined && (!Number.isFinite(cap) || cap <= 0)) issues.push({ field: 'cap', message: 'Cap must be greater than zero.' })
   return issues
 }
@@ -162,11 +180,13 @@ export function paymentBreakdown(note: ProtectedParticipationNote, levels: Deter
   const underlierReturn = levels.final / levels.initial - 1
   const direction: ParticipationDirection = underlierReturn < 0 ? 'downside' : 'upside'
   const participationRate = note.payoff.participations.find((candidate) => candidate.direction === direction)?.rate
-  const bufferAbsorbs = note.payoff.buffer === undefined ? undefined : Math.min(note.payoff.buffer, Math.max(0, -underlierReturn))
+  const buffer = downsideOf(note)?.buffer
+  const bufferAbsorbs = buffer === undefined ? undefined : Math.min(buffer, Math.max(0, -underlierReturn))
   const participatedReturn = (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0))
   const uncappedPayment = note.principalAmount * (1 + participatedReturn)
   // A cap is above principal and so above any floor, which cannot exceed principal. The order of the two cannot change the result.
-  const capAmount = note.payoff.cap === undefined ? undefined : note.principalAmount * (1 + note.payoff.cap)
+  const cap = upsideOf(note)?.cap
+  const capAmount = cap === undefined ? undefined : note.principalAmount * (1 + cap)
   const capApplies = capAmount !== undefined && uncappedPayment > capAmount
   const unflooredPayment = capApplies ? capAmount : uncappedPayment
   const floor = note.principalAmount * (note.payoff.principalProtection ?? 0)

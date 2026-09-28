@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import type { Participation, ProtectedParticipationNote } from '../domain/note'
+import { withBufferAndCap, type Participation, type ProtectedParticipationNote } from '../domain/note'
 import { startingNote } from '../domain/starting-note'
 import { paymentFormula, paymentInWords } from './formula'
 
-const noteWith = (participations: Participation[], cap?: number, principalProtection?: number): ProtectedParticipationNote => ({
+const noteWith = (participations: Participation[], cap?: number, principalProtection?: number, buffer?: number): ProtectedParticipationNote => ({
   ...startingNote,
-  payoff: { kind: 'participation', participations, cap, principalProtection },
+  payoff: { kind: 'participation', participations: withBufferAndCap(participations, buffer, cap), principalProtection },
 })
 const up = { direction: 'upside', rate: 1 } as const
 const down = { direction: 'downside', rate: 1 } as const
@@ -35,14 +35,9 @@ describe('payment formula', () => {
   })
 
   it('moves the start of downside participation by the buffer', () => {
-    const buffered = { ...noteWith([down, up]), payoff: { ...noteWith([down, up]).payoff, buffer: 0.1 } }
+    const buffered = noteWith([down, up], undefined, undefined, 0.1)
     expect(text(buffered)[1]).toBe('Payment = Principal × (1 + Upside × max(Return, 0) + Downside × min(Return + Buffer, 0))')
     expect(paymentFormula(buffered)[1].segments.flatMap(({ concept }) => concept ?? [])).toEqual(['upside', 'downside', 'buffer', 'downside'])
-  })
-
-  it('leaves the buffer out when there is no downside participation for it to act on', () => {
-    const upsideOnly = { ...noteWith([up]), payoff: { ...noteWith([up]).payoff, buffer: 0.1 } }
-    expect(text(upsideOnly)).toEqual(text(noteWith([up])))
   })
 
   it('defines the final level as the average when the note averages', () => {
@@ -92,7 +87,7 @@ describe('payment rule in words', () => {
   })
 
   it('says the fall only counts beyond the buffer', () => {
-    const withBuffer = (participations: Participation[]) => ({ ...noteWith(participations), payoff: { ...noteWith(participations).payoff, buffer: 0.1 } })
+    const withBuffer = (participations: Participation[]) => noteWith(participations, undefined, undefined, 0.1)
     expect(paymentInWords(withBuffer([down]))).toBe('Each 1% fall in Synthetic Index beyond the first 10% takes 1% of principal away. A rise leaves principal unchanged. The payment never goes below zero.')
     expect(paymentInWords(withBuffer([down, up]))).toBe('Each 1% rise in Synthetic Index adds 1% of principal, and each 1% fall beyond the first 10% takes 1% away. The payment never goes below zero.')
   })

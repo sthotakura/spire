@@ -1,4 +1,4 @@
-import type { ProtectedParticipationNote } from '../domain/note'
+import { downsideOf, upsideOf, type ProtectedParticipationNote } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface FormulaSegment {
@@ -15,15 +15,17 @@ export interface FormulaLine {
 // The payment rule in words and symbols, built only from the features the note has. It reads in the order of the worked
 // calculation: the return, the participated payment, then the cap, then the floor.
 export function paymentFormula(note: ProtectedParticipationNote): FormulaLine[] {
-  const { participations, cap, principalProtection, buffer } = note.payoff
-  const upside = participations.some(({ direction }) => direction === 'upside')
-  const downside = participations.some(({ direction }) => direction === 'downside')
+  const { principalProtection } = note.payoff
+  const upside = upsideOf(note) !== undefined
+  const downside = downsideOf(note) !== undefined
+  const cap = upsideOf(note)?.cap
+  const buffer = downsideOf(note)?.buffer
 
   const terms: FormulaSegment[] = []
   if (upside) terms.push({ text: 'Upside × max(Return, 0)', concept: 'upside' })
   if (upside && downside) terms.push({ text: ' + ' })
-  // The buffer shifts where downside participation starts, so it sits inside the downside term. Without downside participation it has nothing to act on.
-  if (downside && buffer !== undefined) terms.push({ text: 'Downside × min(Return + ', concept: 'downside' }, { text: 'Buffer', concept: 'buffer' }, { text: ', 0)', concept: 'downside' })
+  // The buffer shifts where downside participation starts, so it sits inside the downside term.
+  if (buffer !== undefined) terms.push({ text: 'Downside × min(Return + ', concept: 'downside' }, { text: 'Buffer', concept: 'buffer' }, { text: ', 0)', concept: 'downside' })
   else if (downside) terms.push({ text: 'Downside × min(Return, 0)', concept: 'downside' })
   const payment: FormulaSegment[] = terms.length ? [{ text: 'Principal × (1 + ' }, ...terms, { text: ')' }] : [{ text: 'Principal' }]
 
@@ -51,11 +53,13 @@ const percent = (fraction: number) => Number.isFinite(fraction) ? `${(fraction *
 // The same rule in words, with the note's own terms filled in: how a move in the underlier changes the payment, then the
 // limits on it. It says nothing about a particular final level; the worked calculation does that.
 export function paymentInWords(note: ProtectedParticipationNote): string {
-  const { participations, cap, principalProtection, buffer } = note.payoff
+  const { principalProtection } = note.payoff
   const principal = note.principalAmount
   const name = note.underlier.components[0].asset.name.trim() || 'the underlier'
-  const upside = participations.find(({ direction }) => direction === 'upside')
-  const downside = participations.find(({ direction }) => direction === 'downside')
+  const upside = upsideOf(note)
+  const downside = downsideOf(note)
+  const cap = upside?.cap
+  const buffer = downside?.buffer
 
   if (!upside && !downside) return `The payment is always principal, ${amount(principal)}, whatever ${name} does.`
 

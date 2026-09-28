@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { amountToY, fitAmountAxis, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
-import { paymentBreakdown, type ProtectedParticipationNote } from '../domain/note'
+import { paymentBreakdown, withBufferAndCap, type ProtectedParticipationNote } from '../domain/note'
 import { startingNote } from '../domain/starting-note'
 
 const plot: Plot = { left: 50, right: 590, top: 35, bottom: 230 }
@@ -133,7 +133,10 @@ describe('arrow keys', () => {
 })
 
 describe('payoff regimes', () => {
-  const note = (payoff: Partial<ProtectedParticipationNote['payoff']>): ProtectedParticipationNote => ({ ...startingNote, payoff: { ...startingNote.payoff, ...payoff } })
+  const note = ({ buffer, cap, ...payoff }: Partial<ProtectedParticipationNote['payoff']> & { buffer?: number; cap?: number }): ProtectedParticipationNote => {
+    const merged = { ...startingNote.payoff, ...payoff }
+    return { ...startingNote, payoff: { ...merged, participations: withBufferAndCap(merged.participations, buffer, cap) } }
+  }
   const regimeAt = (n: ProtectedParticipationNote, level: number) => regimeOf(paymentBreakdown(n, { initial: 100, final: level }))
 
   it('only repays principal when no participation applies', () => {
@@ -162,7 +165,6 @@ describe('payoff regimes', () => {
     expect(regimeAt(buffered, 85)).toBe('downside')
     expect(regimeAt(buffered, 50)).toBe('floor')
     expect(regimeAt(buffered, 110)).toBe('upside')
-    expect(regimeAt(note({ buffer: 0.1 }), 95)).toBe('principal')
   })
 
   it('splits points into runs that share their joins', () => {

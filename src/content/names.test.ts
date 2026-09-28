@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import type { Participation, ProtectedParticipationNote } from '../domain/note'
+import { withBufferAndCap, type Participation, type ProtectedParticipationNote } from '../domain/note'
 import { marketingNames } from './names'
 
-const noteWith = (payoff: { participations?: Participation[]; principalProtection?: number; cap?: number; buffer?: number }): ProtectedParticipationNote => ({
+const noteWith = ({ participations = [], principalProtection, cap, buffer }: { participations?: Participation[]; principalProtection?: number; cap?: number; buffer?: number }): ProtectedParticipationNote => ({
   wrapper: 'note',
   redemption: 'bullet',
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } } },
-  payoff: { kind: 'participation', participations: [], ...payoff },
+  payoff: { kind: 'participation', participations: withBufferAndCap(participations, buffer, cap), principalProtection },
   principalAmount: 1000,
 })
 
@@ -63,11 +63,6 @@ describe('marketing names', () => {
     expect(namesOf({ participations: [up(1.5)], cap: 0.2 })).toEqual(['Capped participation'])
   })
 
-  it('gives a cap without upside participation no name', () => {
-    expect(namesOf({ participations: [down(1)], cap: 0.2 })).toEqual([])
-    expect(namesOf({ cap: 0.2 })).toEqual([])
-  })
-
   it('does not call a capped or protected note a tracker or outperformance', () => {
     expect(namesOf({ participations: [up(1.5), down(1)], cap: 0.2 })).toEqual(['Capped participation'])
     expect(namesOf({ participations: [up(1), down(1)], principalProtection: 0.9 })).toEqual(['Partially principal-protected note'])
@@ -97,11 +92,6 @@ describe('marketing names', () => {
     const [name] = marketingNames(noteWith({ participations: [down(1)], buffer: 0.1 }))
     expect(name.concepts).toEqual(['buffer', 'downside'])
     expect(name.reason).toContain('The first 10% of a fall is absorbed.')
-  })
-
-  it('gives a buffer without downside participation no name, and does not call a buffered note a tracker', () => {
-    expect(namesOf({ participations: [up(1)], buffer: 0.1 })).toEqual([])
-    expect(namesOf({ buffer: 0.1 })).toEqual([])
   })
 
   it('combines the buffered name with the others that apply', () => {

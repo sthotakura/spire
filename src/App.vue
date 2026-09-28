@@ -13,7 +13,7 @@ import { scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
-import { finalLevelFrom, initialLevelFrom, lookbackCountOf, maturityPayment, noteIssues, observationCountOf, paymentBreakdown, type Determination, type FinalDetermination, type InitialDetermination, type NoteIssueField, type ParticipationDirection, type ProtectedParticipationNote, type AssetKind } from './domain/note'
+import { finalLevelFrom, initialLevelFrom, lookbackCountOf, maturityPayment, noteIssues, observationCountOf, paymentBreakdown, upsideOf, withBufferAndCap, type Determination, type FinalDetermination, type InitialDetermination, type NoteIssueField, type ParticipationDirection, type ProtectedParticipationNote, type AssetKind } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingNote } from './domain/starting-note'
 
@@ -31,9 +31,9 @@ const hints = {
   principal: 'The amount used as the base for the maturity payment.',
   'initial-level': 'The reference level used to calculate the underlier’s return, unless lookback lowers it. It is a term of this note: two notes on the same asset can start from different levels. When a note’s strike is set at 100% of it, it is often called the strike level.',
   downside: 'The share of a negative underlier return, beyond any buffer, deducted from principal before the protection floor applies.',
-  buffer: 'The fall the holder does not bear, as a percentage of the initial level. A fall within it leaves principal unchanged. A larger fall reduces principal by the amount beyond it, at the downside participation rate. It has an effect only when downside participation is selected.',
+  buffer: 'The fall the holder does not bear, as a percentage of the initial level. A fall within it leaves principal unchanged. A larger fall reduces principal by the amount beyond it, at the downside participation rate.',
   upside: 'The share of a positive underlier return added to principal.',
-  cap: 'The most the note can pay above principal, as a percentage of principal, however far the underlier rises. It has an effect only when upside participation is selected.',
+  cap: 'The most the note can pay above principal, as a percentage of principal, however far the underlier rises.',
   protection: 'The minimum contractual maturity payment as a percentage of principal. Protection applies at maturity and depends on the issuer’s ability to pay.',
 }
 const wrapperOptions = [
@@ -107,11 +107,12 @@ const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
 // Payoff features are added one at a time to a payoff that starts with none. A removed feature keeps its last value.
+// A buffer belongs to downside participation and a cap to upside participation, so each is added under its direction.
 type FeatureId = 'barrier' | 'buffer' | 'cap' | 'coupon' | 'digital' | 'downside' | 'protection' | 'upside'
-const payoffFeatures: ReadonlyArray<{ id: FeatureId; label: string; description: string; available: boolean }> = [
+const payoffFeatures: ReadonlyArray<{ id: FeatureId; label: string; description: string; available: boolean; requires?: ParticipationDirection }> = [
   { id: 'barrier', label: 'Barrier', description: 'A level that changes the payoff if it is reached.', available: false },
-  { id: 'buffer', label: 'Buffer', description: 'Protects against an initial portion of underlier losses.', available: true },
-  { id: 'cap', label: 'Cap', description: 'Limits the maximum contractual payment.', available: true },
+  { id: 'buffer', label: 'Buffer', description: 'Protects against an initial portion of underlier losses.', available: true, requires: 'downside' },
+  { id: 'cap', label: 'Cap', description: 'Limits the return upside participation can add.', available: true, requires: 'upside' },
   { id: 'coupon', label: 'Coupon', description: 'An additional contractual payment on stated dates.', available: false },
   { id: 'digital', label: 'Digital', description: 'Pays a predefined amount if a stated condition is met.', available: false },
   { id: 'downside', label: 'Downside participation', description: 'Negative underlier return is multiplied by the downside participation rate until the protection floor applies.', available: true },
@@ -129,6 +130,11 @@ const bufferSelected = ref(false)
 const bufferPercent = ref(firstFeatureValues.buffer)
 const selectedDirections = computed(() => (['downside', 'upside'] as ParticipationDirection[]).filter((direction) => selectedParticipation[direction]))
 const isAdded = (id: FeatureId) => id === 'protection' ? protectionSelected.value : id === 'cap' ? capSelected.value : id === 'buffer' ? bufferSelected.value : id === 'downside' || id === 'upside' ? selectedParticipation[id] : false
+// The direction a feature still needs before it can be added, or null when nothing is missing.
+const missingDirection = (id: FeatureId) => {
+  const requires = payoffFeatures.find((feature) => feature.id === id)?.requires
+  return requires && !selectedParticipation[requires] ? requires : null
+}
 const hasFeatures = computed(() => protectionSelected.value || capSelected.value || bufferSelected.value || selectedDirections.value.length > 0)
 
 const paletteOpen = ref(false)
@@ -152,7 +158,7 @@ const closePalette = (returnFocus = false) => {
 }
 const addFeature = async (id: FeatureId) => {
   const feature = payoffFeatures.find((candidate) => candidate.id === id)
-  if (!feature?.available || isAdded(id)) return
+  if (!feature?.available || isAdded(id) || missingDirection(id)) return
   beginGesture()
   if (id === 'protection') protectionSelected.value = true
   else if (id === 'cap') capSelected.value = true
@@ -168,12 +174,15 @@ const removeFeature = async (id: FeatureId) => {
   else if (id === 'cap') capSelected.value = false
   else if (id === 'buffer') bufferSelected.value = false
   else if (id === 'downside' || id === 'upside') selectedParticipation[id] = false
-  if (selected.value === id) selected.value = 'payoff'
+  // Removing a direction removes the buffer or cap that belongs to it.
+  if (id === 'downside') bufferSelected.value = false
+  if (id === 'upside') capSelected.value = false
+  if (selected.value === id || (id === 'downside' && selected.value === 'buffer') || (id === 'upside' && selected.value === 'cap')) selected.value = 'payoff'
   await nextTick()
   addButton.value?.focus()
 }
 const addFirstMatch = () => {
-  const first = matchingFeatures.value.find(({ id, available }) => available && !isAdded(id))
+  const first = matchingFeatures.value.find(({ id, available }) => available && !isAdded(id) && !missingDirection(id))
   if (first) addFeature(first.id)
 }
 const closeOnOutsidePointer = (event: PointerEvent) => {
@@ -193,12 +202,11 @@ const note = computed<ProtectedParticipationNote>(() => ({
   },
   payoff: {
     kind: 'participation',
-    buffer: bufferSelected.value ? bufferPercent.value / 100 : undefined,
-    participations: selectedDirections.value.map((direction) => ({
-      direction,
-      rate: participationPercent[direction] / 100,
-    })),
-    cap: capSelected.value ? capPercent.value / 100 : undefined,
+    participations: withBufferAndCap(
+      selectedDirections.value.map((direction) => ({ direction, rate: participationPercent[direction] / 100 })),
+      bufferSelected.value ? bufferPercent.value / 100 : undefined,
+      capSelected.value ? capPercent.value / 100 : undefined,
+    ),
     principalProtection: protectionSelected.value ? protectionPercent.value / 100 : undefined,
   },
   principalAmount: principal.value,
@@ -404,7 +412,7 @@ const chart = computed(() => {
   const breakdowns = levels.map((level) => paymentBreakdown(note.value, at(level)))
   const values = breakdowns.map((b) => b.payment)
   const floorAmount = principalAmount * (note.value.payoff.principalProtection ?? 0)
-  const capAmount = principalAmount * (1 + (note.value.payoff.cap ?? 0))
+  const capAmount = principalAmount * (1 + (upsideOf(note.value)?.cap ?? 0))
   // The cap line stays in view even where the payoff does not reach it.
   const axis = frozenAxis.value ?? fitAmountAxis(Math.max(...values, capSelected.value ? capAmount : 0), principalAmount)
   const x = (level: number) => levelToX(level, scale, plot)
@@ -430,7 +438,7 @@ const chart = computed(() => {
   // The cap handle sits where the line actually bends flat. When the upside rate is too low for that to be in view,
   // it falls back to a fixed spot on the cap's reference line instead of floating over the wrong-coloured segment.
   const upsideRate = selectedParticipation.upside ? participationPercent.upside / 100 : undefined
-  const bindLevel = capSelected.value ? capBindLevel(initial, note.value.payoff.cap ?? 0, upsideRate) : undefined
+  const bindLevel = capSelected.value ? capBindLevel(initial, upsideOf(note.value)?.cap ?? 0, upsideRate) : undefined
   const capOnCurve = bindLevel !== undefined && bindLevel <= end
   const capHandleX = capSelected.value ? (capOnCurve ? x(bindLevel as number) : plot.left + (plot.right - plot.left) * 0.8) : null
   // The cap label normally sits at the right edge. It shifts left of the handle instead only when the handle would otherwise sit on top of it.
@@ -579,21 +587,22 @@ const chart = computed(() => {
                   </div>
                   <ul v-if="issuesFor('participations').length" class="errors" role="alert"><li v-for="message in issuesFor('participations')" :key="message">{{ message }}</li></ul>
                   <ul>
-                    <li v-if="bufferSelected" :class="['node', { sel: highlighted('buffer') }]" :style="conceptStyle('buffer')">
-                      <div class="nrow" @click="select('buffer')" @focusin="focusRow('buffer')">
-                        <span class="nlabel">Buffer<HintToggle id="buffer" about="buffer" :text="hints.buffer" :active="activeHint === 'buffer'" @toggle="toggleHint('buffer')" /></span>
-                        <span class="ctrl"><NumberInput id="rate-buffer" v-model="bufferPercent" class="num rate" aria-label="Buffer: fall absorbed (%)" /><span class="unit">%</span></span>
-                        <button type="button" class="xbtn" aria-label="Remove buffer" @click.stop="removeFeature('buffer')">×</button>
-                      </div>
-                      <ul v-if="issuesFor('buffer').length" class="errors" role="alert"><li v-for="message in issuesFor('buffer')" :key="message">{{ message }}</li></ul>
-                      <p v-if="!selectedParticipation.downside" class="row-note">A buffer has no effect unless a fall reduces principal, which takes downside participation.</p>
-                    </li>
                     <li v-if="selectedParticipation.downside" :class="['node', { sel: highlighted('downside') }]" :style="conceptStyle('downside')">
                       <div class="nrow" @click="select('downside')" @focusin="focusRow('downside')">
                         <span class="nlabel">Downside participation<HintToggle id="downside" about="downside participation rate" :text="hints.downside" :active="activeHint === 'downside'" @toggle="toggleHint('downside')" /></span>
                         <span class="ctrl"><NumberInput id="rate-downside" v-model="participationPercent.downside" class="num rate" aria-label="Downside participation rate (%)" /><span class="unit">%</span></span>
                         <button type="button" class="xbtn" aria-label="Remove downside participation" @click.stop="removeFeature('downside')">×</button>
                       </div>
+                      <ul>
+                        <li v-if="bufferSelected" :class="['node', { sel: highlighted('buffer') }]" :style="conceptStyle('buffer')">
+                          <div class="nrow" @click="select('buffer')" @focusin="focusRow('buffer')">
+                            <span class="nlabel">Buffer<HintToggle id="buffer" about="buffer" :text="hints.buffer" :active="activeHint === 'buffer'" @toggle="toggleHint('buffer')" /></span>
+                            <span class="ctrl"><NumberInput id="rate-buffer" v-model="bufferPercent" class="num rate" aria-label="Buffer: fall absorbed (%)" /><span class="unit">%</span></span>
+                            <button type="button" class="xbtn" aria-label="Remove buffer" @click.stop="removeFeature('buffer')">×</button>
+                          </div>
+                          <ul v-if="issuesFor('buffer').length" class="errors" role="alert"><li v-for="message in issuesFor('buffer')" :key="message">{{ message }}</li></ul>
+                        </li>
+                      </ul>
                     </li>
                     <li v-if="selectedParticipation.upside" :class="['node', { sel: highlighted('upside') }]" :style="conceptStyle('upside')">
                       <div class="nrow" @click="select('upside')" @focusin="focusRow('upside')">
@@ -601,15 +610,16 @@ const chart = computed(() => {
                         <span class="ctrl"><NumberInput id="rate-upside" v-model="participationPercent.upside" class="num rate" aria-label="Upside participation rate (%)" /><span class="unit">%</span></span>
                         <button type="button" class="xbtn" aria-label="Remove upside participation" @click.stop="removeFeature('upside')">×</button>
                       </div>
-                    </li>
-                    <li v-if="capSelected" :class="['node', { sel: highlighted('cap') }]" :style="conceptStyle('cap')">
-                      <div class="nrow" @click="select('cap')" @focusin="focusRow('cap')">
-                        <span class="nlabel">Cap<HintToggle id="cap" about="cap" :text="hints.cap" :active="activeHint === 'cap'" @toggle="toggleHint('cap')" /></span>
-                        <span class="ctrl"><NumberInput id="rate-cap" v-model="capPercent" class="num rate" aria-label="Cap: maximum return on principal (%)" /><span class="unit">%</span></span>
-                        <button type="button" class="xbtn" aria-label="Remove cap" @click.stop="removeFeature('cap')">×</button>
-                      </div>
-                      <ul v-if="issuesFor('cap').length" class="errors" role="alert"><li v-for="message in issuesFor('cap')" :key="message">{{ message }}</li></ul>
-                      <p v-if="!selectedParticipation.upside" class="row-note">A cap has no meaning unless there is some upside exposure to cap.</p>
+                      <ul>
+                        <li v-if="capSelected" :class="['node', { sel: highlighted('cap') }]" :style="conceptStyle('cap')">
+                          <div class="nrow" @click="select('cap')" @focusin="focusRow('cap')">
+                            <span class="nlabel">Cap<HintToggle id="cap" about="cap" :text="hints.cap" :active="activeHint === 'cap'" @toggle="toggleHint('cap')" /></span>
+                            <span class="ctrl"><NumberInput id="rate-cap" v-model="capPercent" class="num rate" aria-label="Cap: maximum return on principal (%)" /><span class="unit">%</span></span>
+                            <button type="button" class="xbtn" aria-label="Remove cap" @click.stop="removeFeature('cap')">×</button>
+                          </div>
+                          <ul v-if="issuesFor('cap').length" class="errors" role="alert"><li v-for="message in issuesFor('cap')" :key="message">{{ message }}</li></ul>
+                        </li>
+                      </ul>
                     </li>
                     <li v-if="protectionSelected" :class="['node', { sel: highlighted('protection') }]" :style="conceptStyle('protection')">
                       <div class="nrow" @click="select('protection')" @focusin="focusRow('protection')">
@@ -627,8 +637,8 @@ const chart = computed(() => {
                       <div v-if="paletteOpen" class="menu" role="dialog" aria-label="Add a payoff feature">
                         <input ref="paletteSearch" v-model="paletteQuery" type="search" class="search" placeholder="Search features" aria-label="Search features" @keydown.enter.prevent="addFirstMatch" />
                         <div class="mlist">
-                          <button v-for="feature in matchingFeatures" :key="feature.id" type="button" :class="['mitem', { off: !feature.available || isAdded(feature.id) }]" :aria-disabled="!feature.available || isAdded(feature.id) ? 'true' : undefined" @click="addFeature(feature.id)">
-                            <b>{{ feature.label }}<span v-if="!feature.available" class="badge">Unavailable</span><span v-else-if="isAdded(feature.id)" class="badge">Added</span></b>
+                          <button v-for="feature in matchingFeatures" :key="feature.id" type="button" :class="['mitem', { off: !feature.available || isAdded(feature.id) || missingDirection(feature.id) }]" :aria-disabled="!feature.available || isAdded(feature.id) || missingDirection(feature.id) ? 'true' : undefined" @click="addFeature(feature.id)">
+                            <b>{{ feature.label }}<span v-if="!feature.available" class="badge">Unavailable</span><span v-else-if="isAdded(feature.id)" class="badge">Added</span><span v-else-if="missingDirection(feature.id)" class="badge">Needs {{ participationLabels[missingDirection(feature.id)!].toLowerCase() }}</span></b>
                             <small>{{ feature.description }}</small>
                           </button>
                           <p v-if="!matchingFeatures.length" class="empty-menu">No matching feature.</p>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ProtectedParticipationNote } from '../domain/note'
+import { withBufferAndCap, type ProtectedParticipationNote } from '../domain/note'
 import { startingNote } from '../domain/starting-note'
 import { structureLines } from './structure-json'
 
@@ -14,7 +14,7 @@ const fullNote: ProtectedParticipationNote = {
     principalProtection: 0.9,
   },
 }
-const cappedNote: ProtectedParticipationNote = { ...fullNote, payoff: { ...fullNote.payoff, cap: 0.2 } }
+const cappedNote: ProtectedParticipationNote = { ...fullNote, payoff: { ...fullNote.payoff, participations: withBufferAndCap(fullNote.payoff.participations, undefined, 0.2) } }
 const draftNote: ProtectedParticipationNote = {
   ...fullNote,
   principalAmount: Number.NaN,
@@ -67,7 +67,7 @@ describe('structure lines', () => {
   })
 
   it('tags the buffer with its own concept', () => {
-    const buffered: ProtectedParticipationNote = { ...fullNote, payoff: { kind: 'participation', buffer: 0.1, participations: fullNote.payoff.participations } }
+    const buffered: ProtectedParticipationNote = { ...fullNote, payoff: { ...fullNote.payoff, participations: withBufferAndCap(fullNote.payoff.participations, 0.1) } }
     expect(asText(buffered)).toBe(JSON.stringify(buffered, null, 2))
     expect(linesOf(buffered, 'buffer')).toEqual(['"buffer": 0.1,'])
     expect(linesOf(fullNote, 'buffer')).toEqual([])

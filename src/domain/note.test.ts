@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { finalLevelFrom, initialLevelFrom, maturityPayment, noteIssues, paymentBreakdown, validateNote, type ProtectedParticipationNote } from './note'
+import { finalLevelFrom, initialLevelFrom, maturityPayment, noteIssues, paymentBreakdown, validateNote, type DownsideParticipation, type ProtectedParticipationNote, type UpsideParticipation } from './note'
 
 const note: ProtectedParticipationNote = {
   wrapper: 'note',
@@ -19,6 +19,15 @@ const note: ProtectedParticipationNote = {
   },
   principalAmount: 1000,
 }
+// Changes the participation in one direction, such as adding its buffer or cap, and keeps the other.
+const withDownside = (base: ProtectedParticipationNote, terms: Partial<DownsideParticipation>): ProtectedParticipationNote => ({
+  ...base,
+  payoff: { ...base.payoff, participations: base.payoff.participations.map((p) => p.direction === 'downside' ? { ...p, ...terms } : p) },
+})
+const withUpside = (base: ProtectedParticipationNote, terms: Partial<UpsideParticipation>): ProtectedParticipationNote => ({
+  ...base,
+  payoff: { ...base.payoff, participations: base.payoff.participations.map((p) => p.direction === 'upside' ? { ...p, ...terms } : p) },
+})
 const withComponent = (name: string, initialLevel: number): ProtectedParticipationNote => ({
   ...note,
   underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name }, initialLevel }] },
@@ -231,7 +240,7 @@ describe('payment breakdown', () => {
 })
 
 describe('cap', () => {
-  const capped: ProtectedParticipationNote = { ...note, payoff: { ...note.payoff, principalProtection: 0.9, cap: 0.2 } }
+  const capped = withUpside({ ...note, payoff: { ...note.payoff, principalProtection: 0.9 } }, { cap: 0.2 })
 
   it.each([
     [60, 900],
@@ -246,22 +255,19 @@ describe('cap', () => {
   })
 
   it('limits the return on principal, so participation above 100% reaches the cap sooner', () => {
-    const at100 = { ...capped, payoff: { ...capped.payoff, participations: [{ direction: 'upside' as const, rate: 1 }] } }
+    const at100 = withUpside(capped, { rate: 1 })
     expect(maturityPayment(at100, { initial: 100, final: 119 })).toBeCloseTo(1190, 8)
     expect(maturityPayment(at100, { initial: 100, final: 121 })).toBeCloseTo(1200, 8)
   })
 
   it('never binds below the cap, whatever the participation rate', () => {
-    const lowRate = { ...capped, payoff: { ...capped.payoff, participations: [{ direction: 'upside' as const, rate: 0.1 }] } }
+    const lowRate = withUpside(capped, { rate: 0.1 })
     expect(maturityPayment(lowRate, { initial: 100, final: 300 })).toBeCloseTo(1200, 8)
     expect(maturityPayment(lowRate, { initial: 100, final: 160 })).toBeCloseTo(1060, 8)
   })
 
-  it('has no effect without upside participation or on a fall', () => {
-    const downsideOnly = { ...capped, payoff: { ...capped.payoff, participations: [{ direction: 'downside' as const, rate: 1 }] } }
-    expect(maturityPayment(downsideOnly, { initial: 100, final: 200 })).toBe(1000)
-    expect(maturityPayment(downsideOnly, { initial: 100, final: 95 })).toBeCloseTo(950, 8)
-    expect(maturityPayment(capped, { initial: 100, final: 60 })).toBe(maturityPayment({ ...capped, payoff: { ...capped.payoff, cap: undefined } }, { initial: 100, final: 60 }))
+  it('has no effect on a fall', () => {
+    expect(maturityPayment(capped, { initial: 100, final: 60 })).toBe(maturityPayment(withUpside(capped, { cap: undefined }), { initial: 100, final: 60 }))
   })
 
   it('works without protection', () => {
@@ -292,14 +298,14 @@ describe('cap', () => {
   })
 
   it.each([0, -0.1, Number.NaN, Number.POSITIVE_INFINITY])('rejects a cap of %s', (cap) => {
-    const invalid = { ...note, payoff: { ...note.payoff, cap } }
+    const invalid = withUpside(note, { cap })
     expect(validateNote(invalid)).toContain('Cap must be greater than zero.')
     expect(noteIssues(invalid).map(({ field }) => field)).toEqual(['cap'])
   })
 })
 
 describe('buffer', () => {
-  const buffered: ProtectedParticipationNote = { ...note, payoff: { ...note.payoff, principalProtection: undefined, buffer: 0.1 } }
+  const buffered = withDownside({ ...note, payoff: { ...note.payoff, principalProtection: undefined } }, { buffer: 0.1 })
 
   // FINRA's example: a 10% buffer repays principal after a 5% fall, and loses 40% after a 50% fall.
   it.each([
@@ -315,13 +321,8 @@ describe('buffer', () => {
   })
 
   it('applies the downside rate to the fall beyond the buffer', () => {
-    const halfRate = { ...buffered, payoff: { ...buffered.payoff, participations: [{ direction: 'downside' as const, rate: 0.5 }] } }
+    const halfRate = withDownside(buffered, { rate: 0.5 })
     expect(maturityPayment(halfRate, { initial: 100, final: 70 })).toBeCloseTo(900, 8)
-  })
-
-  it('has no effect without downside participation', () => {
-    const upsideOnly = { ...buffered, payoff: { ...buffered.payoff, participations: [{ direction: 'upside' as const, rate: 1.5 }] } }
-    for (const finalLevel of [0, 50, 95]) expect(maturityPayment(upsideOnly, { initial: 100, final: finalLevel })).toBe(1000)
   })
 
   it('combines with a protection floor, so the holder bears only the losses between the two', () => {
@@ -347,13 +348,13 @@ describe('buffer', () => {
   })
 
   it.each([0, -0.1, 1.1, Number.NaN])('rejects a buffer of %s', (buffer) => {
-    const invalid = { ...note, payoff: { ...note.payoff, buffer } }
+    const invalid = withDownside(note, { buffer })
     expect(validateNote(invalid)).toContain('Buffer must be greater than 0% and at most 100%.')
     expect(noteIssues(invalid).map(({ field }) => field)).toEqual(['buffer'])
   })
 
   it('allows a buffer of 100%, which absorbs any fall', () => {
-    const full = { ...buffered, payoff: { ...buffered.payoff, buffer: 1 } }
+    const full = withDownside(buffered, { buffer: 1 })
     expect(validateNote(full)).toEqual([])
     expect(maturityPayment(full, { initial: 100, final: 0 })).toBe(1000)
   })
@@ -440,7 +441,7 @@ describe('lookback determination', () => {
     [32, 500],
     [74, 1000],
   ])('measures the buffer from the lookback level, ending at %d', (finalLevel, expected) => {
-    const buffered = lookback(3, { ...note, payoff: { ...note.payoff, principalProtection: undefined, buffer: 0.1 } })
+    const buffered = lookback(3, withDownside({ ...note, payoff: { ...note.payoff, principalProtection: undefined } }, { buffer: 0.1 }))
     expect(paymentFrom(buffered, [97, 80, 90], finalLevel)).toBeCloseTo(expected, 8)
   })
 

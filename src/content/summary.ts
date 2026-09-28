@@ -1,4 +1,4 @@
-import type { ProtectedParticipationNote } from '../domain/note'
+import { downsideOf, upsideOf, type ProtectedParticipationNote } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface SummarySegment {
@@ -16,8 +16,8 @@ export function summarize(note: ProtectedParticipationNote): SummarySegment[] {
   const downside = note.payoff.participations.find(({ direction }) => direction === 'downside')
   const underlier: SummarySegment = { text: note.underlier.components[0].asset.name.trim() || 'the underlier', concept: 'asset' }
   const protection = note.payoff.principalProtection
-  const cap = note.payoff.cap
-  const buffer = note.payoff.buffer
+  const cap = upsideOf(note)?.cap
+  const buffer = downsideOf(note)?.buffer
   const initialLevel = amount(note.underlier.components[0].initialLevel)
   const { initial, final } = note.underlier.determination
   const count = (value: number) => Number.isFinite(value) ? value : '—'

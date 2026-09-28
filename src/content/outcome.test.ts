@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { paymentBreakdown, type Participation, type ProtectedParticipationNote } from '../domain/note'
+import { paymentBreakdown, withBufferAndCap, type Participation, type ProtectedParticipationNote } from '../domain/note'
 import { explainOutcome } from './outcome'
 
-const noteWith = (participations: Participation[], principalProtection?: number, cap?: number): ProtectedParticipationNote => ({
+const noteWith = (participations: Participation[], principalProtection?: number, cap?: number, buffer?: number): ProtectedParticipationNote => ({
   wrapper: 'note',
   redemption: 'bullet',
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } } },
-  payoff: { kind: 'participation', participations, principalProtection, cap },
+  payoff: { kind: 'participation', participations: withBufferAndCap(participations, buffer, cap), principalProtection },
   principalAmount: 1000,
 })
 const both = [{ direction: 'downside' as const, rate: 1 }, { direction: 'upside' as const, rate: 1.5 }]
@@ -64,12 +64,12 @@ describe('outcome explanation', () => {
   })
 
   it('explains a fall the buffer absorbs in full', () => {
-    const buffered = { ...noteWith(both), payoff: { ...noteWith(both).payoff, buffer: 0.1 } }
+    const buffered = noteWith(both, undefined, undefined, 0.1)
     expect(explain(buffered, 95)).toBe('The underlier fell 5%. The 10% buffer absorbs the whole fall, so principal is unchanged. The contractual payment is 1,000, the same as principal.')
   })
 
   it('explains a fall beyond the buffer', () => {
-    const buffered = { ...noteWith(both), payoff: { ...noteWith(both).payoff, buffer: 0.1 } }
+    const buffered = noteWith(both, undefined, undefined, 0.1)
     expect(explain(buffered, 60)).toBe('The underlier fell 40%. The buffer absorbs the first 10% of the fall, and downside participation of 100% deducts 30% from principal. There is no principal protection, so the contractual payment is 700, 300 less than principal.')
     const withFloor = { ...buffered, payoff: { ...buffered.payoff, principalProtection: 0.9 } }
     expect(explain(withFloor, 60)).toBe('The underlier fell 40%. The buffer absorbs the first 10% of the fall, and downside participation of 100% deducts 30% from principal. The 900 floor applies, so the contractual payment is 900, 100 less than principal.')

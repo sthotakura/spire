@@ -19,8 +19,15 @@ describe('selection', () => {
     expect(isHighlighted('buffer', 'downside')).toBe(false)
     expect(isHighlighted('upside', 'downside')).toBe(false)
     expect(isHighlighted('upside', 'protection')).toBe(false)
-    expect(isHighlighted('upside', 'cap')).toBe(false)
     expect(isHighlighted('upside', 'payoff')).toBe(false)
+  })
+
+  it('selects the buffer with downside participation and the cap with upside participation, not the other way round', () => {
+    expect(isHighlighted('downside', 'buffer')).toBe(true)
+    expect(isHighlighted('upside', 'cap')).toBe(true)
+    expect(isHighlighted('downside', 'cap')).toBe(false)
+    expect(isHighlighted('upside', 'buffer')).toBe(false)
+    expect(isHighlighted('cap', 'upside')).toBe(false)
   })
 
   it('does not spread beyond the payoff', () => {

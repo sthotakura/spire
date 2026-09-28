@@ -12,7 +12,7 @@ const notes: Array<[string, ProtectedParticipationNote]> = [
   ['upside only', withFeatures([{ direction: 'upside', rate: 1.5 }])],
   ['downside only, no protection', withFeatures([{ direction: 'downside', rate: 1 }])],
   ['every feature', withFeatures([{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1.5 }], 0.9)],
-  ['a cap', { ...withFeatures([{ direction: 'upside', rate: 1.5 }]), payoff: { kind: 'participation', participations: [{ direction: 'upside', rate: 1.5 }], cap: 0.2 } }],
+  ['a cap', withFeatures([{ direction: 'upside', rate: 1.5, cap: 0.2 }])],
 ]
 
 describe('scenario rows', () => {

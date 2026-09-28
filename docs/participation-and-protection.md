@@ -71,7 +71,7 @@ The same note with a 20% cap. The cap payment is 1,000 × (1 + 20%) = 1,200.
 - At 100% protection, downside participation remains a defined term but has no effect on the maturity payment.
 - The cap must be greater than zero. It is a return on principal, not an underlier level. The two are equivalent given a participation rate, but the payment is what the note contractually promises.
 - Participation above 100% is allowed. There is no upper limit on a typed rate.
-- Without upside participation the cap has no effect, in the same way that 100% protection leaves downside participation with no effect. A fall never reaches the cap.
+- Without upside participation the cap has no effect, in the same way that 100% protection leaves downside participation with no effect. A fall never reaches the cap. *(Superseded by section 15 of [PLAN.md](../PLAN.md): the cap is now part of upside participation, so a cap without it cannot be written.)*
 - The cap applies to the payment at maturity only. It does not affect the protection floor.
 - The payoff describes contractual maturity amounts, not present value, investment advice, or guaranteed issuer payment.
 - Levels and amounts are synthetic.

@@ -1,4 +1,4 @@
-import { finalLevelFrom, initialLevelFrom, type ParticipationDirection, type PaymentBreakdown, type ProtectedParticipationNote } from '../domain/note'
+import { downsideOf, finalLevelFrom, initialLevelFrom, upsideOf, type ParticipationDirection, type PaymentBreakdown, type ProtectedParticipationNote } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface CalculationStep {
@@ -24,7 +24,7 @@ function participationStep(note: ProtectedParticipationNote, breakdown: PaymentB
     return { title, how, value: 'Not added', muted: true, concept: direction }
   }
   const contribution = direction === breakdown.direction ? breakdown.participatedReturn : 0
-  const buffer = direction === 'downside' ? note.payoff.buffer : undefined
+  const buffer = direction === 'downside' ? downsideOf(note)?.buffer : undefined
   const how = `${formatPercent(rate)} × ${direction === 'upside' ? 'max' : 'min'}(${signedPercent(breakdown.underlierReturn)}${buffer === undefined ? '' : ` + ${formatPercent(buffer)}`}, 0)`
   const reason = buffer !== undefined && breakdown.underlierReturn < 0 ? 'the buffer absorbs the whole fall' : `applies only when the return is ${direction === 'upside' ? 'positive' : 'negative'}`
   return contribution === 0
@@ -33,10 +33,9 @@ function participationStep(note: ProtectedParticipationNote, breakdown: PaymentB
 }
 
 // How much of the fall the buffer absorbs. Downside participation then applies to what is left.
-function bufferStep(buffer: number, breakdown: PaymentBreakdown, hasDownside: boolean): Omit<CalculationStep, 'n'> {
+function bufferStep(buffer: number, breakdown: PaymentBreakdown): Omit<CalculationStep, 'n'> {
   const absorbs = breakdown.bufferAbsorbs ?? 0
   const title = 'Buffer'
-  if (!hasDownside) return { title, how: `Absorbs the first ${formatPercent(buffer)} of a fall · no downside participation, so a fall does not reduce principal anyway`, value: '0%', muted: true, concept: 'buffer' }
   if (absorbs === 0) return { title, how: `Absorbs the first ${formatPercent(buffer)} of a fall · applies only when the return is negative`, value: '0%', muted: true, concept: 'buffer' }
   const how = absorbs < buffer ? 'absorbs the whole fall here' : `absorbs ${formatPercent(absorbs)} of the ${formatPercent(-breakdown.underlierReturn)} fall here`
   return { title, how: `Absorbs the first ${formatPercent(buffer)} of a fall · ${how}`, value: `+${formatPercent(absorbs)}`, concept: 'buffer' }
@@ -49,10 +48,12 @@ export function calculationSteps(note: ProtectedParticipationNote, breakdown: Pa
   const [component] = note.underlier.components
   const name = component.asset.name.trim()
   const principal = note.principalAmount
-  const { cap, principalProtection, buffer } = note.payoff
+  const { principalProtection } = note.payoff
+  const cap = upsideOf(note)?.cap
+  const buffer = downsideOf(note)?.buffer
   const withCap = cap !== undefined
   const withProtection = principalProtection !== undefined
-  const hasDownside = note.payoff.participations.some(({ direction }) => direction === 'downside')
+  const hasDownside = downsideOf(note) !== undefined
   const { determination } = note.underlier
   const initialLevel = initialLevelFrom(determination.initial, component.initialLevel, afterPricing)
   const finalLevel = finalLevelFrom(determination.final, observedLevels)
@@ -64,7 +65,7 @@ export function calculationSteps(note: ProtectedParticipationNote, breakdown: Pa
     steps.push({ title: `Final level of ${name || 'the underlier'}`, how: `(${observedLevels.map(formatAmount).join(' + ')}) ÷ ${observedLevels.length}`, value: formatAmount(finalLevel), concept: 'final-level' })
   }
   steps.push({ title: `${name || 'Underlier'} return`, how: `${formatAmount(finalLevel)} ÷ ${formatAmount(initialLevel)} − 1`, value: signedPercent(b.underlierReturn), concept: 'determination' })
-  if (buffer !== undefined) steps.push(bufferStep(buffer, b, hasDownside))
+  if (buffer !== undefined) steps.push(bufferStep(buffer, b))
   steps.push(
     participationStep(note, b, 'downside'),
     participationStep(note, b, 'upside'),

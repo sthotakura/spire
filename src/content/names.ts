@@ -1,4 +1,4 @@
-import type { ProtectedParticipationNote } from '../domain/note'
+import { downsideOf, upsideOf, type ProtectedParticipationNote } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface MarketingName {
@@ -16,9 +16,11 @@ const percentText = (fraction: number) => `${(fraction * 100).toFixed(1).replace
 // Names a structure like this one is commonly sold under. They are hints, not definitions, and several can apply at once.
 // The rules are recorded in docs/marketing-names.md. A note that fits none returns an empty list.
 export function marketingNames(note: ProtectedParticipationNote): MarketingName[] {
-  const { participations, principalProtection: protection, cap, buffer } = note.payoff
-  const upside = participations.find(({ direction }) => direction === 'upside')?.rate
-  const downside = participations.find(({ direction }) => direction === 'downside')?.rate
+  const protection = note.payoff.principalProtection
+  const upside = upsideOf(note)?.rate
+  const downside = downsideOf(note)?.rate
+  const cap = upsideOf(note)?.cap
+  const buffer = downsideOf(note)?.buffer
   const hasProtection = protection !== undefined && Number.isFinite(protection) && protection > 0
   const hasCap = cap !== undefined && Number.isFinite(cap) && cap > 0
   const names: MarketingName[] = []
@@ -39,7 +41,7 @@ export function marketingNames(note: ProtectedParticipationNote): MarketingName[
     })
   }
 
-  // Losses start only past the buffer, so it needs downside participation to mean anything.
+  // Losses start only past the buffer, at the downside participation rate.
   if (buffer !== undefined && Number.isFinite(buffer) && buffer > 0 && buffer <= 1 && isRate(downside)) {
     names.push({
       name: 'Buffered note',

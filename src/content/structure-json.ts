@@ -14,7 +14,7 @@ export function structureLines(note: ProtectedParticipationNote): StructureLine[
   const lines: StructureLine[] = []
 
   const conceptAt = (path: Path): ConceptId | null => {
-    const [top, second, third] = path
+    const [top, second, third, fourth] = path
     if (top === 'wrapper' || top === 'principalAmount') return 'wrapper'
     if (top === 'redemption') return 'redemption'
     if (top === 'underlier') {
@@ -24,9 +24,7 @@ export function structureLines(note: ProtectedParticipationNote): StructureLine[
     }
     if (top !== 'payoff') return null
     if (second === 'principalProtection') return 'protection'
-    if (second === 'cap') return 'cap'
-    if (second === 'buffer') return 'buffer'
-    if (second === 'participations' && typeof third === 'number') return note.payoff.participations[third]?.direction ?? 'payoff'
+    if (second === 'participations' && typeof third === 'number') return fourth === 'buffer' || fourth === 'cap' ? fourth : note.payoff.participations[third]?.direction ?? 'payoff'
     return 'payoff'
   }
 

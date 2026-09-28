@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ProtectedParticipationNote } from '../domain/note'
+import { withBufferAndCap, type ProtectedParticipationNote } from '../domain/note'
 import { summarize } from './summary'
 
 const note: ProtectedParticipationNote = {
@@ -17,27 +17,28 @@ const note: ProtectedParticipationNote = {
   principalAmount: 1000,
 }
 
+const withTerms = (n: ProtectedParticipationNote, buffer?: number, cap?: number): ProtectedParticipationNote => ({ ...n, payoff: { ...n.payoff, participations: withBufferAndCap(n.payoff.participations, buffer, cap) } })
 const sentence = (n: ProtectedParticipationNote) => summarize(n).map(({ text }) => text).join('')
 const conceptOf = (n: ProtectedParticipationNote, phrase: string) => summarize(n).find(({ text }) => text === phrase)?.concept
 
 describe('note summary with a cap', () => {
   it('adds the cap after the protection', () => {
-    const capped = { ...note, payoff: { ...note.payoff, cap: 0.2 } }
+    const capped = withTerms(note, undefined, 0.2)
     expect(sentence(capped)).toBe('A note that redeems at maturity and pays 150% of the upside and 100% of the downside of Synthetic Index, measured point-to-point from 100, with 90% principal protection and a maximum return of 20%.')
     expect(conceptOf(capped, 'a maximum return of 20%')).toBe('cap')
   })
 
   it('starts the clause with the cap when there is no protection', () => {
-    const capOnly = { ...note, payoff: { ...note.payoff, principalProtection: undefined, cap: 0.2 } }
+    const capOnly = withTerms({ ...note, payoff: { ...note.payoff, principalProtection: undefined } }, undefined, 0.2)
     expect(sentence(capOnly)).toContain('point-to-point from 100, with a maximum return of 20%.')
   })
 })
 
 describe('note summary with a buffer', () => {
   it('names the buffer first, in the order the payment applies it', () => {
-    const buffered = { ...note, payoff: { ...note.payoff, buffer: 0.1 } }
+    const buffered = withTerms(note, 0.1)
     expect(sentence(buffered)).toContain('point-to-point from 100, with a 10% buffer and 90% principal protection.')
-    expect(sentence({ ...buffered, payoff: { ...buffered.payoff, cap: 0.2 } })).toContain('with a 10% buffer, 90% principal protection and a maximum return of 20%.')
+    expect(sentence(withTerms(note, 0.1, 0.2))).toContain('with a 10% buffer, 90% principal protection and a maximum return of 20%.')
     expect(sentence({ ...buffered, payoff: { ...buffered.payoff, principalProtection: undefined } })).toContain('point-to-point from 100, with a 10% buffer.')
     expect(conceptOf(buffered, 'a 10% buffer')).toBe('buffer')
   })
