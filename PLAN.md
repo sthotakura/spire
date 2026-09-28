@@ -137,7 +137,7 @@ Open questions:
 
 - **One cap in several places.** A cap could limit more than one feature, or the whole payment, once something other than upside participation can raise it (a coupon or a digital amount). Nesting it under upside participation leaves that open; it does not need solving yet.
 - **A cap stated as an underlier level.** Some notes may state the cap as a level of the underlier rather than a maximum return. With a rate above 100% the two differ. Not yet verified in current public notes.
-- **One barrier gating several features.** Some notes appear to switch more than one feature on a single barrier event. Not yet verified.
+- **One barrier gating several features.** Verified in one product supplement: a single upper-barrier event cancels upside participation and changes the downside rate beyond the buffer ([docs/barrier.md](docs/barrier.md)). How to model it is still open.
 
 ## 16. Add a barrier on downside participation
 
