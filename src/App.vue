@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { amountToY, bufferFromX, bufferLevel, capBindLevel, capFromY, clamp, clampBuffer, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelAxisFactor, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, upsideRateFromY, type Plot, type Regime } from './chart/geometry'
+import { amountToY, bufferFromX, fitAmountAxis, bufferLevel, capBindLevel, capFromY, clamp, clampBuffer, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelAxisFactor, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, upsideRateFromY, type AmountAxis, type Plot, type Regime } from './chart/geometry'
 import HintToggle from './components/HintToggle.vue'
 import NumberInput from './components/NumberInput.vue'
 import TabGroup from './components/TabGroup.vue'
@@ -301,9 +301,9 @@ const calculation = computed(() => {
   return calculationSteps(note.value, b, observations.value, afterPricing.value)
 })
 
-// The chart. Its vertical axis is fixed (see chart/geometry.ts), and handles on it edit the same values the outline fields edit.
+// The chart. Its vertical axis is fitted to the payoff (see chart/geometry.ts), and handles on it edit the same values the outline fields edit.
 const viewBoxWidth = 620
-const plot: Plot = { left: 50, right: 590, top: 35, bottom: 230 }
+const plot: Plot = { left: 50, right: 590, top: 35, bottom: 310 }
 const chartSvg = ref<SVGSVGElement | null>(null)
 const chartScale = ref(1)
 const chartObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(([entry]) => { chartScale.value = Math.max((entry?.contentRect.width || viewBoxWidth) / viewBoxWidth, 0.3) })
@@ -325,6 +325,8 @@ const focusRow = (concept: ConceptId) => { select(concept); beginGesture() }
 type HandleId = 'floor' | 'slope' | 'cap' | 'buffer' | 'final'
 const handleConcept: Record<HandleId, ConceptId | null> = { floor: 'protection', slope: 'upside', cap: 'cap', buffer: 'buffer', final: null }
 const dragging = ref<HandleId | null>(null)
+// The axis in view when a drag starts, held until it ends so the line does not move under the pointer.
+const frozenAxis = ref<AmountAxis | null>(null)
 const svgPoint = (event: PointerEvent) => {
   const matrix = chartSvg.value?.getScreenCTM()
   const point = new DOMPoint(event.clientX, event.clientY)
@@ -342,18 +344,23 @@ const startDrag = (id: HandleId, event: PointerEvent) => {
   target.setPointerCapture(event.pointerId)
   target.focus({ preventScroll: true })
   dragging.value = id
+  frozenAxis.value = chart.value?.axis ?? null
   focusHandle(id)
 }
 const dragMove = (id: HandleId, event: PointerEvent) => {
   if (dragging.value !== id) return
   const point = svgPoint(event)
-  if (id === 'floor') protectionPercent.value = protectionFromY(point.y, principal.value, plot)
-  else if (id === 'slope') participationPercent.upside = upsideRateFromY(point.y, principal.value, plot, capFraction.value)
-  else if (id === 'cap') capPercent.value = capFromY(point.y, principal.value, plot)
+  const top = chart.value?.axis.top ?? 0
+  if (id === 'floor') protectionPercent.value = protectionFromY(point.y, principal.value, top, plot)
+  else if (id === 'slope') participationPercent.upside = upsideRateFromY(point.y, principal.value, top, plot, capFraction.value)
+  else if (id === 'cap') capPercent.value = capFromY(point.y, principal.value, top, plot)
   else if (id === 'buffer') bufferPercent.value = bufferFromX(point.x, initialLevel.value, plot, determinedInitialLevel.value)
   else setFinalLevel(finalLevelFromX(point.x, initialLevel.value, plot))
 }
-const endDrag = () => { dragging.value = null }
+const endDrag = () => {
+  dragging.value = null
+  frozenAxis.value = null
+}
 const keyHandle = (id: HandleId, event: KeyboardEvent) => {
   const delta = keyDelta(event.key, event.shiftKey, id === 'slope' ? 5 : 1)
   if (delta === null) return
@@ -396,8 +403,12 @@ const chart = computed(() => {
   const at = (level: number) => ({ initial, final: level })
   const breakdowns = levels.map((level) => paymentBreakdown(note.value, at(level)))
   const values = breakdowns.map((b) => b.payment)
+  const floorAmount = principalAmount * (note.value.payoff.principalProtection ?? 0)
+  const capAmount = principalAmount * (1 + (note.value.payoff.cap ?? 0))
+  // The cap line stays in view even where the payoff does not reach it.
+  const axis = frozenAxis.value ?? fitAmountAxis(Math.max(...values, capSelected.value ? capAmount : 0), principalAmount)
   const x = (level: number) => levelToX(level, scale, plot)
-  const y = (amount: number) => amountToY(amount, principalAmount, plot)
+  const y = (amount: number) => amountToY(amount, axis.top, plot)
   const pinnedY = (amount: number) => clamp(y(amount), plot.top, plot.bottom)
   const point = (level: number, value: number) => `${x(level)},${y(value)}`
   const points = levels.map((level, i) => point(level, values[i])).join(' ')
@@ -411,8 +422,6 @@ const chart = computed(() => {
   const ghostDrawable = ghost !== null && noteIssues(ghost).length === 0 && ghostAfterPricing.every((level) => Number.isFinite(level) && level > 0)
   const ghostInitial = ghostDrawable ? initialLevelFrom(ghost.underlier.determination.initial, ghost.underlier.components[0].initialLevel, ghostAfterPricing) : Number.NaN
   const ghostPoints = ghostDrawable ? levels.map((level) => point(level, maturityPayment(ghost, { initial: ghostInitial, final: level }))).join(' ') : ''
-  const floorAmount = principalAmount * (note.value.payoff.principalProtection ?? 0)
-  const capAmount = principalAmount * (1 + (note.value.payoff.cap ?? 0))
   const finalHandle = payment.value === null ? null : { x: x(clamp(finalLevel.value, 0, end)), y: pinnedY(payment.value) }
   const bubbleText = payment.value === null ? '' : `${formatAmount(finalLevel.value)} → ${formatAmount(payment.value)}`
   const labelWidth = (text: string) => text.length * 6.4 * labelScale.value
@@ -428,14 +437,22 @@ const chart = computed(() => {
   const capTextWidth = `Cap ${formatAmount(capAmount)}`.length * 6.4 * labelScale.value
   const capLabelOverlapsHandle = capOnCurve && capHandleX !== null && capHandleX + handleRadius.value + 6 > plot.right - 20 - capTextWidth
   const capLabelRight = capLabelOverlapsHandle ? Math.min(plot.right - 4, (capHandleX as number) - handleRadius.value - 6) : plot.right - 4
-  // The tooltip normally sits above its handle. It drops below when that would cover the cap label.
+  // The tooltip normally sits above its handle. It drops below when that would cover the cap label or another handle.
   const bubbleX = finalHandle && clamp(finalHandle.x - bubbleWidth / 2, plot.left + 2, plot.right - bubbleWidth - 2)
   const capLabelLeft = capLabelRight - 16 - capTextWidth
   // The buffer handle sits where losses start, which is always on the principal line. Its label sits beside the guide at the top of the plot.
   const bufferX = bufferSelected.value ? x(bufferLevel(initial, bufferPercent.value / 100)) : null
   const bufferLabelLeft = bufferX !== null && bufferX < plot.left + 90
   const coversCapLabel = capSelected.value && finalHandle !== null && bubbleX !== null && bubbleX + bubbleWidth > capLabelLeft && finalHandle.y - 34 + 22 > capLabelY - 12 * labelScale.value && finalHandle.y - 34 < capLabelY + 4
+  const ring = handleRadius.value + 5
+  const slopeAt = slopeLevel(initial, capFraction.value)
+  const otherHandles = [
+    capHandleX === null ? null : { x: capHandleX, y: pinnedY(capAmount) },
+    selectedParticipation.upside ? { x: x(slopeAt), y: pinnedY(maturityPayment(note.value, at(slopeAt))) } : null,
+  ]
+  const coversHandle = finalHandle !== null && bubbleX !== null && otherHandles.some((handle) => handle !== null && bubbleX < handle.x + ring && bubbleX + bubbleWidth > handle.x - ring && finalHandle.y - 34 < handle.y + ring && finalHandle.y - 12 > handle.y - ring)
   return {
+    axis,
     points,
     segments,
     legend,
@@ -444,7 +461,7 @@ const chart = computed(() => {
     upsidePoints: [atInitial, ...pointsWhere((level) => level > initial)].join(' '),
     principalY: y(principalAmount),
     // Compact labels (such as 1.5K) keep large principals inside the left margin.
-    amountTicks: [0, 0.5, 1, 1.5, 2].map((multiple) => ({ y: y(principalAmount * multiple), label: (principalAmount * multiple).toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: 1 }) })),
+    amountTicks: Array.from({ length: Math.round(axis.top / axis.step) + 1 }, (_, i) => axis.step * i).map((amount) => ({ y: y(amount), label: amount.toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: 2 }) })),
     floorY: protectionSelected.value ? y(floorAmount) : null,
     floorAmount,
     capY: capSelected.value ? y(capAmount) : null,
@@ -460,11 +477,11 @@ const chart = computed(() => {
     bufferX,
     bufferLabel: bufferX === null ? null : { x: bufferLabelLeft ? bufferX + 6 : bufferX - 6, anchor: bufferLabelLeft ? 'start' : 'end' },
     bufferHandle: bufferX === null ? null : { x: bufferX, y: y(principalAmount) },
-    capHandle: capHandleX === null ? null : { x: capHandleX, y: pinnedY(capAmount) },
+    capHandle: otherHandles[0],
     floorHandle: protectionSelected.value ? { x: plot.left + (plot.right - plot.left) * 0.25, y: y(floorAmount) } : null,
-    slopeHandle: selectedParticipation.upside ? { x: x(slopeLevel(initial, capFraction.value)), y: pinnedY(maturityPayment(note.value, at(slopeLevel(initial, capFraction.value)))) } : null,
+    slopeHandle: otherHandles[1],
     finalHandle,
-    bubble: finalHandle && bubbleX !== null && { text: bubbleText, width: bubbleWidth, x: bubbleX, y: finalHandle.y < plot.top + 40 || coversCapLabel ? finalHandle.y + 16 : finalHandle.y - 34 },
+    bubble: finalHandle && bubbleX !== null && { text: bubbleText, width: bubbleWidth, x: bubbleX, y: finalHandle.y < plot.top + 40 || coversCapLabel || coversHandle ? finalHandle.y + 16 : finalHandle.y - 34 },
   }
 })
 </script>
@@ -628,7 +645,7 @@ const chart = computed(() => {
         <section class="panel preview" aria-label="Payoff preview">
           <div class="preview-heading"><div><p class="eyebrow">Live preview</p><h2>Payoff at maturity</h2></div></div>
           <template v-if="chart">
-            <svg ref="chartSvg" class="chart" viewBox="0 0 620 270" role="group" :aria-label="chartDescription" :style="{ '--label': `${11 * labelScale}px` }">
+            <svg ref="chartSvg" class="chart" viewBox="0 0 620 350" role="group" :aria-label="chartDescription" :style="{ '--label': `${11 * labelScale}px` }">
               <defs><clipPath id="plot-clip"><rect :x="plot.left" :y="plot.top" :width="plot.right - plot.left" :height="plot.bottom - plot.top"/></clipPath></defs>
               <line :x1="plot.left" :y1="plot.bottom" :x2="plot.right" :y2="plot.bottom" class="axis-line"/><line :x1="plot.left" :y1="plot.top" :x2="plot.left" :y2="plot.bottom" class="axis-line"/>
               <line :x1="plot.left" :y1="chart.principalY" :x2="plot.right" :y2="chart.principalY" class="ref-line principal"/>
@@ -654,8 +671,8 @@ const chart = computed(() => {
               <template v-if="chart.floorY !== null"><line :x1="plot.left + 4" :y1="chart.floorY + 10" :x2="plot.left + 16" :y2="chart.floorY + 10" :class="['ref-swatch', { on: chartHighlight.floor }]" :style="conceptStyle('protection')"/><text :x="plot.left + 20" :y="chart.floorY + 14" :class="['ref-label', { on: chartHighlight.floor }]">Floor {{ formatAmount(chart.floorAmount) }}</text></template>
               <template v-if="chart.capY !== null"><line :x1="chart.capLabelRight - 12" :y1="chart.capLabelY - 4" :x2="chart.capLabelRight" :y2="chart.capLabelY - 4" :class="['ref-swatch', { on: chartHighlight.cap }]" :style="conceptStyle('cap')"/><text :x="chart.capLabelRight - 16" :y="chart.capLabelY" text-anchor="end" :class="['ref-label', { on: chartHighlight.cap }]">Cap {{ formatAmount(chart.capAmount) }}</text></template>
               <text v-if="chart.bufferLabel" :x="chart.bufferLabel.x" :y="plot.top + 12" :text-anchor="chart.bufferLabel.anchor" :class="['ref-label', { on: chartHighlight.buffer }]">Buffer {{ bufferSummary }}</text>
-              <text v-if="chart.lookbackX !== null" :x="chart.lookbackLabelX" y="251" text-anchor="middle" class="axis-label">Lookback {{ formatAmount(determinedInitialLevel) }}</text>
-              <text :x="plot.left - 3" y="251" class="axis-label">0</text><text :x="chart.initialX" y="251" text-anchor="middle" class="axis-label">Initial {{ formatAmount(initialLevel) }}</text><text :x="plot.right" y="251" text-anchor="end" class="axis-label">{{ formatAmount(chart.end) }}</text>
+              <text v-if="chart.lookbackX !== null" :x="chart.lookbackLabelX" y="331" text-anchor="middle" class="axis-label">Lookback {{ formatAmount(determinedInitialLevel) }}</text>
+              <text :x="plot.left - 3" y="331" class="axis-label">0</text><text :x="chart.initialX" y="331" text-anchor="middle" class="axis-label">Initial {{ formatAmount(initialLevel) }}</text><text :x="plot.right" y="331" text-anchor="end" class="axis-label">{{ formatAmount(chart.end) }}</text>
               <g v-if="chart.bubble" class="bubble" :transform="`translate(${chart.bubble.x} ${chart.bubble.y})`"><rect :width="chart.bubble.width" height="22" rx="6"/><text :x="chart.bubble.width / 2" y="15" text-anchor="middle">{{ chart.bubble.text }}</text></g>
               <g v-if="chart.floorHandle" :class="['handle', { on: highlighted('protection') }]" :style="conceptStyle('protection')" :transform="`translate(${chart.floorHandle.x} ${chart.floorHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Principal protection" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="protectionPercent" :aria-valuetext="`${protectionPercent}% protection`" @pointerdown="startDrag('floor', $event)" @pointermove="dragMove('floor', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('floor', $event)" @focus="focusHandle('floor')">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>

@@ -69,7 +69,6 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Should the payoff kind be renamed now that participation is optional?
 - Would a capped, leveraged note also carry "Outperformance" in its name? The Swiss taxonomy describes that product without a cap, so the name is unverified and not shown.
 - Is a note with upside participation but no downside participation principal-protected, given that it repays principal on a fall? The name rules look only at the protection term.
-- Parked: the payoff chart's fixed 0 to 2 × principal axis squeezes the floor-to-cap band into about 15% of its height. Options are a taller chart, a tighter fixed range (which limits dragging), or an axis fitted to the payoff that holds still during a drag and keeps zero at the bottom (recommended, but it reverses the fixed-axis decision).
 
 ## Later exploration
 
@@ -116,6 +115,14 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Treat the levels after pricing as scenario inputs, edited in the calculation (`min(100, 97, 92, 95) = 92`). Only the count is a note term.
 - Show lookback in the outline (Initial level and Final level as rows nested under Determination, each its own concept with its own colour and highlights), summary, payment rule, calculation, outcome sentence, scenario table and chart (the initial level and the lookback level as separate reference lines).
 - Measure the buffer from the lookback level, as public lookback notes do ([docs/lookback.md](docs/lookback.md)).
+
+## 14. Fit the chart's vertical axis
+
+- Fit the vertical axis to the highest amount the chart shows (the payoff, and the cap line when there is a cap), with about 5% headroom, in round steps of principal (at most seven). This replaces the fixed 0 to 2 × principal axis, which squeezed a floor-to-cap band into about 15% of the plot's height.
+- Keep zero at the bottom, so the chart never exaggerates a gain or a loss. This limits what fitting can do: a 900 to 1,200 band takes about 21% of the height instead of 15%, and 25% at most. The plot is about 40% taller as well, so the band also gets more room on screen.
+- Hold the axis still during a pointer drag and refit it when the drag ends, so the line does not move under the pointer. A drag stops at the top of the axis in view; after release the axis refits with headroom, so the next drag can go further. Keys and typed values refit at once.
+- The drag limits (upside rate 5% to 200%, cap 1% to 100%) are fixed values now, no longer derived from the axis.
+- The final-level tooltip drops below its handle when it would cover the cap or upside handle, which the taller band made more likely.
 
 ## Later direction: a composable form
 

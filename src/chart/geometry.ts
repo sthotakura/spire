@@ -1,5 +1,6 @@
 // Chart geometry and drag math, kept apart from Vue so it can be tested on its own.
-// The vertical axis is fixed at 0 to 2 × principal, so the line does not move under the pointer while the reader drags.
+// The vertical axis starts at zero and is fitted to the payoff. The page holds it still while the reader drags, so the line
+// does not move under the pointer, and refits it when the drag ends.
 
 import type { PaymentBreakdown } from '../domain/note'
 
@@ -10,7 +11,6 @@ export interface Plot {
   bottom: number
 }
 
-export const amountAxisFactor = 2 // vertical axis spans 0 to this many times principal
 export const levelAxisFactor = 1.6 // horizontal axis spans 0 to this many times the initial level
 export const slopeLevelFactor = 1.5 // the slope handle sits at this many times the initial level
 
@@ -18,13 +18,35 @@ export const clamp = (value: number, low: number, high: number) => Math.min(high
 
 export const levelToX = (level: number, initialLevel: number, plot: Plot) => plot.left + level / (initialLevel * levelAxisFactor) * (plot.right - plot.left)
 export const xToLevel = (x: number, initialLevel: number, plot: Plot) => (x - plot.left) / (plot.right - plot.left) * initialLevel * levelAxisFactor
-export const amountToY = (amount: number, principal: number, plot: Plot) => plot.bottom - amount / (principal * amountAxisFactor) * (plot.bottom - plot.top)
-export const yToAmount = (y: number, principal: number, plot: Plot) => (plot.bottom - y) / (plot.bottom - plot.top) * principal * amountAxisFactor
+export const amountToY = (amount: number, top: number, plot: Plot) => plot.bottom - amount / top * (plot.bottom - plot.top)
+export const yToAmount = (y: number, top: number, plot: Plot) => (plot.bottom - y) / (plot.bottom - plot.top) * top
+
+// The vertical axis runs from zero to `top`, with a tick every `step`.
+export interface AmountAxis {
+  top: number
+  step: number
+}
+
+// Fits the axis to the highest amount the chart shows, with a little headroom, in round steps of principal and at most
+// seven of them. Zero stays at the bottom, so the chart never exaggerates a gain or a loss.
+export function fitAmountAxis(highest: number, principal: number): AmountAxis {
+  const target = Math.max(highest, principal) * 1.05
+  for (let scale = 1; ; scale *= 10) {
+    for (const multiple of [0.1, 0.2, 0.25, 0.5]) {
+      const step = principal * multiple * scale
+      const steps = Math.ceil(target / step)
+      if (steps <= 7) return { top: steps * step, step }
+    }
+  }
+}
+
+// A drag cannot go past the edges of the plot, so it sets only amounts the frozen axis can show.
+const dragAmount = (y: number, top: number, plot: Plot) => yToAmount(clamp(y, plot.top, plot.bottom), top, plot)
 
 // Values a handle can take. Typing in a field is not limited by these; only dragging and the arrow keys are.
 export const protectionRange = { min: 0, max: 100 }
-export const upsideRateRange = { min: 5, max: (amountAxisFactor - 1) / (slopeLevelFactor - 1) * 100 }
-export const capRange = { min: 1, max: (amountAxisFactor - 1) * 100 }
+export const upsideRateRange = { min: 5, max: 200 }
+export const capRange = { min: 1, max: 100 }
 export const bufferRange = { min: 1, max: 100 }
 
 export const clampProtection = (percent: number) => clamp(Math.round(percent), protectionRange.min, protectionRange.max)
@@ -34,7 +56,7 @@ export const clampBuffer = (percent: number) => clamp(Math.round(percent), buffe
 export const clampFinalLevel = (level: number, initialLevel: number) => clamp(Math.round(level), 0, Math.floor(initialLevel * levelAxisFactor))
 
 // Dragging the floor handle to a height sets protection, snapped to 1%.
-export const protectionFromY = (y: number, principal: number, plot: Plot) => clampProtection(yToAmount(y, principal, plot) / principal * 100)
+export const protectionFromY = (y: number, principal: number, top: number, plot: Plot) => clampProtection(dragAmount(y, top, plot) / principal * 100)
 
 // The slope handle sits at this underlier return. A cap would pin it to the cap line, so it stays below half the cap, which
 // keeps it on the sloped part of the line for any rate up to the top of the range.
@@ -46,13 +68,13 @@ export const slopeLevel = (initialLevel: number, cap?: number) => initialLevel *
 export const capBindLevel = (initialLevel: number, cap: number, upsideRate?: number) => (upsideRate ? initialLevel * (1 + cap / upsideRate) : undefined)
 
 // Dragging the slope handle sets the upside rate, snapped to 5%.
-export const upsideRateFromY = (y: number, principal: number, plot: Plot, cap?: number) => {
-  const rate = (yToAmount(y, principal, plot) / principal - 1) / slopeReturn(cap) * 100
+export const upsideRateFromY = (y: number, principal: number, top: number, plot: Plot, cap?: number) => {
+  const rate = (dragAmount(y, top, plot) / principal - 1) / slopeReturn(cap) * 100
   return clampUpsideRate(Math.round(rate / 5) * 5)
 }
 
 // Dragging the cap handle to a height sets the cap as a return on principal, snapped to 1%.
-export const capFromY = (y: number, principal: number, plot: Plot) => clampCap((yToAmount(y, principal, plot) / principal - 1) * 100)
+export const capFromY = (y: number, principal: number, top: number, plot: Plot) => clampCap((dragAmount(y, top, plot) / principal - 1) * 100)
 
 // The buffer handle sits where losses start: the level the underlier can fall to before principal is reduced.
 export const bufferLevel = (initialLevel: number, buffer: number) => initialLevel * (1 - buffer)

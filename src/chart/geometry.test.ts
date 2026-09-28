@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { amountToY, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
+import { amountToY, fitAmountAxis, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
 import { paymentBreakdown, type ProtectedParticipationNote } from '../domain/note'
 import { startingNote } from '../domain/starting-note'
 
@@ -9,44 +9,66 @@ describe('chart geometry', () => {
   it('maps the axes to the plot edges', () => {
     expect(levelToX(0, 100, plot)).toBe(50)
     expect(levelToX(160, 100, plot)).toBe(590)
-    expect(amountToY(0, 1000, plot)).toBe(230)
-    expect(amountToY(2000, 1000, plot)).toBe(35)
-    expect(amountToY(1000, 1000, plot)).toBeCloseTo(132.5, 8)
+    expect(amountToY(0, 2000, plot)).toBe(230)
+    expect(amountToY(2000, 2000, plot)).toBe(35)
+    expect(amountToY(1000, 2000, plot)).toBeCloseTo(132.5, 8)
   })
 
   it('converts back and forth without loss', () => {
     for (const level of [0, 37, 100, 160]) expect(xToLevel(levelToX(level, 100, plot), 100, plot)).toBeCloseTo(level, 8)
-    for (const amount of [0, 250, 1000, 1999]) expect(yToAmount(amountToY(amount, 1000, plot), 1000, plot)).toBeCloseTo(amount, 8)
+    for (const amount of [0, 250, 1000, 1999]) expect(yToAmount(amountToY(amount, 2000, plot), 2000, plot)).toBeCloseTo(amount, 8)
+  })
+})
+
+describe('fitted amount axis', () => {
+  it.each([
+    [1000, 1200, 200], // principal only
+    [1200, 1400, 200], // a 20% cap: the floor-to-cap band is no longer squeezed by a fixed 2 × principal top
+    [1900, 2000, 500], // 150% upside participation at 1.6 × the initial level
+    [2200, 2500, 500], // 200% upside participation, the most a drag can set
+    [7000, 8000, 2000], // a large typed rate still gets round steps
+  ])('fits a highest amount of %d to a top of %d in steps of %d', (highest, top, step) => {
+    expect(fitAmountAxis(highest, 1000)).toEqual({ top, step })
   })
 
-  it('does not depend on the payoff, so a drag cannot move the axis', () => {
-    expect(amountToY(1000, 1000, plot)).toBe(amountToY(1000, 1000, plot))
-    expect(amountToY(500, 500, plot)).toBeCloseTo(amountToY(1000, 1000, plot), 8)
+  it('always shows principal, and leaves headroom above the highest amount', () => {
+    expect(fitAmountAxis(400, 1000).top).toBe(1200)
+    expect(fitAmountAxis(2000, 1000).top).toBeGreaterThan(2000)
+  })
+
+  it('scales with principal', () => {
+    expect(fitAmountAxis(600, 500)).toEqual({ top: 700, step: 100 })
   })
 })
 
 describe('drag conversions', () => {
   it('sets protection from the height, snapped to 1% and limited to 0% to 100%', () => {
-    expect(protectionFromY(amountToY(900, 1000, plot), 1000, plot)).toBe(90)
-    expect(protectionFromY(amountToY(904.4, 1000, plot), 1000, plot)).toBe(90)
-    expect(protectionFromY(amountToY(1500, 1000, plot), 1000, plot)).toBe(100)
-    expect(protectionFromY(plot.bottom + 40, 1000, plot)).toBe(0)
+    expect(protectionFromY(amountToY(900, 2000, plot), 1000, 2000, plot)).toBe(90)
+    expect(protectionFromY(amountToY(904.4, 2000, plot), 1000, 2000, plot)).toBe(90)
+    expect(protectionFromY(amountToY(1500, 2000, plot), 1000, 2000, plot)).toBe(100)
+    expect(protectionFromY(plot.bottom + 40, 1000, 2000, plot)).toBe(0)
+  })
+
+  it('stops a drag at the top of the axis in view', () => {
+    // With the axis frozen at 1,400, dragging far above the plot sets the rate that reaches 1,400 at 1.5 × the initial level.
+    expect(upsideRateFromY(plot.top - 200, 1000, 1400, plot)).toBe(80)
+    expect(capFromY(plot.top - 200, 1000, 1400, plot)).toBe(40)
   })
 
   it('sets the upside rate from the height at 1.5 × the initial level, snapped to 5%', () => {
-    expect(upsideRateFromY(amountToY(1750, 1000, plot), 1000, plot)).toBe(150)
-    expect(upsideRateFromY(amountToY(1100, 1000, plot), 1000, plot)).toBe(20)
-    expect(upsideRateFromY(amountToY(1052, 1000, plot), 1000, plot)).toBe(10)
-    expect(upsideRateFromY(amountToY(1026, 1000, plot), 1000, plot)).toBe(5)
-    expect(upsideRateFromY(plot.top - 60, 1000, plot)).toBe(200)
-    expect(upsideRateFromY(plot.bottom, 1000, plot)).toBe(5)
+    expect(upsideRateFromY(amountToY(1750, 2000, plot), 1000, 2000, plot)).toBe(150)
+    expect(upsideRateFromY(amountToY(1100, 2000, plot), 1000, 2000, plot)).toBe(20)
+    expect(upsideRateFromY(amountToY(1052, 2000, plot), 1000, 2000, plot)).toBe(10)
+    expect(upsideRateFromY(amountToY(1026, 2000, plot), 1000, 2000, plot)).toBe(5)
+    expect(upsideRateFromY(plot.top - 60, 1000, 2000, plot)).toBe(200)
+    expect(upsideRateFromY(plot.bottom, 1000, 2000, plot)).toBe(5)
   })
 
   it('sets the cap from the height as a return on principal, snapped to 1% and limited to 1% to 100%', () => {
-    expect(capFromY(amountToY(1200, 1000, plot), 1000, plot)).toBe(20)
-    expect(capFromY(amountToY(1204.4, 1000, plot), 1000, plot)).toBe(20)
-    expect(capFromY(plot.top - 40, 1000, plot)).toBe(100)
-    expect(capFromY(plot.bottom, 1000, plot)).toBe(1)
+    expect(capFromY(amountToY(1200, 2000, plot), 1000, 2000, plot)).toBe(20)
+    expect(capFromY(amountToY(1204.4, 2000, plot), 1000, 2000, plot)).toBe(20)
+    expect(capFromY(plot.top - 40, 1000, 2000, plot)).toBe(100)
+    expect(capFromY(plot.bottom, 1000, 2000, plot)).toBe(1)
   })
 
   it('keeps the slope handle below half the cap, so a cap does not pin it', () => {
@@ -54,8 +76,8 @@ describe('drag conversions', () => {
     expect(slopeLevel(100, 2)).toBe(150)
     expect(slopeLevel(100, 0.2)).toBeCloseTo(110, 8)
     // At a 10% return, a 200% rate reaches 1,200, which is still within a 20% cap.
-    expect(upsideRateFromY(amountToY(1100, 1000, plot), 1000, plot, 0.2)).toBe(100)
-    expect(upsideRateFromY(amountToY(1200, 1000, plot), 1000, plot, 0.2)).toBe(200)
+    expect(upsideRateFromY(amountToY(1100, 2000, plot), 1000, 2000, plot, 0.2)).toBe(100)
+    expect(upsideRateFromY(amountToY(1200, 2000, plot), 1000, 2000, plot, 0.2)).toBe(200)
   })
 
   it('finds the level where the cap starts to bind, so the cap handle can sit on the actual bend', () => {
