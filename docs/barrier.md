@@ -87,5 +87,17 @@ With a 90% protection floor added, the last two rows pay 900: the floor still bo
 
 1. **Averaging.** With an averaged final level, is the barrier checked against the average or the level on the last date? The notes found check the "Final Value", which would be the average, but no averaging note with a barrier was verified.
 2. **Knock-in and knock-out as a stated effect.** When should `effect` become a term? Probably with the first barrier on upside participation. A knock-out on upside participation is verified: one product supplement defines an "Upper Barrier", a percentage of the initial level, and once a "Barrier Event" occurs a rise pays zero, or a fixed rebate, instead of participating ([Deutsche Bank product supplement, 424B2](https://www.sec.gov/Archives/edgar/data/1159508/000119312509018934/d424b21.pdf)).
-3. **One barrier switching several features.** Carried over from section 15 of the plan. Verified in the same product supplement: one Barrier Event cancels upside participation, adds the rebate if there is one, and replaces the "Downside Participation Percentage" applied beyond the buffer with 100%. The buffer itself applies whether or not the event occurs. This suggests a barrier event that several features refer to, rather than a copy of the barrier on each. How to model it is still open.
+3. **One barrier switching several features.** Carried over from section 15 of the plan. Verified in the same product supplement: one Barrier Event cancels upside participation, adds the rebate if there is one, and replaces the "Downside Participation Percentage" applied beyond the buffer with 100%. The buffer itself applies whether or not the event occurs. This suggests a barrier event that several features refer to, rather than a copy of the barrier on each.
+
+   **Planned direction.** A barrier stays nested under the feature it switches until a feature that shares one is built, such as that knock-out or a digital return. A barrier does not pass the test for a top-level payoff feature, since it changes the payment only through another feature: on its own, like a cap without upside participation before, it would have no effect. It would move up as a condition rather than a feature. The payoff lists its barriers, each stating when it is crossed, and each feature refers to one and states what crossing it does, since the effect (knock-in or knock-out) belongs to the feature:
+
+   ```json
+   "payoff": {
+     "barriers": [{ "id": "lower", "level": 0.7, "crossed": "below", "observation": "final" }],
+     "participations": [{ "direction": "downside", "rate": 1, "knockIn": "lower" }]
+   }
+   ```
+
+   This also fits a double barrier, such as a range of 79% to 121% of the initial level, which belongs to no single direction. It costs references between parts of the JSON, validation for an unknown barrier or one that nothing uses, and an outline that shows a link rather than nesting.
+
 4. **Scenario rows.** Should a note with a barrier add a scenario row just above it, so the table shows the protected range as well as the breach?
