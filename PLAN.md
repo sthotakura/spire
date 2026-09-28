@@ -131,7 +131,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 - The Add feature menu still lists Buffer and Cap, marked "Needs downside participation" or "Needs upside participation" until their direction is added. Removing a direction removes its buffer or cap.
 - Selecting a direction highlights its buffer or cap as well, as selecting the determination highlights its levels.
 - Principal protection stays a feature of the whole payoff. It bounds the payment, whatever raised or lowered it.
-- Next: a barrier as a sub-feature of a direction. It does no arithmetic of its own; it switches the feature it belongs to on or off (knock-in or knock-out) when the underlier crosses a level. The first case is a knock-in on downside participation, observed on the final observation date.
+- Next: a barrier as a sub-feature of a direction. It does no arithmetic of its own; it switches the feature it belongs to on or off (knock-in or knock-out) when the underlier crosses a level. The first case is a knock-in on downside participation, observed on the final observation date. The proposal is in [docs/barrier.md](docs/barrier.md).
 
 Open questions:
 
