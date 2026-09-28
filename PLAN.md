@@ -63,7 +63,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 ## Deferred questions
 
 - Which payoff mechanics can be combined independently of wrappers?
-- When should observation and valuation schedules become explicit model concepts? Observation dates look like part of the determination method, inside the underlier ([docs/underlier-model.md](docs/underlier-model.md)). Averaging states a count of observations but not their dates.
+- When should observation and valuation schedules become explicit model concepts? A proposal models only dates on which something is observed, each on the concept that observes: the pricing and lookback dates on the initial level, and the observation dates on the final level. Issue and maturity dates belong to issuance and are left out ([docs/observation-dates.md](docs/observation-dates.md)). Dates change no payment built so far.
 - Which terms are product economics, and which belong only to issuance?
 - How should changes to authoritative terms invalidate derived results?
 - Should the payoff kind be renamed now that participation is optional?

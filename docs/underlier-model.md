@@ -78,6 +78,6 @@ The outline nests the same parts. A JSON list is shown as repeated rows without 
 
 ## Open questions
 
-- Where do observation dates belong? They look like part of the determination, which would replace the earlier expectation that schedules belong to the payoff. Averaging and lookback state a count of observations but not their dates.
+- Where do observation dates belong? They look like part of the determination, which would replace the earlier expectation that schedules belong to the payoff. Averaging and lookback state a count of observations but not their dates. A proposal is in [observation-dates.md](observation-dates.md).
 - Basket weights only mean something for a weighted combination. They probably belong inside `combination` rather than on each component.
 - A basket has one final level per asset, so the chart's horizontal axis would need to show something else, such as the worst performance.
