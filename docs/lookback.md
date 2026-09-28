@@ -1,11 +1,12 @@
 # Lookback
 
-This increment adds lookback on the initial level. It records what lookback means in public material, the model built for it, the decisions taken, and the question still open. It does not add observation dates, a lookback on the final level, or pricing. The work is section 13 of [PLAN.md](../PLAN.md).
+This increment adds lookback on the initial level. It records what lookback means in public material, the model built for it, and the decisions taken. It does not add observation dates, a lookback on the final level, or pricing. The work is section 13 of [PLAN.md](../PLAN.md).
 
 ## Established concepts
 
 - In current public US notes, **lookback** usually sets the **initial** level. The level the return is measured from is the lowest closing level of the underlier over a short period after pricing, such as two to four weeks or up to two months ([iCapital glossary](https://icapital.com/insights/structured-investments/structured-investments-glossary/); for example, an [SEC 424B2 pricing supplement](https://www.sec.gov/Archives/edgar/data/19617/000121390026052623/ea0289438-01_424b2.htm) defines it as the lowest closing value on any scheduled trading day during a two-month lookback observation period beginning on the initial valuation date).
 - Some notes add that the lookback level is never above the level on the pricing date ([SEC filing example](https://www.sec.gov/Archives/edgar/data/19617/000089109220011863/0000891092-20-011863.txt)).
+- Downside terms are measured from the lookback level too. In one pricing supplement the return is `(Final Value – Lookback Value) / Lookback Value`, the 10% buffer applies to that return, and a 60% fall from the lookback level loses 50% of principal ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026050822/ea0288734-01_424b2.htm)). A barrier note from the same issuer sets its barrier at 70% of the lookback value ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026049358/ea0288297-01_424b2.htm)).
 - The holder gains from a lower starting point: any later rise is measured from it, so it counts for more.
 - A different form, where the **final** level is the highest level observed before maturity, is a classic lookback option. It was not found in current retail notes during research for this plan.
 
@@ -63,7 +64,4 @@ The second row shows that a rise after pricing leaves the pricing level in place
 6. **No chart handle for the lookback observations** at first. They are edited in the calculation, and the chart shows the lookback level as a reference line.
 7. **Starting and fitted observations.** The first time lookback is chosen, the levels after pricing start from the worked example's shape relative to the initial level as it is then (−3%, −8%, −5%), rounded to whole units. When the count changes, the earliest levels are kept, since they are the ones closest to pricing, and new levels repeat the latest one.
 8. **Outline labels.** The two choices are labelled "Initial level" and "Final level", after what each decides. The initial level is not labelled "strike level": a strike often equals the initial level, but some notes set it at a percentage of it. The initial level hint says it is often called the strike level when the strike is set at 100% of it.
-
-## Open questions
-
-- Should the buffer be measured from the lookback level or the pricing level? The model above measures every payoff feature from the lookback level, because the payoff reads one return. This needs checking against public term sheets.
+9. **The buffer is measured from the lookback level**, like every other payoff feature, because the payoff reads one return. This follows the public filings above.

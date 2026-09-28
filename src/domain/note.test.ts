@@ -435,6 +435,15 @@ describe('lookback determination', () => {
     expect(paymentFrom(both, [97, 92, 95], finalLevel)).toBeCloseTo(1000 * 110 / 92, 8)
   })
 
+  // Public lookback notes measure the buffer from the lookback level, e.g. a 60% fall with a 10% buffer loses 50%.
+  it.each([
+    [32, 500],
+    [74, 1000],
+  ])('measures the buffer from the lookback level, ending at %d', (finalLevel, expected) => {
+    const buffered = lookback(3, { ...note, payoff: { ...note.payoff, principalProtection: undefined, buffer: 0.1 } })
+    expect(paymentFrom(buffered, [97, 80, 90], finalLevel)).toBeCloseTo(expected, 8)
+  })
+
   it('rejects observed levels that do not match the count, or are not above zero', () => {
     expect(() => initialLevelFrom({ kind: 'lookback', observationCount: 3 }, 100, [97, 92])).toThrow('Expected 3 observed levels after pricing.')
     expect(() => initialLevelFrom({ kind: 'given' }, 100, [97])).toThrow('Expected 0 observed levels after pricing.')

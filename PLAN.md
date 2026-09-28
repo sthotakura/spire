@@ -115,7 +115,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Keep the payoff rule unchanged. The payment calculation takes the determined initial and final levels, and every calculation reads the determined initial level, so the return, scenario table, payoff and buffer are all measured from the lookback level. The chart's axis stays scaled on the initial-level term.
 - Treat the levels after pricing as scenario inputs, edited in the calculation (`min(100, 97, 92, 95) = 92`). Only the count is a note term.
 - Show lookback in the outline (Initial level and Final level as rows nested under Determination, each its own concept with its own colour and highlights), summary, payment rule, calculation, outcome sentence, scenario table and chart (the initial level and the lookback level as separate reference lines).
-- Measuring the buffer from the lookback level rather than the pricing level is an assumption still to check against public term sheets.
+- Measure the buffer from the lookback level, as public lookback notes do ([docs/lookback.md](docs/lookback.md)).
 
 ## Later direction: a composable form
 
