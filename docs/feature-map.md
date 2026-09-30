@@ -19,7 +19,7 @@ Six coupon types become two small choices. Modelling each cell as its own type w
 ### Payoff at maturity
 
 - **Upside participation, downside participation, protection floor, cap, buffer, barrier.** Already modelled.
-- **Additional upside.** No single public meaning was found. Candidates: a second participation tier above a level, or a fixed return added to participation. Needs a definition.
+- **Additional upside.** A working label, not yet checked against public sources. Candidates: a second participation tier above a level, or a fixed return added to participation. Needs a public definition, and a public name if one exists.
 
 ### Coupons (a new concept, beside the payoff)
 
