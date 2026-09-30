@@ -46,3 +46,38 @@ describe('scenario rows with a cap', () => {
     expect(rows.map(({ breakdown }) => Math.round(breakdown.payment))).toEqual([1000, 1000, 1150, 1200])
   })
 })
+
+describe('scenario rows with a barrier', () => {
+  const barriered = (level: number) => withFeatures([{ direction: 'downside', barrier: { level, observation: 'final' }, rate: 1 }])
+
+  it('add a row at the barrier, in order, which still repays principal', () => {
+    const rows = scenarioRows(barriered(0.7), 100)
+    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 70, 100, 110, 130])
+    expect(rows.map(({ atBarrier }) => atBarrier)).toEqual([false, true, false, false, false])
+    expect(rows[1].returnValue).toBeCloseTo(-0.3, 12)
+    expect(rows[1].breakdown.belowBarrier).toBe(false)
+    expect(rows.map(({ breakdown }) => Math.round(breakdown.payment))).toEqual([600, 1000, 1000, 1000, 1000])
+  })
+
+  it('measure the barrier row from the initial level it is given, such as a lookback level', () => {
+    const rows = scenarioRows(barriered(0.7), 92)
+    expect(rows[1].finalLevel).toBe(rows[1].breakdown.barrierLevel)
+    expect(rows[1].breakdown.belowBarrier).toBe(false)
+  })
+
+  it('show only the protected range when the barrier is below every fixed row', () => {
+    const rows = scenarioRows(barriered(0.5), 100)
+    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([50, 60, 100, 110, 130])
+    expect(rows.map(({ breakdown }) => Math.round(breakdown.payment))).toEqual([1000, 1000, 1000, 1000, 1000])
+  })
+
+  it('replace a fixed row at the same level rather than repeat it', () => {
+    const rows = scenarioRows(barriered(0.6), 100)
+    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 110, 130])
+    expect(rows[0].atBarrier).toBe(true)
+  })
+
+  it('add no row without a barrier', () => {
+    expect(scenarioRows(notes[2][1], 100).map(({ atBarrier }) => atBarrier)).toEqual([false, false, false, false])
+  })
+})

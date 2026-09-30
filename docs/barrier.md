@@ -57,7 +57,7 @@ Everything after that is unchanged: the upside, the cap and the protection floor
 - **Summary, payment rule and outcome.** The summary adds "with a barrier at 70% of the initial level" (or "of the lookback level"). The payment rule adds a line, "downside only when Final level < Barrier × Initial level", and the words say each fall counts "only if" the underlier ends below the barrier. The outcome sentence says whether the final level is below the barrier and, if it is, that the whole fall counts.
 - **Calculation.** A barrier step before downside participation, e.g. `Barrier 70 (70% of 100) · final level 65 is below it, so downside participation applies`, muted when the final level is at or above it.
 - **Chart.** A vertical guide at the barrier level, in its own colour, with a sideways handle as the buffer has. The payoff line jumps at the barrier: principal at and just above it, the full loss just below. It is drawn as two pieces with no connecting segment, since a steep line would show payments the note never makes. The colour, violet #9775fa, passes the dataviz palette checks against every colour it can touch: downside, protection, upside, principal, cap and buffer.
-- **Scenarios.** The existing rows (−40%, 0%, +10%, +30%) show a breach at a 70% barrier but not the protected range above it. See open question 4.
+- **Scenarios.** The fixed rows (−40%, 0%, +10%, +30%) show a breach at a 70% barrier but not the protected range above it, and a barrier below 60% leaves no row below the barrier at all. So a barrier adds one row at its own level, marked "at barrier": the lowest final level that still repays principal. It moves with the barrier, and replaces a fixed row at the same level rather than repeating it (decision 5).
 - **Marketing names.** None at first. "Barrier note" appears in issuer product names (for example, "Accelerated Barrier Notes"), but a generic public definition has not been checked against [marketing-names.md](marketing-names.md).
 
 ## Synthetic worked example
@@ -82,6 +82,7 @@ With a 90% protection floor added, the last two rows pay 900: the floor still bo
 2. **Below the barrier, the downside rate applies to the whole fall.** Public barrier notes found use 1% per 1%, which is a 100% rate. Other rates are allowed, as they are for downside participation without a barrier.
 3. **A barrier with a protection floor is allowed.** The floor bounds the payment as it does today. A floor at or above the breached payment makes the barrier irrelevant, as 100% protection does for downside participation.
 4. **Observation on the final date only** until observation dates are modelled.
+5. **One scenario row at the barrier.** It shows where protection ends, wherever the barrier is dragged. A second row just below the barrier was considered and not added: any step below it is arbitrary, and the chart already draws the jump.
 
 ## Open questions
 
@@ -100,4 +101,3 @@ With a 90% protection floor added, the last two rows pay 900: the floor still bo
 
    This also fits a double barrier, such as a range of 79% to 121% of the initial level, which belongs to no single direction. It costs references between parts of the JSON, validation for an unknown barrier or one that nothing uses, and an outline that shows a link rather than nesting.
 
-4. **Scenario rows.** Should a note with a barrier add a scenario row just above it, so the table shows the protected range as well as the breach?

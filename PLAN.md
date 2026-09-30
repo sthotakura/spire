@@ -147,7 +147,7 @@ Open questions:
 - Observe it on the final observation date only. Daily observation waits for observation dates.
 - Keep the barrier and the buffer as separate features, not combined on the same downside participation until a public note is verified.
 - Show the barrier in the outline, summary, Structure JSON, payment rule, calculation, outcome sentence, scenario table and chart, where the payoff line breaks at the jump rather than joining the two sides.
-- Open: whether a note with a barrier should add a scenario row just above it, to be decided once the chart and table can be seen with real numbers.
+- Add a scenario row at the barrier level, marked "at barrier", so the table shows where a fall stops repaying principal as well as the breach. It moves with the barrier and replaces a fixed row at the same level.
 
 ## Later direction: a composable form
 

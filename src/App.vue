@@ -292,9 +292,10 @@ const buildTimestamp = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
 }).format(new Date(buildTimestampIso))
 
-const scenarios = computed(() => !initialValid.value ? [] : scenarioRows(note.value, determinedInitialLevel.value).map(({ returnValue, finalLevel, breakdown }) => ({
+const scenarios = computed(() => !initialValid.value ? [] : scenarioRows(note.value, determinedInitialLevel.value).map(({ returnValue, finalLevel, atBarrier, breakdown }) => ({
   final: finalLevel,
   returnValue,
+  atBarrier,
   calculations: Object.fromEntries(selectedDirections.value.map((direction) => [
     direction,
     returnValue !== 0 && direction === breakdown.direction && breakdown.participationRate !== undefined && !(direction === 'downside' && breakdown.belowBarrier === false)
@@ -767,7 +768,7 @@ const chart = computed(() => {
               <template v-if="chart">
                 <h3>Example scenarios</h3>
                 <p class="table-scroll-hint">Scroll horizontally to see every scenario column.</p>
-                <div class="table-wrap"><table><thead><tr><th>Final level</th><th>Underlier change</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected">Payment before protection</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}</td><td>{{ formatPercent(row.returnValue) }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="protectionSelected && row.floorApplied" class="floor-note">floor applied</span></td></tr></tbody></table></div>
+                <div class="table-wrap"><table><thead><tr><th>Final level</th><th>Underlier change</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected">Payment before protection</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}<span v-if="row.atBarrier" class="floor-note">at barrier</span></td><td>{{ formatPercent(row.returnValue) }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="protectionSelected && row.floorApplied" class="floor-note">floor applied</span></td></tr></tbody></table></div>
                 <p class="scenario-formula"><template v-if="lookingBack">Each change is measured from the lookback level, {{ formatAmount(determinedInitialLevel) }}. </template><template v-if="averaging">Each final level is the average of the observed levels. </template><strong>Selected participation:</strong> {{ participationSummary }}. A move in an unselected direction does not change principal before protection.<template v-if="bufferSelected"> The buffer absorbs the first {{ bufferSummary }} of a fall.</template> The payment cannot fall below {{ floorSummary }}.<template v-if="capSelected"> It cannot exceed {{ capSummary }}.</template></p>
               </template>
               <p v-else class="help">Enter valid terms to see the scenarios.</p>
