@@ -37,7 +37,7 @@ const hints = {
   cap: 'The most the note can pay above principal, as a percentage of principal, however far the underlier rises.',
   protection: 'The minimum contractual maturity payment as a percentage of principal. Protection applies at maturity and depends on the issuer’s ability to pay.',
   'basket-return': 'How a basket’s asset returns make its one return. Weighted adds up each asset’s return times its weight. The basket level starts at 100 and moves by that return, and the payoff reads it as it reads a single asset’s level.',
-  weight: 'The asset’s share of the basket, fixed on the pricing date. The weights add up to 100%.',
+  weight: 'The asset’s share of the basket, fixed on the pricing date. The weights add up to 100%: the total beside Add asset shows how much is left to allocate, or how much is over.',
 }
 const wrapperOptions = [
   { id: 'note', label: 'Note', description: 'A debt security with payments defined by its terms and subject to the issuer’s ability to pay.', available: true },
@@ -627,7 +627,7 @@ const chart = computed(() => {
   <div class="site-shell">
     <header class="site-header">
       <div class="brand">SPI<span>Re</span></div>
-      <div class="header-note">Structured Products Issuance Reference</div>
+      <div class="header-note">Structured Products Interactive Reference</div>
     </header>
 
     <main class="page">

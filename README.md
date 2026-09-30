@@ -1,6 +1,6 @@
 # SPIRe
 
-**Structured Products Issuance Reference** is a public learning project for exploring structured-product concepts from first principles. Its first goal is an interactive website where a learner can assemble a small structure, see its contractual payoff, and understand the assumptions behind it.
+**Structured Products Interactive Reference** is a public learning project for exploring structured-product concepts from first principles. Its first goal is an interactive website where a learner can assemble a small structure, see its contractual payoff, and understand the assumptions behind it.
 
 SPIRe uses generic public concepts and synthetic examples. It does not describe or reproduce any proprietary issuance platform.
 
