@@ -62,7 +62,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 
 ## Deferred questions
 
-- Which payoff mechanics can be combined independently of wrappers?
+- Which payoff mechanics can be combined independently of wrappers? [docs/feature-map.md](docs/feature-map.md) sorts common note features into the concepts they belong to.
 - When should observation and valuation schedules become explicit model concepts? A proposal models only dates on which something is observed, each on the concept that observes: the pricing and lookback dates on the initial level, and the observation dates on the final level. Issue and maturity dates belong to issuance and are left out ([docs/observation-dates.md](docs/observation-dates.md)). Dates change no payment built so far.
 - Which terms are product economics, and which belong only to issuance?
 - How should changes to authoritative terms invalidate derived results?
