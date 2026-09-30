@@ -23,11 +23,11 @@ Six coupon types become two small choices. Modelling each cell as its own type w
 
 ### Coupons (a new concept, beside the payoff)
 
-- **Payment condition:** always paid; paid only if the underlier is at or above a level on the coupon date (contingent); or accruing pro rata for each day a reference stays within a range (range accrual).
+- **Payment condition:** always paid; paid only if the underlier is at or above a level on the coupon date (contingent); or accruing pro rata for each day a reference stays within a range (range accrual, a name used in SEC-filed notes linked to a rate or an equity index, for example [Callable Dual Range Accrual Notes, 424B2](https://www.sec.gov/Archives/edgar/data/200245/000095010320002436/dp121021_424b2-us2090080.htm)).
 - **Rate:** fixed, or floating (a reference rate plus or minus a spread, possibly with a floor or cap).
 - **Participation paid as a coupon:** a coupon equal to a rate times the underlier's rise over the period, and zero on a fall. With a cap it is a call spread. This is the same arithmetic as upside participation with a cap, applied per period instead of at maturity, so the two should share it.
-- **Hybrid range accrual:** a range accrual whose condition tests more than one reference, for example a rate and an equity index. Needs a verified definition.
-- **Memory:** a contingent coupon that also pays missed earlier coupons once its condition holds again. A flag on the contingent condition, not a separate coupon.
+- **Dual (or hybrid) range accrual:** a range accrual whose condition tests more than one reference, for example a rate within a range and an equity index above a level on the same day. SEC filings call it a dual range accrual (source above); some issuer notices call it a hybrid range accrual. The exact accrual rules still need reading from a filing before it is modelled.
+- **Memory:** a contingent coupon that also pays missed earlier coupons once its condition holds again, as in SEC-filed "Contingent Income Barrier Notes with Memory" ([FWP](https://www.sec.gov/Archives/edgar/data/83246/000110465921088665/tm2120829d65_fwp.pdf)). A flag on the contingent condition, not a separate coupon.
 
 ### Redemption behaviour
 
@@ -35,9 +35,14 @@ Six coupon types become two small choices. Modelling each cell as its own type w
 - **Issuer call:** the issuer may choose to redeem early on stated dates. It does not depend on the underlier.
 - Both sit beside bullet redemption, not under the payoff.
 
-### Feature switch
+### Feature switch (working label)
 
-- **Switch:** a trigger that changes other features, for example a coupon that converts from fixed to floating, or a barrier event that cancels upside participation and changes the downside rate ([barrier.md](barrier.md)). Like a barrier, it does no arithmetic of its own. Whether it is one concept that points at several features, or a barrier with several targets, is open.
+"Switch" is a working label here, not a verified public product name. Two public cases change features during a note's life, and they differ:
+
+- **On a stated date:** fixed-to-floating rate notes pay a fixed rate for an initial period, then a floating rate ([RBC floating rate notes fact sheet](https://www.rbccm.com/assets/rbccm/docs/expertise/fixed-income/us/rbc-floating-rate-notes-fact-sheet.pdf)). Nothing is observed; the coupon's rate changes by date.
+- **On a trigger:** a barrier event that cancels upside participation and changes the downside rate ([barrier.md](barrier.md)). Like a barrier, it does no arithmetic of its own.
+
+Whether a trigger-based change of coupon type exists in public notes has not been checked. Whether a trigger is one concept that points at several features, or a barrier with several targets, is open.
 
 ### Determination
 
@@ -53,4 +58,4 @@ Six coupon types become two small choices. Modelling each cell as its own type w
 - **Floating rates need a rate underlier.** Today the underlier is an equity or equity index. A floating coupon, or a range accrual on a rate, needs a synthetic reference rate as a second kind of underlier.
 - **Coupons need dates.** Every coupon and early redemption is observed on a schedule, which depends on the observation-dates proposal ([observation-dates.md](observation-dates.md)).
 - **One trigger, several effects.** A switch, an autocall and a barrier all test the underlier against a level on some dates. Whether they share one trigger concept is open.
-- **Definitions still needed:** additional upside, hybrid range accrual, and switch.
+- **Definitions still needed:** additional upside, the accrual rules of a dual range accrual, and whether a trigger can switch a coupon's type.
