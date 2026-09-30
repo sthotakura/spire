@@ -1,4 +1,4 @@
-import { downsideOf, upsideOf, type ProtectedParticipationNote } from '../domain/note'
+import { downsideOf, upsideOf, type Note } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface MarketingName {
@@ -15,7 +15,7 @@ const percentText = (fraction: number) => `${(fraction * 100).toFixed(1).replace
 
 // Names a structure like this one is commonly sold under. They are hints, not definitions, and several can apply at once.
 // The rules are recorded in docs/marketing-names.md. A note that fits none returns an empty list.
-export function marketingNames(note: ProtectedParticipationNote): MarketingName[] {
+export function marketingNames(note: Note): MarketingName[] {
   const protection = note.payoff.principalProtection
   const upside = upsideOf(note)?.rate
   const downside = downsideOf(note)?.rate

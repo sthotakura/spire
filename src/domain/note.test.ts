@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { finalLevelFrom, initialLevelFrom, maturityPayment, noteIssues, paymentBreakdown, validateNote, type DownsideParticipation, type ProtectedParticipationNote, type UpsideParticipation } from './note'
+import { finalLevelFrom, initialLevelFrom, maturityPayment, noteIssues, paymentBreakdown, validateNote, type DownsideParticipation, type Note, type UpsideParticipation } from './note'
 
-const note: ProtectedParticipationNote = {
+const note: Note = {
   wrapper: 'note',
   redemption: 'bullet',
   underlier: {
@@ -10,7 +10,6 @@ const note: ProtectedParticipationNote = {
     determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } },
   },
   payoff: {
-    kind: 'participation',
     participations: [
       { direction: 'downside', rate: 1 },
       { direction: 'upside', rate: 1.5 },
@@ -20,15 +19,15 @@ const note: ProtectedParticipationNote = {
   principalAmount: 1000,
 }
 // Changes the participation in one direction, such as adding its buffer or cap, and keeps the other.
-const withDownside = (base: ProtectedParticipationNote, terms: Partial<DownsideParticipation>): ProtectedParticipationNote => ({
+const withDownside = (base: Note, terms: Partial<DownsideParticipation>): Note => ({
   ...base,
   payoff: { ...base.payoff, participations: base.payoff.participations.map((p) => p.direction === 'downside' ? { ...p, ...terms } : p) },
 })
-const withUpside = (base: ProtectedParticipationNote, terms: Partial<UpsideParticipation>): ProtectedParticipationNote => ({
+const withUpside = (base: Note, terms: Partial<UpsideParticipation>): Note => ({
   ...base,
   payoff: { ...base.payoff, participations: base.payoff.participations.map((p) => p.direction === 'upside' ? { ...p, ...terms } : p) },
 })
-const withComponent = (name: string, initialLevel: number): ProtectedParticipationNote => ({
+const withComponent = (name: string, initialLevel: number): Note => ({
   ...note,
   underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name }, initialLevel }] },
 })
@@ -73,7 +72,7 @@ describe('protected participation note', () => {
     [100, 1000],
     [110, 1150],
   ])('applies downside participation until the protection floor at %s', (finalLevel, expected) => {
-    const partiallyProtectedNote: ProtectedParticipationNote = {
+    const partiallyProtectedNote: Note = {
       ...note,
       payoff: {
         ...note.payoff,
@@ -85,7 +84,7 @@ describe('protected participation note', () => {
   })
 
   it('applies the configured downside participation rate before the floor', () => {
-    const partiallyProtectedNote: ProtectedParticipationNote = {
+    const partiallyProtectedNote: Note = {
       ...note,
       payoff: {
         ...note.payoff,
@@ -101,7 +100,7 @@ describe('protected participation note', () => {
   })
 
   it('allows a zero protection floor', () => {
-    const unprotectedNote: ProtectedParticipationNote = {
+    const unprotectedNote: Note = {
       ...note,
       payoff: { ...note.payoff, principalProtection: 0 },
     }
@@ -118,7 +117,7 @@ describe('protected participation note', () => {
   })
 
   it('leaves negative returns unchanged when only upside participation is selected', () => {
-    const upsideOnlyNote: ProtectedParticipationNote = {
+    const upsideOnlyNote: Note = {
       ...note,
       payoff: {
         ...note.payoff,
@@ -132,7 +131,7 @@ describe('protected participation note', () => {
   })
 
   it('leaves positive returns unchanged when only downside participation is selected', () => {
-    const downsideOnlyNote: ProtectedParticipationNote = {
+    const downsideOnlyNote: Note = {
       ...note,
       payoff: {
         ...note.payoff,
@@ -157,7 +156,7 @@ describe('protected participation note', () => {
   })
 
   it('allows a note with no participation and no protection', () => {
-    const principalOnlyNote: ProtectedParticipationNote = { ...note, payoff: { kind: 'participation', participations: [] } }
+    const principalOnlyNote: Note = { ...note, payoff: { participations: [] } }
 
     expect(validateNote(principalOnlyNote)).toEqual([])
     for (const finalLevel of [0, 60, 100, 110, 130]) expect(maturityPayment(principalOnlyNote, { initial: 100, final: finalLevel })).toBe(1000)
@@ -177,9 +176,9 @@ describe('protected participation note', () => {
   })
 
   it('never pays below zero without protection', () => {
-    const unprotectedNote: ProtectedParticipationNote = {
+    const unprotectedNote: Note = {
       ...note,
-      payoff: { kind: 'participation', participations: [{ direction: 'downside', rate: 1.5 }] },
+      payoff: { participations: [{ direction: 'downside', rate: 1.5 }] },
     }
 
     expect(maturityPayment(unprotectedNote, { initial: 100, final: 60 })).toBeCloseTo(400, 8)
@@ -188,8 +187,8 @@ describe('protected participation note', () => {
   })
 
   it('treats absent and zero protection alike in payment but not in structure', () => {
-    const absent: ProtectedParticipationNote = { ...note, payoff: { kind: 'participation', participations: [{ direction: 'downside', rate: 1 }] } }
-    const zero: ProtectedParticipationNote = { ...absent, payoff: { ...absent.payoff, principalProtection: 0 } }
+    const absent: Note = { ...note, payoff: { participations: [{ direction: 'downside', rate: 1 }] } }
+    const zero: Note = { ...absent, payoff: { ...absent.payoff, principalProtection: 0 } }
 
     for (const finalLevel of [0, 50, 100, 120]) expect(maturityPayment(absent, { initial: 100, final: finalLevel })).toBe(maturityPayment(zero, { initial: 100, final: finalLevel }))
     expect(absent.payoff.principalProtection).toBeUndefined()
@@ -197,7 +196,7 @@ describe('protected participation note', () => {
 })
 
 describe('payment breakdown', () => {
-  const protectedNote: ProtectedParticipationNote = { ...note, payoff: { ...note.payoff, principalProtection: 0.9 } }
+  const protectedNote: Note = { ...note, payoff: { ...note.payoff, principalProtection: 0.9 } }
 
   it('breaks a rise into its steps', () => {
     const breakdown = paymentBreakdown(protectedNote, { initial: 100, final: 110 })
@@ -223,7 +222,7 @@ describe('payment breakdown', () => {
   })
 
   it('has a floor of zero and no rate for a note with no features', () => {
-    const breakdown = paymentBreakdown({ ...note, payoff: { kind: 'participation', participations: [] } }, { initial: 100, final: 110 })
+    const breakdown = paymentBreakdown({ ...note, payoff: { participations: [] } }, { initial: 100, final: 110 })
 
     expect(breakdown.participationRate).toBeUndefined()
     expect(breakdown.participatedReturn).toBe(0)
@@ -416,7 +415,7 @@ describe('barrier', () => {
 })
 
 describe('averaging determination', () => {
-  const averaging = (observationCount: number): ProtectedParticipationNote => ({ ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'given' }, final: { kind: 'averaging', observationCount } } } })
+  const averaging = (observationCount: number): Note => ({ ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'given' }, final: { kind: 'averaging', observationCount } } } })
 
   it('takes the final level as the arithmetic average of the observed levels', () => {
     expect(finalLevelFrom({ kind: 'averaging', observationCount: 4 }, [100, 120, 90, 130])).toBe(110)
@@ -451,12 +450,12 @@ describe('averaging determination', () => {
 })
 
 describe('lookback determination', () => {
-  const upsideOnly: ProtectedParticipationNote = { ...note, payoff: { kind: 'participation', participations: [{ direction: 'upside', rate: 1 }] } }
-  const lookback = (observationCount: number, base: ProtectedParticipationNote = upsideOnly): ProtectedParticipationNote => ({
+  const upsideOnly: Note = { ...note, payoff: { participations: [{ direction: 'upside', rate: 1 }] } }
+  const lookback = (observationCount: number, base: Note = upsideOnly): Note => ({
     ...base,
     underlier: { ...base.underlier, determination: { ...base.underlier.determination, initial: { kind: 'lookback', observationCount } } },
   })
-  const paymentFrom = (n: ProtectedParticipationNote, afterPricing: number[], finalLevel: number) => {
+  const paymentFrom = (n: Note, afterPricing: number[], finalLevel: number) => {
     const { initial } = n.underlier.determination
     return maturityPayment(n, { initial: initialLevelFrom(initial, n.underlier.components[0].initialLevel, afterPricing), final: finalLevel })
   }

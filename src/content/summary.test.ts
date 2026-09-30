@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { withSubFeatures, type ProtectedParticipationNote } from '../domain/note'
+import { withSubFeatures, type Note } from '../domain/note'
 import { summarize } from './summary'
 
-const note: ProtectedParticipationNote = {
+const note: Note = {
   wrapper: 'note',
   redemption: 'bullet',
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } } },
   payoff: {
-    kind: 'participation',
     participations: [
       { direction: 'downside', rate: 1 },
       { direction: 'upside', rate: 1.5 },
@@ -17,9 +16,9 @@ const note: ProtectedParticipationNote = {
   principalAmount: 1000,
 }
 
-const withTerms = (n: ProtectedParticipationNote, buffer?: number, cap?: number): ProtectedParticipationNote => ({ ...n, payoff: { ...n.payoff, participations: withSubFeatures(n.payoff.participations, { buffer, cap }) } })
-const sentence = (n: ProtectedParticipationNote) => summarize(n).map(({ text }) => text).join('')
-const conceptOf = (n: ProtectedParticipationNote, phrase: string) => summarize(n).find(({ text }) => text === phrase)?.concept
+const withTerms = (n: Note, buffer?: number, cap?: number): Note => ({ ...n, payoff: { ...n.payoff, participations: withSubFeatures(n.payoff.participations, { buffer, cap }) } })
+const sentence = (n: Note) => summarize(n).map(({ text }) => text).join('')
+const conceptOf = (n: Note, phrase: string) => summarize(n).find(({ text }) => text === phrase)?.concept
 
 describe('note summary with a cap', () => {
   it('adds the cap after the protection', () => {
@@ -98,23 +97,23 @@ describe('note summary', () => {
   })
 
   it('says a note with no features repays its principal', () => {
-    const principalOnly = { ...note, payoff: { kind: 'participation' as const, participations: [] } }
+    const principalOnly = { ...note, payoff: { participations: [] } }
     expect(sentence(principalOnly)).toBe('A note that redeems at maturity and repays its principal, linked to Synthetic Index, measured point-to-point from 100.')
     expect(conceptOf(principalOnly, 'repays its principal')).toBe('payoff')
   })
 
   it('leaves out the protection clause when protection is absent', () => {
-    const unprotected = { ...note, payoff: { kind: 'participation' as const, participations: [{ direction: 'upside' as const, rate: 1 }] } }
+    const unprotected = { ...note, payoff: { participations: [{ direction: 'upside' as const, rate: 1 }] } }
     expect(sentence(unprotected)).toBe('A note that redeems at maturity and pays 100% of the upside of Synthetic Index, measured point-to-point from 100.')
   })
 
   it('keeps the protection clause when there is protection but no participation', () => {
-    const protectionOnly = { ...note, payoff: { kind: 'participation' as const, participations: [], principalProtection: 0.9 } }
+    const protectionOnly = { ...note, payoff: { participations: [], principalProtection: 0.9 } }
     expect(sentence(protectionOnly)).toBe('A note that redeems at maturity and repays its principal, linked to Synthetic Index, measured point-to-point from 100, with 90% principal protection.')
   })
 
   it('keeps describing a draft that is not valid yet', () => {
-    const draft: ProtectedParticipationNote = { ...note, underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name: ' ' }, initialLevel: 100 }] }, payoff: { ...note.payoff, participations: [], principalProtection: Number.NaN } }
+    const draft: Note = { ...note, underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name: ' ' }, initialLevel: 100 }] }, payoff: { ...note.payoff, participations: [], principalProtection: Number.NaN } }
     expect(sentence(draft)).toBe('A note that redeems at maturity and repays its principal, linked to the underlier, measured point-to-point from 100, with — principal protection.')
   })
 })

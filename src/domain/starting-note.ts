@@ -1,7 +1,7 @@
-import type { ProtectedParticipationNote } from './note'
+import type { Note } from './note'
 
 // The note the page opens on: a valid note whose payoff has no features, so it only repays principal.
-export const startingNote: ProtectedParticipationNote = {
+export const startingNote: Note = {
   wrapper: 'note',
   redemption: 'bullet',
   underlier: {
@@ -9,7 +9,7 @@ export const startingNote: ProtectedParticipationNote = {
     components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }],
     determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } },
   },
-  payoff: { kind: 'participation', participations: [] },
+  payoff: { participations: [] },
   principalAmount: 1000,
 }
 

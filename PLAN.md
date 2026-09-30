@@ -66,7 +66,6 @@ This plan covers the first useful, public, browser-only version. It records deci
 - When should observation and valuation schedules become explicit model concepts? A proposal models only dates on which something is observed, each on the concept that observes: the pricing and lookback dates on the initial level, and the observation dates on the final level. Issue and maturity dates belong to issuance and are left out ([docs/observation-dates.md](docs/observation-dates.md)). Dates change no payment built so far.
 - Which terms are product economics, and which belong only to issuance?
 - How should changes to authoritative terms invalidate derived results?
-- Should the payoff kind be renamed now that participation is optional?
 - Would a capped, leveraged note also carry "Outperformance" in its name? The Swiss taxonomy describes that product without a cap, so the name is unverified and not shown.
 - Is a note with upside participation but no downside participation principal-protected, given that it repays principal on a fall? The name rules look only at the protection term.
 
@@ -148,6 +147,11 @@ Open questions:
 - Keep the barrier and the buffer as separate features, not combined on the same downside participation until a public note is verified.
 - Show the barrier in the outline, summary, Structure JSON, payment rule, calculation, outcome sentence, scenario table and chart, where the payoff line breaks at the jump rather than joining the two sides.
 - Add a scenario row at the barrier level, marked "at barrier", so the table shows where a fall stops repaying principal as well as the breach. It moves with the barrier and replaces a fixed row at the same level.
+
+## 17. Drop the payoff kind
+
+- Remove `kind: 'participation'` from the payoff, in the domain and the Structure JSON. It had one value, and participation is now optional, so it described no note correctly. New payoff mechanics are added as features inside the payoff, and coupons will sit beside it, so a payoff kind would only suggest a product-type hierarchy the model avoids.
+- Rename the `ProtectedParticipationNote` type to `Note`, since protection is optional too. No payment changes.
 
 ## Later direction: a composable form
 

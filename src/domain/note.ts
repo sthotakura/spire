@@ -67,12 +67,11 @@ export interface SingleUnderlier {
   determination: Determination
 }
 
-export interface ProtectedParticipationNote {
+export interface Note {
   wrapper: 'note'
   redemption: 'bullet'
   underlier: SingleUnderlier
   payoff: {
-    kind: 'participation'
     // Features are listed in the order the payment applies them: participation with its buffer and cap, then the protection floor.
     participations: Participation[]
     principalProtection?: number
@@ -80,8 +79,8 @@ export interface ProtectedParticipationNote {
   principalAmount: number
 }
 
-export const downsideOf = (note: ProtectedParticipationNote) => note.payoff.participations.find((participation): participation is DownsideParticipation => participation.direction === 'downside')
-export const upsideOf = (note: ProtectedParticipationNote) => note.payoff.participations.find((participation): participation is UpsideParticipation => participation.direction === 'upside')
+export const downsideOf = (note: Note) => note.payoff.participations.find((participation): participation is DownsideParticipation => participation.direction === 'downside')
+export const upsideOf = (note: Note) => note.payoff.participations.find((participation): participation is UpsideParticipation => participation.direction === 'upside')
 
 // Puts a buffer or barrier on downside participation and a cap on upside participation. Each is dropped when its direction is absent.
 export const withSubFeatures = (participations: Participation[], { buffer, barrier, cap }: { buffer?: number; barrier?: Barrier; cap?: number }): Participation[] =>
@@ -101,7 +100,7 @@ export interface NoteIssue {
   message: string
 }
 
-export function noteIssues(note: ProtectedParticipationNote): NoteIssue[] {
+export function noteIssues(note: Note): NoteIssue[] {
   const issues: NoteIssue[] = []
   const [component] = note.underlier.components
   if (!component.asset.name.trim()) issues.push({ field: 'underlierName', message: 'Enter an underlier name.' })
@@ -132,7 +131,7 @@ export function noteIssues(note: ProtectedParticipationNote): NoteIssue[] {
   return issues
 }
 
-export function validateNote(note: ProtectedParticipationNote): string[] {
+export function validateNote(note: Note): string[] {
   return noteIssues(note).map(({ message }) => message)
 }
 
@@ -188,7 +187,7 @@ export interface PaymentBreakdown {
 
 // The levels are the ones the determination produces (see initialLevelFrom and finalLevelFrom), so the payoff does not
 // depend on how they were measured.
-export function paymentBreakdown(note: ProtectedParticipationNote, levels: DeterminedLevels): PaymentBreakdown {
+export function paymentBreakdown(note: Note, levels: DeterminedLevels): PaymentBreakdown {
   const errors = validateNote(note)
   if (errors.length) throw new Error(errors.join(' '))
   if (!Number.isFinite(levels.initial) || levels.initial <= 0) throw new Error('Initial level must be greater than zero.')
@@ -231,6 +230,6 @@ export function paymentBreakdown(note: ProtectedParticipationNote, levels: Deter
   }
 }
 
-export function maturityPayment(note: ProtectedParticipationNote, levels: DeterminedLevels): number {
+export function maturityPayment(note: Note, levels: DeterminedLevels): number {
   return paymentBreakdown(note, levels).payment
 }

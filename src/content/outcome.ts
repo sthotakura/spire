@@ -1,10 +1,10 @@
-import { downsideOf, type PaymentBreakdown, type ProtectedParticipationNote } from '../domain/note'
+import { downsideOf, type PaymentBreakdown, type Note } from '../domain/note'
 
 const percent = (fraction: number) => `${(Math.abs(fraction) * 100).toFixed(1).replace(/\.0$/, '')}%`
 const units = (value: number) => Math.abs(value).toLocaleString('en-US', { maximumFractionDigits: 2 })
 
 // Explains a contractual maturity payment in words, from the note and its payment breakdown.
-export function explainOutcome(note: ProtectedParticipationNote, breakdown: PaymentBreakdown): string {
+export function explainOutcome(note: Note, breakdown: PaymentBreakdown): string {
   const { initialLevel, underlierReturn, direction, bufferAbsorbs, barrierLevel, belowBarrier, participationRate, participatedReturn, capAmount, capApplies, unflooredPayment, floor, floorApplies, payment } = breakdown
   const hasProtection = note.payoff.principalProtection !== undefined
   const hasCap = capAmount !== undefined

@@ -13,7 +13,7 @@ import { scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
-import { finalLevelFrom, initialLevelFrom, lookbackCountOf, maturityPayment, noteIssues, observationCountOf, paymentBreakdown, downsideOf, upsideOf, withSubFeatures, type Determination, type FinalDetermination, type InitialDetermination, type NoteIssueField, type ParticipationDirection, type ProtectedParticipationNote, type AssetKind } from './domain/note'
+import { finalLevelFrom, initialLevelFrom, lookbackCountOf, maturityPayment, noteIssues, observationCountOf, paymentBreakdown, downsideOf, upsideOf, withSubFeatures, type Determination, type FinalDetermination, type InitialDetermination, type NoteIssueField, type ParticipationDirection, type Note, type AssetKind } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingNote } from './domain/starting-note'
 
@@ -200,7 +200,7 @@ const closeOnOutsidePointer = (event: PointerEvent) => {
 onMounted(() => document.addEventListener('pointerdown', closeOnOutsidePointer))
 onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutsidePointer))
 
-const note = computed<ProtectedParticipationNote>(() => ({
+const note = computed<Note>(() => ({
   wrapper: 'note',
   redemption: 'bullet',
   underlier: {
@@ -209,7 +209,6 @@ const note = computed<ProtectedParticipationNote>(() => ({
     determination: determination.value,
   },
   payoff: {
-    kind: 'participation',
     participations: withSubFeatures(selectedDirections.value.map((direction) => ({ direction, rate: participationPercent[direction] / 100 })), {
       buffer: bufferSelected.value ? bufferPercent.value / 100 : undefined,
       barrier: barrierSelected.value ? { level: barrierPercent.value / 100, observation: 'final' } : undefined,
@@ -335,8 +334,8 @@ const handleRadius = computed(() => 8 * Math.max(1, 0.7 / chartScale.value))
 const labelScale = computed(() => clamp(1 / chartScale.value, 1, 1.6))
 
 // The payoff line from before the current gesture stays as a faint ghost, so the reader can see what a change did.
-const ghostNote = ref<ProtectedParticipationNote | null>(null)
-function beginGesture() { ghostNote.value = JSON.parse(JSON.stringify(note.value)) as ProtectedParticipationNote }
+const ghostNote = ref<Note | null>(null)
+function beginGesture() { ghostNote.value = JSON.parse(JSON.stringify(note.value)) as Note }
 const focusRow = (concept: ConceptId) => { select(concept); beginGesture() }
 
 type HandleId = 'floor' | 'slope' | 'cap' | 'buffer' | 'barrier' | 'final'

@@ -1,4 +1,4 @@
-import type { ProtectedParticipationNote } from '../domain/note'
+import type { Note } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface StructureLine {
@@ -10,7 +10,7 @@ export interface StructureLine {
 type Path = Array<string | number>
 
 // Formats a note exactly as JSON.stringify(note, null, 2) does, and tags each line with the concept that owns it.
-export function structureLines(note: ProtectedParticipationNote): StructureLine[] {
+export function structureLines(note: Note): StructureLine[] {
   const lines: StructureLine[] = []
 
   const conceptAt = (path: Path): ConceptId | null => {

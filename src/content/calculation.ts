@@ -1,4 +1,4 @@
-import { downsideOf, finalLevelFrom, initialLevelFrom, upsideOf, type ParticipationDirection, type PaymentBreakdown, type ProtectedParticipationNote } from '../domain/note'
+import { downsideOf, finalLevelFrom, initialLevelFrom, upsideOf, type ParticipationDirection, type PaymentBreakdown, type Note } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface CalculationStep {
@@ -16,7 +16,7 @@ const formatPercent = (value: number) => `${(value * 100).toFixed(1).replace(/\.
 const signedPercent = (fraction: number) => `${fraction < 0 ? '−' : '+'}${formatPercent(Math.abs(fraction))}`
 
 // Each direction is its own step, as in the payment rule, so a selected rate stays visible even when the return does not reach it.
-function participationStep(note: ProtectedParticipationNote, breakdown: PaymentBreakdown, direction: ParticipationDirection): Omit<CalculationStep, 'n'> {
+function participationStep(note: Note, breakdown: PaymentBreakdown, direction: ParticipationDirection): Omit<CalculationStep, 'n'> {
   const title = direction === 'upside' ? 'Upside participation' : 'Downside participation'
   const rate = note.payoff.participations.find((candidate) => candidate.direction === direction)?.rate
   if (rate === undefined) {
@@ -51,7 +51,7 @@ function barrierStep(level: number, breakdown: PaymentBreakdown, finalLevel: num
 
 // The worked calculation of the maturity payment from the observed levels: those on the final dates and, for lookback, those
 // after pricing. Every number comes from the payment breakdown.
-export function calculationSteps(note: ProtectedParticipationNote, breakdown: PaymentBreakdown, observedLevels: number[], afterPricing: number[]): CalculationStep[] {
+export function calculationSteps(note: Note, breakdown: PaymentBreakdown, observedLevels: number[], afterPricing: number[]): CalculationStep[] {
   const b = breakdown
   const [component] = note.underlier.components
   const name = component.asset.name.trim()

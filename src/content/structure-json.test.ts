@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { withSubFeatures, type ProtectedParticipationNote } from '../domain/note'
+import { withSubFeatures, type Note } from '../domain/note'
 import { startingNote } from '../domain/starting-note'
 import { structureLines } from './structure-json'
 
-const fullNote: ProtectedParticipationNote = {
+const fullNote: Note = {
   ...startingNote,
   payoff: {
-    kind: 'participation',
     participations: [
       { direction: 'downside', rate: 1 },
       { direction: 'upside', rate: 1.5 },
@@ -14,21 +13,21 @@ const fullNote: ProtectedParticipationNote = {
     principalProtection: 0.9,
   },
 }
-const cappedNote: ProtectedParticipationNote = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { cap: 0.2 }) } }
-const draftNote: ProtectedParticipationNote = {
+const cappedNote: Note = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { cap: 0.2 }) } }
+const draftNote: Note = {
   ...fullNote,
   principalAmount: Number.NaN,
   underlier: { ...startingNote.underlier, components: [{ asset: { kind: 'equity', name: 'A "quoted" name é' }, initialLevel: Number.NaN }] },
 }
-const asText =(note: ProtectedParticipationNote) => structureLines(note).map(({ text }) => text).join('\n')
-const linesOf = (note: ProtectedParticipationNote, concept: string) => structureLines(note).filter((line) => line.concept === concept).map(({ text }) => text.trim())
+const asText =(note: Note) => structureLines(note).map(({ text }) => text).join('\n')
+const linesOf = (note: Note, concept: string) => structureLines(note).filter((line) => line.concept === concept).map(({ text }) => text.trim())
 
 describe('structure lines', () => {
   it.each([
     ['the starting note', startingNote],
     ['a note with every feature', fullNote],
     ['a capped note', cappedNote],
-    ['a protection-only note', { ...startingNote, payoff: { kind: 'participation' as const, participations: [], principalProtection: 0 } }],
+    ['a protection-only note', { ...startingNote, payoff: { participations: [], principalProtection: 0 } }],
     ['a draft that is not valid yet', draftNote],
   ])('matches JSON.stringify for %s', (_, note) => {
     expect(asText(note)).toBe(JSON.stringify(note, null, 2))
@@ -57,8 +56,8 @@ describe('structure lines', () => {
   })
 
   it('keeps the rest of the payoff under the payoff', () => {
-    expect(linesOf(fullNote, 'payoff')).toEqual(['"payoff": {', '"kind": "participation",', '"participations": [', '],', '},'])
-    expect(linesOf(startingNote, 'payoff')).toEqual(['"payoff": {', '"kind": "participation",', '"participations": []', '},'])
+    expect(linesOf(fullNote, 'payoff')).toEqual(['"payoff": {', '"participations": [', '],', '},'])
+    expect(linesOf(startingNote, 'payoff')).toEqual(['"payoff": {', '"participations": []', '},'])
   })
 
   it('tags the cap with its own concept', () => {
@@ -67,20 +66,20 @@ describe('structure lines', () => {
   })
 
   it('tags the barrier and its terms with their own concept', () => {
-    const barriered: ProtectedParticipationNote = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const } }) } }
+    const barriered: Note = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const } }) } }
     expect(asText(barriered)).toBe(JSON.stringify(barriered, null, 2))
     expect(linesOf(barriered, 'barrier')).toEqual(['"barrier": {', '"level": 0.7,', '"observation": "final"', '},'])
   })
 
   it('tags the buffer with its own concept', () => {
-    const buffered: ProtectedParticipationNote = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { buffer: 0.1 }) } }
+    const buffered: Note = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { buffer: 0.1 }) } }
     expect(asText(buffered)).toBe(JSON.stringify(buffered, null, 2))
     expect(linesOf(buffered, 'buffer')).toEqual(['"buffer": 0.1,'])
     expect(linesOf(fullNote, 'buffer')).toEqual([])
   })
 
   it('keeps the observation count under the determination', () => {
-    const averaged: ProtectedParticipationNote = { ...fullNote, underlier: { ...fullNote.underlier, determination: { initial: { kind: 'given' }, final: { kind: 'averaging', observationCount: 5 } } } }
+    const averaged: Note = { ...fullNote, underlier: { ...fullNote.underlier, determination: { initial: { kind: 'given' }, final: { kind: 'averaging', observationCount: 5 } } } }
     expect(asText(averaged)).toBe(JSON.stringify(averaged, null, 2))
     expect(linesOf(averaged, 'final-level')).toEqual(['"final": {', '"kind": "averaging",', '"observationCount": 5', '}'])
   })

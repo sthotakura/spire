@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { paymentBreakdown, withSubFeatures, type Participation, type ProtectedParticipationNote } from '../domain/note'
+import { paymentBreakdown, withSubFeatures, type Participation, type Note } from '../domain/note'
 import { calculationSteps } from './calculation'
 
-const noteWith = (participations: Participation[], principalProtection?: number, cap?: number, buffer?: number): ProtectedParticipationNote => ({
+const noteWith = (participations: Participation[], principalProtection?: number, cap?: number, buffer?: number): Note => ({
   wrapper: 'note',
   redemption: 'bullet',
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } } },
-  payoff: { kind: 'participation', participations: withSubFeatures(participations, { buffer, cap }), principalProtection },
+  payoff: { participations: withSubFeatures(participations, { buffer, cap }), principalProtection },
   principalAmount: 1000,
 })
 const both = [{ direction: 'downside' as const, rate: 0.1 }, { direction: 'upside' as const, rate: 1 }]
-const steps = (note: ProtectedParticipationNote, finalLevel: number) => calculationSteps(note, paymentBreakdown(note, { initial: 100, final: finalLevel }), [finalLevel], [])
-const step = (note: ProtectedParticipationNote, finalLevel: number, title: string) => steps(note, finalLevel).find((candidate) => candidate.title === title)
+const steps = (note: Note, finalLevel: number) => calculationSteps(note, paymentBreakdown(note, { initial: 100, final: finalLevel }), [finalLevel], [])
+const step = (note: Note, finalLevel: number, title: string) => steps(note, finalLevel).find((candidate) => candidate.title === title)
 
 describe('calculation steps', () => {
   it('shows each participation direction as its own step, in the order of the outline', () => {

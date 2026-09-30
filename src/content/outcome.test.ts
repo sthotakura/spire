@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { paymentBreakdown, withSubFeatures, type Participation, type ProtectedParticipationNote } from '../domain/note'
+import { paymentBreakdown, withSubFeatures, type Participation, type Note } from '../domain/note'
 import { explainOutcome } from './outcome'
 
-const noteWith = (participations: Participation[], principalProtection?: number, cap?: number, buffer?: number): ProtectedParticipationNote => ({
+const noteWith = (participations: Participation[], principalProtection?: number, cap?: number, buffer?: number): Note => ({
   wrapper: 'note',
   redemption: 'bullet',
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } } },
-  payoff: { kind: 'participation', participations: withSubFeatures(participations, { buffer, cap }), principalProtection },
+  payoff: { participations: withSubFeatures(participations, { buffer, cap }), principalProtection },
   principalAmount: 1000,
 })
 const both = [{ direction: 'downside' as const, rate: 1 }, { direction: 'upside' as const, rate: 1.5 }]
-const explain = (note: ProtectedParticipationNote, finalLevel: number) => explainOutcome(note, paymentBreakdown(note, { initial: 100, final: finalLevel }))
+const explain = (note: Note, finalLevel: number) => explainOutcome(note, paymentBreakdown(note, { initial: 100, final: finalLevel }))
 
 describe('outcome explanation', () => {
   it('says neither limit applies when the cap and the floor both do not bind', () => {
@@ -76,7 +76,7 @@ describe('outcome explanation', () => {
   })
 
   it('says whether the underlier ended below the barrier', () => {
-    const barriered = { ...noteWith(both), payoff: { kind: 'participation' as const, participations: withSubFeatures(both, { barrier: { level: 0.7, observation: 'final' as const } }) } }
+    const barriered = { ...noteWith(both), payoff: { participations: withSubFeatures(both, { barrier: { level: 0.7, observation: 'final' as const } }) } }
     expect(explain(barriered, 80)).toBe('The underlier fell 20%. It ended at or above the 70 barrier, so downside participation does not apply and principal is unchanged. The contractual payment is 1,000, the same as principal.')
     expect(explain(barriered, 65)).toBe('The underlier fell 35%. It ended below the 70 barrier, so downside participation of 100% deducts the whole 35% from principal. There is no principal protection, so the contractual payment is 650, 350 less than principal.')
   })

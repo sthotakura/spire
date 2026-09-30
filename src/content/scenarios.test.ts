@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { maturityPayment, type ProtectedParticipationNote } from '../domain/note'
+import { maturityPayment, type Note } from '../domain/note'
 import { startingNote } from '../domain/starting-note'
 import { scenarioReturns, scenarioRows } from './scenarios'
 
-const withFeatures = (participations: ProtectedParticipationNote['payoff']['participations'], principalProtection?: number): ProtectedParticipationNote => ({
+const withFeatures = (participations: Note['payoff']['participations'], principalProtection?: number): Note => ({
   ...startingNote,
-  payoff: { kind: 'participation', participations, principalProtection },
+  payoff: { participations, principalProtection },
 })
-const notes: Array<[string, ProtectedParticipationNote]> = [
+const notes: Array<[string, Note]> = [
   ['no features', startingNote],
   ['upside only', withFeatures([{ direction: 'upside', rate: 1.5 }])],
   ['downside only, no protection', withFeatures([{ direction: 'downside', rate: 1 }])],

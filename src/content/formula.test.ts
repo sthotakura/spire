@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { withSubFeatures, type Participation, type ProtectedParticipationNote } from '../domain/note'
+import { withSubFeatures, type Participation, type Note } from '../domain/note'
 import { startingNote } from '../domain/starting-note'
 import { paymentFormula, paymentInWords } from './formula'
 
-const noteWith = (participations: Participation[], cap?: number, principalProtection?: number, buffer?: number): ProtectedParticipationNote => ({
+const noteWith = (participations: Participation[], cap?: number, principalProtection?: number, buffer?: number): Note => ({
   ...startingNote,
-  payoff: { kind: 'participation', participations: withSubFeatures(participations, { buffer, cap }), principalProtection },
+  payoff: { participations: withSubFeatures(participations, { buffer, cap }), principalProtection },
 })
 const up = { direction: 'upside', rate: 1 } as const
 const down = { direction: 'downside', rate: 1 } as const
-const text = (note: ProtectedParticipationNote) => paymentFormula(note).map(({ lead, segments }) => `${lead ? `${lead} = ` : ''}${segments.map((segment) => segment.text).join('')}`)
+const text = (note: Note) => paymentFormula(note).map(({ lead, segments }) => `${lead ? `${lead} = ` : ''}${segments.map((segment) => segment.text).join('')}`)
 
 describe('payment formula', () => {
   it('repays principal when the note has no features', () => {
@@ -59,7 +59,7 @@ describe('payment formula', () => {
     expect(concepts).toEqual(['determination', 'upside', 'downside', 'cap', 'protection'])
   })
   it('says downside participation counts only below the barrier', () => {
-    const barriered = { ...noteWith([down, up]), payoff: { kind: 'participation' as const, participations: withSubFeatures([down, up], { barrier: { level: 0.7, observation: 'final' as const } }) } }
+    const barriered = { ...noteWith([down, up]), payoff: { participations: withSubFeatures([down, up], { barrier: { level: 0.7, observation: 'final' as const } }) } }
     expect(text(barriered)).toEqual([
       'Return = Final level ÷ Initial level − 1',
       'Payment = Principal × (1 + Upside × max(Return, 0) + Downside × min(Return, 0))',
@@ -104,7 +104,7 @@ describe('payment rule in words', () => {
   })
 
   it('falls back to a generic name when the asset has none', () => {
-    const unnamed: ProtectedParticipationNote = { ...noteWith([up]), underlier: { ...startingNote.underlier, components: [{ asset: { kind: 'equity-index', name: ' ' }, initialLevel: 100 }] } }
+    const unnamed: Note = { ...noteWith([up]), underlier: { ...startingNote.underlier, components: [{ asset: { kind: 'equity-index', name: ' ' }, initialLevel: 100 }] } }
     expect(paymentInWords(unnamed)).toBe('Each 1% rise in the underlier adds 1% of principal. A fall leaves principal unchanged.')
   })
 })

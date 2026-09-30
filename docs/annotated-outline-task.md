@@ -205,7 +205,7 @@ Initial content is drawn only from `docs/milestone-1.md` and `docs/participation
 - Decided: without protection the payment cannot fall below zero.
 - Confirm the suggested first values for added features (100%, 100%, 90%).
 - With protection but no participation, the sentence still says "with 90% principal protection", although protection has no effect on a note that only repays principal. Keep it (it reflects the structure) or hide it?
-- Should the payoff's `kind` be renamed now that participation is optional?
+- Should the payoff's `kind` be renamed now that participation is optional? Settled: the `kind` was removed ([PLAN.md](../PLAN.md), section 17).
 - Decided: the summary sentence stays; the floor and slope handles are in scope; the scenario table stays as a tab; the payoff starts empty.
 
 ## Implementation steps
