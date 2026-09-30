@@ -75,6 +75,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 - **Sentence builder.** Express the product as one readable sentence with inline choices, for example "A note that redeems at maturity and pays 100% of the upside of a synthetic index…". Each phrase maps to one concept (wrapper, redemption, payoff, underlier, terms) and opens a small picker with its hint, which shows that a product is a composition of distinct concepts.
 - The read-only sentence summary now exists, and its phrases select the concept they describe. Making phrases editable remains an idea to try only if the read-only version proves useful.
 - Open question: dates and amounts fit poorly inline, so they may stay as ordinary fields beside the sentence.
+- **Glossary page.** An alphabetical list of the terms the app supports. The ⓘ hints and the Add feature descriptions already define each term where it is used, so a glossary would help only if readers need terms side by side or outside the builder. Considered and deferred until that need appears.
 
 ## 9. Make the chart evident
 
