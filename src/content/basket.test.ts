@@ -75,6 +75,14 @@ describe('a basket in the calculation', () => {
     expect(steps.at(-1)?.value).toBe('1,100')
   })
 
+  it('says the basket level, not a final level, is not below the barrier', () => {
+    // Index A −10% and Co −10% leave the basket at 90, above a barrier at 70.
+    const fall = basketBreakdown(basket, [[90], [36]])
+    const steps = calculationSteps(note, paymentBreakdown(note, fall.levels), [], [], fall)
+    expect(steps.find(({ title }) => title === 'Downside participation')?.how).toBe('100% × min(−10%, 0) · the basket level is not below the barrier')
+    expect(steps.find(({ title }) => title === 'Upside participation')?.how).toBe('100% × max(−10%, 0) · applies only when the return is positive')
+  })
+
   it('averages each asset before measuring its return', () => {
     const averaged: BasketUnderlier = { ...basket, determination: { ...basket.determination, final: { kind: 'averaging', observationCount: 2 } } }
     const averagedNote: Note = { ...note, underlier: averaged }

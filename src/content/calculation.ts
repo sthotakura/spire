@@ -28,8 +28,10 @@ function participationStep(note: Note, breakdown: PaymentBreakdown, direction: P
   const contribution = direction === breakdown.direction ? breakdown.participatedReturn : 0
   const buffer = direction === 'downside' ? downsideOf(note)?.buffer : undefined
   const how = `${formatPercent(rate)} × ${direction === 'upside' ? 'max' : 'min'}(${signedPercent(breakdown.underlierReturn)}${buffer === undefined ? '' : ` + ${formatPercent(buffer)}`}, 0)`
+  // The buffer and the barrier belong to downside participation, so only its step gives them as the reason.
   const reason = buffer !== undefined && breakdown.underlierReturn < 0 ? 'the buffer absorbs the whole fall'
-    : breakdown.belowBarrier === false && breakdown.underlierReturn < 0 ? 'the final level is not below the barrier' : `applies only when the return is ${direction === 'upside' ? 'positive' : 'negative'}`
+    : direction === 'downside' && breakdown.belowBarrier === false && breakdown.underlierReturn < 0 ? `the ${note.underlier.kind === 'basket' ? 'basket' : 'final'} level is not below the barrier`
+      : `applies only when the return is ${direction === 'upside' ? 'positive' : 'negative'}`
   return contribution === 0
     ? { title, how: `${how} · ${reason}`, value: '0%', muted: true, concept: direction }
     : { title, how, value: signedPercent(contribution), concept: direction }

@@ -88,6 +88,8 @@ describe('calculation steps', () => {
     it('mutes the barrier and downside participation at or above it', () => {
       expect(step(withBarrier, 80, 'Barrier')).toMatchObject({ how: '70% × 100 · final level 80 is not below it, so a fall does not reduce principal', muted: true })
       expect(step(withBarrier, 80, 'Downside participation')).toMatchObject({ how: '100% × min(−20%, 0) · the final level is not below the barrier', value: '0%', muted: true })
+      // The barrier belongs to downside participation. Upside participation adds nothing on a fall, barrier or not.
+      expect(step(withBarrier, 80, 'Upside participation')).toMatchObject({ how: '100% × max(−20%, 0) · applies only when the return is positive', value: '0%', muted: true })
       expect(step(withBarrier, 80, 'Payment at maturity')?.value).toBe('1,000')
     })
   })
