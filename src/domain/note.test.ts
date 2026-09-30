@@ -527,15 +527,16 @@ describe('weighted basket', () => {
   const basket: BasketUnderlier = {
     kind: 'basket',
     components: [
-      { asset: { kind: 'equity-index', name: 'Synthetic Index A' } },
-      { asset: { kind: 'equity', name: 'Synthetic Co' } },
+      { asset: { kind: 'equity-index', name: 'Synthetic Index A' }, weight: 0.5 },
+      { asset: { kind: 'equity', name: 'Synthetic Co' }, weight: 0.5 },
     ],
     determination: {
       initial: { kind: 'given', levels: [{ asset: 'Synthetic Index A', level: 100 }, { asset: 'Synthetic Co', level: 40 }] },
       final: { kind: 'final-date' },
+      basketReturn: { kind: 'weighted' },
     },
-    combination: { kind: 'weighted', weights: [{ asset: 'Synthetic Index A', weight: 0.5 }, { asset: 'Synthetic Co', weight: 0.5 }] },
   }
+  const withWeights = (a: number, b: number): BasketUnderlier => ({ ...basket, components: [{ ...basket.components[0], weight: a }, { ...basket.components[1], weight: b }] })
   const basketNote: Note = { ...note, underlier: basket, payoff: { participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }] } }
   const averaged: BasketUnderlier = { ...basket, determination: { ...basket.determination, final: { kind: 'averaging', observationCount: 2 } } }
   const issuesOf = (underlier: BasketUnderlier) => noteIssues({ ...basketNote, underlier })
@@ -559,14 +560,11 @@ describe('weighted basket', () => {
     expect(basketReturn).toBeCloseTo(0.1, 8)
   })
 
-  it('finds each term by its asset, whatever order the terms are listed in', () => {
-    const reordered: BasketUnderlier = {
-      ...basket,
-      determination: { ...basket.determination, initial: { kind: 'given', levels: [...basket.determination.initial.levels].reverse() } },
-      combination: { kind: 'weighted', weights: [{ asset: 'Synthetic Co', weight: 0.25 }, { asset: 'Synthetic Index A', weight: 0.75 }] },
-    }
+  it('finds each initial level by its asset, whatever order the levels are listed in', () => {
+    const reordered = withWeights(0.75, 0.25)
+    const levels = [...basket.determination.initial.levels].reverse()
     // 75% × +30% + 25% × −10% = +20%.
-    expect(basketBreakdown(reordered, [[130], [36]]).levels.final).toBeCloseTo(120, 8)
+    expect(basketBreakdown({ ...reordered, determination: { ...basket.determination, initial: { kind: 'given', levels } } }, [[130], [36]]).levels.final).toBeCloseTo(120, 8)
   })
 
   it('averages each component, which matches averaging the basket level on each date', () => {
@@ -585,14 +583,14 @@ describe('weighted basket', () => {
   })
 
   it('gives the components equal weights to two decimal places of a percent, the first taking the remainder', () => {
-    expect(equalWeights(basket.components)).toEqual([{ asset: 'Synthetic Index A', weight: 0.5 }, { asset: 'Synthetic Co', weight: 0.5 }])
-    const components = [...basket.components, { asset: { kind: 'equity' as const, name: 'Synthetic Bank' } }]
-    expect(equalWeights(components).map(({ weight }) => weight)).toEqual([0.3334, 0.3333, 0.3333])
+    expect(equalWeights(2)).toEqual([0.5, 0.5])
+    expect(equalWeights(3)).toEqual([0.3334, 0.3333, 0.3333])
     // They do not add up to exactly 1 in floating point, and are still accepted.
+    const assets = [...basket.components.map(({ asset }) => asset), { kind: 'equity' as const, name: 'Synthetic Bank' }]
+    const components = assets.map((asset, index) => ({ asset, weight: equalWeights(3)[index] }))
     const levels = [...basket.determination.initial.levels, { asset: 'Synthetic Bank', level: 20 }]
-    expect(issuesOf({ ...basket, components, determination: { ...basket.determination, initial: { kind: 'given', levels } }, combination: { kind: 'weighted', weights: equalWeights(components) } })).toEqual([])
-    const seven = Array.from({ length: 7 }, (_, index) => ({ asset: { kind: 'equity' as const, name: `Synthetic ${index}` } }))
-    expect(equalWeights(seven).map(({ weight }) => weight)).toEqual([0.1432, 0.1428, 0.1428, 0.1428, 0.1428, 0.1428, 0.1428])
+    expect(issuesOf({ ...basket, components, determination: { ...basket.determination, initial: { kind: 'given', levels } } })).toEqual([])
+    expect(equalWeights(7)).toEqual([0.1432, 0.1428, 0.1428, 0.1428, 0.1428, 0.1428, 0.1428])
   })
 
   it('accepts the example basket', () => {
@@ -602,15 +600,14 @@ describe('weighted basket', () => {
   it('needs at least two assets', () => {
     const one: BasketUnderlier = {
       ...basket,
-      components: [basket.components[0]],
+      components: [{ ...basket.components[0], weight: 1 }],
       determination: { ...basket.determination, initial: { kind: 'given', levels: [{ asset: 'Synthetic Index A', level: 100 }] } },
-      combination: { kind: 'weighted', weights: [{ asset: 'Synthetic Index A', weight: 1 }] },
     }
     expect(issuesOf(one)).toEqual([{ field: 'basketComponents', message: 'A basket needs at least two assets.' }])
   })
 
-  it('needs a distinct name for each asset, since terms refer to assets by name', () => {
-    const named = (a: string, b: string): BasketUnderlier => ({ ...basket, components: [{ asset: { kind: 'equity-index', name: a } }, { asset: { kind: 'equity', name: b } }] })
+  it('needs a distinct name for each asset, since initial levels refer to assets by name', () => {
+    const named = (a: string, b: string): BasketUnderlier => ({ ...basket, components: [{ asset: { kind: 'equity-index', name: a }, weight: 0.5 }, { asset: { kind: 'equity', name: b }, weight: 0.5 }] })
     expect(issuesOf(named(' ', 'Synthetic Co'))).toContainEqual({ field: 'underlierName', message: 'Enter a name for each asset.' })
     expect(issuesOf(named('Synthetic Co', 'Synthetic Co'))).toContainEqual({ field: 'underlierName', message: 'Each asset in a basket needs its own name.' })
   })
@@ -622,13 +619,11 @@ describe('weighted basket', () => {
     expect(issuesOf(withLevels([{ asset: 'Synthetic Index A', level: 100 }, { asset: 'Synthetic Co', level: 0 }]))).toEqual([{ field: 'initialLevel', message: 'Initial level of Synthetic Co must be greater than zero.' }])
   })
 
-  it('needs one weight per asset, each above zero, adding up to 100%', () => {
-    const withWeights = (a: number, b: number, assetB = 'Synthetic Co'): BasketUnderlier => ({ ...basket, combination: { kind: 'weighted', weights: [{ asset: 'Synthetic Index A', weight: a }, { asset: assetB, weight: b }] } })
+  it('needs a weight above zero for each asset, adding up to 100%', () => {
     expect(issuesOf(withWeights(0.6, 0.4))).toEqual([])
     expect(issuesOf(withWeights(0.6, 0.6))).toEqual([{ field: 'weights', message: 'Weights must add up to 100%.' }])
     expect(issuesOf(withWeights(1, 0))).toEqual([{ field: 'weights', message: 'Weight of Synthetic Co must be greater than zero.' }])
     expect(issuesOf(withWeights(0.5, Number.NaN))).toContainEqual({ field: 'weights', message: 'Weights must add up to 100%.' })
-    expect(issuesOf(withWeights(0.5, 0.5, 'Synthetic Bank'))).toEqual([{ field: 'weights', message: 'Each asset needs one weight.' }])
   })
 
   it('checks the averaging count as for a single asset', () => {
@@ -636,7 +631,7 @@ describe('weighted basket', () => {
   })
 
   it('rejects an invalid basket, and observed levels that do not match its assets', () => {
-    expect(() => basketBreakdown({ ...basket, combination: { kind: 'weighted', weights: [{ asset: 'Synthetic Index A', weight: 0.5 }, { asset: 'Synthetic Co', weight: 0.6 }] } }, [[100], [40]])).toThrow('Weights must add up to 100%.')
+    expect(() => basketBreakdown(withWeights(0.5, 0.6), [[100], [40]])).toThrow('Weights must add up to 100%.')
     expect(() => basketBreakdown(basket, [[100]])).toThrow('Expected observed levels for 2 assets.')
     expect(() => basketBreakdown(averaged, [[100], [40]])).toThrow('Expected 2 observed levels.')
   })

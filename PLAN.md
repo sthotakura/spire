@@ -164,12 +164,12 @@ Open questions:
 ## 19. Add a weighted basket
 
 - Add a basket as a second kind of underlier: several components whose returns, each measured from its own initial level, are combined by weight into a basket level that starts at 100. The payoff reads the basket level as it reads a single asset's. The proposal, sources and worked example are in [docs/basket.md](docs/basket.md).
-- Put the combination beside the determination: `"combination": { "kind": "weighted", "weights": [...] }`. Each initial level and each weight refers to its component by asset name, not by position.
+- Put each weight on its component, `{ "asset": {…}, "weight": 0.5 }`, and the rule that combines the component returns in the determination, after both ends: `"basketReturn": { "kind": "weighted" }`. Each initial level refers to its component by asset name, not by position. This replaced a `combination` beside the determination that held both the rule and the weights. Whether the rule belongs in the determination is to be revisited with worst-of.
 - Let the reader add and remove components, at least two. Adding or removing one resets the weights to equal.
 - Allow averaging: averaging each component and then weighting gives the same final level as averaging the basket level, and public notes use both. Show lookback as unavailable on a basket until a public note settles how it applies.
 - Keep worst-of for a later increment.
 - Build the domain first: the basket types, validation and `basketBreakdown`, which measures each component and returns the basket's two levels for the payoff.
-- Keep the outline in the JSON's shape: one Asset row per asset with its kind and name, one level per asset under Initial level, and a Combination row beside Determination with one weight per asset. Weights are entered as percents to two decimal places; equal weights give the remainder to the first asset (33.34%, 33.33%, 33.33%).
+- Keep the outline in the JSON's shape: one Asset row per asset with its kind, name and weight, the total of the weights beside Add asset, one level per asset under Initial level, and a Basket return row as the last part of Determination. Weights are entered as percents to two decimal places; equal weights give the remainder to the first asset (33.34%, 33.33%, 33.33%).
 - Measure the chart, scenario table, barrier and buffer on the basket level. The final-level handle moves every asset's return by the same amount; each asset's final level, or its averaged levels, is edited in the calculation.
 - Switching to a basket makes the single asset its first asset and adds a second with the same return, so the payment does not jump. Switching back keeps the first asset.
 

@@ -20,16 +20,14 @@ const listed = (items: SummarySegment[][]): SummarySegment[] => items.flatMap((i
 function underlierPhrase(note: Note): SummarySegment[] {
   const { underlier } = note
   if (underlier.kind === 'single') return [{ text: underlier.components[0].asset.name.trim() || 'the underlier', concept: 'asset' }]
-  const { weights } = underlier.combination
-  const equal = weights.every(({ weight }) => weight === weights[0].weight)
-  const assets = underlier.components.map(({ asset }): SummarySegment[] => {
-    const name: SummarySegment = { text: asset.name.trim() || 'an unnamed asset', concept: 'asset' }
-    const weight = weights.find((term) => term.asset === asset.name)?.weight
-    return equal || weight === undefined ? [name] : [name, { text: ' ' }, { text: `(${weightPercent(weight)})`, concept: 'combination' }]
-  })
+  const { components } = underlier
+  const equal = components.every(({ weight }) => weight === components[0].weight)
+  // Each weight belongs to its asset, so it is part of the asset's phrase.
+  const assets = components.map(({ asset, weight }): SummarySegment[] =>
+    [{ text: asset.name.trim() || 'an unnamed asset', concept: 'asset' }, ...(equal ? [] : [{ text: ' ' }, { text: `(${weightPercent(weight)})`, concept: 'asset' as const }])])
   return equal
-    ? [{ text: 'an ' }, { text: 'equally weighted basket', concept: 'combination' }, { text: ' of ' }, ...listed(assets)]
-    : [{ text: 'a ' }, { text: 'weighted basket', concept: 'combination' }, { text: ' of ' }, ...listed(assets)]
+    ? [{ text: 'an ' }, { text: 'equally weighted basket', concept: 'basket-return' }, { text: ' of ' }, ...listed(assets)]
+    : [{ text: 'a ' }, { text: 'weighted basket', concept: 'basket-return' }, { text: ' of ' }, ...listed(assets)]
 }
 
 export function summarize(note: Note): SummarySegment[] {

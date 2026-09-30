@@ -19,8 +19,7 @@ export function structureLines(note: Note): StructureLine[] {
     if (top === 'redemption') return 'redemption'
     if (top === 'underlier') {
       if (second === 'components' && typeof third === 'number') return 'asset'
-      if (second === 'determination') return third === 'initial' ? 'initial-level' : third === 'final' ? 'final-level' : 'determination'
-      if (second === 'combination') return 'combination'
+      if (second === 'determination') return third === 'initial' ? 'initial-level' : third === 'final' ? 'final-level' : third === 'basketReturn' ? 'basket-return' : 'determination'
       return 'underlier'
     }
     if (top !== 'payoff') return null

@@ -67,37 +67,39 @@ export interface SingleUnderlier {
   determination: Determination
 }
 
-// A term that belongs to one component of a basket. It refers to the component by asset name, not by position, so
-// removing a component cannot move a term onto another asset.
+// An asset in a weighted basket and its weight, which is part of what the basket holds. Weights are fixed on the pricing
+// date and add up to 100%.
+export interface BasketComponent {
+  asset: Asset
+  weight: number
+}
+
+// An initial level of one component of a basket. It refers to the component by asset name, not by position, so removing
+// a component cannot move a level onto another asset.
 export interface ComponentLevel {
   asset: string
   level: number
 }
 
-export interface ComponentWeight {
-  asset: string
-  weight: number
+// How a basket's component returns make its return. Weighted adds up each component's return times its weight.
+export interface BasketReturn {
+  kind: 'weighted'
 }
 
 // Each component of a basket is measured from its own fixed initial level, and every component's final level is measured
-// the same way. Lookback is not modelled on a basket: the lowest basket level and each component's lowest level differ,
-// and no public note settling which applies was verified (docs/basket.md).
+// the same way. The basket return then combines the component returns, so it needs both ends of every component and
+// comes after them. Lookback is not modelled on a basket: the lowest basket level and each component's lowest level
+// differ, and no public note settling which applies was verified (docs/basket.md).
 export interface BasketDetermination {
   initial: { kind: 'given'; levels: ComponentLevel[] }
   final: FinalDetermination
-}
-
-// The basket return is the weighted sum of the component returns. Weights are fixed on the pricing date and add up to 100%.
-export interface WeightedCombination {
-  kind: 'weighted'
-  weights: ComponentWeight[]
+  basketReturn: BasketReturn
 }
 
 export interface BasketUnderlier {
   kind: 'basket'
-  components: UnderlierComponent[]
+  components: BasketComponent[]
   determination: BasketDetermination
-  combination: WeightedCombination
 }
 
 export type Underlier = SingleUnderlier | BasketUnderlier
@@ -138,17 +140,17 @@ export interface NoteIssue {
   message: string
 }
 
-// Equal weights for the components, which a basket returns to when a component is added or removed. Term sheets state
-// weights to two decimal places of a percent, so three assets get 33.34%, 33.33% and 33.33%: the first takes the remainder.
-export function equalWeights(components: UnderlierComponent[]): ComponentWeight[] {
-  const share = Math.floor(10000 / components.length) / 10000
-  const first = Math.round((1 - share * (components.length - 1)) * 10000) / 10000
-  return components.map(({ asset }, index) => ({ asset: asset.name, weight: index === 0 ? first : share }))
+// Equal weights for a number of components, which a basket returns to when a component is added or removed. Term sheets
+// state weights to two decimal places of a percent, so three assets get 33.34%, 33.33% and 33.33%: the first takes the remainder.
+export function equalWeights(count: number): number[] {
+  const share = Math.floor(10000 / count) / 10000
+  const first = Math.round((1 - share * (count - 1)) * 10000) / 10000
+  return Array.from({ length: count }, (_, index) => index === 0 ? first : share)
 }
 
-// Whether the terms refer to the components one to one: one term per asset, and none for an asset not in the basket.
-const matchesComponents = (components: UnderlierComponent[], terms: { asset: string }[]) =>
-  terms.length === components.length && components.every(({ asset }) => terms.filter((term) => term.asset === asset.name).length === 1)
+// Whether the levels refer to the components one to one: one level per asset, and none for an asset not in the basket.
+const matchesComponents = (components: BasketComponent[], levels: ComponentLevel[]) =>
+  levels.length === components.length && components.every(({ asset }) => levels.filter((level) => level.asset === asset.name).length === 1)
 
 // Weights such as three equal thirds do not add up to exactly 1 in floating point.
 const weightTolerance = 1e-9
@@ -158,19 +160,17 @@ function basketIssues(underlier: BasketUnderlier): NoteIssue[] {
   const names = underlier.components.map(({ asset }) => asset.name)
   if (names.length < 2) issues.push({ field: 'basketComponents', message: 'A basket needs at least two assets.' })
   if (names.some((name) => !name.trim())) issues.push({ field: 'underlierName', message: 'Enter a name for each asset.' })
-  // Terms refer to their component by name, so two assets with one name would share them.
+  // Initial levels refer to their component by name, so two assets with one name would share them.
   else if (new Set(names).size !== names.length) issues.push({ field: 'underlierName', message: 'Each asset in a basket needs its own name.' })
   const { levels } = underlier.determination.initial
   if (!matchesComponents(underlier.components, levels)) issues.push({ field: 'initialLevel', message: 'Each asset needs one initial level.' })
   for (const { asset, level } of levels) {
     if (!Number.isFinite(level) || level <= 0) issues.push({ field: 'initialLevel', message: `Initial level of ${asset} must be greater than zero.` })
   }
-  const { weights } = underlier.combination
-  if (!matchesComponents(underlier.components, weights)) issues.push({ field: 'weights', message: 'Each asset needs one weight.' })
-  for (const { asset, weight } of weights) {
-    if (!Number.isFinite(weight) || weight <= 0) issues.push({ field: 'weights', message: `Weight of ${asset} must be greater than zero.` })
+  for (const { asset, weight } of underlier.components) {
+    if (!Number.isFinite(weight) || weight <= 0) issues.push({ field: 'weights', message: `Weight of ${asset.name} must be greater than zero.` })
   }
-  if (!(Math.abs(weights.reduce((sum, { weight }) => sum + weight, 0) - 1) <= weightTolerance)) issues.push({ field: 'weights', message: 'Weights must add up to 100%.' })
+  if (!(Math.abs(underlier.components.reduce((sum, { weight }) => sum + weight, 0) - 1) <= weightTolerance)) issues.push({ field: 'weights', message: 'Weights must add up to 100%.' })
   return issues
 }
 
@@ -274,9 +274,8 @@ export function basketBreakdown(underlier: BasketUnderlier, observedLevels: numb
   if (errors.length) throw new Error(errors.map(({ message }) => message).join(' '))
   if (observedLevels.length !== underlier.components.length) throw new Error(`Expected observed levels for ${underlier.components.length} assets.`)
   const { initial, final } = underlier.determination
-  const components = underlier.components.map(({ asset }, index): ComponentPerformance => {
+  const components = underlier.components.map(({ asset, weight }, index): ComponentPerformance => {
     const initialLevel = initial.levels.find((term) => term.asset === asset.name)!.level
-    const weight = underlier.combination.weights.find((term) => term.asset === asset.name)!.weight
     const finalLevel = finalLevelFrom(final, observedLevels[index])
     return { asset: asset.name, weight, initialLevel, observedLevels: observedLevels[index], finalLevel, componentReturn: finalLevel / initialLevel - 1 }
   })

@@ -51,7 +51,7 @@ The outline nests the same parts. A JSON list is shown as repeated rows without 
 - **Determination sits inside the underlier.** It is the method that turns observed levels into a return, and the underlier is where that return is produced.
 - **A single underlier also uses `components`, with exactly one entry.** Code reads assets in one way for both kinds, and a basket only adds entries. The type `[UnderlierComponent]` allows exactly one component for a single underlier.
 - **`kind` is stated, not inferred from the number of components.** Single or basket is a contractual fact, and the outline offers it as a choice.
-- **`combination` exists only on a basket.** Worst-of on a single asset cannot be written.
+- **The basket return exists only on a basket.** Worst-of on a single asset cannot be written.
 - **The initial level belongs to the determination.** The asset is only what is tracked. A fixed initial level is a term of this note, stated as `level` on the initial end: two notes on the same index can start from different levels. Lookback states no level, because the level on the pricing date is observed like the later ones. This replaces an earlier decision that kept the initial level beside the asset. With lookback that showed "Initial level 100" under the asset and a lookback initial level under the determination: one name for two different values.
 - **One determination for the whole underlier.** Averaging normally uses the same dates for every component. Per-component methods wait for a product that needs them.
 - **Each end of the determination is set on its own.** The payment reads the two levels the ends produce, so a lookback initial level can combine with an averaged final level, and the payoff does not depend on how either was measured.
@@ -66,4 +66,4 @@ The outline nests the same parts. A JSON list is shown as repeated rows without 
 ## Open questions
 
 - Where do observation dates belong? They look like part of the determination, which would replace the earlier expectation that schedules belong to the payoff. Averaging and lookback state a count of observations but not their dates. A proposal is in [observation-dates.md](observation-dates.md).
-- A basket has one fixed initial level per asset, but one determination. [basket.md](basket.md) proposes that each level refers to its component, and that weights sit in the combination.
+- A basket has one fixed initial level per asset, but one determination. [basket.md](basket.md) settles that each level refers to its component, and that each weight sits on its component.

@@ -79,8 +79,8 @@ function basketSteps(basket: BasketBreakdown): Array<Omit<CalculationStep, 'n'>>
     steps.push({ title: `${asset} return`, how: `${formatAmount(finalLevel)} ÷ ${formatAmount(initialLevel)} − 1`, value: signedPercent(componentReturn), concept: 'determination' })
   }
   steps.push(
-    { title: 'Basket return', how: basket.components.map(({ weight, componentReturn }) => `${weightPercent(weight)} × ${signedPercent(componentReturn)}`).join(' + '), value: signedPercent(basket.basketReturn), concept: 'combination' },
-    { title: 'Basket level', how: `${formatAmount(basket.levels.initial)} × (1 ${basket.basketReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(basket.basketReturn))})`, value: formatAmount(basket.levels.final), concept: 'combination' },
+    { title: 'Basket return', how: basket.components.map(({ weight, componentReturn }) => `${weightPercent(weight)} × ${signedPercent(componentReturn)}`).join(' + '), value: signedPercent(basket.basketReturn), concept: 'basket-return' },
+    { title: 'Basket level', how: `${formatAmount(basket.levels.initial)} × (1 ${basket.basketReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(basket.basketReturn))})`, value: formatAmount(basket.levels.final), concept: 'basket-return' },
   )
   return steps
 }

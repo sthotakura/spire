@@ -40,8 +40,8 @@ export function paymentFormula(note: Note): FormulaLine[] {
   if (basket) {
     lines.push(
       { lead: 'Asset return', segments: [{ text: 'Final level ÷ Initial level − 1', concept: 'determination' }, { text: ', for each asset' }] },
-      { lead: 'Return', segments: [{ text: 'Sum of Weight × Asset return', concept: 'combination' }] },
-      { lead: 'Basket level', segments: [{ text: '100 × (1 + Return)', concept: 'combination' }] },
+      { lead: 'Return', segments: [{ text: 'Sum of Weight × Asset return', concept: 'basket-return' }] },
+      { lead: 'Basket level', segments: [{ text: '100 × (1 + Return)', concept: 'basket-return' }] },
     )
   } else lines.push({ lead: 'Return', segments: [{ text: `Final level ÷ ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level − 1`, concept: 'determination' }] })
   lines.push({ lead: 'Payment', segments: payment })

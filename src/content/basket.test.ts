@@ -11,14 +11,14 @@ import { summarize } from './summary'
 const basket: BasketUnderlier = {
   kind: 'basket',
   components: [
-    { asset: { kind: 'equity-index', name: 'Synthetic Index A' } },
-    { asset: { kind: 'equity', name: 'Synthetic Co' } },
+    { asset: { kind: 'equity-index', name: 'Synthetic Index A' }, weight: 0.5 },
+    { asset: { kind: 'equity', name: 'Synthetic Co' }, weight: 0.5 },
   ],
   determination: {
     initial: { kind: 'given', levels: [{ asset: 'Synthetic Index A', level: 100 }, { asset: 'Synthetic Co', level: 40 }] },
     final: { kind: 'final-date' },
+    basketReturn: { kind: 'weighted' },
   },
-  combination: { kind: 'weighted', weights: [{ asset: 'Synthetic Index A', weight: 0.5 }, { asset: 'Synthetic Co', weight: 0.5 }] },
 }
 const note: Note = {
   wrapper: 'note',
@@ -27,7 +27,7 @@ const note: Note = {
   payoff: { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }, { direction: 'upside', rate: 1 }] },
   principalAmount: 1000,
 }
-const weighted = (a: number, b: number): Note => ({ ...note, underlier: { ...basket, combination: { kind: 'weighted', weights: [{ asset: 'Synthetic Index A', weight: a }, { asset: 'Synthetic Co', weight: b }] } } })
+const weighted = (a: number, b: number): Note => ({ ...note, underlier: { ...basket, components: [{ ...basket.components[0], weight: a }, { ...basket.components[1], weight: b }] } })
 const sentence = (n: Note) => summarize(n).map(({ text }) => text).join('')
 // Index A +30% and Co −10% make a basket level of 110.
 const measured = basketBreakdown(basket, [[130], [36]])
@@ -36,12 +36,13 @@ const breakdown = paymentBreakdown(note, measured.levels)
 describe('a basket in words', () => {
   it('names an equally weighted basket and its assets', () => {
     expect(sentence(note)).toBe('A note that redeems at maturity and pays 100% of the upside and 100% of the downside of an equally weighted basket of Synthetic Index A and Synthetic Co, measured point-to-point from each asset’s initial level, with a barrier at 70% of the initial basket level.')
-    expect(summarize(note).find(({ text }) => text === 'equally weighted basket')?.concept).toBe('combination')
+    expect(summarize(note).find(({ text }) => text === 'equally weighted basket')?.concept).toBe('basket-return')
     expect(summarize(note).find(({ text }) => text === 'Synthetic Co')?.concept).toBe('asset')
   })
 
   it('states unequal weights beside each asset, to two decimal places of a percent', () => {
     expect(sentence(weighted(0.6667, 0.3333))).toContain('of a weighted basket of Synthetic Index A (66.67%) and Synthetic Co (33.33%),')
+    expect(summarize(weighted(0.6667, 0.3333)).find(({ text }) => text === '(66.67%)')?.concept).toBe('asset')
   })
 
   it('writes the payment rule for the basket level', () => {
@@ -68,8 +69,8 @@ describe('a basket in the calculation', () => {
     expect(steps.slice(0, 5).map(({ title, how, value, concept }) => [title, how, value, concept])).toEqual([
       ['Synthetic Index A return', '130 ÷ 100 − 1', '+30%', 'determination'],
       ['Synthetic Co return', '36 ÷ 40 − 1', '−10%', 'determination'],
-      ['Basket return', '50% × +30% + 50% × −10%', '+10%', 'combination'],
-      ['Basket level', '100 × (1 + 10%)', '110', 'combination'],
+      ['Basket return', '50% × +30% + 50% × −10%', '+10%', 'basket-return'],
+      ['Basket level', '100 × (1 + 10%)', '110', 'basket-return'],
       ['Barrier', '70% × 100 · basket level 110 is not below it, so a fall does not reduce principal', '70', 'barrier'],
     ])
     expect(steps.at(-1)?.value).toBe('1,100')
@@ -93,14 +94,16 @@ describe('a basket in the calculation', () => {
 })
 
 describe('a basket in the structure JSON', () => {
-  it('tags the combination, and each initial level with the initial level', () => {
+  it('puts each weight on its asset and the basket return in the determination', () => {
     const lines = structureLines(note)
-    expect(lines.filter(({ concept }) => concept === 'combination').map(({ text }) => text.trim())).toContain('"weight": 0.5')
+    expect(lines.filter(({ concept }) => concept === 'asset').map(({ text }) => text.trim())).toContain('"weight": 0.5')
     expect(lines.find(({ text }) => text.includes('"level": 40'))?.concept).toBe('initial-level')
+    expect(lines.filter(({ concept }) => concept === 'basket-return').map(({ text }) => text.trim())).toEqual(['"basketReturn": {', '"kind": "weighted"', '}'])
   })
 
-  it('highlights the combination with the underlier', () => {
-    expect(isHighlighted('underlier', 'combination')).toBe(true)
-    expect(isHighlighted('determination', 'combination')).toBe(false)
+  it('highlights the basket return with the determination and the underlier', () => {
+    expect(isHighlighted('determination', 'basket-return')).toBe(true)
+    expect(isHighlighted('underlier', 'basket-return')).toBe(true)
+    expect(isHighlighted('asset', 'basket-return')).toBe(false)
   })
 })

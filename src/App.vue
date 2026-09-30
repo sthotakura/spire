@@ -36,7 +36,8 @@ const hints = {
   upside: 'The share of a positive underlier return added to principal.',
   cap: 'The most the note can pay above principal, as a percentage of principal, however far the underlier rises.',
   protection: 'The minimum contractual maturity payment as a percentage of principal. Protection applies at maturity and depends on the issuer’s ability to pay.',
-  combination: 'How a basket turns its assets’ changes into one return. Weighted adds up each asset’s return times its weight, and the weights add up to 100%. The basket level starts at 100 and moves by that return, and the payoff reads it as it reads a single asset’s level.',
+  'basket-return': 'How a basket’s asset returns make its one return. Weighted adds up each asset’s return times its weight. The basket level starts at 100 and moves by that return, and the payoff reads it as it reads a single asset’s level.',
+  weight: 'The asset’s share of the basket, fixed on the pricing date. The weights add up to 100%.',
 }
 const wrapperOptions = [
   { id: 'note', label: 'Note', description: 'A debt security with payments defined by its terms and subject to the issuer’s ability to pay.', available: true },
@@ -68,13 +69,13 @@ const partDescriptions = {
   'initial-level': 'Where the change is measured from',
   'final-level': 'Where the change is measured to',
   payoff: 'What the note pays at maturity',
-  combination: 'How the assets’ changes make one return',
+  'basket-return': 'How the asset returns make one return',
 }
 const underlierOptions = [
   { id: 'basket', label: 'Basket', description: 'Several assets whose changes are combined into one return.', available: true },
   { id: 'single', label: 'Single', description: 'One asset.', available: true },
 ] as const
-const combinationOptions = [
+const basketReturnOptions = [
   { id: 'weighted', label: 'Weighted', description: 'Adds up each asset’s return times its weight.', available: true },
   { id: 'worst-of', label: 'Worst-of', description: 'Uses the return of the asset that performs worst.', available: false },
 ] as const
@@ -103,8 +104,8 @@ const basketLevels = ref<number[][]>([])
 // The asset a basket adds the first time one is built, beside the single asset: a synthetic equity on its own scale.
 const secondAsset = { kind: 'equity' as const, name: 'Synthetic Co', initialLevel: 40 }
 const withEqualWeights = (assets: BasketAsset[]) => {
-  const weights = equalWeights(assets.map(({ kind, name }) => ({ asset: { kind, name } })))
-  return assets.map((asset, index) => ({ ...asset, weightPercent: Math.round(weights[index].weight * 1000000) / 10000 }))
+  const weights = equalWeights(assets.length)
+  return assets.map((asset, index) => ({ ...asset, weightPercent: Math.round(weights[index] * 1000000) / 10000 }))
 }
 // A basket starts from the single asset, as its first asset, and keeps the other assets from the last time it was built.
 // Returning to a single asset keeps the first one. Lookback is not modelled on a basket, so a basket's initial levels are fixed.
@@ -159,7 +160,7 @@ const observedLevels = ref<number[]>([startingFinalLevel])
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
 const select = (concept: ConceptId) => { selected.value = concept }
-const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', combination: '#5f5aa2', payoff: '#42536d', protection: '#2369bd', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa' }
+const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa' }
 const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
@@ -261,18 +262,21 @@ const weightFrom = (percent: number) => Math.round(percent * 1e8) / 1e10
 // The weights entered so far and how far they are from 100%, so the reader can see what is left to allocate.
 const weightTotal = computed(() => {
   const total = Math.round(basketAssets.value.reduce((sum, { weightPercent }) => sum + weightPercent, 0) * 100) / 100
-  if (!Number.isFinite(total)) return 'Total —'
+  if (!Number.isFinite(total)) return 'total —'
   const gap = Math.round((100 - total) * 100) / 100
-  return gap === 0 ? `Total ${formatAmount(total)}%` : `Total ${formatAmount(total)}% · ${formatAmount(Math.abs(gap))}% ${gap > 0 ? 'left' : 'over'}`
+  return gap === 0 ? `total ${formatAmount(total)}%` : `total ${formatAmount(total)}% · ${formatAmount(Math.abs(gap))}% ${gap > 0 ? 'left' : 'over'}`
 })
-// Each initial level and weight of a basket refers to its asset by name, as the note states them.
+// Each weight sits on its asset. Each initial level refers to its asset by name, as the note states it.
 const underlier = computed<Underlier>(() => !isBasket.value
   ? { kind: 'single', components: [{ asset: { kind: assetKind.value, name: assetName.value } }], determination: determination.value }
   : {
       kind: 'basket',
-      components: basketAssets.value.map(({ kind, name }) => ({ asset: { kind, name } })),
-      determination: { initial: { kind: 'given', levels: basketAssets.value.map(({ name, initialLevel }) => ({ asset: name, level: initialLevel })) }, final: determination.value.final },
-      combination: { kind: 'weighted', weights: basketAssets.value.map(({ name, weightPercent }) => ({ asset: name, weight: weightFrom(weightPercent) })) },
+      components: basketAssets.value.map(({ kind, name, weightPercent }) => ({ asset: { kind, name }, weight: weightFrom(weightPercent) })),
+      determination: {
+        initial: { kind: 'given', levels: basketAssets.value.map(({ name, initialLevel }) => ({ asset: name, level: initialLevel })) },
+        final: determination.value.final,
+        basketReturn: { kind: 'weighted' },
+      },
     })
 const note = computed<Note>(() => ({
   wrapper: 'note',
@@ -682,10 +686,11 @@ const chart = computed(() => {
                           <button v-if="basketAssets.length > 2" type="button" class="xbtn" :aria-label="`Remove ${asset.name.trim() || `asset ${index + 1}`}`" @click.stop="removeAsset(index)">×</button>
                           <span v-if="index === 0" class="ndesc">{{ partDescriptions.asset }}</span>
                           <span class="ctrl block"><label :for="`asset-name-${index}`">Name</label><input :id="`asset-name-${index}`" v-model="asset.name" type="text" placeholder="Synthetic Asset" /></span>
+                          <span class="ctrl block"><label :for="`weight-${index}`">Weight</label><HintToggle v-if="index === 0" id="weight" about="weight" :text="hints.weight" :active="activeHint === 'weight'" @toggle="toggleHint('weight')" /><NumberInput :id="`weight-${index}`" v-model="asset.weightPercent" class="num rate" /><span class="unit">%</span></span>
                         </div>
                       </li>
-                      <li class="addrow"><button type="button" class="addbtn" @click="addAsset">＋ Add asset</button></li>
-                      <li v-if="issuesFor('underlierName', 'basketComponents').length" class="addrow"><ul class="errors" role="alert"><li v-for="message in issuesFor('underlierName', 'basketComponents')" :key="message">{{ message }}</li></ul></li>
+                      <li class="addrow"><button type="button" class="addbtn" @click="addAsset">＋ Add asset</button><output class="unit weights-total" aria-live="polite">Weights: {{ weightTotal }}</output></li>
+                      <li v-if="issuesFor('underlierName', 'basketComponents', 'weights').length" class="addrow"><ul class="errors" role="alert"><li v-for="message in issuesFor('underlierName', 'basketComponents', 'weights')" :key="message">{{ message }}</li></ul></li>
                     </template>
                     <li :class="['node', { sel: highlighted('determination') }]" :style="conceptStyle('determination')">
                       <div class="nrow" @click="select('determination')" @focusin="focusRow('determination')">
@@ -715,17 +720,14 @@ const chart = computed(() => {
                           </div>
                           <ul v-if="issuesFor('observationCount').length" class="errors" role="alert"><li v-for="message in issuesFor('observationCount')" :key="message">{{ message }}</li></ul>
                         </li>
+                        <li v-if="isBasket" :class="['node', { sel: highlighted('basket-return') }]" :style="conceptStyle('basket-return')">
+                          <div class="nrow" @click="select('basket-return')" @focusin="focusRow('basket-return')">
+                            <span class="nlabel">Basket return<HintToggle id="basket-return" about="basket return" :text="hints['basket-return']" :active="activeHint === 'basket-return'" @toggle="toggleHint('basket-return')" /></span>
+                            <span class="ctrl pick"><select aria-label="Basket return" value="weighted"><option v-for="option in basketReturnOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
+                            <span class="ndesc">{{ partDescriptions['basket-return'] }}</span>
+                          </div>
+                        </li>
                       </ul>
-                    </li>
-                    <li v-if="isBasket" :class="['node', { sel: highlighted('combination') }]" :style="conceptStyle('combination')">
-                      <div class="nrow" @click="select('combination')" @focusin="focusRow('combination')">
-                        <span class="nlabel">Combination<HintToggle id="combination" about="combination" :text="hints.combination" :active="activeHint === 'combination'" @toggle="toggleHint('combination')" /></span>
-                        <span class="ctrl pick"><select aria-label="Combination" value="weighted"><option v-for="option in combinationOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
-                        <span class="ndesc">{{ partDescriptions.combination }}</span>
-                        <span v-for="(asset, index) in basketAssets" :key="index" class="ctrl block"><label :for="`weight-${index}`">{{ asset.name.trim() || `Asset ${index + 1}` }}</label><NumberInput :id="`weight-${index}`" v-model="asset.weightPercent" class="num rate" /><span class="unit">%</span></span>
-                        <span class="ctrl block"><output class="unit" aria-live="polite">{{ weightTotal }}</output></span>
-                      </div>
-                      <ul v-if="issuesFor('weights').length" class="errors" role="alert"><li v-for="message in issuesFor('weights')" :key="message">{{ message }}</li></ul>
                     </li>
                   </ul>
                 </li>
