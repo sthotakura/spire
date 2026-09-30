@@ -161,6 +161,14 @@ Open questions:
 - Switching between Fixed and Lookback keeps the reader's number. The chart's axis stays scaled on the pricing-date level.
 - Open: a basket has one fixed initial level per asset but one determination, so the levels would be matched to the components ([docs/underlier-model.md](docs/underlier-model.md)).
 
+## 19. Add a weighted basket
+
+- Add a basket as a second kind of underlier: several components whose returns, each measured from its own initial level, are combined by weight into a basket level that starts at 100. The payoff reads the basket level as it reads a single asset's. The proposal, sources and worked example are in [docs/basket.md](docs/basket.md).
+- Put the combination beside the determination: `"combination": { "kind": "weighted", "weights": [...] }`. Each initial level and each weight refers to its component by asset name, not by position.
+- Let the reader add and remove components, at least two. Adding or removing one resets the weights to equal.
+- Allow averaging: averaging each component and then weighting gives the same final level as averaging the basket level, and public notes use both. Show lookback as unavailable on a basket until a public note settles how it applies.
+- Keep worst-of for a later increment.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.
@@ -172,6 +180,6 @@ Open questions:
 - **Incomplete trees.** A tree is often unfinished while it is being built. The draft state and per-field issues carry over, but a dropped concept with no terms yet needs its own clear state.
 - **Keyboard access.** Every drag needs a keyboard equivalent, as the Add feature palette and the chart handles have now.
 
-## Outside this milestone
+## Not planned
 
-Market pricing, implied volatility, Greeks, live data, coupons, barriers, calls, baskets, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.
+Market pricing, implied volatility, Greeks, live data, coupons, calls, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.

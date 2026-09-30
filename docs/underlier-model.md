@@ -34,21 +34,7 @@ The determination has two ends. The initial end is `given` (a level stated as a 
 }
 ```
 
-A basket, expected later and not built:
-
-```json
-"underlier": {
-  "kind": "basket",
-  "components": [
-    { "asset": { "kind": "equity-index", "name": "Synthetic Index A" } },
-    { "asset": { "kind": "equity", "name": "Synthetic Co" } }
-  ],
-  "determination": { "initial": { "kind": "given", "levels": [100, 40] }, "final": { "kind": "final-date" } },
-  "combination": { "kind": "worst-of" }
-}
-```
-
-Each asset has its own fixed initial level. The list matched to the components by position is one way to write that; see the open questions.
+A basket adds components and a rule that combines them. The weighted basket is proposed in [basket.md](basket.md), where each initial level and each weight refers to its component.
 
 The outline nests the same parts. A JSON list is shown as repeated rows without a heading row of its own, as the payoff features already are:
 
@@ -80,6 +66,4 @@ The outline nests the same parts. A JSON list is shown as repeated rows without 
 ## Open questions
 
 - Where do observation dates belong? They look like part of the determination, which would replace the earlier expectation that schedules belong to the payoff. Averaging and lookback state a count of observations but not their dates. A proposal is in [observation-dates.md](observation-dates.md).
-- A basket has one fixed initial level per asset, but one determination. The levels could be a list matched to the components by position, or each could refer to its component. Lookback levels are scenario inputs, so they do not raise the question.
-- Basket weights only mean something for a weighted combination. They probably belong inside `combination` rather than on each component.
-- A basket has one final level per asset, so the chart's horizontal axis would need to show something else, such as the worst performance.
+- A basket has one fixed initial level per asset, but one determination. [basket.md](basket.md) proposes that each level refers to its component, and that weights sit in the combination.
