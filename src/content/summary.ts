@@ -19,13 +19,12 @@ export function summarize(note: Note): SummarySegment[] {
   const cap = upsideOf(note)?.cap
   const buffer = downsideOf(note)?.buffer
   const barrier = downsideOf(note)?.barrier
-  const initialLevel = amount(note.underlier.components[0].initialLevel)
   const { initial, final } = note.underlier.determination
   const count = (value: number) => Number.isFinite(value) ? value : '—'
   // Each level of the determination adds its own phrase. A fixed initial level and a final level on the final date is point-to-point.
   const measured: SummarySegment[] = []
   if (initial.kind === 'given' && final.kind === 'final-date') measured.push({ text: 'point-to-point', concept: 'determination' }, { text: ' ' })
-  measured.push({ text: initial.kind === 'lookback' ? `from the lowest of ${initialLevel} and ${count(initial.observationCount)} levels observed after pricing` : `from ${initialLevel}`, concept: 'initial-level' })
+  measured.push({ text: initial.kind === 'lookback' ? `from the lowest level on the pricing date and ${count(initial.observationCount)} dates after it` : `from ${amount(initial.level)}`, concept: 'initial-level' })
   if (final.kind === 'averaging') measured.push({ text: ' to ' }, { text: `the average of ${count(final.observationCount)} observed levels`, concept: 'final-level' })
 
   const payoff: SummarySegment[] = []

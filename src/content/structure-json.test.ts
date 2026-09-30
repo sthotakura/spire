@@ -17,7 +17,7 @@ const cappedNote: Note = { ...fullNote, payoff: { ...fullNote.payoff, participat
 const draftNote: Note = {
   ...fullNote,
   principalAmount: Number.NaN,
-  underlier: { ...startingNote.underlier, components: [{ asset: { kind: 'equity', name: 'A "quoted" name é' }, initialLevel: Number.NaN }] },
+  underlier: { ...startingNote.underlier, components: [{ asset: { kind: 'equity', name: 'A "quoted" name é' } }], determination: { ...startingNote.underlier.determination, initial: { kind: 'given', level: Number.NaN } } },
 }
 const asText =(note: Note) => structureLines(note).map(({ text }) => text).join('\n')
 const linesOf = (note: Note, concept: string) => structureLines(note).filter((line) => line.concept === concept).map(({ text }) => text.trim())
@@ -43,9 +43,9 @@ describe('structure lines', () => {
     expect(linesOf(fullNote, 'wrapper')).toEqual(['"wrapper": "note",', '"principalAmount": 1000'])
     expect(linesOf(fullNote, 'redemption')).toEqual(['"redemption": "bullet",'])
     expect(linesOf(fullNote, 'underlier')).toEqual(['"underlier": {', '"kind": "single",', '"components": [', '],', '},'])
-    expect(linesOf(fullNote, 'asset')).toEqual(['{', '"asset": {', '"kind": "equity-index",', '"name": "Synthetic Index"', '},', '"initialLevel": 100', '}'])
+    expect(linesOf(fullNote, 'asset')).toEqual(['{', '"asset": {', '"kind": "equity-index",', '"name": "Synthetic Index"', '}', '}'])
     expect(linesOf(fullNote, 'determination')).toEqual(['"determination": {', '}'])
-    expect(linesOf(fullNote, 'initial-level')).toEqual(['"initial": {', '"kind": "given"', '},'])
+    expect(linesOf(fullNote, 'initial-level')).toEqual(['"initial": {', '"kind": "given",', '"level": 100', '},'])
     expect(linesOf(fullNote, 'final-level')).toEqual(['"final": {', '"kind": "final-date"', '}'])
     expect(linesOf(fullNote, 'protection')).toEqual(['"principalProtection": 0.9'])
   })
@@ -79,9 +79,16 @@ describe('structure lines', () => {
   })
 
   it('keeps the observation count under the determination', () => {
-    const averaged: Note = { ...fullNote, underlier: { ...fullNote.underlier, determination: { initial: { kind: 'given' }, final: { kind: 'averaging', observationCount: 5 } } } }
+    const averaged: Note = { ...fullNote, underlier: { ...fullNote.underlier, determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'averaging', observationCount: 5 } } } }
     expect(asText(averaged)).toBe(JSON.stringify(averaged, null, 2))
     expect(linesOf(averaged, 'final-level')).toEqual(['"final": {', '"kind": "averaging",', '"observationCount": 5', '}'])
+  })
+
+  it('keeps the initial level under the initial level, and only the lookback count when it is lookback', () => {
+    const lookback: Note = { ...fullNote, underlier: { ...fullNote.underlier, determination: { ...fullNote.underlier.determination, initial: { kind: 'lookback', observationCount: 3 } } } }
+    expect(asText(lookback)).toBe(JSON.stringify(lookback, null, 2))
+    expect(linesOf(lookback, 'initial-level')).toEqual(['"initial": {', '"kind": "lookback",', '"observationCount": 3', '},'])
+    expect(asText(lookback)).not.toContain('level"')
   })
 
   it('leaves out an absent protection', () => {

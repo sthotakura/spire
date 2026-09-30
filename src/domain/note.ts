@@ -28,7 +28,7 @@ export interface UpsideParticipation {
 
 export type Participation = DownsideParticipation | UpsideParticipation
 
-// What is tracked. Its identity only: the level it starts from is a term of the note, so it sits beside the asset.
+// What is tracked. Its identity only: where its change is measured from belongs to the determination.
 export interface Asset {
   kind: AssetKind
   name: string
@@ -36,12 +36,12 @@ export interface Asset {
 
 export interface UnderlierComponent {
   asset: Asset
-  initialLevel: number
 }
 
-// How the initial level is measured. Given takes the initial-level term of the note as it stands. Lookback takes the
-// lowest of that level and the levels on several dates after pricing, so a fall soon after pricing lowers the starting point.
-export type InitialDetermination = { kind: 'given' } | { kind: 'lookback'; observationCount: number }
+// How the initial level is measured. Given states the level as a term of the note. Lookback states only how many dates
+// after pricing are observed: the level on the pricing date is observed like the others, and the lowest of them is the
+// initial level, so a fall soon after pricing lowers the starting point.
+export type InitialDetermination = { kind: 'given'; level: number } | { kind: 'lookback'; observationCount: number }
 
 // How the final level is measured. Final-date takes the level on the one final date. Averaging takes the arithmetic
 // average of the levels on several dates before maturity (averaging out).
@@ -105,8 +105,8 @@ export function noteIssues(note: Note): NoteIssue[] {
   const [component] = note.underlier.components
   if (!component.asset.name.trim()) issues.push({ field: 'underlierName', message: 'Enter an underlier name.' })
   if (!Number.isFinite(note.principalAmount) || note.principalAmount <= 0) issues.push({ field: 'principalAmount', message: 'Principal must be greater than zero.' })
-  if (!Number.isFinite(component.initialLevel) || component.initialLevel <= 0) issues.push({ field: 'initialLevel', message: 'Initial level must be greater than zero.' })
   const { initial, final } = note.underlier.determination
+  if (initial.kind === 'given' && (!Number.isFinite(initial.level) || initial.level <= 0)) issues.push({ field: 'initialLevel', message: 'Initial level must be greater than zero.' })
   if (initial.kind === 'lookback' && !isObservationCount(initial.observationCount)) {
     issues.push({ field: 'lookbackObservationCount', message: `Lookback observations must be a whole number from ${observationCountRange.min} to ${observationCountRange.max}.` })
   }
@@ -138,16 +138,18 @@ export function validateNote(note: Note): string[] {
 // The number of observed levels the final end of the determination reads.
 export const observationCountOf = (determination: FinalDetermination) => determination.kind === 'averaging' ? determination.observationCount : 1
 
-// The number of levels observed after pricing that the initial end of the determination reads.
-export const lookbackCountOf = (determination: InitialDetermination) => determination.kind === 'lookback' ? determination.observationCount : 0
+// The number of observed levels the initial end of the determination reads: none when the level is given, and with
+// lookback the level on the pricing date and one on each date after it.
+export const initialObservationCountOf = (determination: InitialDetermination) => determination.kind === 'lookback' ? determination.observationCount + 1 : 0
 
-// The initial level the payoff reads, from the initial-level term and the levels observed after pricing, in date order.
-// Given reads the term. Lookback reads the lowest of the term and the observed levels, so it is never above the term.
-export function initialLevelFrom(determination: InitialDetermination, initialLevel: number, observedLevels: number[]): number {
-  if (observedLevels.length !== lookbackCountOf(determination)) throw new Error(`Expected ${lookbackCountOf(determination)} observed levels after pricing.`)
+// The initial level the payoff reads, from the levels observed from pricing, in date order, the pricing date first.
+// Given reads the stated level. Lookback reads the lowest observed level, so it is never above the pricing-date level.
+export function initialLevelFrom(determination: InitialDetermination, observedLevels: number[]): number {
+  const count = initialObservationCountOf(determination)
+  if (observedLevels.length !== count) throw new Error(`Expected ${count} observed levels for the initial level.`)
   // The return is measured from this level, so a level of zero would leave it undefined.
-  if (observedLevels.some((level) => !Number.isFinite(level) || level <= 0)) throw new Error('Observed levels after pricing must be greater than zero.')
-  return Math.min(initialLevel, ...observedLevels)
+  if (observedLevels.some((level) => !Number.isFinite(level) || level <= 0)) throw new Error('Observed levels for the initial level must be greater than zero.')
+  return determination.kind === 'given' ? determination.level : Math.min(...observedLevels)
 }
 
 // The final level the payoff reads, from the levels observed on the determination dates, in date order.

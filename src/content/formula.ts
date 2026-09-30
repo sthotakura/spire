@@ -33,7 +33,7 @@ export function paymentFormula(note: Note): FormulaLine[] {
   const lines: FormulaLine[] = []
   const { initial, final } = note.underlier.determination
   // Lookback and averaging define their levels before the return reads them. Point-to-point needs no line: each level is one observed level.
-  if (initial.kind === 'lookback') lines.push({ lead: 'Lookback level', segments: [{ text: 'Lowest of the initial level and the levels observed after pricing', concept: 'initial-level' }] })
+  if (initial.kind === 'lookback') lines.push({ lead: 'Lookback level', segments: [{ text: 'Lowest of the levels on the pricing date and the dates after it', concept: 'initial-level' }] })
   if (final.kind === 'averaging') lines.push({ lead: 'Final level', segments: [{ text: 'Average of the observed levels', concept: 'final-level' }] })
   lines.push(
     { lead: 'Return', segments: [{ text: `Final level ÷ ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level − 1`, concept: 'determination' }] },

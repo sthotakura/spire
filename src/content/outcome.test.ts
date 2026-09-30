@@ -5,7 +5,7 @@ import { explainOutcome } from './outcome'
 const noteWith = (participations: Participation[], principalProtection?: number, cap?: number, buffer?: number): Note => ({
   wrapper: 'note',
   redemption: 'bullet',
-  underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } } },
+  underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },
   payoff: { participations: withSubFeatures(participations, { buffer, cap }), principalProtection },
   principalAmount: 1000,
 })
@@ -81,7 +81,7 @@ describe('outcome explanation', () => {
     expect(explain(barriered, 65)).toBe('The underlier fell 35%. It ended below the 70 barrier, so downside participation of 100% deducts the whole 35% from principal. There is no principal protection, so the contractual payment is 650, 350 less than principal.')
   })
   it('says the move is an average when the note averages', () => {
-    const averaged = { ...noteWith(both, 0.9), underlier: { ...noteWith(both).underlier, determination: { initial: { kind: 'given' as const }, final: { kind: 'averaging' as const, observationCount: 5 } } } }
+    const averaged = { ...noteWith(both, 0.9), underlier: { ...noteWith(both).underlier, determination: { initial: { kind: 'given' as const, level: 100 }, final: { kind: 'averaging' as const, observationCount: 5 } } } }
     expect(explain(averaged, 110)).toBe('Averaged over 5 observations, the underlier rose 10%. Upside participation of 150% adds 15% to principal. The 900 floor does not apply, so the contractual payment is 1,150, 150 more than principal.')
     expect(explain(averaged, 100)).toMatch(/^Averaged over 5 observations, the underlier ended unchanged\./)
   })

@@ -27,12 +27,12 @@ final level      = level on the final date, or the average of the observed final
 underlier return = final level / lookback level - 1
 ```
 
-- **Initial end:** `given` (the initial-level term, as today) or `lookback`.
+- **Initial end:** `given` (a level stated as a term, `{ "kind": "given", "level": 100 }`) or `lookback`.
 - **Final end:** `final-date` (today's point-to-point) or `averaging`.
 - **Point-to-point** is no longer a stored option. It is `given` at the start and `final-date` at the end, and the summary sentence can still call it point-to-point.
-- **The initial-level term stays** beside the asset. With lookback it is the pricing-date level, and the level the return is measured from is derived from it and the observations. Including it in the `min` means the lookback level can never be above it, without a separate rule.
+- **Lookback states no level.** The level on the pricing date is observed like the later ones: public notes define the lookback period as beginning on the pricing date. Including it in the `min` means the lookback level can never be above it, without a separate rule. (An earlier version kept it as a term beside the asset; see decision 4.)
 - **The payoff rule is unchanged.** It still reads one return. The payment calculation takes the determined initial level as an input instead of reading the initial-level term from the note, because with lookback that level depends on the observed levels.
-- **Observed levels after pricing are scenario inputs**, like the averaging levels, and do not appear in the Structure JSON. Only the count does. Each must be greater than zero, since the return is measured from the lowest of them.
+- **The observed levels are scenario inputs**, the pricing-date level and those after it, like the averaging levels, and do not appear in the Structure JSON. Only the count of dates after pricing does. Each must be greater than zero, since the return is measured from the lowest of them.
 
 ## Synthetic worked example
 
@@ -51,17 +51,17 @@ The second row shows that a rise after pricing leaves the pricing level in place
 - **Breaking change to the JSON shape.** Averaging moves from `determination` to `determination.final`.
 - **Chart.** The payoff and the buffer bend at the lookback level, below the pricing level, so the chart shows both as separate reference lines, labelled under the axis. The horizontal axis stays the final level. The payoff line now depends on the observed levels after pricing as well as on the note.
 - **Outline.** The Determination row has one choice for each end: **Initial level** (Fixed or Lookback) and **Final level** (Final date or Averaging).
-- **Calculation.** A lookback step comes before the return, e.g. `min(100, 97, 92, 95) = 92`, with its own labelled row of observed levels after pricing.
-- **Summary, payment rule and outcome.** The summary says the change is measured "from the lowest of 100 and 3 levels observed after pricing". The payment rule defines the lookback level and measures the return from it. The outcome sentence names the lookback level.
+- **Calculation.** A lookback step comes before the return, e.g. `min(100, 97, 92, 95) = 92`, with its own labelled row of observed levels from pricing, the pricing-date level first.
+- **Summary, payment rule and outcome.** The summary says the change is measured "from the lowest level on the pricing date and 3 dates after it". The payment rule defines the lookback level and measures the return from it. The outcome sentence names the lookback level.
 
 ## Decisions
 
 1. **Lookback sets the initial level, as the lowest observed level.** This is the form found in current public notes. The final-level form (highest) would be cheaper, since it reuses the averaging input, but teaches a form not found in current retail notes.
 2. **The determination splits into initial and final ends.** The alternative, lookback as a third single option, cannot combine lookback with averaging and leaves "point-to-point" describing both ends at once.
 3. **Observations are counted, without dates,** as for averaging, from 2 to 12. Real lookback periods often observe every trading day for weeks, so the limit is for hand entry only.
-4. **Naming.** "Initial level" stays the name of the term beside the asset, and the derived value is called "Lookback level" wherever it appears.
-5. **Every calculation reads the determined initial level**, as it reads the determined final level: the initial-level term when the initial end is given, the lookback level when it is lookback. This covers the return, the payment, the scenario table (its returns are measured from the determined initial level) and the chart's bend points. Only the chart's axis scale stays on the initial-level term, so editing an observation does not rescale the axis.
+4. **Naming and place.** "Initial level" is the determination's row. When it is fixed, the row holds the stated level; with lookback, it holds the count, and the pricing-date level is labelled "Pricing" in the calculation and on the chart. The derived value is called "Lookback level" wherever it appears. This replaces the first version, which kept an "Initial level" term beside the asset in both modes, so the outline showed two different initial levels under one name. Switching between Fixed and Lookback keeps the reader's number: the fixed level becomes the pricing-date level, and back.
+5. **Every calculation reads the determined initial level**, as it reads the determined final level: the stated level when the initial end is given, the lookback level when it is lookback. This covers the return, the payment, the scenario table (its returns are measured from the determined initial level) and the chart's bend points. Only the chart's axis scale stays on the pricing-date level, so editing a later observation does not rescale the axis. Editing the pricing-date level does, as a typed value does elsewhere.
 6. **No chart handle for the lookback observations** at first. They are edited in the calculation, and the chart shows the lookback level as a reference line.
-7. **Starting and fitted observations.** The first time lookback is chosen, the levels after pricing start from the worked example's shape relative to the initial level as it is then (−3%, −8%, −5%), rounded to whole units. When the count changes, the earliest levels are kept, since they are the ones closest to pricing, and new levels repeat the latest one.
+7. **Starting and fitted observations.** The first time lookback is chosen, the levels after pricing start from the worked example's shape relative to the pricing-date level as it is then (−3%, −8%, −5%), rounded to whole units. When the count changes, the earliest levels are kept, since they are the ones closest to pricing, and new levels repeat the latest one.
 8. **Outline labels.** The two choices are labelled "Initial level" and "Final level", after what each decides. The initial level is not labelled "strike level": a strike often equals the initial level, but some notes set it at a percentage of it. The initial level hint says it is often called the strike level when the strike is set at 100% of it.
 9. **The buffer is measured from the lookback level**, like every other payoff feature, because the payoff reads one return. This follows the public filings above.

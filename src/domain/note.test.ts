@@ -6,8 +6,8 @@ const note: Note = {
   redemption: 'bullet',
   underlier: {
     kind: 'single',
-    components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }],
-    determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } },
+    components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }],
+    determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } },
   },
   payoff: {
     participations: [
@@ -29,7 +29,7 @@ const withUpside = (base: Note, terms: Partial<UpsideParticipation>): Note => ({
 })
 const withComponent = (name: string, initialLevel: number): Note => ({
   ...note,
-  underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name }, initialLevel }] },
+  underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name } }], determination: { ...note.underlier.determination, initial: { kind: 'given', level: initialLevel } } },
 })
 
 describe('protected participation note', () => {
@@ -415,7 +415,7 @@ describe('barrier', () => {
 })
 
 describe('averaging determination', () => {
-  const averaging = (observationCount: number): Note => ({ ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'given' }, final: { kind: 'averaging', observationCount } } } })
+  const averaging = (observationCount: number): Note => ({ ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'averaging', observationCount } } } })
 
   it('takes the final level as the arithmetic average of the observed levels', () => {
     expect(finalLevelFrom({ kind: 'averaging', observationCount: 4 }, [100, 120, 90, 130])).toBe(110)
@@ -455,21 +455,25 @@ describe('lookback determination', () => {
     ...base,
     underlier: { ...base.underlier, determination: { ...base.underlier.determination, initial: { kind: 'lookback', observationCount } } },
   })
-  const paymentFrom = (n: Note, afterPricing: number[], finalLevel: number) => {
-    const { initial } = n.underlier.determination
-    return maturityPayment(n, { initial: initialLevelFrom(initial, n.underlier.components[0].initialLevel, afterPricing), final: finalLevel })
-  }
+  // The levels observed from pricing: the level on the pricing date first, then each date after it.
+  const paymentFrom = (n: Note, fromPricing: number[], finalLevel: number) =>
+    maturityPayment(n, { initial: initialLevelFrom(n.underlier.determination.initial, fromPricing), final: finalLevel })
 
-  it('reads the initial-level term when the initial level is given', () => {
-    expect(initialLevelFrom({ kind: 'given' }, 100, [])).toBe(100)
+  it('reads the stated level when the initial level is given', () => {
+    expect(initialLevelFrom({ kind: 'given', level: 100 }, [])).toBe(100)
   })
 
-  it('takes the lowest of the initial level and the levels observed after pricing', () => {
-    expect(initialLevelFrom({ kind: 'lookback', observationCount: 3 }, 100, [97, 92, 95])).toBe(92)
+  it('takes the lowest of the levels on the pricing date and the dates after it', () => {
+    expect(initialLevelFrom({ kind: 'lookback', observationCount: 3 }, [100, 97, 92, 95])).toBe(92)
   })
 
-  it('keeps the initial level when every observed level is above it', () => {
-    expect(initialLevelFrom({ kind: 'lookback', observationCount: 3 }, 100, [101, 104, 103])).toBe(100)
+  it('keeps the pricing-date level when every later level is above it', () => {
+    expect(initialLevelFrom({ kind: 'lookback', observationCount: 3 }, [100, 101, 104, 103])).toBe(100)
+  })
+
+  it('states no level of its own with lookback: the pricing-date level is observed like the others', () => {
+    expect('level' in lookback(3).underlier.determination.initial).toBe(false)
+    expect(initialLevelFrom({ kind: 'lookback', observationCount: 2 }, [80, 90, 85])).toBe(80)
   })
 
   // The worked example in docs/lookback.md: principal 1,000, initial level 100, three observations, 100% upside participation.
@@ -478,16 +482,16 @@ describe('lookback determination', () => {
     [[101, 104, 103], 110, 1100, 1100],
     [[97, 92, 95], 90, 1000, 1000],
   ])('pays on the return from the lookback level after %j, ending at %d', (afterPricing, finalLevel, withLookback, pointToPoint) => {
-    expect(paymentFrom(lookback(3), afterPricing, finalLevel)).toBeCloseTo(withLookback, 8)
+    expect(paymentFrom(lookback(3), [100, ...afterPricing], finalLevel)).toBeCloseTo(withLookback, 8)
     expect(paymentFrom(upsideOnly, [], finalLevel)).toBeCloseTo(pointToPoint, 8)
   })
 
   it('combines with averaging of the final level', () => {
-    const both = lookback(3, { ...upsideOnly, underlier: { ...upsideOnly.underlier, determination: { initial: { kind: 'given' }, final: { kind: 'averaging', observationCount: 4 } } } })
+    const both = lookback(3, { ...upsideOnly, underlier: { ...upsideOnly.underlier, determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'averaging', observationCount: 4 } } } })
     expect(validateNote(both)).toEqual([])
     // Lookback level 92; final level (100 + 120 + 90 + 130) ÷ 4 = 110.
     const finalLevel = finalLevelFrom(both.underlier.determination.final, [100, 120, 90, 130])
-    expect(paymentFrom(both, [97, 92, 95], finalLevel)).toBeCloseTo(1000 * 110 / 92, 8)
+    expect(paymentFrom(both, [100, 97, 92, 95], finalLevel)).toBeCloseTo(1000 * 110 / 92, 8)
   })
 
   // Public lookback notes measure the buffer from the lookback level, e.g. a 60% fall with a 10% buffer loses 50%.
@@ -496,13 +500,16 @@ describe('lookback determination', () => {
     [74, 1000],
   ])('measures the buffer from the lookback level, ending at %d', (finalLevel, expected) => {
     const buffered = lookback(3, withDownside({ ...note, payoff: { ...note.payoff, principalProtection: undefined } }, { buffer: 0.1 }))
-    expect(paymentFrom(buffered, [97, 80, 90], finalLevel)).toBeCloseTo(expected, 8)
+    expect(paymentFrom(buffered, [100, 97, 80, 90], finalLevel)).toBeCloseTo(expected, 8)
   })
 
   it('rejects observed levels that do not match the count, or are not above zero', () => {
-    expect(() => initialLevelFrom({ kind: 'lookback', observationCount: 3 }, 100, [97, 92])).toThrow('Expected 3 observed levels after pricing.')
-    expect(() => initialLevelFrom({ kind: 'given' }, 100, [97])).toThrow('Expected 0 observed levels after pricing.')
-    for (const level of [0, -1, Number.NaN]) expect(() => initialLevelFrom({ kind: 'lookback', observationCount: 2 }, 100, [97, level])).toThrow('Observed levels after pricing must be greater than zero.')
+    expect(() => initialLevelFrom({ kind: 'lookback', observationCount: 3 }, [100, 97, 92])).toThrow('Expected 4 observed levels for the initial level.')
+    expect(() => initialLevelFrom({ kind: 'given', level: 100 }, [97])).toThrow('Expected 0 observed levels for the initial level.')
+    for (const level of [0, -1, Number.NaN]) {
+      expect(() => initialLevelFrom({ kind: 'lookback', observationCount: 2 }, [100, 97, level])).toThrow('Observed levels for the initial level must be greater than zero.')
+      expect(() => initialLevelFrom({ kind: 'lookback', observationCount: 2 }, [level, 97, 95])).toThrow('Observed levels for the initial level must be greater than zero.')
+    }
   })
 
   it('accepts from 2 to 12 observations', () => {

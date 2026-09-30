@@ -41,14 +41,14 @@ describe('payment formula', () => {
   })
 
   it('defines the final level as the average when the note averages', () => {
-    const averaged = { ...noteWith([up]), underlier: { ...startingNote.underlier, determination: { initial: { kind: 'given' as const }, final: { kind: 'averaging' as const, observationCount: 5 } } } }
+    const averaged = { ...noteWith([up]), underlier: { ...startingNote.underlier, determination: { initial: { kind: 'given' as const, level: 100 }, final: { kind: 'averaging' as const, observationCount: 5 } } } }
     expect(text(averaged).slice(0, 2)).toEqual(['Final level = Average of the observed levels', 'Return = Final level ÷ Initial level − 1'])
     expect(paymentFormula(averaged)[0].segments[0].concept).toBe('final-level')
   })
 
   it('defines the lookback level, and measures the return from it, when the note looks back', () => {
     const lookback = { ...noteWith([up]), underlier: { ...startingNote.underlier, determination: { initial: { kind: 'lookback' as const, observationCount: 3 }, final: { kind: 'final-date' as const } } } }
-    expect(text(lookback).slice(0, 2)).toEqual(['Lookback level = Lowest of the initial level and the levels observed after pricing', 'Return = Final level ÷ Lookback level − 1'])
+    expect(text(lookback).slice(0, 2)).toEqual(['Lookback level = Lowest of the levels on the pricing date and the dates after it', 'Return = Final level ÷ Lookback level − 1'])
     expect(paymentFormula(lookback)[0].segments[0].concept).toBe('initial-level')
     const both = { ...lookback, underlier: { ...lookback.underlier, determination: { ...lookback.underlier.determination, final: { kind: 'averaging' as const, observationCount: 5 } } } }
     expect(text(both).slice(0, 3).map((line) => line.split(' = ')[0])).toEqual(['Lookback level', 'Final level', 'Return'])
@@ -104,7 +104,7 @@ describe('payment rule in words', () => {
   })
 
   it('falls back to a generic name when the asset has none', () => {
-    const unnamed: Note = { ...noteWith([up]), underlier: { ...startingNote.underlier, components: [{ asset: { kind: 'equity-index', name: ' ' }, initialLevel: 100 }] } }
+    const unnamed: Note = { ...noteWith([up]), underlier: { ...startingNote.underlier, components: [{ asset: { kind: 'equity-index', name: ' ' } }] } }
     expect(paymentInWords(unnamed)).toBe('Each 1% rise in the underlier adds 1% of principal. A fall leaves principal unchanged.')
   })
 })

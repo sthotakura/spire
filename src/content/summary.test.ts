@@ -5,7 +5,7 @@ import { summarize } from './summary'
 const note: Note = {
   wrapper: 'note',
   redemption: 'bullet',
-  underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }], determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } } },
+  underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },
   payoff: {
     participations: [
       { direction: 'downside', rate: 1 },
@@ -45,7 +45,7 @@ describe('note summary with a buffer', () => {
 
 describe('note summary with averaging', () => {
   it('says the change is measured to the average of the observed levels', () => {
-    const averaged = { ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'given' as const }, final: { kind: 'averaging' as const, observationCount: 5 } } } }
+    const averaged = { ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'given' as const, level: 100 }, final: { kind: 'averaging' as const, observationCount: 5 } } } }
     expect(sentence(averaged)).toContain('of Synthetic Index, measured from 100 to the average of 5 observed levels, with 90% principal protection.')
     expect(conceptOf(averaged, 'from 100')).toBe('initial-level')
     expect(conceptOf(averaged, 'the average of 5 observed levels')).toBe('final-level')
@@ -55,14 +55,14 @@ describe('note summary with averaging', () => {
 describe('note summary with lookback', () => {
   const lookback = { ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'lookback' as const, observationCount: 3 }, final: { kind: 'final-date' as const } } } }
 
-  it('says the change is measured from the lowest of the initial level and the levels after pricing', () => {
-    expect(sentence(lookback)).toContain('of Synthetic Index, measured from the lowest of 100 and 3 levels observed after pricing, with 90% principal protection.')
-    expect(conceptOf(lookback, 'from the lowest of 100 and 3 levels observed after pricing')).toBe('initial-level')
+  it('says the change is measured from the lowest level on the pricing date and the dates after it', () => {
+    expect(sentence(lookback)).toContain('of Synthetic Index, measured from the lowest level on the pricing date and 3 dates after it, with 90% principal protection.')
+    expect(conceptOf(lookback, 'from the lowest level on the pricing date and 3 dates after it')).toBe('initial-level')
   })
 
   it('names both ends when the note also averages', () => {
     const both = { ...lookback, underlier: { ...lookback.underlier, determination: { ...lookback.underlier.determination, final: { kind: 'averaging' as const, observationCount: 5 } } } }
-    expect(sentence(both)).toContain('measured from the lowest of 100 and 3 levels observed after pricing to the average of 5 observed levels,')
+    expect(sentence(both)).toContain('measured from the lowest level on the pricing date and 3 dates after it to the average of 5 observed levels,')
   })
 })
 
@@ -113,7 +113,7 @@ describe('note summary', () => {
   })
 
   it('keeps describing a draft that is not valid yet', () => {
-    const draft: Note = { ...note, underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name: ' ' }, initialLevel: 100 }] }, payoff: { ...note.payoff, participations: [], principalProtection: Number.NaN } }
+    const draft: Note = { ...note, underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name: ' ' } }] }, payoff: { ...note.payoff, participations: [], principalProtection: Number.NaN } }
     expect(sentence(draft)).toBe('A note that redeems at maturity and repays its principal, linked to the underlier, measured point-to-point from 100, with — principal protection.')
   })
 })

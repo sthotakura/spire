@@ -85,7 +85,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 ## 10. Model the underlier and explain the outline
 
 - Nest the asset and the determination method under the underlier, in the domain, the Structure JSON and the outline alike. The outline and the JSON must keep the same shape: the JSON is how we test whether a product is expressed correctly.
-- Give a single underlier a `components` list with exactly one entry, so a basket later only adds entries and a combination rule. Keep the initial level beside the asset, as a term of the note. The model, decisions and open questions are in [docs/underlier-model.md](docs/underlier-model.md).
+- Give a single underlier a `components` list with exactly one entry, so a basket later only adds entries and a combination rule. Keep the initial level beside the asset, as a term of the note. (Superseded by section 18.) The model, decisions and open questions are in [docs/underlier-model.md](docs/underlier-model.md).
 - Show a one-line meaning under each part of the outline, in neutral wording for investors and structurers alike, with fuller definitions in the ⓘ hints.
 - Make determination a dropdown like the others, show digit separators in number fields, and drop the "units" label from amounts.
 - Keep one **Add feature** entry point for payoff features; the empty payoff names two examples as plain text.
@@ -110,7 +110,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 ## 13. Add lookback
 
 - Split the determination into its two ends: the initial level is fixed (`given`) or by lookback, and the final level is on the final date or averaged. Point-to-point is a fixed initial level and a final level on the final date. The model, decisions and worked example are in [docs/lookback.md](docs/lookback.md).
-- Add lookback on the initial level: the lowest of the initial-level term (the pricing-date level) and a stated number of levels observed after pricing, from 2 to 12.
+- Add lookback on the initial level: the lowest of the initial-level term (the pricing-date level) and a stated number of levels observed after pricing, from 2 to 12. (The term moved into the determination in section 18.)
 - Keep the payoff rule unchanged. The payment calculation takes the determined initial and final levels, and every calculation reads the determined initial level, so the return, scenario table, payoff and buffer are all measured from the lookback level. The chart's axis stays scaled on the initial-level term.
 - Treat the levels after pricing as scenario inputs, edited in the calculation (`min(100, 97, 92, 95) = 92`). Only the count is a note term.
 - Show lookback in the outline (Initial level and Final level as rows nested under Determination, each its own concept with its own colour and highlights), summary, payment rule, calculation, outcome sentence, scenario table and chart (the initial level and the lookback level as separate reference lines).
@@ -152,6 +152,14 @@ Open questions:
 
 - Remove `kind: 'participation'` from the payoff, in the domain and the Structure JSON. It had one value, and participation is now optional, so it described no note correctly. New payoff mechanics are added as features inside the payoff, and coupons will sit beside it, so a payoff kind would only suggest a product-type hierarchy the model avoids.
 - Rename the `ProtectedParticipationNote` type to `Note`, since protection is optional too. No payment changes.
+
+## 18. Move the initial level into the determination
+
+- The outline showed "Initial level 100" under the asset and "Initial level: Lookback" under the determination: one name for two different values. The initial level now belongs to the determination, in the domain, the Structure JSON and the outline alike. The asset is only what is tracked.
+- A fixed initial level is a term: `"initial": { "kind": "given", "level": 100 }`, entered under Initial level.
+- Lookback states only its count: `"initial": { "kind": "lookback", "observationCount": 3 }`. The level on the pricing date is observed like the later ones, since public notes start the lookback period on the pricing date, so it is a scenario input, edited first in the calculation's `min(…)` and labelled "Pricing" there and on the chart.
+- Switching between Fixed and Lookback keeps the reader's number. The chart's axis stays scaled on the pricing-date level.
+- Open: a basket has one fixed initial level per asset but one determination, so the levels would be matched to the components ([docs/underlier-model.md](docs/underlier-model.md)).
 
 ## Later direction: a composable form
 

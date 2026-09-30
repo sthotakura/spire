@@ -1,13 +1,16 @@
 import type { Note } from './note'
 
+// The initial level the page opens on. With lookback it becomes the level on the pricing date, a scenario input.
+export const startingInitialLevel = 100
+
 // The note the page opens on: a valid note whose payoff has no features, so it only repays principal.
 export const startingNote: Note = {
   wrapper: 'note',
   redemption: 'bullet',
   underlier: {
     kind: 'single',
-    components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' }, initialLevel: 100 }],
-    determination: { initial: { kind: 'given' }, final: { kind: 'final-date' } },
+    components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }],
+    determination: { initial: { kind: 'given', level: startingInitialLevel }, final: { kind: 'final-date' } },
   },
   payoff: { participations: [] },
   principalAmount: 1000,
@@ -19,7 +22,7 @@ export const startingFinalLevel = 110
 // The number of observations the first time averaging is chosen.
 export const firstObservationCount = 5
 
-// The levels after pricing the first time lookback is chosen, as moves from the initial level: a fall soon after pricing,
+// The levels after pricing the first time lookback is chosen, as moves from the pricing-date level: a fall soon after pricing,
 // then a partial recovery. Their count is the first number of lookback observations.
 export const firstLookbackMoves = [-0.03, -0.08, -0.05]
 

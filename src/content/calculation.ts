@@ -50,8 +50,8 @@ function barrierStep(level: number, breakdown: PaymentBreakdown, finalLevel: num
 }
 
 // The worked calculation of the maturity payment from the observed levels: those on the final dates and, for lookback, those
-// after pricing. Every number comes from the payment breakdown.
-export function calculationSteps(note: Note, breakdown: PaymentBreakdown, observedLevels: number[], afterPricing: number[]): CalculationStep[] {
+// from the pricing date on. Every number comes from the payment breakdown.
+export function calculationSteps(note: Note, breakdown: PaymentBreakdown, observedLevels: number[], initialObservations: number[]): CalculationStep[] {
   const b = breakdown
   const [component] = note.underlier.components
   const name = component.asset.name.trim()
@@ -64,11 +64,11 @@ export function calculationSteps(note: Note, breakdown: PaymentBreakdown, observ
   const withProtection = principalProtection !== undefined
   const hasDownside = downsideOf(note) !== undefined
   const { determination } = note.underlier
-  const initialLevel = initialLevelFrom(determination.initial, component.initialLevel, afterPricing)
+  const initialLevel = initialLevelFrom(determination.initial, initialObservations)
   const finalLevel = finalLevelFrom(determination.final, observedLevels)
   const steps: Array<Omit<CalculationStep, 'n'>> = []
   if (determination.initial.kind === 'lookback') {
-    steps.push({ title: `Lookback level of ${name || 'the underlier'}`, how: `min(${[component.initialLevel, ...afterPricing].map(formatAmount).join(', ')})`, value: formatAmount(initialLevel), concept: 'initial-level' })
+    steps.push({ title: `Lookback level of ${name || 'the underlier'}`, how: `min(${initialObservations.map(formatAmount).join(', ')})`, value: formatAmount(initialLevel), concept: 'initial-level' })
   }
   if (determination.final.kind === 'averaging') {
     steps.push({ title: `Final level of ${name || 'the underlier'}`, how: `(${observedLevels.map(formatAmount).join(' + ')}) ÷ ${observedLevels.length}`, value: formatAmount(finalLevel), concept: 'final-level' })
