@@ -168,6 +168,7 @@ Open questions:
 - Let the reader add and remove components, at least two. Adding or removing one resets the weights to equal.
 - Allow averaging: averaging each component and then weighting gives the same final level as averaging the basket level, and public notes use both. Show lookback as unavailable on a basket until a public note settles how it applies.
 - Keep worst-of for a later increment.
+- Build the domain first: the basket types, validation and `basketBreakdown`, which measures each component and returns the basket's two levels for the payoff. Until the page describes a basket, the modules that describe only a single asset (summary, calculation and the page) read `SingleNote`.
 
 ## Later direction: a composable form
 

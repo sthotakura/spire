@@ -1,4 +1,4 @@
-import { downsideOf, upsideOf, type Note } from '../domain/note'
+import { downsideOf, upsideOf, type SingleNote } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface SummarySegment {
@@ -11,7 +11,7 @@ const amount = (value: number) => Number.isFinite(value) ? value.toLocaleString(
 
 // Describes a note in plain words. Segments with a concept name the part of the note they describe.
 // A note with no participation only repays principal. The buffer, barrier, protection and cap clauses appear only when those features are present.
-export function summarize(note: Note): SummarySegment[] {
+export function summarize(note: SingleNote): SummarySegment[] {
   const upside = note.payoff.participations.find(({ direction }) => direction === 'upside')
   const downside = note.payoff.participations.find(({ direction }) => direction === 'downside')
   const underlier: SummarySegment = { text: note.underlier.components[0].asset.name.trim() || 'the underlier', concept: 'asset' }

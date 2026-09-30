@@ -1,4 +1,4 @@
-import { downsideOf, finalLevelFrom, initialLevelFrom, upsideOf, type ParticipationDirection, type PaymentBreakdown, type Note } from '../domain/note'
+import { downsideOf, finalLevelFrom, initialLevelFrom, upsideOf, type ParticipationDirection, type PaymentBreakdown, type Note, type SingleNote } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface CalculationStep {
@@ -51,7 +51,7 @@ function barrierStep(level: number, breakdown: PaymentBreakdown, finalLevel: num
 
 // The worked calculation of the maturity payment from the observed levels: those on the final dates and, for lookback, those
 // from the pricing date on. Every number comes from the payment breakdown.
-export function calculationSteps(note: Note, breakdown: PaymentBreakdown, observedLevels: number[], initialObservations: number[]): CalculationStep[] {
+export function calculationSteps(note: SingleNote, breakdown: PaymentBreakdown, observedLevels: number[], initialObservations: number[]): CalculationStep[] {
   const b = breakdown
   const [component] = note.underlier.components
   const name = component.asset.name.trim()

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { finalLevelFrom, initialLevelFrom, maturityPayment, noteIssues, paymentBreakdown, validateNote, type DownsideParticipation, type Note, type UpsideParticipation } from './note'
+import { basketBreakdown, equalWeights, finalLevelFrom, initialLevelFrom, maturityPayment, noteIssues, paymentBreakdown, validateNote, type BasketUnderlier, type DownsideParticipation, type Note, type SingleNote, type UpsideParticipation } from './note'
 
-const note: Note = {
+const note: SingleNote = {
   wrapper: 'note',
   redemption: 'bullet',
   underlier: {
@@ -19,15 +19,15 @@ const note: Note = {
   principalAmount: 1000,
 }
 // Changes the participation in one direction, such as adding its buffer or cap, and keeps the other.
-const withDownside = (base: Note, terms: Partial<DownsideParticipation>): Note => ({
+const withDownside = (base: SingleNote, terms: Partial<DownsideParticipation>): SingleNote => ({
   ...base,
   payoff: { ...base.payoff, participations: base.payoff.participations.map((p) => p.direction === 'downside' ? { ...p, ...terms } : p) },
 })
-const withUpside = (base: Note, terms: Partial<UpsideParticipation>): Note => ({
+const withUpside = (base: SingleNote, terms: Partial<UpsideParticipation>): SingleNote => ({
   ...base,
   payoff: { ...base.payoff, participations: base.payoff.participations.map((p) => p.direction === 'upside' ? { ...p, ...terms } : p) },
 })
-const withComponent = (name: string, initialLevel: number): Note => ({
+const withComponent = (name: string, initialLevel: number): SingleNote => ({
   ...note,
   underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name } }], determination: { ...note.underlier.determination, initial: { kind: 'given', level: initialLevel } } },
 })
@@ -72,7 +72,7 @@ describe('protected participation note', () => {
     [100, 1000],
     [110, 1150],
   ])('applies downside participation until the protection floor at %s', (finalLevel, expected) => {
-    const partiallyProtectedNote: Note = {
+    const partiallyProtectedNote: SingleNote = {
       ...note,
       payoff: {
         ...note.payoff,
@@ -84,7 +84,7 @@ describe('protected participation note', () => {
   })
 
   it('applies the configured downside participation rate before the floor', () => {
-    const partiallyProtectedNote: Note = {
+    const partiallyProtectedNote: SingleNote = {
       ...note,
       payoff: {
         ...note.payoff,
@@ -100,7 +100,7 @@ describe('protected participation note', () => {
   })
 
   it('allows a zero protection floor', () => {
-    const unprotectedNote: Note = {
+    const unprotectedNote: SingleNote = {
       ...note,
       payoff: { ...note.payoff, principalProtection: 0 },
     }
@@ -117,7 +117,7 @@ describe('protected participation note', () => {
   })
 
   it('leaves negative returns unchanged when only upside participation is selected', () => {
-    const upsideOnlyNote: Note = {
+    const upsideOnlyNote: SingleNote = {
       ...note,
       payoff: {
         ...note.payoff,
@@ -131,7 +131,7 @@ describe('protected participation note', () => {
   })
 
   it('leaves positive returns unchanged when only downside participation is selected', () => {
-    const downsideOnlyNote: Note = {
+    const downsideOnlyNote: SingleNote = {
       ...note,
       payoff: {
         ...note.payoff,
@@ -156,7 +156,7 @@ describe('protected participation note', () => {
   })
 
   it('allows a note with no participation and no protection', () => {
-    const principalOnlyNote: Note = { ...note, payoff: { participations: [] } }
+    const principalOnlyNote: SingleNote = { ...note, payoff: { participations: [] } }
 
     expect(validateNote(principalOnlyNote)).toEqual([])
     for (const finalLevel of [0, 60, 100, 110, 130]) expect(maturityPayment(principalOnlyNote, { initial: 100, final: finalLevel })).toBe(1000)
@@ -176,7 +176,7 @@ describe('protected participation note', () => {
   })
 
   it('never pays below zero without protection', () => {
-    const unprotectedNote: Note = {
+    const unprotectedNote: SingleNote = {
       ...note,
       payoff: { participations: [{ direction: 'downside', rate: 1.5 }] },
     }
@@ -187,8 +187,8 @@ describe('protected participation note', () => {
   })
 
   it('treats absent and zero protection alike in payment but not in structure', () => {
-    const absent: Note = { ...note, payoff: { participations: [{ direction: 'downside', rate: 1 }] } }
-    const zero: Note = { ...absent, payoff: { ...absent.payoff, principalProtection: 0 } }
+    const absent: SingleNote = { ...note, payoff: { participations: [{ direction: 'downside', rate: 1 }] } }
+    const zero: SingleNote = { ...absent, payoff: { ...absent.payoff, principalProtection: 0 } }
 
     for (const finalLevel of [0, 50, 100, 120]) expect(maturityPayment(absent, { initial: 100, final: finalLevel })).toBe(maturityPayment(zero, { initial: 100, final: finalLevel }))
     expect(absent.payoff.principalProtection).toBeUndefined()
@@ -196,7 +196,7 @@ describe('protected participation note', () => {
 })
 
 describe('payment breakdown', () => {
-  const protectedNote: Note = { ...note, payoff: { ...note.payoff, principalProtection: 0.9 } }
+  const protectedNote: SingleNote = { ...note, payoff: { ...note.payoff, principalProtection: 0.9 } }
 
   it('breaks a rise into its steps', () => {
     const breakdown = paymentBreakdown(protectedNote, { initial: 100, final: 110 })
@@ -415,7 +415,7 @@ describe('barrier', () => {
 })
 
 describe('averaging determination', () => {
-  const averaging = (observationCount: number): Note => ({ ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'averaging', observationCount } } } })
+  const averaging = (observationCount: number): SingleNote => ({ ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'averaging', observationCount } } } })
 
   it('takes the final level as the arithmetic average of the observed levels', () => {
     expect(finalLevelFrom({ kind: 'averaging', observationCount: 4 }, [100, 120, 90, 130])).toBe(110)
@@ -450,13 +450,13 @@ describe('averaging determination', () => {
 })
 
 describe('lookback determination', () => {
-  const upsideOnly: Note = { ...note, payoff: { participations: [{ direction: 'upside', rate: 1 }] } }
-  const lookback = (observationCount: number, base: Note = upsideOnly): Note => ({
+  const upsideOnly: SingleNote = { ...note, payoff: { participations: [{ direction: 'upside', rate: 1 }] } }
+  const lookback = (observationCount: number, base: SingleNote = upsideOnly): SingleNote => ({
     ...base,
     underlier: { ...base.underlier, determination: { ...base.underlier.determination, initial: { kind: 'lookback', observationCount } } },
   })
   // The levels observed from pricing: the level on the pricing date first, then each date after it.
-  const paymentFrom = (n: Note, fromPricing: number[], finalLevel: number) =>
+  const paymentFrom = (n: SingleNote, fromPricing: number[], finalLevel: number) =>
     maturityPayment(n, { initial: initialLevelFrom(n.underlier.determination.initial, fromPricing), final: finalLevel })
 
   it('reads the stated level when the initial level is given', () => {
@@ -519,5 +519,122 @@ describe('lookback determination', () => {
 
   it.each([1, 13, 2.5, Number.NaN])('rejects %s observations', (count) => {
     expect(noteIssues(lookback(count))).toEqual([{ field: 'lookbackObservationCount', message: 'Lookback observations must be a whole number from 2 to 12.' }])
+  })
+})
+
+describe('weighted basket', () => {
+  // The worked example in docs/basket.md: Synthetic Index A starts at 100 and Synthetic Co at 40, each weighted 50%.
+  const basket: BasketUnderlier = {
+    kind: 'basket',
+    components: [
+      { asset: { kind: 'equity-index', name: 'Synthetic Index A' } },
+      { asset: { kind: 'equity', name: 'Synthetic Co' } },
+    ],
+    determination: {
+      initial: { kind: 'given', levels: [{ asset: 'Synthetic Index A', level: 100 }, { asset: 'Synthetic Co', level: 40 }] },
+      final: { kind: 'final-date' },
+    },
+    combination: { kind: 'weighted', weights: [{ asset: 'Synthetic Index A', weight: 0.5 }, { asset: 'Synthetic Co', weight: 0.5 }] },
+  }
+  const basketNote: Note = { ...note, underlier: basket, payoff: { participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }] } }
+  const averaged: BasketUnderlier = { ...basket, determination: { ...basket.determination, final: { kind: 'averaging', observationCount: 2 } } }
+  const issuesOf = (underlier: BasketUnderlier) => noteIssues({ ...basketNote, underlier })
+
+  it.each([
+    [120, 48, 120, 1200],
+    [130, 36, 110, 1100],
+    [80, 44, 95, 950],
+  ])('weights the component returns: %s and %s make a basket level of %s', (indexFinal, coFinal, basketLevel, payment) => {
+    const { levels } = basketBreakdown(basket, [[indexFinal], [coFinal]])
+    expect(levels.initial).toBe(100)
+    expect(levels.final).toBeCloseTo(basketLevel, 8)
+    expect(maturityPayment(basketNote, levels)).toBeCloseTo(payment, 8)
+  })
+
+  it('measures each component from its own initial level', () => {
+    const { components, basketReturn } = basketBreakdown(basket, [[130], [36]])
+    expect(components.map(({ asset, weight, initialLevel, finalLevel }) => [asset, weight, initialLevel, finalLevel])).toEqual([['Synthetic Index A', 0.5, 100, 130], ['Synthetic Co', 0.5, 40, 36]])
+    expect(components[0].componentReturn).toBeCloseTo(0.3, 8)
+    expect(components[1].componentReturn).toBeCloseTo(-0.1, 8)
+    expect(basketReturn).toBeCloseTo(0.1, 8)
+  })
+
+  it('finds each term by its asset, whatever order the terms are listed in', () => {
+    const reordered: BasketUnderlier = {
+      ...basket,
+      determination: { ...basket.determination, initial: { kind: 'given', levels: [...basket.determination.initial.levels].reverse() } },
+      combination: { kind: 'weighted', weights: [{ asset: 'Synthetic Co', weight: 0.25 }, { asset: 'Synthetic Index A', weight: 0.75 }] },
+    }
+    // 75% × +30% + 25% × −10% = +20%.
+    expect(basketBreakdown(reordered, [[130], [36]]).levels.final).toBeCloseTo(120, 8)
+  })
+
+  it('averages each component, which matches averaging the basket level on each date', () => {
+    // Index A 110 then 130, Co 44 then 36: the component averages are 120 and 40, and the basket level is 110 on both dates.
+    const { components, levels } = basketBreakdown(averaged, [[110, 130], [44, 36]])
+    expect(components.map(({ finalLevel }) => finalLevel)).toEqual([120, 40])
+    expect(levels.final).toBeCloseTo(110, 8)
+    const basketLevelOn = (date: number) => basketBreakdown(basket, [[[110, 130][date]], [[44, 36][date]]]).levels.final
+    expect((basketLevelOn(0) + basketLevelOn(1)) / 2).toBeCloseTo(levels.final, 8)
+  })
+
+  it('passes the basket level to the payoff, so a barrier is measured on the basket', () => {
+    const barrierNote: Note = { ...basketNote, payoff: { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }] } }
+    // Index A −50% and Co +20% leave the basket at 85, above a barrier at 70, so principal is repaid.
+    expect(maturityPayment(barrierNote, basketBreakdown(basket, [[50], [48]]).levels)).toBeCloseTo(1000, 8)
+  })
+
+  it('gives the components equal weights', () => {
+    expect(equalWeights(basket.components)).toEqual([{ asset: 'Synthetic Index A', weight: 0.5 }, { asset: 'Synthetic Co', weight: 0.5 }])
+    // Three equal thirds do not add up to exactly 1 in floating point, and are still accepted.
+    const components = [...basket.components, { asset: { kind: 'equity' as const, name: 'Synthetic Bank' } }]
+    const levels = [...basket.determination.initial.levels, { asset: 'Synthetic Bank', level: 20 }]
+    expect(issuesOf({ ...basket, components, determination: { ...basket.determination, initial: { kind: 'given', levels } }, combination: { kind: 'weighted', weights: equalWeights(components) } })).toEqual([])
+  })
+
+  it('accepts the example basket', () => {
+    expect(issuesOf(basket)).toEqual([])
+  })
+
+  it('needs at least two assets', () => {
+    const one: BasketUnderlier = {
+      ...basket,
+      components: [basket.components[0]],
+      determination: { ...basket.determination, initial: { kind: 'given', levels: [{ asset: 'Synthetic Index A', level: 100 }] } },
+      combination: { kind: 'weighted', weights: [{ asset: 'Synthetic Index A', weight: 1 }] },
+    }
+    expect(issuesOf(one)).toEqual([{ field: 'basketComponents', message: 'A basket needs at least two assets.' }])
+  })
+
+  it('needs a distinct name for each asset, since terms refer to assets by name', () => {
+    const named = (a: string, b: string): BasketUnderlier => ({ ...basket, components: [{ asset: { kind: 'equity-index', name: a } }, { asset: { kind: 'equity', name: b } }] })
+    expect(issuesOf(named(' ', 'Synthetic Co'))).toContainEqual({ field: 'underlierName', message: 'Enter a name for each asset.' })
+    expect(issuesOf(named('Synthetic Co', 'Synthetic Co'))).toContainEqual({ field: 'underlierName', message: 'Each asset in a basket needs its own name.' })
+  })
+
+  it('needs one initial level per asset, each above zero', () => {
+    const withLevels = (levels: { asset: string; level: number }[]): BasketUnderlier => ({ ...basket, determination: { ...basket.determination, initial: { kind: 'given', levels } } })
+    expect(issuesOf(withLevels([{ asset: 'Synthetic Index A', level: 100 }]))).toEqual([{ field: 'initialLevel', message: 'Each asset needs one initial level.' }])
+    expect(issuesOf(withLevels([{ asset: 'Synthetic Index A', level: 100 }, { asset: 'Synthetic Index A', level: 40 }]))).toEqual([{ field: 'initialLevel', message: 'Each asset needs one initial level.' }])
+    expect(issuesOf(withLevels([{ asset: 'Synthetic Index A', level: 100 }, { asset: 'Synthetic Co', level: 0 }]))).toEqual([{ field: 'initialLevel', message: 'Initial level of Synthetic Co must be greater than zero.' }])
+  })
+
+  it('needs one weight per asset, each above zero, adding up to 100%', () => {
+    const withWeights = (a: number, b: number, assetB = 'Synthetic Co'): BasketUnderlier => ({ ...basket, combination: { kind: 'weighted', weights: [{ asset: 'Synthetic Index A', weight: a }, { asset: assetB, weight: b }] } })
+    expect(issuesOf(withWeights(0.6, 0.4))).toEqual([])
+    expect(issuesOf(withWeights(0.6, 0.6))).toEqual([{ field: 'weights', message: 'Weights must add up to 100%.' }])
+    expect(issuesOf(withWeights(1, 0))).toEqual([{ field: 'weights', message: 'Weight of Synthetic Co must be greater than zero.' }])
+    expect(issuesOf(withWeights(0.5, Number.NaN))).toContainEqual({ field: 'weights', message: 'Weights must add up to 100%.' })
+    expect(issuesOf(withWeights(0.5, 0.5, 'Synthetic Bank'))).toEqual([{ field: 'weights', message: 'Each asset needs one weight.' }])
+  })
+
+  it('checks the averaging count as for a single asset', () => {
+    expect(issuesOf({ ...basket, determination: { ...basket.determination, final: { kind: 'averaging', observationCount: 13 } } })).toEqual([{ field: 'observationCount', message: 'Observations must be a whole number from 2 to 12.' }])
+  })
+
+  it('rejects an invalid basket, and observed levels that do not match its assets', () => {
+    expect(() => basketBreakdown({ ...basket, combination: { kind: 'weighted', weights: [{ asset: 'Synthetic Index A', weight: 0.5 }, { asset: 'Synthetic Co', weight: 0.6 }] } }, [[100], [40]])).toThrow('Weights must add up to 100%.')
+    expect(() => basketBreakdown(basket, [[100]])).toThrow('Expected observed levels for 2 assets.')
+    expect(() => basketBreakdown(averaged, [[100], [40]])).toThrow('Expected 2 observed levels.')
   })
 })

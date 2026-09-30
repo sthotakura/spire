@@ -60,17 +60,52 @@ export interface DeterminedLevels {
 }
 
 // The underlier produces the one return the payoff reads: which assets, where each starts, and how its change is measured.
-// A single underlier has exactly one component. A basket will hold several, and a rule that combines them, which only a basket can have.
+// A single underlier has exactly one component. A basket holds several, and a rule that combines them, which only a basket can have.
 export interface SingleUnderlier {
   kind: 'single'
   components: [UnderlierComponent]
   determination: Determination
 }
 
+// A term that belongs to one component of a basket. It refers to the component by asset name, not by position, so
+// removing a component cannot move a term onto another asset.
+export interface ComponentLevel {
+  asset: string
+  level: number
+}
+
+export interface ComponentWeight {
+  asset: string
+  weight: number
+}
+
+// Each component of a basket is measured from its own fixed initial level, and every component's final level is measured
+// the same way. Lookback is not modelled on a basket: the lowest basket level and each component's lowest level differ,
+// and no public note settling which applies was verified (docs/basket.md).
+export interface BasketDetermination {
+  initial: { kind: 'given'; levels: ComponentLevel[] }
+  final: FinalDetermination
+}
+
+// The basket return is the weighted sum of the component returns. Weights are fixed on the pricing date and add up to 100%.
+export interface WeightedCombination {
+  kind: 'weighted'
+  weights: ComponentWeight[]
+}
+
+export interface BasketUnderlier {
+  kind: 'basket'
+  components: UnderlierComponent[]
+  determination: BasketDetermination
+  combination: WeightedCombination
+}
+
+export type Underlier = SingleUnderlier | BasketUnderlier
+
 export interface Note {
   wrapper: 'note'
   redemption: 'bullet'
-  underlier: SingleUnderlier
+  underlier: Underlier
   payoff: {
     // Features are listed in the order the payment applies them: participation with its buffer and cap, then the protection floor.
     participations: Participation[]
@@ -78,6 +113,9 @@ export interface Note {
   }
   principalAmount: number
 }
+
+// A note on a single asset. The parts of the page that do not yet describe a basket read only this.
+export type SingleNote = Note & { underlier: SingleUnderlier }
 
 export const downsideOf = (note: Note) => note.payoff.participations.find((participation): participation is DownsideParticipation => participation.direction === 'downside')
 export const upsideOf = (note: Note) => note.payoff.participations.find((participation): participation is UpsideParticipation => participation.direction === 'upside')
@@ -88,7 +126,7 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
     ? { direction: 'downside', buffer, barrier, rate: participation.rate }
     : { direction: 'upside', rate: participation.rate, cap })
 
-export type NoteIssueField = 'principalAmount' | 'underlierName' | 'initialLevel' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'participations' | 'principalProtection' | 'cap'
+export type NoteIssueField = 'principalAmount' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'participations' | 'principalProtection' | 'cap'
 
 // Real notes can average over many more dates, such as monthly over several years, and a lookback period often observes
 // every trading day for weeks. This reference keeps the count small enough for each observed level to be set by hand.
@@ -100,19 +138,61 @@ export interface NoteIssue {
   message: string
 }
 
-export function noteIssues(note: Note): NoteIssue[] {
+// Equal weights for the components, which a basket returns to when a component is added or removed.
+export const equalWeights = (components: UnderlierComponent[]): ComponentWeight[] =>
+  components.map(({ asset }) => ({ asset: asset.name, weight: 1 / components.length }))
+
+// Whether the terms refer to the components one to one: one term per asset, and none for an asset not in the basket.
+const matchesComponents = (components: UnderlierComponent[], terms: { asset: string }[]) =>
+  terms.length === components.length && components.every(({ asset }) => terms.filter((term) => term.asset === asset.name).length === 1)
+
+// Weights such as three equal thirds do not add up to exactly 1 in floating point.
+const weightTolerance = 1e-9
+
+function basketIssues(underlier: BasketUnderlier): NoteIssue[] {
   const issues: NoteIssue[] = []
-  const [component] = note.underlier.components
+  const names = underlier.components.map(({ asset }) => asset.name)
+  if (names.length < 2) issues.push({ field: 'basketComponents', message: 'A basket needs at least two assets.' })
+  if (names.some((name) => !name.trim())) issues.push({ field: 'underlierName', message: 'Enter a name for each asset.' })
+  // Terms refer to their component by name, so two assets with one name would share them.
+  else if (new Set(names).size !== names.length) issues.push({ field: 'underlierName', message: 'Each asset in a basket needs its own name.' })
+  const { levels } = underlier.determination.initial
+  if (!matchesComponents(underlier.components, levels)) issues.push({ field: 'initialLevel', message: 'Each asset needs one initial level.' })
+  for (const { asset, level } of levels) {
+    if (!Number.isFinite(level) || level <= 0) issues.push({ field: 'initialLevel', message: `Initial level of ${asset} must be greater than zero.` })
+  }
+  const { weights } = underlier.combination
+  if (!matchesComponents(underlier.components, weights)) issues.push({ field: 'weights', message: 'Each asset needs one weight.' })
+  for (const { asset, weight } of weights) {
+    if (!Number.isFinite(weight) || weight <= 0) issues.push({ field: 'weights', message: `Weight of ${asset} must be greater than zero.` })
+  }
+  if (!(Math.abs(weights.reduce((sum, { weight }) => sum + weight, 0) - 1) <= weightTolerance)) issues.push({ field: 'weights', message: 'Weights must add up to 100%.' })
+  return issues
+}
+
+export function underlierIssues(underlier: Underlier): NoteIssue[] {
+  if (underlier.kind === 'basket') return [...basketIssues(underlier), ...finalIssues(underlier.determination.final)]
+  const issues: NoteIssue[] = []
+  const [component] = underlier.components
   if (!component.asset.name.trim()) issues.push({ field: 'underlierName', message: 'Enter an underlier name.' })
-  if (!Number.isFinite(note.principalAmount) || note.principalAmount <= 0) issues.push({ field: 'principalAmount', message: 'Principal must be greater than zero.' })
-  const { initial, final } = note.underlier.determination
+  const { initial } = underlier.determination
   if (initial.kind === 'given' && (!Number.isFinite(initial.level) || initial.level <= 0)) issues.push({ field: 'initialLevel', message: 'Initial level must be greater than zero.' })
   if (initial.kind === 'lookback' && !isObservationCount(initial.observationCount)) {
     issues.push({ field: 'lookbackObservationCount', message: `Lookback observations must be a whole number from ${observationCountRange.min} to ${observationCountRange.max}.` })
   }
+  return [...issues, ...finalIssues(underlier.determination.final)]
+}
+
+function finalIssues(final: FinalDetermination): NoteIssue[] {
   if (final.kind === 'averaging' && !isObservationCount(final.observationCount)) {
-    issues.push({ field: 'observationCount', message: `Observations must be a whole number from ${observationCountRange.min} to ${observationCountRange.max}.` })
+    return [{ field: 'observationCount', message: `Observations must be a whole number from ${observationCountRange.min} to ${observationCountRange.max}.` }]
   }
+  return []
+}
+
+export function noteIssues(note: Note): NoteIssue[] {
+  const issues: NoteIssue[] = underlierIssues(note.underlier)
+  if (!Number.isFinite(note.principalAmount) || note.principalAmount <= 0) issues.push({ field: 'principalAmount', message: 'Principal must be greater than zero.' })
   const buffer = downsideOf(note)?.buffer
   if (buffer !== undefined && (!Number.isFinite(buffer) || buffer <= 0 || buffer > 1)) issues.push({ field: 'buffer', message: 'Buffer must be greater than 0% and at most 100%.' })
   const barrier = downsideOf(note)?.barrier
@@ -158,6 +238,44 @@ export function finalLevelFrom(determination: FinalDetermination, observedLevels
   if (observedLevels.length !== observationCountOf(determination)) throw new Error(`Expected ${observationCountOf(determination)} observed levels.`)
   if (observedLevels.some((level) => !Number.isFinite(level) || level < 0)) throw new Error('Observed levels must be zero or greater.')
   return observedLevels.reduce((sum, level) => sum + level, 0) / observedLevels.length
+}
+
+// A basket's level starts here, as public notes state it, so the payoff reads a basket as it reads a single asset's levels.
+export const basketStartingLevel = 100
+
+export interface ComponentPerformance {
+  asset: string
+  weight: number
+  initialLevel: number
+  // As the final end of the determination produces it: the level on the final date, or the average.
+  finalLevel: number
+  componentReturn: number
+}
+
+export interface BasketBreakdown {
+  components: ComponentPerformance[]
+  // The weighted sum of the component returns.
+  basketReturn: number
+  // The basket's starting level and its final level, 100 × (1 + basket return), which the payoff reads.
+  levels: DeterminedLevels
+}
+
+// Measures each component from its own initial level to its final level, then weights the component returns. Observed
+// levels are listed per component, in the order of the components, each in date order. Averaging each component and then
+// weighting gives the same final level as averaging the basket level on each date, because the basket level is a weighted sum.
+export function basketBreakdown(underlier: BasketUnderlier, observedLevels: number[][]): BasketBreakdown {
+  const errors = underlierIssues(underlier)
+  if (errors.length) throw new Error(errors.map(({ message }) => message).join(' '))
+  if (observedLevels.length !== underlier.components.length) throw new Error(`Expected observed levels for ${underlier.components.length} assets.`)
+  const { initial, final } = underlier.determination
+  const components = underlier.components.map(({ asset }, index): ComponentPerformance => {
+    const initialLevel = initial.levels.find((term) => term.asset === asset.name)!.level
+    const weight = underlier.combination.weights.find((term) => term.asset === asset.name)!.weight
+    const finalLevel = finalLevelFrom(final, observedLevels[index])
+    return { asset: asset.name, weight, initialLevel, finalLevel, componentReturn: finalLevel / initialLevel - 1 }
+  })
+  const basketReturn = components.reduce((sum, { weight, componentReturn }) => sum + weight * componentReturn, 0)
+  return { components, basketReturn, levels: { initial: basketStartingLevel, final: basketStartingLevel * (1 + basketReturn) } }
 }
 
 export interface PaymentBreakdown {

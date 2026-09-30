@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { withSubFeatures, type Note } from '../domain/note'
+import { withSubFeatures, type SingleNote } from '../domain/note'
 import { startingNote } from '../domain/starting-note'
 import { structureLines } from './structure-json'
 
-const fullNote: Note = {
+const fullNote: SingleNote = {
   ...startingNote,
   payoff: {
     participations: [
@@ -13,14 +13,14 @@ const fullNote: Note = {
     principalProtection: 0.9,
   },
 }
-const cappedNote: Note = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { cap: 0.2 }) } }
-const draftNote: Note = {
+const cappedNote: SingleNote = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { cap: 0.2 }) } }
+const draftNote: SingleNote = {
   ...fullNote,
   principalAmount: Number.NaN,
   underlier: { ...startingNote.underlier, components: [{ asset: { kind: 'equity', name: 'A "quoted" name é' } }], determination: { ...startingNote.underlier.determination, initial: { kind: 'given', level: Number.NaN } } },
 }
-const asText =(note: Note) => structureLines(note).map(({ text }) => text).join('\n')
-const linesOf = (note: Note, concept: string) => structureLines(note).filter((line) => line.concept === concept).map(({ text }) => text.trim())
+const asText =(note: SingleNote) => structureLines(note).map(({ text }) => text).join('\n')
+const linesOf = (note: SingleNote, concept: string) => structureLines(note).filter((line) => line.concept === concept).map(({ text }) => text.trim())
 
 describe('structure lines', () => {
   it.each([
@@ -66,26 +66,26 @@ describe('structure lines', () => {
   })
 
   it('tags the barrier and its terms with their own concept', () => {
-    const barriered: Note = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const } }) } }
+    const barriered: SingleNote = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const } }) } }
     expect(asText(barriered)).toBe(JSON.stringify(barriered, null, 2))
     expect(linesOf(barriered, 'barrier')).toEqual(['"barrier": {', '"level": 0.7,', '"observation": "final"', '},'])
   })
 
   it('tags the buffer with its own concept', () => {
-    const buffered: Note = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { buffer: 0.1 }) } }
+    const buffered: SingleNote = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { buffer: 0.1 }) } }
     expect(asText(buffered)).toBe(JSON.stringify(buffered, null, 2))
     expect(linesOf(buffered, 'buffer')).toEqual(['"buffer": 0.1,'])
     expect(linesOf(fullNote, 'buffer')).toEqual([])
   })
 
   it('keeps the observation count under the determination', () => {
-    const averaged: Note = { ...fullNote, underlier: { ...fullNote.underlier, determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'averaging', observationCount: 5 } } } }
+    const averaged: SingleNote = { ...fullNote, underlier: { ...fullNote.underlier, determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'averaging', observationCount: 5 } } } }
     expect(asText(averaged)).toBe(JSON.stringify(averaged, null, 2))
     expect(linesOf(averaged, 'final-level')).toEqual(['"final": {', '"kind": "averaging",', '"observationCount": 5', '}'])
   })
 
   it('keeps the initial level under the initial level, and only the lookback count when it is lookback', () => {
-    const lookback: Note = { ...fullNote, underlier: { ...fullNote.underlier, determination: { ...fullNote.underlier.determination, initial: { kind: 'lookback', observationCount: 3 } } } }
+    const lookback: SingleNote = { ...fullNote, underlier: { ...fullNote.underlier, determination: { ...fullNote.underlier.determination, initial: { kind: 'lookback', observationCount: 3 } } } }
     expect(asText(lookback)).toBe(JSON.stringify(lookback, null, 2))
     expect(linesOf(lookback, 'initial-level')).toEqual(['"initial": {', '"kind": "lookback",', '"observationCount": 3', '},'])
     expect(asText(lookback)).not.toContain('level"')

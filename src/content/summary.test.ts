@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { withSubFeatures, type Note } from '../domain/note'
+import { withSubFeatures, type SingleNote } from '../domain/note'
 import { summarize } from './summary'
 
-const note: Note = {
+const note: SingleNote = {
   wrapper: 'note',
   redemption: 'bullet',
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },
@@ -16,9 +16,9 @@ const note: Note = {
   principalAmount: 1000,
 }
 
-const withTerms = (n: Note, buffer?: number, cap?: number): Note => ({ ...n, payoff: { ...n.payoff, participations: withSubFeatures(n.payoff.participations, { buffer, cap }) } })
-const sentence = (n: Note) => summarize(n).map(({ text }) => text).join('')
-const conceptOf = (n: Note, phrase: string) => summarize(n).find(({ text }) => text === phrase)?.concept
+const withTerms = (n: SingleNote, buffer?: number, cap?: number): SingleNote => ({ ...n, payoff: { ...n.payoff, participations: withSubFeatures(n.payoff.participations, { buffer, cap }) } })
+const sentence = (n: SingleNote) => summarize(n).map(({ text }) => text).join('')
+const conceptOf = (n: SingleNote, phrase: string) => summarize(n).find(({ text }) => text === phrase)?.concept
 
 describe('note summary with a cap', () => {
   it('adds the cap after the protection', () => {
@@ -113,7 +113,7 @@ describe('note summary', () => {
   })
 
   it('keeps describing a draft that is not valid yet', () => {
-    const draft: Note = { ...note, underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name: ' ' } }] }, payoff: { ...note.payoff, participations: [], principalProtection: Number.NaN } }
+    const draft: SingleNote = { ...note, underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name: ' ' } }] }, payoff: { ...note.payoff, participations: [], principalProtection: Number.NaN } }
     expect(sentence(draft)).toBe('A note that redeems at maturity and repays its principal, linked to the underlier, measured point-to-point from 100, with — principal protection.')
   })
 })

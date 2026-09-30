@@ -13,7 +13,7 @@ import { scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
-import { finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, noteIssues, observationCountOf, paymentBreakdown, downsideOf, upsideOf, withSubFeatures, type Determination, type FinalDetermination, type InitialDetermination, type NoteIssueField, type ParticipationDirection, type Note, type AssetKind } from './domain/note'
+import { finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, noteIssues, observationCountOf, paymentBreakdown, downsideOf, upsideOf, withSubFeatures, type Determination, type FinalDetermination, type InitialDetermination, type NoteIssueField, type ParticipationDirection, type SingleNote, type AssetKind } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingNote } from './domain/starting-note'
 
@@ -202,7 +202,7 @@ const closeOnOutsidePointer = (event: PointerEvent) => {
 onMounted(() => document.addEventListener('pointerdown', closeOnOutsidePointer))
 onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutsidePointer))
 
-const note = computed<Note>(() => ({
+const note = computed<SingleNote>(() => ({
   wrapper: 'note',
   redemption: 'bullet',
   underlier: {
@@ -340,8 +340,8 @@ const handleRadius = computed(() => 8 * Math.max(1, 0.7 / chartScale.value))
 const labelScale = computed(() => clamp(1 / chartScale.value, 1, 1.6))
 
 // The payoff line from before the current gesture stays as a faint ghost, so the reader can see what a change did.
-const ghostNote = ref<Note | null>(null)
-function beginGesture() { ghostNote.value = JSON.parse(JSON.stringify(note.value)) as Note }
+const ghostNote = ref<SingleNote | null>(null)
+function beginGesture() { ghostNote.value = JSON.parse(JSON.stringify(note.value)) as SingleNote }
 const focusRow = (concept: ConceptId) => { select(concept); beginGesture() }
 
 type HandleId = 'floor' | 'slope' | 'cap' | 'buffer' | 'barrier' | 'final'
