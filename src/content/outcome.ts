@@ -15,7 +15,8 @@ export function explainOutcome(note: Note, breakdown: PaymentBreakdown): string 
     final.kind === 'averaging' ? `averaged over ${final.observationCount} observations` : '',
     initial.kind === 'lookback' ? `measured from its lookback level of ${units(initialLevel)}` : '',
   ].filter(Boolean).join(' and ')
-  const measured = how ? `${how[0].toUpperCase()}${how.slice(1)}, the underlier` : 'The underlier'
+  const subject = note.underlier.kind === 'basket' ? 'the basket' : 'the underlier'
+  const measured = how ? `${how[0].toUpperCase()}${how.slice(1)}, ${subject}` : `${subject[0].toUpperCase()}${subject.slice(1)}`
   const movement = underlierReturn > 0 ? `${measured} rose ${percent(underlierReturn)}.`
     : underlierReturn < 0 ? `${measured} fell ${percent(underlierReturn)}.`
       : `${measured} ended unchanged.`

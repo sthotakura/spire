@@ -20,6 +20,7 @@ export function structureLines(note: Note): StructureLine[] {
     if (top === 'underlier') {
       if (second === 'components' && typeof third === 'number') return 'asset'
       if (second === 'determination') return third === 'initial' ? 'initial-level' : third === 'final' ? 'final-level' : 'determination'
+      if (second === 'combination') return 'combination'
       return 'underlier'
     }
     if (top !== 'payoff') return null

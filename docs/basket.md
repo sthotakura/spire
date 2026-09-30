@@ -79,7 +79,18 @@ A single underlier keeps its present shape, with one `level` and no `combination
 
 ## Consequences
 
-- **Outline.** Under Underlier, the kind becomes a choice between Single and Basket. A basket shows one Asset row per component, each with its kind, name and weight, and an Add asset action. Initial level shows one level per component. Combination sits under Underlier, beside Determination.
+- **Outline.** Under Underlier, the kind becomes a choice between Single and Basket. The outline keeps the JSON's shape: a basket shows one Asset row per component, with its kind and name, and an Add asset action. Initial level shows one level per component. Combination sits under Underlier, beside Determination, with one weight per component; Worst-of is listed as unavailable.
+
+```
+├ Underlier  Basket ▾
+│  ├ Asset  Equity index ▾ · Name
+│  ├ Asset  Equity ▾ · Name
+│  ├ ＋ Add asset
+│  ├ Determination
+│  │  ├ Initial level  Fixed ▾ · one level per asset
+│  │  └ Final level  Final date ▾
+│  └ Combination  Weighted ▾ · one weight per asset
+```
 - **Summary.** "…linked to an equally weighted basket of Synthetic Index A and Synthetic Co". Unequal weights name each weight.
 - **Payment rule and calculation.** A step per component (its final level, initial level and return), then the weighted sum and the basket final level. The rest of the calculation reads the basket level.
 - **Scenario table.** Rows stay at basket returns (−40%, 0%, +10%, +30%). Each row applies the same return to every component.

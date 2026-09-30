@@ -114,7 +114,7 @@ export interface Note {
   principalAmount: number
 }
 
-// A note on a single asset. The parts of the page that do not yet describe a basket read only this.
+// A note on a single asset.
 export type SingleNote = Note & { underlier: SingleUnderlier }
 
 export const downsideOf = (note: Note) => note.payoff.participations.find((participation): participation is DownsideParticipation => participation.direction === 'downside')
@@ -138,9 +138,13 @@ export interface NoteIssue {
   message: string
 }
 
-// Equal weights for the components, which a basket returns to when a component is added or removed.
-export const equalWeights = (components: UnderlierComponent[]): ComponentWeight[] =>
-  components.map(({ asset }) => ({ asset: asset.name, weight: 1 / components.length }))
+// Equal weights for the components, which a basket returns to when a component is added or removed. Term sheets state
+// weights to two decimal places of a percent, so three assets get 33.34%, 33.33% and 33.33%: the first takes the remainder.
+export function equalWeights(components: UnderlierComponent[]): ComponentWeight[] {
+  const share = Math.floor(10000 / components.length) / 10000
+  const first = Math.round((1 - share * (components.length - 1)) * 10000) / 10000
+  return components.map(({ asset }, index) => ({ asset: asset.name, weight: index === 0 ? first : share }))
+}
 
 // Whether the terms refer to the components one to one: one term per asset, and none for an asset not in the basket.
 const matchesComponents = (components: UnderlierComponent[], terms: { asset: string }[]) =>
@@ -247,7 +251,9 @@ export interface ComponentPerformance {
   asset: string
   weight: number
   initialLevel: number
-  // As the final end of the determination produces it: the level on the final date, or the average.
+  // The levels the final end of the determination read, in date order, and the final level it produced from them: the
+  // level on the final date, or the average.
+  observedLevels: number[]
   finalLevel: number
   componentReturn: number
 }
@@ -272,7 +278,7 @@ export function basketBreakdown(underlier: BasketUnderlier, observedLevels: numb
     const initialLevel = initial.levels.find((term) => term.asset === asset.name)!.level
     const weight = underlier.combination.weights.find((term) => term.asset === asset.name)!.weight
     const finalLevel = finalLevelFrom(final, observedLevels[index])
-    return { asset: asset.name, weight, initialLevel, finalLevel, componentReturn: finalLevel / initialLevel - 1 }
+    return { asset: asset.name, weight, initialLevel, observedLevels: observedLevels[index], finalLevel, componentReturn: finalLevel / initialLevel - 1 }
   })
   const basketReturn = components.reduce((sum, { weight, componentReturn }) => sum + weight * componentReturn, 0)
   return { components, basketReturn, levels: { initial: basketStartingLevel, final: basketStartingLevel * (1 + basketReturn) } }

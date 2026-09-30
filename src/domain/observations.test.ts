@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fitLookbackObservations, fitObservations, shiftToAverage } from './observations'
+import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './observations'
 
 describe('fitting observed levels to a count', () => {
   it('keeps the latest dates when the count falls', () => {
@@ -45,5 +45,20 @@ describe('shifting observed levels to an average', () => {
 
   it('does not take a level below zero', () => {
     expect(shiftToAverage([10, 50], 0)).toEqual([0, 20])
+  })
+})
+
+describe('shifting the returns of a basket', () => {
+  it('moves every asset by the same return, measured from its own initial level', () => {
+    // +10% moves an asset that starts at 100 by 10 and one that starts at 40 by 4.
+    expect(shiftReturns([[130], [36]], [100, 40], 0.1)).toEqual([[140], [40]])
+  })
+
+  it('moves every observed level of an averaged asset, so the average moves by the same return', () => {
+    expect(shiftReturns([[110, 130], [44, 36]], [100, 40], -0.05)).toEqual([[105, 125], [42, 34]])
+  })
+
+  it('keeps two decimal places and does not go below zero', () => {
+    expect(shiftReturns([[10], [33]], [100, 33], -0.123)).toEqual([[0], [28.94]])
   })
 })

@@ -584,12 +584,15 @@ describe('weighted basket', () => {
     expect(maturityPayment(barrierNote, basketBreakdown(basket, [[50], [48]]).levels)).toBeCloseTo(1000, 8)
   })
 
-  it('gives the components equal weights', () => {
+  it('gives the components equal weights to two decimal places of a percent, the first taking the remainder', () => {
     expect(equalWeights(basket.components)).toEqual([{ asset: 'Synthetic Index A', weight: 0.5 }, { asset: 'Synthetic Co', weight: 0.5 }])
-    // Three equal thirds do not add up to exactly 1 in floating point, and are still accepted.
     const components = [...basket.components, { asset: { kind: 'equity' as const, name: 'Synthetic Bank' } }]
+    expect(equalWeights(components).map(({ weight }) => weight)).toEqual([0.3334, 0.3333, 0.3333])
+    // They do not add up to exactly 1 in floating point, and are still accepted.
     const levels = [...basket.determination.initial.levels, { asset: 'Synthetic Bank', level: 20 }]
     expect(issuesOf({ ...basket, components, determination: { ...basket.determination, initial: { kind: 'given', levels } }, combination: { kind: 'weighted', weights: equalWeights(components) } })).toEqual([])
+    const seven = Array.from({ length: 7 }, (_, index) => ({ asset: { kind: 'equity' as const, name: `Synthetic ${index}` } }))
+    expect(equalWeights(seven).map(({ weight }) => weight)).toEqual([0.1432, 0.1428, 0.1428, 0.1428, 0.1428, 0.1428, 0.1428])
   })
 
   it('accepts the example basket', () => {

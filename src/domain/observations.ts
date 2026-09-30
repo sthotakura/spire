@@ -20,3 +20,10 @@ export function shiftToAverage(levels: number[], target: number): number[] {
   const shift = Math.round(target - levels.reduce((sum, level) => sum + level, 0) / levels.length)
   return levels.map((level) => Math.max(0, level + shift))
 }
+
+// Moves a basket's final level by moving every asset's return by the same amount: each observed level of an asset moves by
+// that amount times the asset's initial level, so its final level, averaged or not, moves by the same amount too. Levels
+// are kept to two decimal places, and a level cannot go below zero.
+export function shiftReturns(levels: number[][], initialLevels: number[], returnChange: number): number[][] {
+  return levels.map((assetLevels, asset) => assetLevels.map((level) => Math.max(0, Math.round((level + returnChange * initialLevels[asset]) * 100) / 100)))
+}

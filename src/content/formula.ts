@@ -32,15 +32,22 @@ export function paymentFormula(note: Note): FormulaLine[] {
 
   const lines: FormulaLine[] = []
   const { initial, final } = note.underlier.determination
+  const basket = note.underlier.kind === 'basket'
   // Lookback and averaging define their levels before the return reads them. Point-to-point needs no line: each level is one observed level.
   if (initial.kind === 'lookback') lines.push({ lead: 'Lookback level', segments: [{ text: 'Lowest of the levels on the pricing date and the dates after it', concept: 'initial-level' }] })
-  if (final.kind === 'averaging') lines.push({ lead: 'Final level', segments: [{ text: 'Average of the observed levels', concept: 'final-level' }] })
-  lines.push(
-    { lead: 'Return', segments: [{ text: `Final level ÷ ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level − 1`, concept: 'determination' }] },
-    { lead: 'Payment', segments: payment },
-  )
+  if (final.kind === 'averaging') lines.push({ lead: 'Final level', segments: [{ text: basket ? 'Average of each asset’s observed levels' : 'Average of the observed levels', concept: 'final-level' }] })
+  // A basket measures each asset on its own, then weights the asset returns into one return, which moves the basket level.
+  if (basket) {
+    lines.push(
+      { lead: 'Asset return', segments: [{ text: 'Final level ÷ Initial level − 1', concept: 'determination' }, { text: ', for each asset' }] },
+      { lead: 'Return', segments: [{ text: 'Sum of Weight × Asset return', concept: 'combination' }] },
+      { lead: 'Basket level', segments: [{ text: '100 × (1 + Return)', concept: 'combination' }] },
+    )
+  } else lines.push({ lead: 'Return', segments: [{ text: `Final level ÷ ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level − 1`, concept: 'determination' }] })
+  lines.push({ lead: 'Payment', segments: payment })
   // The barrier decides whether the downside term counts at all, so it qualifies the payment rather than changing the term.
-  if (barrier !== undefined) lines.push({ segments: [{ text: 'downside only when ' }, { text: `Final level < Barrier × ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level`, concept: 'barrier' }] })
+  const barrierTest = basket ? 'Basket level < Barrier × 100' : `Final level < Barrier × ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level`
+  if (barrier !== undefined) lines.push({ segments: [{ text: 'downside only when ' }, { text: barrierTest, concept: 'barrier' }] })
   if (cap !== undefined) lines.push({ segments: [{ text: 'capped at ' }, { text: 'Principal × (1 + Cap)', concept: 'cap' }] })
   // Without protection the payment still cannot fall below zero. That only matters when a fall reduces principal.
   if (principalProtection !== undefined) lines.push({ segments: [{ text: 'floored at ' }, { text: 'Principal × Protection', concept: 'protection' }] })
@@ -58,7 +65,7 @@ const percent = (fraction: number) => Number.isFinite(fraction) ? `${(fraction *
 export function paymentInWords(note: Note): string {
   const { principalProtection } = note.payoff
   const principal = note.principalAmount
-  const name = note.underlier.components[0].asset.name.trim() || 'the underlier'
+  const name = note.underlier.kind === 'basket' ? 'the basket' : note.underlier.components[0].asset.name.trim() || 'the underlier'
   const upside = upsideOf(note)
   const downside = downsideOf(note)
   const cap = upside?.cap

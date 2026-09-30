@@ -1,4 +1,4 @@
-import { downsideOf, finalLevelFrom, initialLevelFrom, upsideOf, type ParticipationDirection, type PaymentBreakdown, type Note, type SingleNote } from '../domain/note'
+import { downsideOf, finalLevelFrom, initialLevelFrom, upsideOf, type BasketBreakdown, type ParticipationDirection, type PaymentBreakdown, type Note, type SingleNote } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface CalculationStep {
@@ -13,6 +13,8 @@ export interface CalculationStep {
 
 const formatAmount = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 })
 const formatPercent = (value: number) => `${(value * 100).toFixed(1).replace(/\.0$/, '')}%`
+// Weights are stated to two decimal places of a percent, such as 33.34%.
+const weightPercent = (fraction: number) => `${(fraction * 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
 const signedPercent = (fraction: number) => `${fraction < 0 ? '−' : '+'}${formatPercent(Math.abs(fraction))}`
 
 // Each direction is its own step, as in the payment rule, so a selected rate stays visible even when the return does not reach it.
@@ -43,26 +45,15 @@ function bufferStep(buffer: number, breakdown: PaymentBreakdown): Omit<Calculati
 }
 
 // Whether the final level is below the barrier. Only then does downside participation apply, to the whole fall.
-function barrierStep(level: number, breakdown: PaymentBreakdown, finalLevel: number): Omit<CalculationStep, 'n'> {
+function barrierStep(level: number, breakdown: PaymentBreakdown, finalName: string, finalLevel: number): Omit<CalculationStep, 'n'> {
   const barrierLevel = breakdown.barrierLevel ?? 0
-  const how = `${formatPercent(level)} × ${formatAmount(breakdown.initialLevel)} · final level ${formatAmount(finalLevel)} is ${breakdown.belowBarrier ? 'below it, so downside participation applies' : 'not below it, so a fall does not reduce principal'}`
+  const how = `${formatPercent(level)} × ${formatAmount(breakdown.initialLevel)} · ${finalName} ${formatAmount(finalLevel)} is ${breakdown.belowBarrier ? 'below it, so downside participation applies' : 'not below it, so a fall does not reduce principal'}`
   return { title: 'Barrier', how, value: formatAmount(barrierLevel), muted: !breakdown.belowBarrier, concept: 'barrier' }
 }
 
-// The worked calculation of the maturity payment from the observed levels: those on the final dates and, for lookback, those
-// from the pricing date on. Every number comes from the payment breakdown.
-export function calculationSteps(note: SingleNote, breakdown: PaymentBreakdown, observedLevels: number[], initialObservations: number[]): CalculationStep[] {
-  const b = breakdown
-  const [component] = note.underlier.components
-  const name = component.asset.name.trim()
-  const principal = note.principalAmount
-  const { principalProtection } = note.payoff
-  const cap = upsideOf(note)?.cap
-  const buffer = downsideOf(note)?.buffer
-  const barrier = downsideOf(note)?.barrier
-  const withCap = cap !== undefined
-  const withProtection = principalProtection !== undefined
-  const hasDownside = downsideOf(note) !== undefined
+// How a single asset's levels give its return: the lookback level and the averaged final level when the note has them, then the return.
+function singleSteps(note: SingleNote, breakdown: PaymentBreakdown, observedLevels: number[], initialObservations: number[]): Array<Omit<CalculationStep, 'n'>> {
+  const name = note.underlier.components[0].asset.name.trim()
   const { determination } = note.underlier
   const initialLevel = initialLevelFrom(determination.initial, initialObservations)
   const finalLevel = finalLevelFrom(determination.final, observedLevels)
@@ -73,9 +64,43 @@ export function calculationSteps(note: SingleNote, breakdown: PaymentBreakdown, 
   if (determination.final.kind === 'averaging') {
     steps.push({ title: `Final level of ${name || 'the underlier'}`, how: `(${observedLevels.map(formatAmount).join(' + ')}) ÷ ${observedLevels.length}`, value: formatAmount(finalLevel), concept: 'final-level' })
   }
-  steps.push({ title: `${name || 'Underlier'} return`, how: `${formatAmount(finalLevel)} ÷ ${formatAmount(initialLevel)} − 1`, value: signedPercent(b.underlierReturn), concept: 'determination' })
+  steps.push({ title: `${name || 'Underlier'} return`, how: `${formatAmount(finalLevel)} ÷ ${formatAmount(initialLevel)} − 1`, value: signedPercent(breakdown.underlierReturn), concept: 'determination' })
+  return steps
+}
+
+// How a basket's assets give its level: each asset's averaged final level when the note averages, each asset's return,
+// then the weighted return and the basket level it moves.
+function basketSteps(basket: BasketBreakdown): Array<Omit<CalculationStep, 'n'>> {
+  const steps: Array<Omit<CalculationStep, 'n'>> = []
+  for (const { asset, observedLevels, finalLevel, initialLevel, componentReturn } of basket.components) {
+    if (observedLevels.length > 1) steps.push({ title: `Final level of ${asset}`, how: `(${observedLevels.map(formatAmount).join(' + ')}) ÷ ${observedLevels.length}`, value: formatAmount(finalLevel), concept: 'final-level' })
+    steps.push({ title: `${asset} return`, how: `${formatAmount(finalLevel)} ÷ ${formatAmount(initialLevel)} − 1`, value: signedPercent(componentReturn), concept: 'determination' })
+  }
+  steps.push(
+    { title: 'Basket return', how: basket.components.map(({ weight, componentReturn }) => `${weightPercent(weight)} × ${signedPercent(componentReturn)}`).join(' + '), value: signedPercent(basket.basketReturn), concept: 'combination' },
+    { title: 'Basket level', how: `${formatAmount(basket.levels.initial)} × (1 ${basket.basketReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(basket.basketReturn))})`, value: formatAmount(basket.levels.final), concept: 'combination' },
+  )
+  return steps
+}
+
+// The worked calculation of the maturity payment from the observed levels: those on the final dates and, for lookback, those
+// from the pricing date on. A basket's levels come measured, asset by asset, in its breakdown. Every number comes from the
+// payment breakdown.
+export function calculationSteps(note: Note, breakdown: PaymentBreakdown, observedLevels: number[], initialObservations: number[], basket?: BasketBreakdown): CalculationStep[] {
+  const b = breakdown
+  const principal = note.principalAmount
+  const { principalProtection } = note.payoff
+  const cap = upsideOf(note)?.cap
+  const buffer = downsideOf(note)?.buffer
+  const barrier = downsideOf(note)?.barrier
+  const withCap = cap !== undefined
+  const withProtection = principalProtection !== undefined
+  const hasDownside = downsideOf(note) !== undefined
+  const steps = note.underlier.kind === 'basket' ? basketSteps(basket!) : singleSteps({ ...note, underlier: note.underlier }, b, observedLevels, initialObservations)
   if (buffer !== undefined) steps.push(bufferStep(buffer, b))
-  if (barrier !== undefined) steps.push(barrierStep(barrier.level, b, finalLevel))
+  if (barrier !== undefined) {
+    steps.push(basket ? barrierStep(barrier.level, b, 'basket level', basket.levels.final) : barrierStep(barrier.level, b, 'final level', finalLevelFrom(note.underlier.determination.final, observedLevels)))
+  }
   steps.push(
     participationStep(note, b, 'downside'),
     participationStep(note, b, 'upside'),

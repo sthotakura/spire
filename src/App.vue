@@ -13,8 +13,8 @@ import { scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
-import { finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, noteIssues, observationCountOf, paymentBreakdown, downsideOf, upsideOf, withSubFeatures, type Determination, type FinalDetermination, type InitialDetermination, type NoteIssueField, type ParticipationDirection, type SingleNote, type AssetKind } from './domain/note'
-import { fitLookbackObservations, fitObservations, shiftToAverage } from './domain/observations'
+import { basketBreakdown, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, noteIssues, observationCountOf, paymentBreakdown, downsideOf, upsideOf, withSubFeatures, type Determination, type FinalDetermination, type InitialDetermination, type NoteIssueField, type ParticipationDirection, type Note, type Underlier, type AssetKind } from './domain/note'
+import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingNote } from './domain/starting-note'
 
 const activeHint = ref<string | null>(null)
@@ -36,6 +36,7 @@ const hints = {
   upside: 'The share of a positive underlier return added to principal.',
   cap: 'The most the note can pay above principal, as a percentage of principal, however far the underlier rises.',
   protection: 'The minimum contractual maturity payment as a percentage of principal. Protection applies at maturity and depends on the issuer’s ability to pay.',
+  combination: 'How a basket turns its assets’ changes into one return. Weighted adds up each asset’s return times its weight, and the weights add up to 100%. The basket level starts at 100 and moves by that return, and the payoff reads it as it reads a single asset’s level.',
 }
 const wrapperOptions = [
   { id: 'note', label: 'Note', description: 'A debt security with payments defined by its terms and subject to the issuer’s ability to pay.', available: true },
@@ -67,10 +68,15 @@ const partDescriptions = {
   'initial-level': 'Where the change is measured from',
   'final-level': 'Where the change is measured to',
   payoff: 'What the note pays at maturity',
+  combination: 'How the assets’ changes make one return',
 }
 const underlierOptions = [
-  { id: 'basket', label: 'Basket', description: 'Several assets whose changes are combined into one return.', available: false },
+  { id: 'basket', label: 'Basket', description: 'Several assets whose changes are combined into one return.', available: true },
   { id: 'single', label: 'Single', description: 'One asset.', available: true },
+] as const
+const combinationOptions = [
+  { id: 'weighted', label: 'Weighted', description: 'Adds up each asset’s return times its weight.', available: true },
+  { id: 'worst-of', label: 'Worst-of', description: 'Uses the return of the asset that performs worst.', available: false },
 ] as const
 const assetOptions: ReadonlyArray<{ id: AssetKind; label: string }> = [
   { id: 'equity-index', label: 'Equity index' },
@@ -87,6 +93,54 @@ const initialKind = ref<InitialDetermination['kind']>(startingNote.underlier.det
 const lookbackCount = ref(firstLookbackMoves.length)
 const finalKind = ref<FinalDetermination['kind']>(startingNote.underlier.determination.final.kind)
 const observationCount = ref(firstObservationCount)
+const underlierKind = ref<Underlier['kind']>(startingNote.underlier.kind)
+const isBasket = computed(() => underlierKind.value === 'basket')
+// The terms of each asset in a basket, in order. While the note tracks a basket, the single asset's terms above are not read.
+interface BasketAsset { kind: AssetKind; name: string; initialLevel: number; weightPercent: number }
+const basketAssets = ref<BasketAsset[]>([])
+// Hypothetical observed levels of each asset in a basket, in date order, as last edited. They are scenario inputs, not note terms.
+const basketLevels = ref<number[][]>([])
+// The asset a basket adds the first time one is built, beside the single asset: a synthetic equity on its own scale.
+const secondAsset = { kind: 'equity' as const, name: 'Synthetic Co', initialLevel: 40 }
+const withEqualWeights = (assets: BasketAsset[]) => {
+  const weights = equalWeights(assets.map(({ kind, name }) => ({ asset: { kind, name } })))
+  return assets.map((asset, index) => ({ ...asset, weightPercent: Math.round(weights[index].weight * 1000000) / 10000 }))
+}
+// A basket starts from the single asset, as its first asset, and keeps the other assets from the last time it was built.
+// Returning to a single asset keeps the first one. Lookback is not modelled on a basket, so a basket's initial levels are fixed.
+function setUnderlierKind(kind: Underlier['kind']) {
+  beginGesture()
+  if (kind === 'basket') {
+    const first = { kind: assetKind.value, name: assetName.value, initialLevel: initialLevel.value }
+    const others = basketAssets.value.slice(1)
+    basketAssets.value = others.length ? [{ ...basketAssets.value[0], ...first }, ...others] : withEqualWeights([{ ...first, weightPercent: 0 }, { ...secondAsset, weightPercent: 0 }])
+    // The second asset starts with the same return on every date as the single asset, so the basket starts where the asset was.
+    const otherLevels = basketLevels.value.slice(1)
+    basketLevels.value = [observations.value, ...(otherLevels.length ? otherLevels : [observations.value.map((level) => Math.round(level / initialLevel.value * secondAsset.initialLevel * 100) / 100)])]
+    initialKind.value = 'given'
+  } else {
+    const [first] = basketAssets.value
+    assetKind.value = first.kind
+    assetName.value = first.name
+    initialLevel.value = first.initialLevel
+    observedLevels.value = basketObservations.value[0]
+  }
+  underlierKind.value = kind
+}
+// A new asset starts flat, at its initial level on every date. Adding or removing an asset gives every asset an equal weight again.
+function addAsset() {
+  beginGesture()
+  const names = new Set(basketAssets.value.map(({ name }) => name))
+  let n = basketAssets.value.length + 1
+  while (names.has(`Synthetic Asset ${n}`)) n++
+  basketAssets.value = withEqualWeights([...basketAssets.value, { kind: 'equity', name: `Synthetic Asset ${n}`, initialLevel: 100, weightPercent: 0 }])
+  basketLevels.value = [...basketObservations.value, basketObservations.value[0].map(() => 100)]
+}
+function removeAsset(index: number) {
+  beginGesture()
+  basketAssets.value = withEqualWeights(basketAssets.value.filter((_, i) => i !== index))
+  basketLevels.value = basketObservations.value.filter((_, i) => i !== index)
+}
 const determination = computed<Determination>(() => ({
   initial: initialKind.value === 'lookback' ? { kind: 'lookback', observationCount: lookbackCount.value } : { kind: 'given', level: initialLevel.value },
   final: finalKind.value === 'averaging' ? { kind: 'averaging', observationCount: observationCount.value } : { kind: 'final-date' },
@@ -105,7 +159,7 @@ const observedLevels = ref<number[]>([startingFinalLevel])
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
 const select = (concept: ConceptId) => { selected.value = concept }
-const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', payoff: '#42536d', protection: '#2369bd', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa' }
+const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', combination: '#5f5aa2', payoff: '#42536d', protection: '#2369bd', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa' }
 const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
@@ -202,14 +256,28 @@ const closeOnOutsidePointer = (event: PointerEvent) => {
 onMounted(() => document.addEventListener('pointerdown', closeOnOutsidePointer))
 onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutsidePointer))
 
-const note = computed<SingleNote>(() => ({
+// A weight entered as a percent, as a fraction without the floating-point noise of dividing (33.34 / 100 is 0.33340000000000003).
+const weightFrom = (percent: number) => Math.round(percent * 1e8) / 1e10
+// The weights entered so far and how far they are from 100%, so the reader can see what is left to allocate.
+const weightTotal = computed(() => {
+  const total = Math.round(basketAssets.value.reduce((sum, { weightPercent }) => sum + weightPercent, 0) * 100) / 100
+  if (!Number.isFinite(total)) return 'Total —'
+  const gap = Math.round((100 - total) * 100) / 100
+  return gap === 0 ? `Total ${formatAmount(total)}%` : `Total ${formatAmount(total)}% · ${formatAmount(Math.abs(gap))}% ${gap > 0 ? 'left' : 'over'}`
+})
+// Each initial level and weight of a basket refers to its asset by name, as the note states them.
+const underlier = computed<Underlier>(() => !isBasket.value
+  ? { kind: 'single', components: [{ asset: { kind: assetKind.value, name: assetName.value } }], determination: determination.value }
+  : {
+      kind: 'basket',
+      components: basketAssets.value.map(({ kind, name }) => ({ asset: { kind, name } })),
+      determination: { initial: { kind: 'given', levels: basketAssets.value.map(({ name, initialLevel }) => ({ asset: name, level: initialLevel })) }, final: determination.value.final },
+      combination: { kind: 'weighted', weights: basketAssets.value.map(({ name, weightPercent }) => ({ asset: name, weight: weightFrom(weightPercent) })) },
+    })
+const note = computed<Note>(() => ({
   wrapper: 'note',
   redemption: 'bullet',
-  underlier: {
-    kind: 'single',
-    components: [{ asset: { kind: assetKind.value, name: assetName.value } }],
-    determination: determination.value,
-  },
+  underlier: underlier.value,
   payoff: {
     participations: withSubFeatures(selectedDirections.value.map((direction) => ({ direction, rate: participationPercent[direction] / 100 })), {
       buffer: bufferSelected.value ? bufferPercent.value / 100 : undefined,
@@ -223,8 +291,8 @@ const note = computed<SingleNote>(() => ({
 const jsonLines = computed(() => structureLines(note.value))
 const formula = computed(() => paymentFormula(note.value))
 const formulaWords = computed(() => paymentInWords(note.value))
-// The asset the final level belongs to. A basket will need one final level per asset, each named this way.
-const underlierLabel = computed(() => assetName.value.trim() || 'the underlier')
+// What the final level on the chart belongs to: the asset, or the basket.
+const underlierLabel = computed(() => isBasket.value ? 'the basket' : assetName.value.trim() || 'the underlier')
 // Copies the JSON exactly as shown. The label says whether it worked, then returns to "Copy" after a moment.
 const copyState = ref<'idle' | 'copied' | 'failed'>('idle')
 let copyReset: ReturnType<typeof setTimeout> | undefined
@@ -254,9 +322,21 @@ const openName = (name: MarketingName) => {
 // The observed levels fitted to the count the determination reads. While the count is invalid they are left as they are.
 const observations = computed(() => issuesFor('observationCount').length ? observedLevels.value : fitObservations(observedLevels.value, observationCountOf(determination.value.final)))
 const setObservation = (index: number, level: number) => { observedLevels.value = observations.value.map((current, i) => i === index ? level : current) }
+// Each basket asset's observed levels, fitted to the count in the same way.
+const basketObservations = computed(() => basketLevels.value.map((levels) => issuesFor('observationCount').length ? levels : fitObservations(levels, observationCountOf(determination.value.final))))
+const setBasketObservation = (asset: number, index: number, level: number) => {
+  basketLevels.value = basketObservations.value.map((levels, a) => a === asset ? levels.map((current, i) => i === index ? level : current) : levels)
+}
 // The chart handle sets the final level. With averaging it moves every observed level together, so the path keeps its shape.
-const setFinalLevel = (level: number) => { observedLevels.value = shiftToAverage(observations.value, level) }
-const finalError = computed(() => observations.value.every((level) => Number.isFinite(level) && level >= 0) ? '' : averaging.value ? 'Each observed level must be zero or greater.' : 'Final level must be zero or greater.')
+// For a basket it sets the basket level, by moving every asset's return by the same amount.
+const setFinalLevel = (level: number) => {
+  if (!isBasket.value) observedLevels.value = shiftToAverage(observations.value, level)
+  else if (basketMeasure.value) basketLevels.value = shiftReturns(basketObservations.value, basketAssets.value.map(({ initialLevel }) => initialLevel), level / basketStartingLevel - 1 - basketMeasure.value.basketReturn)
+}
+const finalError = computed(() => {
+  if (isBasket.value) return basketObservations.value.flat().every((level) => Number.isFinite(level) && level >= 0) ? '' : averaging.value ? 'Each observed level must be zero or greater.' : 'Each final level must be zero or greater.'
+  return observations.value.every((level) => Number.isFinite(level) && level >= 0) ? '' : averaging.value ? 'Each observed level must be zero or greater.' : 'Final level must be zero or greater.'
+})
 // The levels after pricing fitted to the lookback count, in the same way. Without lookback there are none.
 const afterPricing = computed(() => !lookingBack.value ? [] : issuesFor('lookbackObservationCount').length ? lookbackLevels.value : fitLookbackObservations(lookbackLevels.value, lookbackCount.value))
 const setAfterPricing = (index: number, level: number) => { lookbackLevels.value = afterPricing.value.map((current, i) => i === index ? level : current) }
@@ -266,11 +346,13 @@ const lookbackError = computed(() => initialObservations.value.every((level) => 
 // The chart and scenarios need only the initial level; the calculation also needs the final level.
 const initialValid = computed(() => errors.value.length === 0 && !lookbackError.value)
 const valid = computed(() => initialValid.value && !finalError.value)
-// The initial level every calculation reads, as the initial end of the determination produces it.
-const determinedInitialLevel = computed(() => initialValid.value ? initialLevelFrom(determination.value.initial, initialObservations.value) : Number.NaN)
+// A basket measured asset by asset: each return, the weighted return, and the basket's two levels the payoff reads.
+const basketMeasure = computed(() => valid.value && note.value.underlier.kind === 'basket' ? basketBreakdown(note.value.underlier, basketObservations.value) : null)
+// The initial level every calculation reads, as the initial end of the determination produces it. A basket starts at 100.
+const determinedInitialLevel = computed(() => !initialValid.value ? Number.NaN : isBasket.value ? basketStartingLevel : initialLevelFrom(determination.value.initial, initialObservations.value))
 // Marks the observed level, or tied levels, that set the lookback level.
 const isLowest = (level: number) => Number.isFinite(determinedInitialLevel.value) && level === determinedInitialLevel.value
-const finalLevel = computed(() => valid.value ? finalLevelFrom(determination.value.final, observations.value) : Number.NaN)
+const finalLevel = computed(() => !valid.value ? Number.NaN : basketMeasure.value ? basketMeasure.value.levels.final : finalLevelFrom(determination.value.final, observations.value))
 const breakdown = computed(() => valid.value ? paymentBreakdown(note.value, { initial: determinedInitialLevel.value, final: finalLevel.value }) : null)
 const payment = computed(() => breakdown.value?.payment ?? null)
 const outcomeSentence = computed(() => breakdown.value ? explainOutcome(note.value, breakdown.value) : '')
@@ -320,7 +402,7 @@ const activeTab = ref('calculation')
 const calculation = computed(() => {
   const b = breakdown.value
   if (!b) return []
-  return calculationSteps(note.value, b, observations.value, initialObservations.value)
+  return calculationSteps(note.value, b, observations.value, initialObservations.value, basketMeasure.value ?? undefined)
 })
 
 // The chart. Its vertical axis is fitted to the payoff (see chart/geometry.ts), and handles on it edit the same values the outline fields edit.
@@ -340,8 +422,8 @@ const handleRadius = computed(() => 8 * Math.max(1, 0.7 / chartScale.value))
 const labelScale = computed(() => clamp(1 / chartScale.value, 1, 1.6))
 
 // The payoff line from before the current gesture stays as a faint ghost, so the reader can see what a change did.
-const ghostNote = ref<SingleNote | null>(null)
-function beginGesture() { ghostNote.value = JSON.parse(JSON.stringify(note.value)) as SingleNote }
+const ghostNote = ref<Note | null>(null)
+function beginGesture() { ghostNote.value = JSON.parse(JSON.stringify(note.value)) as Note }
 const focusRow = (concept: ConceptId) => { select(concept); beginGesture() }
 
 type HandleId = 'floor' | 'slope' | 'cap' | 'buffer' | 'barrier' | 'final'
@@ -376,9 +458,9 @@ const dragMove = (id: HandleId, event: PointerEvent) => {
   if (id === 'floor') protectionPercent.value = protectionFromY(point.y, principal.value, top, plot)
   else if (id === 'slope') participationPercent.upside = upsideRateFromY(point.y, principal.value, top, plot, capFraction.value)
   else if (id === 'cap') capPercent.value = capFromY(point.y, principal.value, top, plot)
-  else if (id === 'buffer') bufferPercent.value = bufferFromX(point.x, initialLevel.value, plot, determinedInitialLevel.value)
-  else if (id === 'barrier') barrierPercent.value = barrierFromX(point.x, initialLevel.value, plot, determinedInitialLevel.value)
-  else setFinalLevel(finalLevelFromX(point.x, initialLevel.value, plot))
+  else if (id === 'buffer') bufferPercent.value = bufferFromX(point.x, axisScale.value, plot, determinedInitialLevel.value)
+  else if (id === 'barrier') barrierPercent.value = barrierFromX(point.x, axisScale.value, plot, determinedInitialLevel.value)
+  else setFinalLevel(finalLevelFromX(point.x, axisScale.value, plot))
 }
 const endDrag = () => {
   dragging.value = null
@@ -394,9 +476,11 @@ const keyHandle = (id: HandleId, event: KeyboardEvent) => {
   // A larger buffer sits further left, so the left and right keys move the handle the way they point.
   else if (id === 'buffer') bufferPercent.value = clampBuffer(bufferPercent.value + (event.key === 'ArrowLeft' || event.key === 'ArrowRight' ? -delta : delta))
   else if (id === 'barrier') barrierPercent.value = clampBarrier(barrierPercent.value + delta)
-  else setFinalLevel(clampFinalLevel(finalLevel.value + delta, initialLevel.value))
+  else setFinalLevel(clampFinalLevel(finalLevel.value + delta, axisScale.value))
 }
 
+// The chart's horizontal axis is scaled on the pricing-date level, or on the basket's starting level.
+const axisScale = computed(() => isBasket.value ? basketStartingLevel : initialLevel.value)
 // The cap as a fraction of principal, or undefined when the note has none. The slope handle's position depends on it.
 const capFraction = computed(() => capSelected.value ? capPercent.value / 100 : undefined)
 const chartHighlight = computed(() => ({
@@ -420,7 +504,7 @@ const chart = computed(() => {
   const principalAmount = principal.value
   // The axis is scaled on the pricing-date level, so editing a level after pricing does not rescale it. The payoff bends
   // at the level the return is measured from, which with lookback can be lower.
-  const scale = initialLevel.value
+  const scale = axisScale.value
   const initial = determinedInitialLevel.value
   const end = scale * levelAxisFactor
   const axisLevels = Array.from({ length: 257 }, (_, i) => end * i / 256)
@@ -454,8 +538,9 @@ const chart = computed(() => {
   // The levels after pricing are not note terms, so the ghost reads the current ones, fitted to its own lookback count.
   const ghostInitialEnd = ghost?.underlier.determination.initial
   const ghostObservations = ghostInitialEnd?.kind === 'lookback' ? [initialLevel.value, ...fitLookbackObservations(lookbackLevels.value, initialObservationCountOf(ghostInitialEnd) - 1)] : []
-  const ghostDrawable = ghost !== null && noteIssues(ghost).length === 0 && ghostObservations.every((level) => Number.isFinite(level) && level > 0)
-  const ghostInitial = ghostDrawable ? initialLevelFrom(ghost.underlier.determination.initial, ghostObservations) : Number.NaN
+  // A ghost of the other kind of underlier is not drawn: its horizontal axis measures something else.
+  const ghostDrawable = ghost !== null && ghost.underlier.kind === underlierKind.value && noteIssues(ghost).length === 0 && ghostObservations.every((level) => Number.isFinite(level) && level > 0)
+  const ghostInitial = !ghostDrawable ? Number.NaN : ghost.underlier.kind === 'basket' ? basketStartingLevel : initialLevelFrom(ghost.underlier.determination.initial, ghostObservations)
   const ghostBarrier = ghostDrawable ? downsideOf(ghost)?.barrier : undefined
   const ghostLevels = levelsFor(ghostBarrier && ghostInitial * ghostBarrier.level)
   const ghostValues = ghostDrawable ? ghostLevels.map((level) => maturityPayment(ghost, { initial: ghostInitial, final: level })) : []
@@ -574,11 +659,11 @@ const chart = computed(() => {
                 <li :class="['node', { sel: highlighted('underlier') }]" :style="conceptStyle('underlier')">
                   <div class="nrow" @click="select('underlier')" @focusin="focusRow('underlier')">
                     <span class="nlabel">Underlier<HintToggle id="underlier" about="underlier" :text="hints.underlier" :active="activeHint === 'underlier'" @toggle="toggleHint('underlier')" /></span>
-                    <span class="ctrl pick"><select aria-label="Underlier" :value="note.underlier.kind"><option v-for="option in underlierOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
+                    <span class="ctrl pick"><select aria-label="Underlier" :value="underlierKind" @change="setUnderlierKind(($event.target as HTMLSelectElement).value as Underlier['kind'])"><option v-for="option in underlierOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
                     <span class="ndesc">{{ partDescriptions.underlier }}</span>
                   </div>
                   <ul>
-                    <li :class="['node', { sel: highlighted('asset') }]" :style="conceptStyle('asset')">
+                    <li v-if="!isBasket" :class="['node', { sel: highlighted('asset') }]" :style="conceptStyle('asset')">
                       <div class="nrow" @click="select('asset')" @focusin="focusRow('asset')">
                         <span class="nlabel">Asset<HintToggle id="asset" about="asset" :text="hints.asset" :active="activeHint === 'asset'" @toggle="toggleHint('asset')" /></span>
                         <span class="ctrl pick"><select v-model="assetKind" aria-label="Asset type"><option v-for="option in assetOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
@@ -587,6 +672,19 @@ const chart = computed(() => {
                       </div>
                       <ul v-if="issuesFor('underlierName').length" class="errors" role="alert"><li v-for="message in issuesFor('underlierName')" :key="message">{{ message }}</li></ul>
                     </li>
+                    <template v-else>
+                      <li v-for="(asset, index) in basketAssets" :key="index" :class="['node', { sel: highlighted('asset') }]" :style="conceptStyle('asset')">
+                        <div class="nrow" @click="select('asset')" @focusin="focusRow('asset')">
+                          <span class="nlabel">Asset<HintToggle v-if="index === 0" id="asset" about="asset" :text="hints.asset" :active="activeHint === 'asset'" @toggle="toggleHint('asset')" /></span>
+                          <span class="ctrl pick"><select v-model="asset.kind" :aria-label="`Asset ${index + 1} type`"><option v-for="option in assetOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
+                          <button v-if="basketAssets.length > 2" type="button" class="xbtn" :aria-label="`Remove ${asset.name.trim() || `asset ${index + 1}`}`" @click.stop="removeAsset(index)">×</button>
+                          <span v-if="index === 0" class="ndesc">{{ partDescriptions.asset }}</span>
+                          <span class="ctrl block"><label :for="`asset-name-${index}`">Name</label><input :id="`asset-name-${index}`" v-model="asset.name" type="text" placeholder="Synthetic Asset" /></span>
+                        </div>
+                      </li>
+                      <li class="addrow"><button type="button" class="addbtn" @click="addAsset">＋ Add asset</button></li>
+                      <li v-if="issuesFor('underlierName', 'basketComponents').length" class="addrow"><ul class="errors" role="alert"><li v-for="message in issuesFor('underlierName', 'basketComponents')" :key="message">{{ message }}</li></ul></li>
+                    </template>
                     <li :class="['node', { sel: highlighted('determination') }]" :style="conceptStyle('determination')">
                       <div class="nrow" @click="select('determination')" @focusin="focusRow('determination')">
                         <span class="nlabel">Determination<HintToggle id="determination" about="determination" :text="hints.determination" :active="activeHint === 'determination'" @toggle="toggleHint('determination')" /></span>
@@ -596,10 +694,11 @@ const chart = computed(() => {
                         <li :class="['node', { sel: highlighted('initial-level') }]" :style="conceptStyle('initial-level')">
                           <div class="nrow" @click="select('initial-level')" @focusin="focusRow('initial-level')">
                             <span class="nlabel">Initial level<HintToggle id="initial-level" about="initial level" :text="hints['initial-level']" :active="activeHint === 'initial-level'" @toggle="toggleHint('initial-level')" /></span>
-                            <span class="ctrl pick"><select id="initial-determination" v-model="initialKind" aria-label="Initial level"><option v-for="option in initialDeterminationOptions" :key="option.id" :value="option.id" :title="option.description">{{ option.label }}</option></select></span>
+                            <span class="ctrl pick"><select id="initial-determination" v-model="initialKind" aria-label="Initial level"><option v-for="option in initialDeterminationOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="isBasket && option.id === 'lookback'">{{ option.label }}{{ isBasket && option.id === 'lookback' ? ' (single asset only)' : '' }}</option></select></span>
                             <span class="ndesc">{{ partDescriptions['initial-level'] }}</span>
                             <span v-if="lookingBack" class="ctrl block wraps"><label for="lookback-count">Observations after pricing</label><HintToggle id="lookback-count" about="observations after pricing" :text="hints['lookback-observations']" :active="activeHint === 'lookback-observations'" @toggle="toggleHint('lookback-observations')" /><NumberInput id="lookback-count" v-model="lookbackCount" class="num count" /></span>
                             <span v-if="lookingBack" class="ctrl block wraps"><span class="flabel">Observed levels</span><span class="unit">Hypothetical, set in the calculation</span></span>
+                            <template v-else-if="isBasket"><span v-for="(asset, index) in basketAssets" :key="index" class="ctrl block"><label :for="`initial-level-${index}`">{{ asset.name.trim() || `Asset ${index + 1}` }}</label><NumberInput :id="`initial-level-${index}`" v-model="asset.initialLevel" class="num" /></span></template>
                             <span v-else class="ctrl block"><label for="initial-level-value">Level</label><NumberInput id="initial-level-value" v-model="initialLevel" class="num" /></span>
                           </div>
                           <ul v-if="issuesFor('initialLevel', 'lookbackObservationCount').length" class="errors" role="alert"><li v-for="message in issuesFor('initialLevel', 'lookbackObservationCount')" :key="message">{{ message }}</li></ul>
@@ -610,11 +709,21 @@ const chart = computed(() => {
                             <span class="ctrl pick"><select id="final-determination" v-model="finalKind" aria-label="Final level"><option v-for="option in finalDeterminationOptions" :key="option.id" :value="option.id" :title="option.description">{{ option.label }}</option></select></span>
                             <span class="ndesc">{{ partDescriptions['final-level'] }}</span>
                             <span v-if="averaging" class="ctrl block"><label for="observation-count">Observations</label><HintToggle id="observation-count" about="observations" :text="hints.observations" :active="activeHint === 'observations'" @toggle="toggleHint('observations')" /><NumberInput id="observation-count" v-model="observationCount" class="num count" /></span>
-                            <span class="ctrl block wraps"><span class="flabel">{{ averaging ? 'Observed levels' : 'Level on the final date' }}</span><span class="unit">{{ averaging ? 'Hypothetical, set in the calculation' : 'Hypothetical, set on the chart' }}</span></span>
+                            <span class="ctrl block wraps"><span class="flabel">{{ averaging ? 'Observed levels' : isBasket ? 'Levels on the final date' : 'Level on the final date' }}</span><span class="unit">{{ averaging || isBasket ? 'Hypothetical, set in the calculation' : 'Hypothetical, set on the chart' }}</span></span>
                           </div>
                           <ul v-if="issuesFor('observationCount').length" class="errors" role="alert"><li v-for="message in issuesFor('observationCount')" :key="message">{{ message }}</li></ul>
                         </li>
                       </ul>
+                    </li>
+                    <li v-if="isBasket" :class="['node', { sel: highlighted('combination') }]" :style="conceptStyle('combination')">
+                      <div class="nrow" @click="select('combination')" @focusin="focusRow('combination')">
+                        <span class="nlabel">Combination<HintToggle id="combination" about="combination" :text="hints.combination" :active="activeHint === 'combination'" @toggle="toggleHint('combination')" /></span>
+                        <span class="ctrl pick"><select aria-label="Combination" value="weighted"><option v-for="option in combinationOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
+                        <span class="ndesc">{{ partDescriptions.combination }}</span>
+                        <span v-for="(asset, index) in basketAssets" :key="index" class="ctrl block"><label :for="`weight-${index}`">{{ asset.name.trim() || `Asset ${index + 1}` }}</label><NumberInput :id="`weight-${index}`" v-model="asset.weightPercent" class="num rate" /><span class="unit">%</span></span>
+                        <span class="ctrl block"><output class="unit" aria-live="polite">{{ weightTotal }}</output></span>
+                      </div>
+                      <ul v-if="issuesFor('weights').length" class="errors" role="alert"><li v-for="message in issuesFor('weights')" :key="message">{{ message }}</li></ul>
                     </li>
                   </ul>
                 </li>
@@ -752,7 +861,7 @@ const chart = computed(() => {
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
             </svg>
-            <div class="chart-axis-title">Final level of {{ underlierLabel }}{{ averaging ? `, the average of ${observations.length} observed levels` : '' }} →</div>
+            <div class="chart-axis-title">{{ isBasket ? `Final level of the basket${averaging ? `, from each asset's average of ${observationCount} observed levels` : ''}` : `Final level of ${underlierLabel}${averaging ? `, the average of ${observations.length} observed levels` : ''}` }} →</div>
             <ul class="chart-legend" aria-label="What sets the payment"><li v-for="item in chart.legend" :key="item.regime" :style="conceptStyle(item.concept)"><span class="legend-swatch" aria-hidden="true"></span>{{ item.label }}</li></ul>
             <p class="chart-hint">Drag a handle on the chart, or focus one and use the arrow keys. Shift takes bigger steps. A grey line shows the payoff before your last change.</p>
           </template>
@@ -763,7 +872,8 @@ const chart = computed(() => {
             <template #calculation>
               <div v-if="lookingBack" class="hint-field"><div class="field-heading"><span id="lookback-levels-label" class="observed-heading">Lookback level: hypothetical levels of {{ underlierLabel }} on the lookback dates</span><button type="button" class="hint-button" aria-label="About the lookback level" aria-controls="lookback-levels-hint" :aria-expanded="activeHint === 'lookback-levels'" @click="toggleHint('lookback-levels')">ⓘ</button><p v-if="activeHint === 'lookback-levels'" id="lookback-levels-hint" class="hint-text" role="tooltip">Hypothetical levels on the pricing date and each lookback date after it, earliest first. The lowest of them is the lookback level, which the return is measured from. Changing them does not change the note's terms.</p></div><div class="observed-levels" role="group" aria-labelledby="lookback-levels-label" :style="conceptStyle('initial-level')"><span class="observed-op" aria-hidden="true">min(</span><span class="observed-cell"><label for="lookback-pricing" class="observed-name">Pricing<template v-if="isLowest(initialLevel)"> · lowest</template></label><NumberInput id="lookback-pricing" v-model="initialLevel" :class="['observed-input', { lowest: isLowest(initialLevel) }]" /></span><template v-for="(level, index) in afterPricing" :key="index"><span class="observed-op" aria-hidden="true">,</span><span class="observed-cell"><label :for="`lookback-${index}`" class="observed-name">Obs {{ index + 1 }}<template v-if="isLowest(level)"> · lowest</template></label><NumberInput :id="`lookback-${index}`" :model-value="level" :class="['observed-input', { lowest: isLowest(level) }]" @update:model-value="setAfterPricing(index, $event)" /></span></template><span class="observed-op" aria-hidden="true">) =</span><span class="observed-cell"><span class="observed-name">Lookback level</span><output class="observed-result" aria-live="polite">{{ Number.isFinite(determinedInitialLevel) ? formatAmount(determinedInitialLevel) : '—' }}</output></span></div></div>
               <p v-if="lookbackError" class="errors" role="alert">{{ lookbackError }}</p>
-              <div v-if="averaging" class="hint-field"><div class="field-heading"><span id="observed-levels-label" class="observed-heading">Final level: hypothetical levels of {{ underlierLabel }} on the averaging dates</span><button type="button" class="hint-button" aria-label="About the averaged final level" aria-controls="observed-levels-hint" :aria-expanded="activeHint === 'observed-levels'" @click="toggleHint('observed-levels')">ⓘ</button><p v-if="activeHint === 'observed-levels'" id="observed-levels-hint" class="hint-text" role="tooltip">Hypothetical levels on each averaging date, earliest first. Their average is the final level. Changing them does not change the note's terms.</p></div><div class="observed-levels" role="group" aria-labelledby="observed-levels-label" :style="conceptStyle('final-level')"><template v-for="(level, index) in observations" :key="index"><span v-if="index > 0" class="observed-op" aria-hidden="true">+</span><span class="observed-cell"><label :for="`observation-${index}`" class="observed-name">Obs {{ index + 1 }}<template v-if="index === observations.length - 1"> · final date</template></label><NumberInput :id="`observation-${index}`" :model-value="level" class="observed-input" @update:model-value="setObservation(index, $event)" /></span></template><span class="observed-op" aria-hidden="true">÷ {{ observations.length }} =</span><span class="observed-cell"><span class="observed-name">Final level</span><output class="observed-result" aria-live="polite">{{ Number.isFinite(finalLevel) ? formatAmount(finalLevel) : '—' }}</output></span></div></div>
+              <div v-if="isBasket" class="hint-field"><div class="field-heading"><span id="basket-levels-label" class="observed-heading">{{ averaging ? 'Final levels: hypothetical levels of each asset on the averaging dates' : 'Final levels: hypothetical level of each asset on the final date' }}</span><button type="button" class="hint-button" aria-label="About the basket's final levels" aria-controls="basket-levels-hint" :aria-expanded="activeHint === 'basket-levels'" @click="toggleHint('basket-levels')">ⓘ</button><p v-if="activeHint === 'basket-levels'" id="basket-levels-hint" class="hint-text" role="tooltip">Hypothetical levels for this scenario, earliest first. Each asset's return is measured from its own initial level{{ averaging ? ' to the average of its levels' : '' }}. Dragging the final level on the chart moves every asset's return by the same amount. Changing them does not change the note's terms.</p></div><div class="table-wrap basket-levels" :style="conceptStyle('final-level')"><table aria-labelledby="basket-levels-label"><thead><tr><th scope="col">Asset</th><th v-for="(_, index) in basketObservations[0]" :key="index" scope="col">{{ averaging ? `Obs ${index + 1}${index === basketObservations[0].length - 1 ? ' · final date' : ''}` : 'Final date' }}</th><th v-if="averaging" scope="col">Final level</th></tr></thead><tbody><tr v-for="(levels, asset) in basketObservations" :key="asset"><th scope="row">{{ basketAssets[asset].name.trim() || `Asset ${asset + 1}` }}</th><td v-for="(level, index) in levels" :key="index"><NumberInput :model-value="level" class="observed-input" :aria-label="`${basketAssets[asset].name.trim() || `Asset ${asset + 1}`}, ${averaging ? `observation ${index + 1}` : 'final date'}`" @update:model-value="setBasketObservation(asset, index, $event)" /></td><td v-if="averaging"><output class="observed-result" aria-live="polite">{{ basketMeasure ? formatAmount(basketMeasure.components[asset].finalLevel) : '—' }}</output></td></tr></tbody></table></div></div>
+              <div v-else-if="averaging" class="hint-field"><div class="field-heading"><span id="observed-levels-label" class="observed-heading">Final level: hypothetical levels of {{ underlierLabel }} on the averaging dates</span><button type="button" class="hint-button" aria-label="About the averaged final level" aria-controls="observed-levels-hint" :aria-expanded="activeHint === 'observed-levels'" @click="toggleHint('observed-levels')">ⓘ</button><p v-if="activeHint === 'observed-levels'" id="observed-levels-hint" class="hint-text" role="tooltip">Hypothetical levels on each averaging date, earliest first. Their average is the final level. Changing them does not change the note's terms.</p></div><div class="observed-levels" role="group" aria-labelledby="observed-levels-label" :style="conceptStyle('final-level')"><template v-for="(level, index) in observations" :key="index"><span v-if="index > 0" class="observed-op" aria-hidden="true">+</span><span class="observed-cell"><label :for="`observation-${index}`" class="observed-name">Obs {{ index + 1 }}<template v-if="index === observations.length - 1"> · final date</template></label><NumberInput :id="`observation-${index}`" :model-value="level" class="observed-input" @update:model-value="setObservation(index, $event)" /></span></template><span class="observed-op" aria-hidden="true">÷ {{ observations.length }} =</span><span class="observed-cell"><span class="observed-name">Final level</span><output class="observed-result" aria-live="polite">{{ Number.isFinite(finalLevel) ? formatAmount(finalLevel) : '—' }}</output></span></div></div>
               <div v-else class="hint-field"><div class="field-heading"><label for="final-level">Final level: hypothetical level of {{ underlierLabel }} on the final date</label><button type="button" class="hint-button" aria-label="About the final level" aria-controls="final-level-hint" :aria-expanded="activeHint === 'final-level'" @click="toggleHint('final-level')">ⓘ</button><p v-if="activeHint === 'final-level'" id="final-level-hint" class="hint-text" role="tooltip">A hypothetical level for this scenario. Changing it does not change the note's terms.</p></div><NumberInput id="final-level" :model-value="observations[0]" class="final-input" @update:model-value="setObservation(0, $event)" /></div>
               <p v-if="finalError" class="errors" role="alert">{{ finalError }}</p>
               <div class="formula" role="group" aria-label="Payment rule"><div v-for="(line, index) in formula" :key="index" :class="['fline', { limit: !line.lead }]"><span class="flead">{{ line.lead }}</span><span class="feq">{{ line.lead ? '=' : '' }}</span><span class="fexpr"><template v-for="(segment, part) in line.segments" :key="part"><span v-if="segment.concept" :class="['fterm', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)">{{ segment.text }}</span><template v-else>{{ segment.text }}</template></template></span></div><p class="fwords"><b>In words:</b> {{ formulaWords }}</p></div>
@@ -774,7 +884,7 @@ const chart = computed(() => {
               <template v-if="chart">
                 <h3>Example scenarios</h3>
                 <p class="table-scroll-hint">Scroll horizontally to see every scenario column.</p>
-                <div class="table-wrap"><table><thead><tr><th>Final level</th><th>Underlier change</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected">Payment before protection</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}<span v-if="row.atBarrier" class="floor-note">at barrier</span></td><td>{{ formatPercent(row.returnValue) }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="protectionSelected && row.floorApplied" class="floor-note">floor applied</span></td></tr></tbody></table></div>
+                <div class="table-wrap"><table><thead><tr><th>{{ isBasket ? 'Basket level' : 'Final level' }}</th><th>Underlier change</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected">Payment before protection</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}<span v-if="row.atBarrier" class="floor-note">at barrier</span></td><td>{{ formatPercent(row.returnValue) }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="protectionSelected && row.floorApplied" class="floor-note">floor applied</span></td></tr></tbody></table></div>
                 <p class="scenario-formula"><template v-if="lookingBack">Each change is measured from the lookback level, {{ formatAmount(determinedInitialLevel) }}. </template><template v-if="averaging">Each final level is the average of the observed levels. </template><strong>Selected participation:</strong> {{ participationSummary }}. A move in an unselected direction does not change principal before protection.<template v-if="bufferSelected"> The buffer absorbs the first {{ bufferSummary }} of a fall.</template> The payment cannot fall below {{ floorSummary }}.<template v-if="capSelected"> It cannot exceed {{ capSummary }}.</template></p>
               </template>
               <p v-else class="help">Enter valid terms to see the scenarios.</p>
