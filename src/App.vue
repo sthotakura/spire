@@ -674,7 +674,7 @@ const chart = computed(() => {
     <main class="page">
       <div class="intro">
         <h1>Structured products, built from their parts.</h1>
-        <p>See how each feature changes what a note pays at maturity, and why.</p>
+        <p>See how each feature changes what the product pays, and why.</p>
       </div>
 
       <p class="summary-sentence" aria-live="polite"><template v-for="(segment, index) in summary" :key="index"><button v-if="segment.concept" type="button" :class="['concept', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)" :aria-pressed="highlighted(segment.concept)" @click="select(segment.concept)">{{ segment.text }}</button><span v-else>{{ segment.text }}</span></template></p>
@@ -683,17 +683,17 @@ const chart = computed(() => {
 
       <div class="workspace">
         <section class="panel outline" aria-label="Product structure">
-          <p class="eyebrow">Editable terms</p>
-          <h2>Structure</h2>
-          <p class="help">A structured product is built from separate parts. Each one answers a single question about what the product is and what it pays.</p>
+          <header class="panel-head"><h2>Structure</h2><p>What the product is made of</p></header>
           <ul class="tree">
             <li :class="['node', { sel: highlighted('wrapper') }]" :style="conceptStyle('wrapper')">
               <div class="nrow" @click="select('wrapper')" @focusin="focusRow('wrapper')">
                 <span class="nlabel">Wrapper<HintToggle id="wrapper" about="wrapper" :text="hints.wrapper" :active="activeHint === 'wrapper'" @toggle="toggleHint('wrapper')" /></span>
                 <span class="ctrl pick"><select aria-label="Wrapper" :value="note.wrapper" @change="setWrapper(($event.target as HTMLSelectElement).value)"><option v-for="option in wrapperOptions" :key="option.id" :value="option.id" :disabled="!option.available || !!wrapperBlockedReason(option.id)">{{ option.label }}{{ !option.available ? ' (unavailable)' : wrapperBlockedReason(option.id) ? ` (${wrapperBlockedReason(option.id)?.toLowerCase()})` : '' }}</option></select></span>
                 <span class="ndesc">{{ partDescriptions.wrapper }}</span>
-                <span class="ctrl block"><label for="principal">Principal</label><HintToggle id="principal" about="principal" :text="hints.principal" :active="activeHint === 'principal'" @toggle="toggleHint('principal')" /><NumberInput id="principal" v-model="principal" class="num" /></span>
-                <span class="ctrl block"><label for="term">Term</label><HintToggle id="term" about="term" :text="hints.term" :active="activeHint === 'term'" @toggle="toggleHint('term')" /><NumberInput id="term" v-model="termMonths" class="num count" /><span class="unit">months{{ termYears ? ` (${termYears})` : '' }}</span></span>
+                <span class="ctrl-line">
+                  <span class="ctrl"><label for="principal">Principal</label><HintToggle id="principal" about="principal" :text="hints.principal" :active="activeHint === 'principal'" @toggle="toggleHint('principal')" /><NumberInput id="principal" v-model="principal" class="num" /></span>
+                  <span class="ctrl"><label for="term">Term</label><HintToggle id="term" about="term" :text="hints.term" :active="activeHint === 'term'" @toggle="toggleHint('term')" /><NumberInput id="term" v-model="termMonths" class="num count" /><span class="unit">months{{ termYears ? ` (${termYears})` : '' }}</span></span>
+                </span>
               </div>
               <ul v-if="issuesFor('principalAmount', 'term').length" class="errors" role="alert"><li v-for="message in issuesFor('principalAmount', 'term')" :key="message">{{ message }}</li></ul>
               <ul>
@@ -863,7 +863,7 @@ const chart = computed(() => {
         </section>
 
         <section class="panel preview" aria-label="Payoff preview">
-          <div class="preview-heading"><div><p class="eyebrow">Live preview</p><h2>Payoff at maturity</h2></div></div>
+          <header class="panel-head"><h2>Payoff at {{ wrapper === 'deposit' ? 'maturity' : 'redemption' }}</h2><p>What it pays for each hypothetical final level</p></header>
           <template v-if="chart">
             <svg ref="chartSvg" class="chart" viewBox="0 0 620 350" role="group" :aria-label="chartDescription" :style="{ '--label': `${11 * labelScale}px` }">
               <defs><clipPath id="plot-clip"><rect :x="plot.left" :y="plot.top" :width="plot.right - plot.left" :height="plot.bottom - plot.top"/></clipPath></defs>
@@ -948,9 +948,7 @@ const chart = computed(() => {
         </section>
 
         <aside class="panel structure-json" aria-labelledby="structure-json-heading">
-          <p class="eyebrow">{{ errors.length ? 'Draft structure · invalid terms' : 'Selected structure' }}</p>
-          <h2 id="structure-json-heading">Structure JSON</h2>
-          <p class="help">{{ errors.length ? 'A live draft containing invalid terms. Correct the highlighted terms before treating it as a valid structure.' : `A live representation of the ${wrapper}'s contractual terms.` }}</p>
+          <header class="panel-head"><h2 id="structure-json-heading">Structure JSON<span v-if="errors.length" class="badge invalid">Invalid terms</span></h2><p>{{ errors.length ? 'A live draft containing invalid terms. Correct the highlighted terms before treating it as a valid structure.' : 'The same terms as data' }}</p></header>
           <div class="json-wrap">
             <button type="button" :class="['copybtn', copyState]" aria-label="Copy the structure JSON" :title="copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : 'Copy JSON'" @click="copyJson">
               <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
