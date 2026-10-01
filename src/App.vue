@@ -13,9 +13,9 @@ import { scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
-import { basketBreakdown, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, noteIssues, observationCountOf, paymentBreakdown, downsideOf, upsideOf, withSubFeatures, type Determination, type FinalDetermination, type InitialDetermination, type NoteIssueField, type ParticipationDirection, type Note, type Underlier, type AssetKind } from './domain/note'
+import { basketBreakdown, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, productIssues, observationCountOf, paymentBreakdown, downsideOf, upsideOf, withSubFeatures, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
-import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingNote } from './domain/starting-note'
+import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
 const activeHint = ref<string | null>(null)
 const toggleHint = (hint: string) => { activeHint.value = activeHint.value === hint ? null : hint }
@@ -84,21 +84,21 @@ const assetOptions: ReadonlyArray<{ id: AssetKind; label: string }> = [
   { id: 'equity-index', label: 'Equity index' },
   { id: 'equity', label: 'Equity' },
 ]
-const [startingComponent] = startingNote.underlier.components
+const [startingComponent] = startingProduct.underlier.components
 const assetKind = ref<AssetKind>(startingComponent.asset.kind)
 const assetName = ref(startingComponent.asset.name)
-const principal = ref(startingNote.principalAmount)
-const termMonths = ref(startingNote.term.months)
+const principal = ref(startingProduct.principalAmount)
+const termMonths = ref(startingProduct.term.months)
 // A term of whole years is also shown in years, as term sheets often state it.
 const termYears = computed(() => Number.isInteger(termMonths.value) && termMonths.value > 0 && termMonths.value % 12 === 0 ? `${termMonths.value / 12} year${termMonths.value === 12 ? '' : 's'}` : null)
 // The level on the pricing date. With a fixed initial level it is the stated term; with lookback it is the first observed
 // level, a scenario input. Keeping one value means switching between the two keeps the reader's number.
 const initialLevel = ref(startingInitialLevel)
-const initialKind = ref<InitialDetermination['kind']>(startingNote.underlier.determination.initial.kind)
+const initialKind = ref<InitialDetermination['kind']>(startingProduct.underlier.determination.initial.kind)
 const lookbackCount = ref(firstLookbackMoves.length)
-const finalKind = ref<FinalDetermination['kind']>(startingNote.underlier.determination.final.kind)
+const finalKind = ref<FinalDetermination['kind']>(startingProduct.underlier.determination.final.kind)
 const observationCount = ref(firstObservationCount)
-const underlierKind = ref<Underlier['kind']>(startingNote.underlier.kind)
+const underlierKind = ref<Underlier['kind']>(startingProduct.underlier.kind)
 const isBasket = computed(() => underlierKind.value === 'basket')
 // The terms of each asset in a basket, in order. While the note tracks a basket, the single asset's terms above are not read.
 interface BasketAsset { kind: AssetKind; name: string; initialLevel: number; weightPercent: number }
@@ -282,7 +282,7 @@ const underlier = computed<Underlier>(() => !isBasket.value
         basketReturn: { kind: 'weighted' },
       },
     })
-const note = computed<Note>(() => ({
+const note = computed<Product>(() => ({
   wrapper: 'note',
   redemption: 'bullet',
   term: { months: termMonths.value },
@@ -316,9 +316,9 @@ const copyJson = async () => {
   copyReset = setTimeout(() => { copyState.value = 'idle' }, 2000)
 }
 onBeforeUnmount(() => clearTimeout(copyReset))
-const issues = computed(() => noteIssues(note.value))
+const issues = computed(() => productIssues(note.value))
 const errors = computed(() => issues.value.map(({ message }) => message))
-const issuesFor = (...fields: NoteIssueField[]) => issues.value.filter(({ field }) => fields.includes(field)).map(({ message }) => message)
+const issuesFor = (...fields: ProductIssueField[]) => issues.value.filter(({ field }) => fields.includes(field)).map(({ message }) => message)
 const summary = computed(() => summarize(note.value))
 const names = computed(() => marketingNames(note.value))
 const nameHintKey = (name: MarketingName) => `name:${name.name}`
@@ -433,8 +433,8 @@ const handleRadius = computed(() => 8 * Math.max(1, 0.7 / chartScale.value))
 const labelScale = computed(() => clamp(1 / chartScale.value, 1, 1.6))
 
 // The payoff line from before the current gesture stays as a faint ghost, so the reader can see what a change did.
-const ghostNote = ref<Note | null>(null)
-function beginGesture() { ghostNote.value = JSON.parse(JSON.stringify(note.value)) as Note }
+const ghostNote = ref<Product | null>(null)
+function beginGesture() { ghostNote.value = JSON.parse(JSON.stringify(note.value)) as Product }
 const focusRow = (concept: ConceptId) => { select(concept); beginGesture() }
 
 type HandleId = 'floor' | 'slope' | 'cap' | 'buffer' | 'barrier' | 'final'
@@ -550,7 +550,7 @@ const chart = computed(() => {
   const ghostInitialEnd = ghost?.underlier.determination.initial
   const ghostObservations = ghostInitialEnd?.kind === 'lookback' ? [initialLevel.value, ...fitLookbackObservations(lookbackLevels.value, initialObservationCountOf(ghostInitialEnd) - 1)] : []
   // A ghost of the other kind of underlier is not drawn: its horizontal axis measures something else.
-  const ghostDrawable = ghost !== null && ghost.underlier.kind === underlierKind.value && noteIssues(ghost).length === 0 && ghostObservations.every((level) => Number.isFinite(level) && level > 0)
+  const ghostDrawable = ghost !== null && ghost.underlier.kind === underlierKind.value && productIssues(ghost).length === 0 && ghostObservations.every((level) => Number.isFinite(level) && level > 0)
   const ghostInitial = !ghostDrawable ? Number.NaN : ghost.underlier.kind === 'basket' ? basketStartingLevel : initialLevelFrom(ghost.underlier.determination.initial, ghostObservations)
   const ghostBarrier = ghostDrawable ? downsideOf(ghost)?.barrier : undefined
   const ghostLevels = levelsFor(ghostBarrier && ghostInitial * ghostBarrier.level)

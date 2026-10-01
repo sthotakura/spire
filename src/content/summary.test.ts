@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { withSubFeatures, type SingleNote } from '../domain/note'
+import { withSubFeatures, type SingleProduct } from '../domain/note'
 import { summarize } from './summary'
 
-const note: SingleNote = {
+const note: SingleProduct = {
   wrapper: 'note',
   redemption: 'bullet',
   term: { months: 36 },
@@ -17,9 +17,9 @@ const note: SingleNote = {
   principalAmount: 1000,
 }
 
-const withTerms = (n: SingleNote, buffer?: number, cap?: number): SingleNote => ({ ...n, payoff: { ...n.payoff, participations: withSubFeatures(n.payoff.participations, { buffer, cap }) } })
-const sentence = (n: SingleNote) => summarize(n).map(({ text }) => text).join('')
-const conceptOf = (n: SingleNote, phrase: string) => summarize(n).find(({ text }) => text === phrase)?.concept
+const withTerms = (n: SingleProduct, buffer?: number, cap?: number): SingleProduct => ({ ...n, payoff: { ...n.payoff, participations: withSubFeatures(n.payoff.participations, { buffer, cap }) } })
+const sentence = (n: SingleProduct) => summarize(n).map(({ text }) => text).join('')
+const conceptOf = (n: SingleProduct, phrase: string) => summarize(n).find(({ text }) => text === phrase)?.concept
 
 describe('note summary with a term', () => {
   it.each([
@@ -135,7 +135,7 @@ describe('note summary', () => {
   })
 
   it('keeps describing a draft that is not valid yet', () => {
-    const draft: SingleNote = { ...note, underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name: ' ' } }] }, payoff: { ...note.payoff, participations: [], principalProtection: Number.NaN } }
+    const draft: SingleProduct = { ...note, underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name: ' ' } }] }, payoff: { ...note.payoff, participations: [], principalProtection: Number.NaN } }
     expect(sentence(draft)).toBe('A 3-year note that redeems at maturity and repays its principal, linked to the underlier, measured point-to-point from 100, with — principal protection.')
   })
 })

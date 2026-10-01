@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { basketBreakdown, equalWeights, finalLevelFrom, initialLevelFrom, maturityPayment, noteIssues, paymentBreakdown, validateNote, type BasketUnderlier, type DownsideParticipation, type Note, type SingleNote, type UpsideParticipation } from './note'
+import { basketBreakdown, equalWeights, finalLevelFrom, initialLevelFrom, maturityPayment, productIssues, paymentBreakdown, validateProduct, type BasketUnderlier, type DownsideParticipation, type Product, type SingleProduct, type UpsideParticipation } from './note'
 
-const note: SingleNote = {
+const note: SingleProduct = {
   wrapper: 'note',
   redemption: 'bullet',
   term: { months: 36 },
@@ -20,15 +20,15 @@ const note: SingleNote = {
   principalAmount: 1000,
 }
 // Changes the participation in one direction, such as adding its buffer or cap, and keeps the other.
-const withDownside = (base: SingleNote, terms: Partial<DownsideParticipation>): SingleNote => ({
+const withDownside = (base: SingleProduct, terms: Partial<DownsideParticipation>): SingleProduct => ({
   ...base,
   payoff: { ...base.payoff, participations: base.payoff.participations.map((p) => p.direction === 'downside' ? { ...p, ...terms } : p) },
 })
-const withUpside = (base: SingleNote, terms: Partial<UpsideParticipation>): SingleNote => ({
+const withUpside = (base: SingleProduct, terms: Partial<UpsideParticipation>): SingleProduct => ({
   ...base,
   payoff: { ...base.payoff, participations: base.payoff.participations.map((p) => p.direction === 'upside' ? { ...p, ...terms } : p) },
 })
-const withComponent = (name: string, initialLevel: number): SingleNote => ({
+const withComponent = (name: string, initialLevel: number): SingleProduct => ({
   ...note,
   underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name } }], determination: { ...note.underlier.determination, initial: { kind: 'given', level: initialLevel } } },
 })
@@ -49,7 +49,7 @@ describe('protected participation note', () => {
     [withComponent('Synthetic Index', 0), 'Initial level must be greater than zero.'],
     [{ ...note, payoff: { ...note.payoff, participations: [{ direction: 'upside' as const, rate: 0 }] } }, 'Upside participation must be greater than zero.'],
   ])('rejects an invalid note term', (invalidNote, expectedError) => {
-    expect(validateNote(invalidNote)).toContain(expectedError)
+    expect(validateProduct(invalidNote)).toContain(expectedError)
   })
 
   it('measures the return from the initial level it is given', () => {
@@ -73,7 +73,7 @@ describe('protected participation note', () => {
     [100, 1000],
     [110, 1150],
   ])('applies downside participation until the protection floor at %s', (finalLevel, expected) => {
-    const partiallyProtectedNote: SingleNote = {
+    const partiallyProtectedNote: SingleProduct = {
       ...note,
       payoff: {
         ...note.payoff,
@@ -85,7 +85,7 @@ describe('protected participation note', () => {
   })
 
   it('applies the configured downside participation rate before the floor', () => {
-    const partiallyProtectedNote: SingleNote = {
+    const partiallyProtectedNote: SingleProduct = {
       ...note,
       payoff: {
         ...note.payoff,
@@ -101,7 +101,7 @@ describe('protected participation note', () => {
   })
 
   it('allows a zero protection floor', () => {
-    const unprotectedNote: SingleNote = {
+    const unprotectedNote: SingleProduct = {
       ...note,
       payoff: { ...note.payoff, principalProtection: 0 },
     }
@@ -114,11 +114,11 @@ describe('protected participation note', () => {
     [{ ...note, payoff: { ...note.payoff, principalProtection: 1.1 } }, 'Principal protection must be between 0% and 100%.'],
     [{ ...note, payoff: { ...note.payoff, participations: [{ direction: 'downside' as const, rate: 0 }] } }, 'Downside participation must be greater than zero.'],
   ])('rejects an invalid protection or downside term', (invalidNote, expectedError) => {
-    expect(validateNote(invalidNote)).toContain(expectedError)
+    expect(validateProduct(invalidNote)).toContain(expectedError)
   })
 
   it('leaves negative returns unchanged when only upside participation is selected', () => {
-    const upsideOnlyNote: SingleNote = {
+    const upsideOnlyNote: SingleProduct = {
       ...note,
       payoff: {
         ...note.payoff,
@@ -132,7 +132,7 @@ describe('protected participation note', () => {
   })
 
   it('leaves positive returns unchanged when only downside participation is selected', () => {
-    const downsideOnlyNote: SingleNote = {
+    const downsideOnlyNote: SingleProduct = {
       ...note,
       payoff: {
         ...note.payoff,
@@ -152,19 +152,19 @@ describe('protected participation note', () => {
     [{ ...note, payoff: { ...note.payoff, participations: [{ direction: 'upside' as const, rate: 0 }] } }, 'participations'],
     [{ ...note, payoff: { ...note.payoff, principalProtection: 1.1 } }, 'principalProtection'],
   ])('reports the field that owns an invalid term', (invalidNote, expectedField) => {
-    expect(noteIssues(invalidNote).map(({ field }) => field)).toEqual([expectedField])
-    expect(validateNote(invalidNote)).toEqual(noteIssues(invalidNote).map(({ message }) => message))
+    expect(productIssues(invalidNote).map(({ field }) => field)).toEqual([expectedField])
+    expect(validateProduct(invalidNote)).toEqual(productIssues(invalidNote).map(({ message }) => message))
   })
 
   it('allows a note with no participation and no protection', () => {
-    const principalOnlyNote: SingleNote = { ...note, payoff: { participations: [] } }
+    const principalOnlyNote: SingleProduct = { ...note, payoff: { participations: [] } }
 
-    expect(validateNote(principalOnlyNote)).toEqual([])
+    expect(validateProduct(principalOnlyNote)).toEqual([])
     for (const finalLevel of [0, 60, 100, 110, 130]) expect(maturityPayment(principalOnlyNote, { initial: 100, final: finalLevel })).toBe(1000)
   })
 
   it('rejects a direction selected more than once', () => {
-    expect(validateNote({
+    expect(validateProduct({
       ...note,
       payoff: {
         ...note.payoff,
@@ -177,7 +177,7 @@ describe('protected participation note', () => {
   })
 
   it('never pays below zero without protection', () => {
-    const unprotectedNote: SingleNote = {
+    const unprotectedNote: SingleProduct = {
       ...note,
       payoff: { participations: [{ direction: 'downside', rate: 1.5 }] },
     }
@@ -188,8 +188,8 @@ describe('protected participation note', () => {
   })
 
   it('treats absent and zero protection alike in payment but not in structure', () => {
-    const absent: SingleNote = { ...note, payoff: { participations: [{ direction: 'downside', rate: 1 }] } }
-    const zero: SingleNote = { ...absent, payoff: { ...absent.payoff, principalProtection: 0 } }
+    const absent: SingleProduct = { ...note, payoff: { participations: [{ direction: 'downside', rate: 1 }] } }
+    const zero: SingleProduct = { ...absent, payoff: { ...absent.payoff, principalProtection: 0 } }
 
     for (const finalLevel of [0, 50, 100, 120]) expect(maturityPayment(absent, { initial: 100, final: finalLevel })).toBe(maturityPayment(zero, { initial: 100, final: finalLevel }))
     expect(absent.payoff.principalProtection).toBeUndefined()
@@ -198,11 +198,11 @@ describe('protected participation note', () => {
 
 describe('term', () => {
   it.each([1, 18, 36, 120])('allows a term of %d months', (months) => {
-    expect(validateNote({ ...note, term: { months } })).toEqual([])
+    expect(validateProduct({ ...note, term: { months } })).toEqual([])
   })
 
   it.each([0, -12, 121, 1.5, Number.NaN])('rejects a term of %d months', (months) => {
-    expect(noteIssues({ ...note, term: { months } })).toEqual([{ field: 'term', message: 'Term must be a whole number of months from 1 to 120.' }])
+    expect(productIssues({ ...note, term: { months } })).toEqual([{ field: 'term', message: 'Term must be a whole number of months from 1 to 120.' }])
   })
 
   it('does not change the payment', () => {
@@ -211,7 +211,7 @@ describe('term', () => {
 })
 
 describe('payment breakdown', () => {
-  const protectedNote: SingleNote = { ...note, payoff: { ...note.payoff, principalProtection: 0.9 } }
+  const protectedNote: SingleProduct = { ...note, payoff: { ...note.payoff, principalProtection: 0.9 } }
 
   it('breaks a rise into its steps', () => {
     const breakdown = paymentBreakdown(protectedNote, { initial: 100, final: 110 })
@@ -313,8 +313,8 @@ describe('cap', () => {
 
   it.each([0, -0.1, Number.NaN, Number.POSITIVE_INFINITY])('rejects a cap of %s', (cap) => {
     const invalid = withUpside(note, { cap })
-    expect(validateNote(invalid)).toContain('Cap must be greater than zero.')
-    expect(noteIssues(invalid).map(({ field }) => field)).toEqual(['cap'])
+    expect(validateProduct(invalid)).toContain('Cap must be greater than zero.')
+    expect(productIssues(invalid).map(({ field }) => field)).toEqual(['cap'])
   })
 })
 
@@ -363,13 +363,13 @@ describe('buffer', () => {
 
   it.each([0, -0.1, 1.1, Number.NaN])('rejects a buffer of %s', (buffer) => {
     const invalid = withDownside(note, { buffer })
-    expect(validateNote(invalid)).toContain('Buffer must be greater than 0% and at most 100%.')
-    expect(noteIssues(invalid).map(({ field }) => field)).toEqual(['buffer'])
+    expect(validateProduct(invalid)).toContain('Buffer must be greater than 0% and at most 100%.')
+    expect(productIssues(invalid).map(({ field }) => field)).toEqual(['buffer'])
   })
 
   it('allows a buffer of 100%, which absorbs any fall', () => {
     const full = withDownside(buffered, { buffer: 1 })
-    expect(validateNote(full)).toEqual([])
+    expect(validateProduct(full)).toEqual([])
     expect(maturityPayment(full, { initial: 100, final: 0 })).toBe(1000)
   })
 })
@@ -420,17 +420,17 @@ describe('barrier', () => {
 
   it.each([0, -0.1, 1, 1.2, Number.NaN])('rejects a barrier level of %s', (level) => {
     const invalid = withDownside(note, { barrier: { level, observation: 'final' } })
-    expect(noteIssues(invalid)).toEqual([{ field: 'barrier', message: 'Barrier must be greater than 0% and less than 100% of the initial level.' }])
+    expect(productIssues(invalid)).toEqual([{ field: 'barrier', message: 'Barrier must be greater than 0% and less than 100% of the initial level.' }])
   })
 
   it('is not combined with a buffer', () => {
     const both = withDownside(barriered, { buffer: 0.1 })
-    expect(noteIssues(both)).toEqual([{ field: 'barrier', message: 'A barrier and a buffer cannot both apply to downside participation.' }])
+    expect(productIssues(both)).toEqual([{ field: 'barrier', message: 'A barrier and a buffer cannot both apply to downside participation.' }])
   })
 })
 
 describe('averaging determination', () => {
-  const averaging = (observationCount: number): SingleNote => ({ ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'averaging', observationCount } } } })
+  const averaging = (observationCount: number): SingleProduct => ({ ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'averaging', observationCount } } } })
 
   it('takes the final level as the arithmetic average of the observed levels', () => {
     expect(finalLevelFrom({ kind: 'averaging', observationCount: 4 }, [100, 120, 90, 130])).toBe(110)
@@ -455,23 +455,23 @@ describe('averaging determination', () => {
   })
 
   it('accepts from 2 to 12 observations', () => {
-    expect(validateNote(averaging(2))).toEqual([])
-    expect(validateNote(averaging(12))).toEqual([])
+    expect(validateProduct(averaging(2))).toEqual([])
+    expect(validateProduct(averaging(12))).toEqual([])
   })
 
   it.each([1, 13, 2.5, Number.NaN])('rejects %s observations', (count) => {
-    expect(noteIssues(averaging(count))).toEqual([{ field: 'observationCount', message: 'Observations must be a whole number from 2 to 12.' }])
+    expect(productIssues(averaging(count))).toEqual([{ field: 'observationCount', message: 'Observations must be a whole number from 2 to 12.' }])
   })
 })
 
 describe('lookback determination', () => {
-  const upsideOnly: SingleNote = { ...note, payoff: { participations: [{ direction: 'upside', rate: 1 }] } }
-  const lookback = (observationCount: number, base: SingleNote = upsideOnly): SingleNote => ({
+  const upsideOnly: SingleProduct = { ...note, payoff: { participations: [{ direction: 'upside', rate: 1 }] } }
+  const lookback = (observationCount: number, base: SingleProduct = upsideOnly): SingleProduct => ({
     ...base,
     underlier: { ...base.underlier, determination: { ...base.underlier.determination, initial: { kind: 'lookback', observationCount } } },
   })
   // The levels observed from pricing: the level on the pricing date first, then each date after it.
-  const paymentFrom = (n: SingleNote, fromPricing: number[], finalLevel: number) =>
+  const paymentFrom = (n: SingleProduct, fromPricing: number[], finalLevel: number) =>
     maturityPayment(n, { initial: initialLevelFrom(n.underlier.determination.initial, fromPricing), final: finalLevel })
 
   it('reads the stated level when the initial level is given', () => {
@@ -503,7 +503,7 @@ describe('lookback determination', () => {
 
   it('combines with averaging of the final level', () => {
     const both = lookback(3, { ...upsideOnly, underlier: { ...upsideOnly.underlier, determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'averaging', observationCount: 4 } } } })
-    expect(validateNote(both)).toEqual([])
+    expect(validateProduct(both)).toEqual([])
     // Lookback level 92; final level (100 + 120 + 90 + 130) ÷ 4 = 110.
     const finalLevel = finalLevelFrom(both.underlier.determination.final, [100, 120, 90, 130])
     expect(paymentFrom(both, [100, 97, 92, 95], finalLevel)).toBeCloseTo(1000 * 110 / 92, 8)
@@ -528,12 +528,12 @@ describe('lookback determination', () => {
   })
 
   it('accepts from 2 to 12 observations', () => {
-    expect(validateNote(lookback(2))).toEqual([])
-    expect(validateNote(lookback(12))).toEqual([])
+    expect(validateProduct(lookback(2))).toEqual([])
+    expect(validateProduct(lookback(12))).toEqual([])
   })
 
   it.each([1, 13, 2.5, Number.NaN])('rejects %s observations', (count) => {
-    expect(noteIssues(lookback(count))).toEqual([{ field: 'lookbackObservationCount', message: 'Lookback observations must be a whole number from 2 to 12.' }])
+    expect(productIssues(lookback(count))).toEqual([{ field: 'lookbackObservationCount', message: 'Lookback observations must be a whole number from 2 to 12.' }])
   })
 })
 
@@ -552,9 +552,9 @@ describe('weighted basket', () => {
     },
   }
   const withWeights = (a: number, b: number): BasketUnderlier => ({ ...basket, components: [{ ...basket.components[0], weight: a }, { ...basket.components[1], weight: b }] })
-  const basketNote: Note = { ...note, underlier: basket, payoff: { participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }] } }
+  const basketNote: Product = { ...note, underlier: basket, payoff: { participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }] } }
   const averaged: BasketUnderlier = { ...basket, determination: { ...basket.determination, final: { kind: 'averaging', observationCount: 2 } } }
-  const issuesOf = (underlier: BasketUnderlier) => noteIssues({ ...basketNote, underlier })
+  const issuesOf = (underlier: BasketUnderlier) => productIssues({ ...basketNote, underlier })
 
   it.each([
     [120, 48, 120, 1200],
@@ -592,7 +592,7 @@ describe('weighted basket', () => {
   })
 
   it('passes the basket level to the payoff, so a barrier is measured on the basket', () => {
-    const barrierNote: Note = { ...basketNote, payoff: { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }] } }
+    const barrierNote: Product = { ...basketNote, payoff: { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }] } }
     // Index A −50% and Co +20% leave the basket at 85, above a barrier at 70, so principal is repaid.
     expect(maturityPayment(barrierNote, basketBreakdown(basket, [[50], [48]]).levels)).toBeCloseTo(1000, 8)
   })

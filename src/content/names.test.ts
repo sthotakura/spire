@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { withSubFeatures, type Participation, type Note } from '../domain/note'
+import { withSubFeatures, type Participation, type Product } from '../domain/note'
 import { marketingNames } from './names'
 
-const noteWith = ({ participations = [], principalProtection, cap, buffer }: { participations?: Participation[]; principalProtection?: number; cap?: number; buffer?: number }): Note => ({
+const noteWith = ({ participations = [], principalProtection, cap, buffer }: { participations?: Participation[]; principalProtection?: number; cap?: number; buffer?: number }): Product => ({
   wrapper: 'note',
   redemption: 'bullet',
   term: { months: 36 },

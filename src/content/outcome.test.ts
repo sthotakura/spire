@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { paymentBreakdown, withSubFeatures, type Participation, type SingleNote } from '../domain/note'
+import { paymentBreakdown, withSubFeatures, type Participation, type SingleProduct } from '../domain/note'
 import { explainOutcome } from './outcome'
 
-const noteWith = (participations: Participation[], principalProtection?: number, cap?: number, buffer?: number): SingleNote => ({
+const noteWith = (participations: Participation[], principalProtection?: number, cap?: number, buffer?: number): SingleProduct => ({
   wrapper: 'note',
   redemption: 'bullet',
   term: { months: 36 },
@@ -11,7 +11,7 @@ const noteWith = (participations: Participation[], principalProtection?: number,
   principalAmount: 1000,
 })
 const both = [{ direction: 'downside' as const, rate: 1 }, { direction: 'upside' as const, rate: 1.5 }]
-const explain = (note: SingleNote, finalLevel: number) => explainOutcome(note, paymentBreakdown(note, { initial: 100, final: finalLevel }))
+const explain = (note: SingleProduct, finalLevel: number) => explainOutcome(note, paymentBreakdown(note, { initial: 100, final: finalLevel }))
 
 describe('outcome explanation', () => {
   it('says neither limit applies when the cap and the floor both do not bind', () => {

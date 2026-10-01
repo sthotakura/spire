@@ -1,4 +1,4 @@
-import { downsideOf, paymentBreakdown, type PaymentBreakdown, type Note } from '../domain/note'
+import { downsideOf, paymentBreakdown, type PaymentBreakdown, type Product } from '../domain/note'
 
 // Underlier returns the scenario table shows, from a fall to a strong rise.
 export const scenarioReturns = [-0.4, 0, 0.1, 0.3]
@@ -16,7 +16,7 @@ export interface ScenarioRow {
 // A barrier adds a row at its level, so the table shows where a fall stops repaying principal wherever the barrier is.
 // The row's level is computed as the payment computes the barrier, so rounding cannot turn it into a breach, and a fixed
 // row at the same level gives way to it.
-export function scenarioRows(note: Note, initialLevel: number, returns: number[] = scenarioReturns): ScenarioRow[] {
+export function scenarioRows(note: Product, initialLevel: number, returns: number[] = scenarioReturns): ScenarioRow[] {
   let points = returns.map((returnValue) => ({ returnValue, finalLevel: initialLevel * (1 + returnValue), atBarrier: false }))
   const barrier = downsideOf(note)?.barrier
   if (barrier !== undefined) {

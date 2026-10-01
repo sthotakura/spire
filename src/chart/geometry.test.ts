@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
-import { paymentBreakdown, withSubFeatures, type Note } from '../domain/note'
-import { startingNote } from '../domain/starting-note'
+import { paymentBreakdown, withSubFeatures, type Product } from '../domain/note'
+import { startingProduct } from '../domain/starting-note'
 
 const plot: Plot = { left: 50, right: 590, top: 35, bottom: 230 }
 
@@ -160,11 +160,11 @@ describe('arrow keys', () => {
 })
 
 describe('payoff regimes', () => {
-  const note = ({ buffer, cap, ...payoff }: Partial<Note['payoff']> & { buffer?: number; cap?: number }): Note => {
-    const merged = { ...startingNote.payoff, ...payoff }
-    return { ...startingNote, payoff: { ...merged, participations: withSubFeatures(merged.participations, { buffer, cap }) } }
+  const note = ({ buffer, cap, ...payoff }: Partial<Product['payoff']> & { buffer?: number; cap?: number }): Product => {
+    const merged = { ...startingProduct.payoff, ...payoff }
+    return { ...startingProduct, payoff: { ...merged, participations: withSubFeatures(merged.participations, { buffer, cap }) } }
   }
-  const regimeAt = (n: Note, level: number) => regimeOf(paymentBreakdown(n, { initial: 100, final: level }))
+  const regimeAt = (n: Product, level: number) => regimeOf(paymentBreakdown(n, { initial: 100, final: level }))
 
   it('only repays principal when no participation applies', () => {
     expect(regimeAt(note({}), 60)).toBe('principal')
@@ -187,7 +187,7 @@ describe('payoff regimes', () => {
   })
 
   it('names the barrier where it holds the payment at principal, and downside participation below it', () => {
-    const barriered: Note = { ...startingNote, payoff: { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }, { direction: 'upside', rate: 1 }] } }
+    const barriered: Product = { ...startingProduct, payoff: { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }, { direction: 'upside', rate: 1 }] } }
     expect(regimeAt(barriered, 80)).toBe('barrier')
     expect(regimeAt(barriered, 70)).toBe('barrier')
     expect(regimeAt(barriered, 69)).toBe('downside')

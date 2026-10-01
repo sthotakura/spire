@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { maturityPayment, type Note } from '../domain/note'
-import { startingNote } from '../domain/starting-note'
+import { maturityPayment, type Product } from '../domain/note'
+import { startingProduct } from '../domain/starting-note'
 import { scenarioReturns, scenarioRows } from './scenarios'
 
-const withFeatures = (participations: Note['payoff']['participations'], principalProtection?: number): Note => ({
-  ...startingNote,
+const withFeatures = (participations: Product['payoff']['participations'], principalProtection?: number): Product => ({
+  ...startingProduct,
   payoff: { participations, principalProtection },
 })
-const notes: Array<[string, Note]> = [
-  ['no features', startingNote],
+const notes: Array<[string, Product]> = [
+  ['no features', startingProduct],
   ['upside only', withFeatures([{ direction: 'upside', rate: 1.5 }])],
   ['downside only, no protection', withFeatures([{ direction: 'downside', rate: 1 }])],
   ['every feature', withFeatures([{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1.5 }], 0.9)],
@@ -23,7 +23,7 @@ describe('scenario rows', () => {
   })
 
   it('places each row at the initial level scaled by its return', () => {
-    expect(scenarioRows(startingNote, 100).map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 110, 130])
+    expect(scenarioRows(startingProduct, 100).map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 110, 130])
   })
 
   it('measures each row from the initial level it is given, such as a lookback level', () => {

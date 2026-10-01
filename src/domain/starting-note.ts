@@ -1,10 +1,10 @@
-import type { SingleNote } from './note'
+import type { SingleProduct } from './note'
 
 // The initial level the page opens on. With lookback it becomes the level on the pricing date, a scenario input.
 export const startingInitialLevel = 100
 
 // The note the page opens on: a valid note whose payoff has no features, so it only repays principal.
-export const startingNote: SingleNote = {
+export const startingProduct: SingleProduct = {
   wrapper: 'note',
   redemption: 'bullet',
   term: { months: 36 },

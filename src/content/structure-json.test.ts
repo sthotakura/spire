@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { withSubFeatures, type SingleNote } from '../domain/note'
-import { startingNote } from '../domain/starting-note'
+import { withSubFeatures, type SingleProduct } from '../domain/note'
+import { startingProduct } from '../domain/starting-note'
 import { structureLines } from './structure-json'
 
-const fullNote: SingleNote = {
-  ...startingNote,
+const fullNote: SingleProduct = {
+  ...startingProduct,
   payoff: {
     participations: [
       { direction: 'downside', rate: 1 },
@@ -13,28 +13,28 @@ const fullNote: SingleNote = {
     principalProtection: 0.9,
   },
 }
-const cappedNote: SingleNote = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { cap: 0.2 }) } }
-const draftNote: SingleNote = {
+const cappedNote: SingleProduct = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { cap: 0.2 }) } }
+const draftNote: SingleProduct = {
   ...fullNote,
   principalAmount: Number.NaN,
-  underlier: { ...startingNote.underlier, components: [{ asset: { kind: 'equity', name: 'A "quoted" name é' } }], determination: { ...startingNote.underlier.determination, initial: { kind: 'given', level: Number.NaN } } },
+  underlier: { ...startingProduct.underlier, components: [{ asset: { kind: 'equity', name: 'A "quoted" name é' } }], determination: { ...startingProduct.underlier.determination, initial: { kind: 'given', level: Number.NaN } } },
 }
-const asText =(note: SingleNote) => structureLines(note).map(({ text }) => text).join('\n')
-const linesOf = (note: SingleNote, concept: string) => structureLines(note).filter((line) => line.concept === concept).map(({ text }) => text.trim())
+const asText =(note: SingleProduct) => structureLines(note).map(({ text }) => text).join('\n')
+const linesOf = (note: SingleProduct, concept: string) => structureLines(note).filter((line) => line.concept === concept).map(({ text }) => text.trim())
 
 describe('structure lines', () => {
   it.each([
-    ['the starting note', startingNote],
+    ['the starting note', startingProduct],
     ['a note with every feature', fullNote],
     ['a capped note', cappedNote],
-    ['a protection-only note', { ...startingNote, payoff: { participations: [], principalProtection: 0 } }],
+    ['a protection-only note', { ...startingProduct, payoff: { participations: [], principalProtection: 0 } }],
     ['a draft that is not valid yet', draftNote],
   ])('matches JSON.stringify for %s', (_, note) => {
     expect(asText(note)).toBe(JSON.stringify(note, null, 2))
   })
 
   it('tags the outermost braces with no concept', () => {
-    const lines = structureLines(startingNote)
+    const lines = structureLines(startingProduct)
     expect(lines[0]).toEqual({ text: '{', concept: null })
     expect(lines[lines.length - 1]).toEqual({ text: '}', concept: null })
   })
@@ -57,7 +57,7 @@ describe('structure lines', () => {
 
   it('keeps the rest of the payoff under the payoff', () => {
     expect(linesOf(fullNote, 'payoff')).toEqual(['"payoff": {', '"participations": [', '],', '},'])
-    expect(linesOf(startingNote, 'payoff')).toEqual(['"payoff": {', '"participations": []', '},'])
+    expect(linesOf(startingProduct, 'payoff')).toEqual(['"payoff": {', '"participations": []', '},'])
   })
 
   it('tags the cap with its own concept', () => {
@@ -66,33 +66,33 @@ describe('structure lines', () => {
   })
 
   it('tags the barrier and its terms with their own concept', () => {
-    const barriered: SingleNote = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const } }) } }
+    const barriered: SingleProduct = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const } }) } }
     expect(asText(barriered)).toBe(JSON.stringify(barriered, null, 2))
     expect(linesOf(barriered, 'barrier')).toEqual(['"barrier": {', '"level": 0.7,', '"observation": "final"', '},'])
   })
 
   it('tags the buffer with its own concept', () => {
-    const buffered: SingleNote = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { buffer: 0.1 }) } }
+    const buffered: SingleProduct = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { buffer: 0.1 }) } }
     expect(asText(buffered)).toBe(JSON.stringify(buffered, null, 2))
     expect(linesOf(buffered, 'buffer')).toEqual(['"buffer": 0.1,'])
     expect(linesOf(fullNote, 'buffer')).toEqual([])
   })
 
   it('keeps the observation count under the determination', () => {
-    const averaged: SingleNote = { ...fullNote, underlier: { ...fullNote.underlier, determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'averaging', observationCount: 5 } } } }
+    const averaged: SingleProduct = { ...fullNote, underlier: { ...fullNote.underlier, determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'averaging', observationCount: 5 } } } }
     expect(asText(averaged)).toBe(JSON.stringify(averaged, null, 2))
     expect(linesOf(averaged, 'final-level')).toEqual(['"final": {', '"kind": "averaging",', '"observationCount": 5', '}'])
   })
 
   it('keeps the initial level under the initial level, and only the lookback count when it is lookback', () => {
-    const lookback: SingleNote = { ...fullNote, underlier: { ...fullNote.underlier, determination: { ...fullNote.underlier.determination, initial: { kind: 'lookback', observationCount: 3 } } } }
+    const lookback: SingleProduct = { ...fullNote, underlier: { ...fullNote.underlier, determination: { ...fullNote.underlier.determination, initial: { kind: 'lookback', observationCount: 3 } } } }
     expect(asText(lookback)).toBe(JSON.stringify(lookback, null, 2))
     expect(linesOf(lookback, 'initial-level')).toEqual(['"initial": {', '"kind": "lookback",', '"observationCount": 3', '},'])
     expect(asText(lookback)).not.toContain('level"')
   })
 
   it('leaves out an absent protection', () => {
-    expect(asText(startingNote)).not.toContain('principalProtection')
-    expect(linesOf(startingNote, 'protection')).toEqual([])
+    expect(asText(startingProduct)).not.toContain('principalProtection')
+    expect(linesOf(startingProduct, 'protection')).toEqual([])
   })
 })

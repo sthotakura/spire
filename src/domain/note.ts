@@ -109,7 +109,7 @@ export interface Term {
   months: number
 }
 
-export interface Note {
+export interface Product {
   wrapper: 'note'
   redemption: 'bullet'
   term: Term
@@ -123,10 +123,10 @@ export interface Note {
 }
 
 // A note on a single asset.
-export type SingleNote = Note & { underlier: SingleUnderlier }
+export type SingleProduct = Product & { underlier: SingleUnderlier }
 
-export const downsideOf = (note: Note) => note.payoff.participations.find((participation): participation is DownsideParticipation => participation.direction === 'downside')
-export const upsideOf = (note: Note) => note.payoff.participations.find((participation): participation is UpsideParticipation => participation.direction === 'upside')
+export const downsideOf = (note: Product) => note.payoff.participations.find((participation): participation is DownsideParticipation => participation.direction === 'downside')
+export const upsideOf = (note: Product) => note.payoff.participations.find((participation): participation is UpsideParticipation => participation.direction === 'upside')
 
 // Puts a buffer or barrier on downside participation and a cap on upside participation. Each is dropped when its direction is absent.
 export const withSubFeatures = (participations: Participation[], { buffer, barrier, cap }: { buffer?: number; barrier?: Barrier; cap?: number }): Participation[] =>
@@ -134,7 +134,7 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
     ? { direction: 'downside', buffer, barrier, rate: participation.rate }
     : { direction: 'upside', rate: participation.rate, cap })
 
-export type NoteIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'participations' | 'principalProtection' | 'cap'
+export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'participations' | 'principalProtection' | 'cap'
 
 // Real notes can average over many more dates, such as monthly over several years, and a lookback period often observes
 // every trading day for weeks. This reference keeps the count small enough for each observed level to be set by hand.
@@ -145,8 +145,8 @@ const isObservationCount = (count: number) => Number.isInteger(count) && count >
 // short enough to read; real terms can be longer.
 export const termRange = { min: 1, max: 120 }
 
-export interface NoteIssue {
-  field: NoteIssueField
+export interface ProductIssue {
+  field: ProductIssueField
   message: string
 }
 
@@ -165,8 +165,8 @@ const matchesComponents = (components: BasketComponent[], levels: ComponentLevel
 // Weights such as three equal thirds do not add up to exactly 1 in floating point.
 const weightTolerance = 1e-9
 
-function basketIssues(underlier: BasketUnderlier): NoteIssue[] {
-  const issues: NoteIssue[] = []
+function basketIssues(underlier: BasketUnderlier): ProductIssue[] {
+  const issues: ProductIssue[] = []
   const names = underlier.components.map(({ asset }) => asset.name)
   if (names.length < 2) issues.push({ field: 'basketComponents', message: 'A basket needs at least two assets.' })
   if (names.some((name) => !name.trim())) issues.push({ field: 'underlierName', message: 'Enter a name for each asset.' })
@@ -184,9 +184,9 @@ function basketIssues(underlier: BasketUnderlier): NoteIssue[] {
   return issues
 }
 
-export function underlierIssues(underlier: Underlier): NoteIssue[] {
+export function underlierIssues(underlier: Underlier): ProductIssue[] {
   if (underlier.kind === 'basket') return [...basketIssues(underlier), ...finalIssues(underlier.determination.final)]
-  const issues: NoteIssue[] = []
+  const issues: ProductIssue[] = []
   const [component] = underlier.components
   if (!component.asset.name.trim()) issues.push({ field: 'underlierName', message: 'Enter an underlier name.' })
   const { initial } = underlier.determination
@@ -197,15 +197,15 @@ export function underlierIssues(underlier: Underlier): NoteIssue[] {
   return [...issues, ...finalIssues(underlier.determination.final)]
 }
 
-function finalIssues(final: FinalDetermination): NoteIssue[] {
+function finalIssues(final: FinalDetermination): ProductIssue[] {
   if (final.kind === 'averaging' && !isObservationCount(final.observationCount)) {
     return [{ field: 'observationCount', message: `Observations must be a whole number from ${observationCountRange.min} to ${observationCountRange.max}.` }]
   }
   return []
 }
 
-export function noteIssues(note: Note): NoteIssue[] {
-  const issues: NoteIssue[] = underlierIssues(note.underlier)
+export function productIssues(note: Product): ProductIssue[] {
+  const issues: ProductIssue[] = underlierIssues(note.underlier)
   if (!Number.isFinite(note.principalAmount) || note.principalAmount <= 0) issues.push({ field: 'principalAmount', message: 'Principal must be greater than zero.' })
   const { months } = note.term
   if (!Number.isInteger(months) || months < termRange.min || months > termRange.max) issues.push({ field: 'term', message: `Term must be a whole number of months from ${termRange.min} to ${termRange.max}.` })
@@ -227,8 +227,8 @@ export function noteIssues(note: Note): NoteIssue[] {
   return issues
 }
 
-export function validateNote(note: Note): string[] {
-  return noteIssues(note).map(({ message }) => message)
+export function validateProduct(note: Product): string[] {
+  return productIssues(note).map(({ message }) => message)
 }
 
 // The number of observed levels the final end of the determination reads.
@@ -324,8 +324,8 @@ export interface PaymentBreakdown {
 
 // The levels are the ones the determination produces (see initialLevelFrom and finalLevelFrom), so the payoff does not
 // depend on how they were measured.
-export function paymentBreakdown(note: Note, levels: DeterminedLevels): PaymentBreakdown {
-  const errors = validateNote(note)
+export function paymentBreakdown(note: Product, levels: DeterminedLevels): PaymentBreakdown {
+  const errors = validateProduct(note)
   if (errors.length) throw new Error(errors.join(' '))
   if (!Number.isFinite(levels.initial) || levels.initial <= 0) throw new Error('Initial level must be greater than zero.')
   if (!Number.isFinite(levels.final) || levels.final < 0) throw new Error('Final level must be zero or greater.')
@@ -367,6 +367,6 @@ export function paymentBreakdown(note: Note, levels: DeterminedLevels): PaymentB
   }
 }
 
-export function maturityPayment(note: Note, levels: DeterminedLevels): number {
+export function maturityPayment(note: Product, levels: DeterminedLevels): number {
   return paymentBreakdown(note, levels).payment
 }

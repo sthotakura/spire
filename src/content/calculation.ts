@@ -1,4 +1,4 @@
-import { downsideOf, finalLevelFrom, initialLevelFrom, upsideOf, type BasketBreakdown, type ParticipationDirection, type PaymentBreakdown, type Note, type SingleNote } from '../domain/note'
+import { downsideOf, finalLevelFrom, initialLevelFrom, upsideOf, type BasketBreakdown, type ParticipationDirection, type PaymentBreakdown, type Product, type SingleProduct } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface CalculationStep {
@@ -18,7 +18,7 @@ const weightPercent = (fraction: number) => `${(fraction * 100).toLocaleString('
 const signedPercent = (fraction: number) => `${fraction < 0 ? '−' : '+'}${formatPercent(Math.abs(fraction))}`
 
 // Each direction is its own step, as in the payment rule, so a selected rate stays visible even when the return does not reach it.
-function participationStep(note: Note, breakdown: PaymentBreakdown, direction: ParticipationDirection): Omit<CalculationStep, 'n'> {
+function participationStep(note: Product, breakdown: PaymentBreakdown, direction: ParticipationDirection): Omit<CalculationStep, 'n'> {
   const title = direction === 'upside' ? 'Upside participation' : 'Downside participation'
   const rate = note.payoff.participations.find((candidate) => candidate.direction === direction)?.rate
   if (rate === undefined) {
@@ -54,7 +54,7 @@ function barrierStep(level: number, breakdown: PaymentBreakdown, finalName: stri
 }
 
 // How a single asset's levels give its return: the lookback level and the averaged final level when the note has them, then the return.
-function singleSteps(note: SingleNote, breakdown: PaymentBreakdown, observedLevels: number[], initialObservations: number[]): Array<Omit<CalculationStep, 'n'>> {
+function singleSteps(note: SingleProduct, breakdown: PaymentBreakdown, observedLevels: number[], initialObservations: number[]): Array<Omit<CalculationStep, 'n'>> {
   const name = note.underlier.components[0].asset.name.trim()
   const { determination } = note.underlier
   const initialLevel = initialLevelFrom(determination.initial, initialObservations)
@@ -88,7 +88,7 @@ function basketSteps(basket: BasketBreakdown): Array<Omit<CalculationStep, 'n'>>
 // The worked calculation of the maturity payment from the observed levels: those on the final dates and, for lookback, those
 // from the pricing date on. A basket's levels come measured, asset by asset, in its breakdown. Every number comes from the
 // payment breakdown.
-export function calculationSteps(note: Note, breakdown: PaymentBreakdown, observedLevels: number[], initialObservations: number[], basket?: BasketBreakdown): CalculationStep[] {
+export function calculationSteps(note: Product, breakdown: PaymentBreakdown, observedLevels: number[], initialObservations: number[], basket?: BasketBreakdown): CalculationStep[] {
   const b = breakdown
   const principal = note.principalAmount
   const { principalProtection } = note.payoff

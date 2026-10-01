@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { paymentBreakdown, withSubFeatures, type Participation, type SingleNote } from '../domain/note'
+import { paymentBreakdown, withSubFeatures, type Participation, type SingleProduct } from '../domain/note'
 import { calculationSteps } from './calculation'
 
-const noteWith = (participations: Participation[], principalProtection?: number, cap?: number, buffer?: number): SingleNote => ({
+const noteWith = (participations: Participation[], principalProtection?: number, cap?: number, buffer?: number): SingleProduct => ({
   wrapper: 'note',
   redemption: 'bullet',
   term: { months: 36 },
@@ -11,8 +11,8 @@ const noteWith = (participations: Participation[], principalProtection?: number,
   principalAmount: 1000,
 })
 const both = [{ direction: 'downside' as const, rate: 0.1 }, { direction: 'upside' as const, rate: 1 }]
-const steps = (note: SingleNote, finalLevel: number) => calculationSteps(note, paymentBreakdown(note, { initial: 100, final: finalLevel }), [finalLevel], [])
-const step = (note: SingleNote, finalLevel: number, title: string) => steps(note, finalLevel).find((candidate) => candidate.title === title)
+const steps = (note: SingleProduct, finalLevel: number) => calculationSteps(note, paymentBreakdown(note, { initial: 100, final: finalLevel }), [finalLevel], [])
+const step = (note: SingleProduct, finalLevel: number, title: string) => steps(note, finalLevel).find((candidate) => candidate.title === title)
 
 describe('calculation steps', () => {
   it('shows each participation direction as its own step, in the order of the outline', () => {

@@ -1,4 +1,4 @@
-import { downsideOf, upsideOf, type Note } from '../domain/note'
+import { downsideOf, upsideOf, type Product } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface FormulaSegment {
@@ -14,7 +14,7 @@ export interface FormulaLine {
 
 // The payment rule in words and symbols, built only from the features the note has. It reads in the order of the worked
 // calculation: the return, the participated payment, then the cap, then the floor.
-export function paymentFormula(note: Note): FormulaLine[] {
+export function paymentFormula(note: Product): FormulaLine[] {
   const { principalProtection } = note.payoff
   const upside = upsideOf(note) !== undefined
   const downside = downsideOf(note) !== undefined
@@ -62,7 +62,7 @@ const percent = (fraction: number) => Number.isFinite(fraction) ? `${(fraction *
 
 // The same rule in words, with the note's own terms filled in: how a move in the underlier changes the payment, then the
 // limits on it. It says nothing about a particular final level; the worked calculation does that.
-export function paymentInWords(note: Note): string {
+export function paymentInWords(note: Product): string {
   const { principalProtection } = note.payoff
   const principal = note.principalAmount
   const name = note.underlier.kind === 'basket' ? 'the basket' : note.underlier.components[0].asset.name.trim() || 'the underlier'

@@ -1,4 +1,4 @@
-import { downsideOf, upsideOf, type Note } from '../domain/note'
+import { downsideOf, upsideOf, type Product } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface SummarySegment {
@@ -17,7 +17,7 @@ const amount = (value: number) => Number.isFinite(value) ? value.toLocaleString(
 const listed = (items: SummarySegment[][]): SummarySegment[] => items.flatMap((item, index) => [...(index === 0 ? [] : [{ text: index === items.length - 1 ? ' and ' : ', ' }]), ...item])
 
 // A single asset is named. A basket names its assets, with their weights unless the weights are equal.
-function underlierPhrase(note: Note): SummarySegment[] {
+function underlierPhrase(note: Product): SummarySegment[] {
   const { underlier } = note
   if (underlier.kind === 'single') return [{ text: underlier.components[0].asset.name.trim() || 'the underlier', concept: 'asset' }]
   const { components } = underlier
@@ -39,7 +39,7 @@ function termPhrase(months: number): { article: string; text: string } {
   return { article: /^(8\d*|11|18)$/.test(String(number)) ? 'An ' : 'A ', text }
 }
 
-export function summarize(note: Note): SummarySegment[] {
+export function summarize(note: Product): SummarySegment[] {
   const upside = note.payoff.participations.find(({ direction }) => direction === 'upside')
   const downside = note.payoff.participations.find(({ direction }) => direction === 'downside')
   const underlier = underlierPhrase(note)

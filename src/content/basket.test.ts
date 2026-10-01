@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { basketBreakdown, paymentBreakdown, type BasketUnderlier, type Note } from '../domain/note'
+import { basketBreakdown, paymentBreakdown, type BasketUnderlier, type Product } from '../domain/note'
 import { calculationSteps } from './calculation'
 import { paymentFormula, paymentInWords } from './formula'
 import { explainOutcome } from './outcome'
@@ -20,7 +20,7 @@ const basket: BasketUnderlier = {
     basketReturn: { kind: 'weighted' },
   },
 }
-const note: Note = {
+const note: Product = {
   wrapper: 'note',
   redemption: 'bullet',
   term: { months: 36 },
@@ -28,8 +28,8 @@ const note: Note = {
   payoff: { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }, { direction: 'upside', rate: 1 }] },
   principalAmount: 1000,
 }
-const weighted = (a: number, b: number): Note => ({ ...note, underlier: { ...basket, components: [{ ...basket.components[0], weight: a }, { ...basket.components[1], weight: b }] } })
-const sentence = (n: Note) => summarize(n).map(({ text }) => text).join('')
+const weighted = (a: number, b: number): Product => ({ ...note, underlier: { ...basket, components: [{ ...basket.components[0], weight: a }, { ...basket.components[1], weight: b }] } })
+const sentence = (n: Product) => summarize(n).map(({ text }) => text).join('')
 // Index A +30% and Co −10% make a basket level of 110.
 const measured = basketBreakdown(basket, [[130], [36]])
 const breakdown = paymentBreakdown(note, measured.levels)
@@ -87,7 +87,7 @@ describe('a basket in the calculation', () => {
 
   it('averages each asset before measuring its return', () => {
     const averaged: BasketUnderlier = { ...basket, determination: { ...basket.determination, final: { kind: 'averaging', observationCount: 2 } } }
-    const averagedNote: Note = { ...note, underlier: averaged }
+    const averagedNote: Product = { ...note, underlier: averaged }
     const levels = basketBreakdown(averaged, [[110, 130], [44, 36]])
     const titles = calculationSteps(averagedNote, paymentBreakdown(averagedNote, levels.levels), [], [], levels).slice(0, 4).map(({ title, how, value }) => `${title}: ${how} = ${value}`)
     expect(titles).toEqual(['Final level of Synthetic Index A: (110 + 130) ÷ 2 = 120', 'Synthetic Index A return: 120 ÷ 100 − 1 = +20%', 'Final level of Synthetic Co: (44 + 36) ÷ 2 = 40', 'Synthetic Co return: 40 ÷ 40 − 1 = +0%'])
