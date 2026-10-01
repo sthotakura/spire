@@ -34,6 +34,7 @@ A product shown as an outline of its concepts rather than a form or a pricer. Ev
 ## Operating Context
 
 - A static single-page site on GitHub Pages (`https://sthotakura.github.io/spire/`), opened by someone who arrives alone and explores without instructions.
+- Readers use a desktop or laptop browser with a mouse and keyboard. Phones and touch are not a design target: the page should not break on a small screen, but phone layout, touch targets and touch gestures are not worked on.
 - The reader starts from a note that only repays principal and adds features one at a time through a single **Add feature** entry point.
 - Detailed definitions, decisions and open questions live in `docs/` and `PLAN.md`, not on the page.
 
