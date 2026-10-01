@@ -173,6 +173,32 @@ Open questions:
 - Measure the chart, scenario table, barrier and buffer on the basket level. The final-level handle moves every asset's return by the same amount; each asset's final level, or its averaged levels, is edited in the calculation.
 - Switching to a basket makes the single asset its first asset and adds a second with the same return, so the payment does not jump. Switching back keeps the first asset.
 
+## 20. Add the term
+
+- Add the term, the product's length, as a term of every product: `"term": { "months": 36 }`, at the top beside the principal amount. The proposal is in [docs/term.md](docs/term.md).
+- The term is a duration, so it belongs to the structure. The issue and maturity dates that put it on a calendar belong to issuance and stay out.
+- Use whole months, from 1 to 120. Terms in days need a day-count convention and are left out.
+- Show it in the outline (a Term row beside Principal), the summary ("A 3-year note that…") and the Structure JSON. No payment changes; the existing tests pass unchanged apart from the JSON's new key.
+
+## 21. Add a fixed deposit
+
+A fixed deposit is a deposit with a term and a fixed coupon, and no underlier. It needs three new concepts, built together so the first deposit pays interest. The proposals are in [docs/deposit.md](docs/deposit.md) and [docs/coupon.md](docs/coupon.md).
+
+- **Deposit wrapper.** `wrapper: 'deposit' | 'note'`. A deposit is repaid in full at the end of its term (the MiFID II definition of a structured deposit), so it may not have downside participation, and with it a buffer or barrier, or a principal protection term. Full repayment comes from the wrapper.
+- **Optional underlier.** A product without one may not have participation, a buffer, a barrier or a cap. A fixed deposit has no underlier, not a cash asset whose level never moves; cash as an underlier after a takeover is recorded in [docs/underlier-model.md](docs/underlier-model.md).
+- **Fixed coupon.** `"coupon": { "rate": 0.045, "frequency": "quarterly" }`, beside the payoff. Frequency is monthly, quarterly, semi-annual, annual, or once at the end of the term. Each coupon is principal × rate × months per period / 12, and the term must hold whole periods. A coupon is always paid out: interest compounded and paid at the end (a cumulative deposit) is a different concept and is left open.
+- **Coupons on deposits only.** A coupon on a note is a named issue, and the Add feature menu marks Coupon "Deposits only" on a note.
+- **Cash flows.** Derive a schedule from the payment breakdown: one row per numbered coupon period and the payment at the end of the term, with the total.
+- **Rename `Note` to `Product`**, since a deposit is not a note. No payment changes.
+- **Interface.** Deposit in the Wrapper dropdown and None in the Underlier dropdown, each marked unavailable with a short reason while a feature that conflicts with it is present, rather than removing the reader's terms. Without an underlier, hide the payoff chart, scenario table and final-level handle, and show the summary, payment rule, calculation with the cash-flow table, and Structure JSON.
+- **Names.** "Fixed deposit" (also term deposit, or certificate of deposit in the US) for a deposit with a coupon and no underlier, added to [docs/marketing-names.md](docs/marketing-names.md).
+- **Build order.** The domain first: types, validation and cash flows, with tests for each coupon frequency, a term that does not hold whole periods, downside participation or protection on a deposit, underlier features without an underlier, and a coupon on a note. Then the content (summary, JSON, payment rule, calculation, names), then the interface.
+
+## 22. Add a market-linked deposit
+
+- A deposit with an underlier and upside participation, often with a cap and averaging. Most of it exists after section 21.
+- Before building, read a public market-linked deposit's terms and settle whether a minimum return is a protection floor above 100% or a fixed return added to participation ([docs/deposit.md](docs/deposit.md), open question 1).
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.
@@ -186,4 +212,4 @@ Open questions:
 
 ## Not planned
 
-Market pricing, implied volatility, Greeks, live data, coupons, calls, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.
+Market pricing, implied volatility, Greeks, live data, contingent and floating coupons, calls, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.

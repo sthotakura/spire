@@ -23,6 +23,8 @@ Six coupon types become two small choices. Modelling each cell as its own type w
 
 ### Coupons (a new concept, beside the payoff)
 
+The fixed coupon, always paid, is proposed in [coupon.md](coupon.md).
+
 - **Payment condition:** always paid; paid only if the underlier is at or above a level on the coupon date (contingent); or accruing pro rata for each day a reference stays within a range (range accrual, a name used in SEC-filed notes linked to a rate or an equity index, for example [Callable Dual Range Accrual Notes, 424B2](https://www.sec.gov/Archives/edgar/data/200245/000095010320002436/dp121021_424b2-us2090080.htm)).
 - **Rate:** fixed, or floating (a reference rate plus or minus a spread, possibly with a floor or cap).
 - **Participation paid as a coupon:** a coupon equal to a rate times the underlier's rise over the period, and zero on a fall. With a cap it is a call spread. This is the same arithmetic as upside participation with a cap, applied per period instead of at maturity, so the two should share it.
