@@ -1,48 +1,71 @@
-# Deposit
+# Market-linked deposit
 
-This is a proposal, not yet built. It adds a deposit as a second wrapper, and lets a product have no underlier, so that a fixed deposit can be built: a deposit with a term and a fixed coupon ([term.md](term.md), [coupon.md](coupon.md)). A market-linked deposit, which adds an underlier and upside participation, follows in a later increment. The work is section 21 of [PLAN.md](../PLAN.md).
+This is a proposal, not yet built. It adds a deposit as a second wrapper and a minimum return as a payoff feature, so that a market-linked deposit can be built: a deposit that repays principal in full at the end of its term, plus a return linked to an underlier. The work is section 21 of [PLAN.md](../PLAN.md).
+
+A fixed deposit, which pays a fixed rate and observes nothing, is not modelled. It has no underlier and no embedded option, so it is not a structured product, and modelling it would have made the underlier optional for that one case. The fixed coupon proposed for it waits for a structured product that pays one ([coupon.md](coupon.md)).
 
 ## Established concepts
 
-- A **deposit** is money held by a bank, which owes it back to the depositor. FINRA describes certificates of deposit as holding a deposit "for a fixed term", after which the holder can "cash in your CD for the principal plus the interest you've earned" ([FINRA, Bank Products](https://www.finra.org/investors/investing/investment-products/bank-products)).
-- **A deposit is not a security.** A note is a debt security of its issuer. Bank deposits are usually covered by a deposit insurance scheme up to a limit. The scheme and its limit depend on the country.
-- **A deposit is repaid in full at the end of its term.** EU law defines a structured deposit as a deposit "which is fully repayable at maturity on terms under which interest or a premium will be paid or is at risk, according to a formula" involving an index, a financial instrument, a commodity or an exchange rate (MiFID II, Article 4(1)(43), [ESMA single rulebook](https://www.esma.europa.eu/publications-and-data/interactive-single-rulebook/mifid-ii/article-4-definitions); the UK keeps the same wording, [FCA Handbook](https://handbook.fca.org.uk/glossary/G1139)). Only the interest depends on the formula; the principal does not.
-- **Early withdrawal** is usually allowed with a penalty, "typically forfeiting some of the interest you've earned" ([FINRA, Bank Products](https://www.finra.org/investors/investing/investment-products/bank-products)).
-- **Market-linked deposits.** Banks also sell market-linked CDs, whose interest depends on an underlier while principal is repaid at the end of the term. A public source for their terms is still to be read before they are modelled (open question 1).
+- **A deposit is money held by a bank**, which owes it back to the depositor. FINRA describes certificates of deposit as holding a deposit "for a fixed term", after which the holder can "cash in your CD for the principal plus the interest you've earned" ([FINRA, Bank Products](https://www.finra.org/investors/investing/investment-products/bank-products)). A note is a debt security of its issuer; a deposit is not a security, and is usually covered by a deposit insurance scheme up to a limit that depends on the country.
+- **A structured deposit is repaid in full.** EU law defines one as a deposit "which is fully repayable at maturity on terms under which interest or a premium will be paid or is at risk, according to a formula" involving an index, a financial instrument, a commodity or an exchange rate (MiFID II, Article 4(1)(43), [ESMA single rulebook](https://www.esma.europa.eu/publications-and-data/interactive-single-rulebook/mifid-ii/article-4-definitions); the UK keeps the same wording, [FCA Handbook](https://handbook.fca.org.uk/glossary/G1139)). Only the return depends on the formula; the principal does not.
+- **US market-linked CDs** are "time deposit obligations of Morgan Stanley Bank, N.A. that pay no interest and pay at maturity a cash payment of $1,000 for each CD, insured by the Federal Deposit Insurance Corporation (the "FDIC") up to the applicable limits, plus a supplemental amount" ([basket CD summary](https://www.morganstanley.com/structuredinvestments/docs/summarysheets/61765QBM0_Summary_Sheet_Only.pdf)). The three public examples below are all of this form.
+
+| | Basket CD ([summary](https://www.morganstanley.com/structuredinvestments/docs/summarysheets/61765QBM0_Summary_Sheet_Only.pdf)) | Trend index CD ([disclosure supplement](https://www.morganstanley.com/structuredinvestments/docs/prospectus/prelim/ProspectusRed61773TAM5.pdf)) | Capped CD ([summary](https://www.morganstanley.com/structuredinvestments/docs/summarysheets/61773TBB8_Summary_Sheet_Only.pdf)) |
+| :--- | :--- | :--- | :--- |
+| Term | 7 years | 5 years | 5 years |
+| Underlier | Three equity indices, each weighted 33.3333%; the initial basket value is 100 | One index | One index |
+| Final level | "The arithmetic average of the basket closing values on each of the 28 averaging dates", quarterly | The final index value on the final observation date | The final index value on the final observation date |
+| Participation | 100% | 265% to 280%, set on the pricing date | 100% |
+| Maximum | "Maximum supplemental amount: None" | "Maximum supplemental amount: None" | "Maximum payment amount: 130% to 135% of the deposit amount" |
+| Minimum | A "minimum supplemental amount" of $47.50 to $57.50 per $1,000 | None: on a fall "the supplemental amount will be zero" | None: a fall returns 0.00% |
+| Early withdrawal | "At par, only upon death or adjudication of incompetence" | The same | The same |
+
+- **The minimum is a floor, not an addition.** In the basket CD, "the supplemental amount will equal the greater of (i) the product of (a) $1,000, (b) the average basket percent change and (c) the participation rate and (ii) the minimum supplemental amount". Its table, with a $52.50 minimum, pays $1,052.50 for every average change from −70% to +5.25%, and $1,070.00 at +7%.
+- **The issuer states an annual yield.** The same table gives an "annual percentage yield" for each payment: $1,052.50 after 7 years is 0.73% a year, and $1,700.00 is 7.88%.
+- **The deposit is designed to be held for its whole term.** The capped CD's risks include "No right to withdraw your funds prior to the stated maturity date of the CDs except upon your death or adjudication of incompetence".
 
 ## Proposal
 
 ### The deposit wrapper
 
-`wrapper` becomes `'deposit' | 'note'`. Because a deposit is repaid in full, the payment at the end of the term can never be less than principal. In the model:
+`wrapper` becomes `'note' | 'deposit'`. A deposit is repaid in full, so the payment at the end of the term can never be less than principal:
 
-- **A deposit may not have downside participation**, and so no buffer or barrier, which belong to it. Downside participation is the only feature that pays less than principal.
-- **A deposit has no principal protection term.** Full repayment is part of the wrapper, not a payoff choice, so the Principal protection feature is unavailable on a deposit. A protection floor on a deposit would either repeat the wrapper (100%) or contradict it (below 100%).
+- **No downside participation**, and so no buffer or barrier, which belong to it. Downside participation is the only feature that pays less than principal.
+- **No principal protection term.** Full repayment is part of the wrapper, not a payoff choice. A protection floor would either repeat the wrapper (100%) or contradict it (below 100%).
+- **The underlier is required**, as for a note. Every product modelled has one.
 
-### An optional underlier
+### The minimum return
 
-A fixed deposit observes nothing. `underlier` becomes optional. A product without one may not have upside or downside participation, a buffer, a barrier or a cap, since each reads the underlier's return. With no payoff features, the payoff repays principal, as the empty payoff does today.
-
-A fixed deposit:
+A new payoff feature: the lowest return the product pays on principal, whatever the underlier does.
 
 ```json
 {
   "wrapper": "deposit",
   "redemption": "bullet",
-  "term": { "months": 12 },
-  "payoff": { "participations": [] },
-  "coupon": { "rate": 0.045, "frequency": "quarterly" },
-  "principalAmount": 10000
+  "term": { "months": 84 },
+  "underlier": { "kind": "basket", … },
+  "payoff": {
+    "participations": [{ "direction": "upside", "rate": 1 }],
+    "minimumReturn": 0.0525
+  },
+  "principalAmount": 1000
 }
 ```
 
-The payoff stays in the JSON although it has no features, because it still says what the end of the term pays: principal.
+```text
+uncapped payment  = principal × (1 + upside rate × return), or principal on a fall
+capped payment    = the lesser of that and principal × (1 + cap), when there is a cap
+payment           = the greater of that and principal × (1 + minimum return)
+```
 
-### Why there is no cash underlier
+- **A floor on the whole payment**, applied where the protection floor is applied now: after participation and the cap. With no participation at all, the deposit pays principal plus the minimum.
+- **Stated as a return on principal**, as the cap is, not as a payment amount. The basket CD's $52.50 per $1,000 is a minimum return of 5.25%.
+- **Allowed values.** Greater than 0%. With a cap, less than the cap, since a minimum at or above the cap would fix the payment.
+- **Deposits only, for now.** No note with a minimum return has been verified.
 
-A fixed deposit could be written with a "cash" asset whose level never moves, so that every product has an underlier. That would suggest the deposit depends on a level when it does not, plot payments against a level that cannot change, and still need the same rules against participation. Leaving the underlier out is the more accurate model.
+### Annualised return
 
-Cash can still be an underlier: when an equity underlier is taken private for cash during a product's term, the product may go on to reference the cash. That case is recorded in [underlier-model.md](underlier-model.md). It does not apply to a fixed deposit, which never observed anything.
+The term turns a return over the whole term into a return a year: `(payment ÷ principal)^(12 ÷ term months) − 1`, compounded once a year. The calculation shows it as one derived line, such as "5.25% over 7 years is 0.73% a year", matching the basket CD's table. It is derived, not a term of the product. It applies to notes as well, since every product has a term.
 
 ### Renaming `Note` to `Product`
 
@@ -50,41 +73,53 @@ The domain type `Note` describes a deposit as well, so it is renamed `Product`, 
 
 ## Interface
 
-- **Wrapper.** Deposit becomes available in the Wrapper dropdown. Its description: "Money held by a bank and repaid in full at the end of the term, usually covered by deposit insurance up to a limit." While the product has downside participation or principal protection, Deposit is marked unavailable with a short reason ("Not with downside participation" or "Not with principal protection"), as Barrier is marked "Not with a buffer". Switching does not remove terms the reader set.
-- **Underlier.** The Underlier dropdown offers None beside Single and Basket. While the product has participation, None is marked unavailable ("Not with participation").
-- **Without an underlier**, the page hides the payoff chart, the scenario table and the final-level handle, which all plot against the underlier level. It shows the summary, the payment rule, the worked calculation with the cash-flow table ([coupon.md](coupon.md)), and the Structure JSON.
-- **Summary.** "A 12-month deposit that repays principal in full and pays 4.5% a year in quarterly coupons."
-- **Outcome sentence.** "The deposit pays 4 coupons of 112.50 and repays 10,000 at the end of the term, 10,450 in all."
-- **Marketing names.** "Fixed deposit", also called a term deposit or, in the US, a certificate of deposit, for a deposit with a coupon and no underlier. The rule is added to [marketing-names.md](marketing-names.md) with its source.
+- **Wrapper.** Deposit becomes available in the Wrapper dropdown. Its hint: money held by a bank and repaid in full at the end of the term, usually covered by deposit insurance up to a limit; any payment above that limit depends on the bank's ability to pay. While the product has downside participation or principal protection, Deposit is marked unavailable with a short reason ("Not with downside participation", "Not with principal protection"), as Barrier is marked "Not with a buffer". Switching never removes terms the reader set.
+- **Add feature.** On a deposit, Downside participation, Buffer, Barrier and Principal protection are marked "Not on a deposit". Minimum return is marked "Deposits only" on a note.
+- **Chart.** The minimum return draws a floor line with a vertical handle, as protection does, in its own colour checked against the palette.
+- **Wording.** Copy that says "note" follows the wrapper: "This deposit only repays principal", "What the deposit pays at the end of its term".
+- **Summary.** "A 7-year deposit that redeems at maturity and pays 100% of the upside of an equally weighted basket of …, measured from each asset's initial level to the average of 12 observed levels, with a minimum return of 5.25%."
+- **Marketing names.** "Market-linked deposit" for a deposit with participation; it is called a market-linked CD in the US and a structured deposit in the EU and UK. The rule is added to [marketing-names.md](marketing-names.md). "Capped participation" already applies with a cap. "Principal-protected note" does not, since a deposit has no protection term and is not a note.
 
-## Synthetic worked example
+## Synthetic worked examples
 
-A deposit of 10,000 for 12 months at 4.5% a year, paid quarterly, with no underlier.
+**A capped deposit.** Principal 1,000, a 5-year term, one synthetic index, 100% upside participation, a 30% cap.
 
-| Coupon | Paid |
-| :--- | ---: |
-| 1 of 4 | 112.50 |
-| 2 of 4 | 112.50 |
-| 3 of 4 | 112.50 |
-| 4 of 4, with principal | 10,112.50 |
-| **Total** | **10,450.00** |
+| Final level | Return | Payment |
+| ---: | ---: | ---: |
+| 160 | +60% | 1,300 (the cap) |
+| 130 | +30% | 1,300 |
+| 110 | +10% | 1,100 |
+| 100 | 0% | 1,000 |
+| 50 | −50% | 1,000 |
 
-The payments are known in advance, so there is no scenario: every final level would pay the same.
+**A deposit with a minimum return.** Principal 1,000, a 7-year term, an equally weighted basket of three synthetic indices, the final level averaged, 100% upside participation, a 5.25% minimum return, no cap.
+
+| Average basket change | Payment | A year |
+| ---: | ---: | ---: |
+| +70% | 1,700.00 | 7.88% |
+| +7% | 1,070.00 | 0.97% |
+| +5.25% | 1,052.50 | 0.73% |
+| 0% | 1,052.50 | 0.73% |
+| −50% | 1,052.50 | 0.73% |
 
 ## Decisions
 
-1. **Deposit is a wrapper**, beside note.
-2. **Full repayment comes from the wrapper**, not from a principal protection term.
-3. **The underlier is optional.** A fixed deposit has none, rather than a cash placeholder.
-4. **Unavailable choices are marked, not forced.** Choosing Deposit or no underlier does not silently remove features; the choice is unavailable until they are removed.
+1. **Deposit is a wrapper**, beside note, and full repayment comes from the wrapper rather than a principal protection term.
+2. **The underlier stays required.** A fixed deposit is not modelled.
+3. **The minimum return is its own feature**, not principal protection above 100%. The two calculate the same payment, but public documents state a minimum return on the deposit, not protection of more than its principal.
+4. **Averaging stays at 2 to 12 observations.** The basket CD averages 28 quarterly levels; twelve keep each level settable by hand, so the example above averages 12.
+5. **The annualised return is shown, derived from the term.** It is the first payment figure the term changes.
+6. **Unavailable choices are marked, not forced.** Choosing Deposit does not silently remove features.
 
 ## Assumptions
 
-- Payments depend on the bank's ability to pay. Deposit insurance and its limits are described in the hint only, since they depend on the country.
-- Early withdrawal is not modelled. It would be a redemption behaviour (the holder may redeem early, with a penalty) beside bullet.
+- Payments above the deposit insurance limit depend on the bank's ability to pay. Insurance and its limits are described in the hint only, since they depend on the country.
+- Early withdrawal, allowed only on death or incapacity in the examples, is not modelled. It would be a redemption behaviour beside bullet.
+- The annualised return compounds once a year over a term of whole or part years. The issuer's own yield convention may differ.
 
 ## Open questions
 
-1. **Market-linked deposits.** A deposit with an underlier and upside participation, often with a cap and averaging. Most of it exists. Open: whether a minimum return is a protection floor above 100% or a fixed return added to participation, and which public examples to follow.
-2. **Deposits that can lose principal.** Some products sold as deposits, such as dual-currency deposits, can repay less than principal. They fall outside the definition above and are not modelled.
-3. **Interest under the formula.** The MiFID II definition puts interest "at risk" under the formula, not principal. For a market-linked deposit this is the same as upside participation with a floor at principal, but whether the model should name it interest is open.
+1. **A comparison with a fixed deposit.** Showing what a fixed rate would have paid beside the market-linked payment would make the trade visible: a certain return given up for a share of the rise. It is a comparison, not a product, and is not planned.
+2. **A minimum return on a note.** Not verified. If one is found, the "Deposits only" restriction can be lifted.
+3. **Deposits that can lose principal.** Some products sold as deposits, such as dual-currency deposits, can repay less than principal. They fall outside the definition above and are not modelled.
+4. **Interest or supplemental amount.** The MiFID II definition calls the formula's result interest; US market-linked CDs "pay no interest" and call it a supplemental amount. The model calls it what the payoff features are: participation, a cap and a minimum return.

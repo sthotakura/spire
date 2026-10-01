@@ -180,24 +180,20 @@ Open questions:
 - Use whole months, from 1 to 120. Terms in days need a day-count convention and are left out.
 - Show it in the outline (a Term field on the Wrapper row, beside Principal, and highlighted with the wrapper as the principal is; whether both move to a product row of their own is open), the summary ("A 3-year note that…", "An 18-month note that…") and the Structure JSON. No payment changes; the existing tests pass unchanged apart from the new key and the summary's opening words.
 
-## 21. Add a fixed deposit
+## 21. Add a market-linked deposit
 
-A fixed deposit is a deposit with a term and a fixed coupon, and no underlier. It needs three new concepts, built together so the first deposit pays interest. The proposals are in [docs/deposit.md](docs/deposit.md) and [docs/coupon.md](docs/coupon.md).
+A market-linked deposit is a deposit that repays principal in full at the end of its term, plus a return linked to an underlier. Public market-linked CDs use upside participation, sometimes with a cap, averaging, a basket, or a minimum return. The proposal, the three public examples it rests on and worked examples are in [docs/deposit.md](docs/deposit.md).
 
-- **Deposit wrapper.** `wrapper: 'deposit' | 'note'`. A deposit is repaid in full at the end of its term (the MiFID II definition of a structured deposit), so it may not have downside participation, and with it a buffer or barrier, or a principal protection term. Full repayment comes from the wrapper.
-- **Optional underlier.** A product without one may not have participation, a buffer, a barrier or a cap. A fixed deposit has no underlier, not a cash asset whose level never moves; cash as an underlier after a takeover is recorded in [docs/underlier-model.md](docs/underlier-model.md).
-- **Fixed coupon.** `"coupon": { "rate": 0.045, "frequency": "quarterly" }`, beside the payoff. Frequency is monthly, quarterly, semi-annual, annual, or once at the end of the term. Each coupon is principal × rate × months per period / 12, and the term must hold whole periods. A coupon is always paid out: interest compounded and paid at the end (a cumulative deposit) is a different concept and is left open.
-- **Coupons on deposits only.** A coupon on a note is a named issue, and the Add feature menu marks Coupon "Deposits only" on a note.
-- **Cash flows.** Derive a schedule from the payment breakdown: one row per numbered coupon period and the payment at the end of the term, with the total.
-- **Rename `Note` to `Product`**, since a deposit is not a note. No payment changes.
-- **Interface.** Deposit in the Wrapper dropdown and None in the Underlier dropdown, each marked unavailable with a short reason while a feature that conflicts with it is present, rather than removing the reader's terms. Without an underlier, hide the payoff chart, scenario table and final-level handle, and show the summary, payment rule, calculation with the cash-flow table, and Structure JSON.
-- **Names.** "Fixed deposit" (also term deposit, or certificate of deposit in the US) for a deposit with a coupon and no underlier, added to [docs/marketing-names.md](docs/marketing-names.md).
-- **Build order.** The domain first: types, validation and cash flows, with tests for each coupon frequency, a term that does not hold whole periods, downside participation or protection on a deposit, underlier features without an underlier, and a coupon on a note. Then the content (summary, JSON, payment rule, calculation, names), then the interface.
+A fixed deposit is not modelled. It has no underlier and no embedded option, so it is not a structured product, and it would have made the underlier optional for that one case. The fixed coupon proposed for it ([docs/coupon.md](docs/coupon.md)) waits for a structured product that pays one, such as a reverse convertible.
 
-## 22. Add a market-linked deposit
-
-- A deposit with an underlier and upside participation, often with a cap and averaging. Most of it exists after section 21.
-- Before building, read a public market-linked deposit's terms and settle whether a minimum return is a protection floor above 100% or a fixed return added to participation ([docs/deposit.md](docs/deposit.md), open question 1).
+- **Rename `Note` to `Product`** first, since a deposit is not a note. No payment changes.
+- **Deposit wrapper.** `wrapper: 'note' | 'deposit'`. A deposit is repaid in full (the MiFID II definition of a structured deposit), so it may not have downside participation, and with it a buffer or barrier, or a principal protection term. The underlier stays required.
+- **Minimum return.** `"minimumReturn": 0.0525` on the payoff: the payment is at least principal × (1 + minimum return), applied after participation and the cap, where the protection floor is applied. It is a floor, not an addition: the public basket CD pays "the greater of" the participation amount and its minimum. Greater than 0%, below the cap when there is one, and on deposits only until a note with one is verified.
+- **Annualised return.** Show `(payment ÷ principal)^(12 ÷ term months) − 1` as one derived line in the calculation, as the basket CD's table states an annual yield. It applies to every product, since every product has a term.
+- **Averaging stays at 2 to 12 observations**, although the basket CD averages 28.
+- **Interface.** Deposit in the Wrapper dropdown, marked unavailable with a reason while the product has downside participation or principal protection; on a deposit the Add feature menu marks those features "Not on a deposit", and Minimum return is marked "Deposits only" on a note. Switching never removes the reader's terms. The minimum return draws a floor line and handle in its own colour. Copy that says "note" follows the wrapper.
+- **Names.** "Market-linked deposit" (a market-linked CD in the US, a structured deposit in the EU and UK), added to [docs/marketing-names.md](docs/marketing-names.md).
+- **Build order.** The rename; then the domain (wrapper rules, minimum return, payment), with tests built from the public examples; then the content (summary, JSON, payment rule, calculation, annualised return, outcome, scenarios, names); then the interface.
 
 ## Later direction: a composable form
 

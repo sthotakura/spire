@@ -1,6 +1,8 @@
 # Coupon
 
-This is a proposal, not yet built. It adds a fixed coupon: interest at a fixed annual rate, paid at a stated frequency over the term. It is the first coupon, and it is allowed only on a deposit ([deposit.md](deposit.md)). It does not add contingent, range-accrual, memory or floating coupons, coupons on notes, or compounding. The work is section 21 of [PLAN.md](../PLAN.md), and it needs the term ([term.md](term.md)).
+This is a proposal, not scheduled. It describes a fixed coupon: interest at a fixed annual rate, paid at a stated frequency over the term. It was first proposed for a fixed deposit, which is no longer modelled because it is not a structured product ([deposit.md](deposit.md)). It will be built with the first structured product that pays a fixed coupon, such as a reverse convertible. It does not cover contingent, range-accrual, memory or floating coupons, or compounding. It needs the term ([term.md](term.md)).
+
+The established concepts below come from fixed deposits, where the choice of frequency is plainest. The same arithmetic applies to a fixed coupon on a note.
 
 ## Established concepts
 
@@ -35,7 +37,7 @@ each coupon        = principal × rate × months per period / 12
 With a coupon a product makes several payments, so the result becomes a schedule instead of a single payment. It is derived, never stored:
 
 - one row for each coupon period, numbered from 1, with the coupon;
-- the payment at the end of the term: the payoff payment (principal, for a fixed deposit) plus the last coupon;
+- the payment at the end of the term: the payoff payment (principal, when the payoff has no features) plus the last coupon;
 - the total paid over the term.
 
 Periods are numbered, not dated, so the schedule says "Coupon 3 of 4" rather than a date. `paymentBreakdown` remains the single source of the payoff payment, and the schedule adds the coupons to it.
@@ -58,7 +60,7 @@ For comparison, a cumulative deposit compounded quarterly would pay 10,000 × (1
 
 ## Consequences
 
-- **Outline.** A Coupon row beside the payoff, with Rate (a percent a year) and Frequency (a dropdown). It is added from the Add feature menu, which marks it "Deposits only" on a note.
+- **Outline.** A Coupon row beside the payoff, with Rate (a percent a year) and Frequency (a dropdown). It is added from the Add feature menu.
 - **Summary.** "…and pays 4.5% a year in quarterly coupons", or "…and pays 4.5% a year, once at the end of the term".
 - **Structure JSON.** The `coupon` key after `payoff`, with its own colour and highlights.
 - **Payment rule and calculation.** A coupon line, `Coupon = Principal × 4.5% × 3 / 12 = 112.50, paid 4 times`, and a cash-flow table listing each coupon and the payment at the end of the term.
@@ -69,11 +71,11 @@ For comparison, a cumulative deposit compounded quarterly would pay 10,000 × (1
 1. **The coupon sits beside the payoff**, as the feature map proposed.
 2. **A coupon is paid.** Interest added to the balance is a different concept and is not a coupon setting.
 3. **Once at the end of the term is a frequency**, not a separate concept: one period as long as the term.
-4. **Deposits only, for now.** A fixed coupon on a note is a public product and will be added later; the domain shape does not depend on the wrapper.
+4. **The domain shape does not depend on the wrapper.** A fixed coupon on a note is a public product.
 
 ## Open questions
 
-1. **Cumulative deposits.** Interest compounded and paid at the end is a fixed return in the payoff, with a compounding frequency. It may also be the minimum return of a market-linked deposit. Which of the two it should be modelled as is open.
+1. **Cumulative interest.** Interest compounded and paid at the end is a fixed return in the payoff, with a compounding frequency. It is added to the payment, unlike the minimum return of a market-linked deposit, which is a floor ([deposit.md](deposit.md)).
 2. **Broken periods.** Real products can have a short or long first or last coupon period. Not modelled.
 3. **Floating and contingent coupons.** A floating rate observes a reference rate, so the coupon would have its own underlier ([underlier-model.md](underlier-model.md)). A contingent coupon observes the underlier on each coupon date, which needs observation dates ([observation-dates.md](observation-dates.md)).
 4. **Negative rates.** Some deposits have had negative rates. Rates must be greater than zero here.
