@@ -453,6 +453,23 @@ watch(chartSvg, (svg, previous) => {
   if (svg) chartObserver?.observe(svg)
 })
 onBeforeUnmount(() => chartObserver?.disconnect())
+
+// On wide screens the outline and the JSON stay beside the longer preview. A column taller than the window scrolls with the page
+// until its bottom is in view, then holds there, so none of it is out of reach.
+const outlinePanel = ref<HTMLElement | null>(null)
+const jsonPanel = ref<HTMLElement | null>(null)
+const fitStickyTops = () => {
+  for (const panel of [outlinePanel.value, jsonPanel.value]) panel?.style.setProperty('--stick-top', `${Math.min(18, window.innerHeight - panel.offsetHeight - 18)}px`)
+}
+const columnObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fitStickyTops)
+onMounted(() => {
+  for (const panel of [outlinePanel.value, jsonPanel.value]) if (panel) columnObserver?.observe(panel)
+  window.addEventListener('resize', fitStickyTops)
+})
+onBeforeUnmount(() => {
+  columnObserver?.disconnect()
+  window.removeEventListener('resize', fitStickyTops)
+})
 const hitRadius = computed(() => 22 / chartScale.value)
 const handleRadius = computed(() => 8 * Math.max(1, 0.7 / chartScale.value))
 // Chart text is scaled up as the chart shrinks, so it stays legible on narrow screens.
@@ -682,7 +699,7 @@ const chart = computed(() => {
       <div v-if="names.length" class="names"><span id="names-label" class="names-label">Often marketed as</span><div class="names-list" role="group" aria-labelledby="names-label"><button v-for="name in names" :key="name.name" type="button" class="name-chip" :aria-expanded="activeHint === nameHintKey(name)" :aria-controls="nameHintId(name)" @click="openName(name)">{{ name.name }}</button></div><template v-for="name in names" :key="name.name"><p v-if="activeHint === nameHintKey(name)" :id="nameHintId(name)" class="hint-text" role="tooltip">{{ name.reason }}</p></template></div>
 
       <div class="workspace">
-        <section class="panel outline" aria-label="Product structure">
+        <section ref="outlinePanel" class="panel outline" aria-label="Product structure">
           <header class="panel-head"><h2>Structure</h2><p>What the product is made of</p></header>
           <ul class="tree">
             <li :class="['node', { sel: highlighted('wrapper') }]" :style="conceptStyle('wrapper')">
@@ -783,23 +800,20 @@ const chart = computed(() => {
                     <li v-if="selectedParticipation.downside" :class="['node', { sel: highlighted('downside') }]" :style="conceptStyle('downside')">
                       <div class="nrow" @click="select('downside')" @focusin="focusRow('downside')">
                         <span class="nlabel">Downside participation<HintToggle id="downside" about="downside participation rate" :text="hints.downside" :active="activeHint === 'downside'" @toggle="toggleHint('downside')" /></span>
-                        <span class="ctrl"><NumberInput id="rate-downside" v-model="participationPercent.downside" class="num rate" aria-label="Downside participation rate (%)" /><span class="unit">%</span></span>
-                        <button type="button" class="xbtn" aria-label="Remove downside participation" @click.stop="removeFeature('downside')">×</button>
+                        <span class="ctrl"><NumberInput id="rate-downside" v-model="participationPercent.downside" class="num rate" aria-label="Downside participation rate (%)" /><span class="unit">%</span><button type="button" class="xbtn" aria-label="Remove downside participation" @click.stop="removeFeature('downside')">×</button></span>
                       </div>
                       <ul>
                         <li v-if="bufferSelected" :class="['node', { sel: highlighted('buffer') }]" :style="conceptStyle('buffer')">
                           <div class="nrow" @click="select('buffer')" @focusin="focusRow('buffer')">
                             <span class="nlabel">Buffer<HintToggle id="buffer" about="buffer" :text="hints.buffer" :active="activeHint === 'buffer'" @toggle="toggleHint('buffer')" /></span>
-                            <span class="ctrl"><NumberInput id="rate-buffer" v-model="bufferPercent" class="num rate" aria-label="Buffer: fall absorbed (%)" /><span class="unit">%</span></span>
-                            <button type="button" class="xbtn" aria-label="Remove buffer" @click.stop="removeFeature('buffer')">×</button>
+                            <span class="ctrl"><NumberInput id="rate-buffer" v-model="bufferPercent" class="num rate" aria-label="Buffer: fall absorbed (%)" /><span class="unit">%</span><button type="button" class="xbtn" aria-label="Remove buffer" @click.stop="removeFeature('buffer')">×</button></span>
                           </div>
                           <ul v-if="issuesFor('buffer').length" class="errors" role="alert"><li v-for="message in issuesFor('buffer')" :key="message">{{ message }}</li></ul>
                         </li>
                         <li v-if="barrierSelected" :class="['node', { sel: highlighted('barrier') }]" :style="conceptStyle('barrier')">
                           <div class="nrow" @click="select('barrier')" @focusin="focusRow('barrier')">
                             <span class="nlabel">Barrier<HintToggle id="barrier" about="barrier" :text="hints.barrier" :active="activeHint === 'barrier'" @toggle="toggleHint('barrier')" /></span>
-                            <span class="ctrl"><NumberInput id="rate-barrier" v-model="barrierPercent" class="num rate" :aria-label="`Barrier: level (% of the ${lookingBack ? 'lookback' : 'initial'} level)`" /><span class="unit">%</span></span>
-                            <button type="button" class="xbtn" aria-label="Remove barrier" @click.stop="removeFeature('barrier')">×</button>
+                            <span class="ctrl"><NumberInput id="rate-barrier" v-model="barrierPercent" class="num rate" :aria-label="`Barrier: level (% of the ${lookingBack ? 'lookback' : 'initial'} level)`" /><span class="unit">%</span><button type="button" class="xbtn" aria-label="Remove barrier" @click.stop="removeFeature('barrier')">×</button></span>
                             <span class="ctrl block"><label for="barrier-observation">Observed</label><select id="barrier-observation" value="final"><option value="final">Final date</option><option value="daily" disabled>Daily (unavailable)</option></select></span>
                           </div>
                           <ul v-if="issuesFor('barrier').length" class="errors" role="alert"><li v-for="message in issuesFor('barrier')" :key="message">{{ message }}</li></ul>
@@ -809,15 +823,13 @@ const chart = computed(() => {
                     <li v-if="selectedParticipation.upside" :class="['node', { sel: highlighted('upside') }]" :style="conceptStyle('upside')">
                       <div class="nrow" @click="select('upside')" @focusin="focusRow('upside')">
                         <span class="nlabel">Upside participation<HintToggle id="upside" about="upside participation rate" :text="hints.upside" :active="activeHint === 'upside'" @toggle="toggleHint('upside')" /></span>
-                        <span class="ctrl"><NumberInput id="rate-upside" v-model="participationPercent.upside" class="num rate" aria-label="Upside participation rate (%)" /><span class="unit">%</span></span>
-                        <button type="button" class="xbtn" aria-label="Remove upside participation" @click.stop="removeFeature('upside')">×</button>
+                        <span class="ctrl"><NumberInput id="rate-upside" v-model="participationPercent.upside" class="num rate" aria-label="Upside participation rate (%)" /><span class="unit">%</span><button type="button" class="xbtn" aria-label="Remove upside participation" @click.stop="removeFeature('upside')">×</button></span>
                       </div>
                       <ul>
                         <li v-if="capSelected" :class="['node', { sel: highlighted('cap') }]" :style="conceptStyle('cap')">
                           <div class="nrow" @click="select('cap')" @focusin="focusRow('cap')">
                             <span class="nlabel">Cap<HintToggle id="cap" about="cap" :text="hints.cap" :active="activeHint === 'cap'" @toggle="toggleHint('cap')" /></span>
-                            <span class="ctrl"><NumberInput id="rate-cap" v-model="capPercent" class="num rate" aria-label="Cap: maximum return on principal (%)" /><span class="unit">%</span></span>
-                            <button type="button" class="xbtn" aria-label="Remove cap" @click.stop="removeFeature('cap')">×</button>
+                            <span class="ctrl"><NumberInput id="rate-cap" v-model="capPercent" class="num rate" aria-label="Cap: maximum return on principal (%)" /><span class="unit">%</span><button type="button" class="xbtn" aria-label="Remove cap" @click.stop="removeFeature('cap')">×</button></span>
                           </div>
                           <ul v-if="issuesFor('cap').length" class="errors" role="alert"><li v-for="message in issuesFor('cap')" :key="message">{{ message }}</li></ul>
                         </li>
@@ -826,16 +838,14 @@ const chart = computed(() => {
                     <li v-if="protectionSelected" :class="['node', { sel: highlighted('protection') }]" :style="conceptStyle('protection')">
                       <div class="nrow" @click="select('protection')" @focusin="focusRow('protection')">
                         <span class="nlabel">Principal protection<HintToggle id="protection" about="principal protection" :text="hints.protection" :active="activeHint === 'protection'" @toggle="toggleHint('protection')" /></span>
-                        <span class="ctrl"><NumberInput id="rate-protection" v-model="protectionPercent" class="num rate" aria-label="Principal protection (%)" /><span class="unit">%</span></span>
-                        <button type="button" class="xbtn" aria-label="Remove principal protection" @click.stop="removeFeature('protection')">×</button>
+                        <span class="ctrl"><NumberInput id="rate-protection" v-model="protectionPercent" class="num rate" aria-label="Principal protection (%)" /><span class="unit">%</span><button type="button" class="xbtn" aria-label="Remove principal protection" @click.stop="removeFeature('protection')">×</button></span>
                       </div>
                       <ul v-if="issuesFor('principalProtection').length" class="errors" role="alert"><li v-for="message in issuesFor('principalProtection')" :key="message">{{ message }}</li></ul>
                     </li>
                     <li v-if="minimumSelected" :class="['node', { sel: highlighted('minimum-return') }]" :style="conceptStyle('minimum-return')">
                       <div class="nrow" @click="select('minimum-return')" @focusin="focusRow('minimum-return')">
                         <span class="nlabel">Minimum return<HintToggle id="minimum-return" about="minimum return" :text="hints['minimum-return']" :active="activeHint === 'minimum-return'" @toggle="toggleHint('minimum-return')" /></span>
-                        <span class="ctrl"><NumberInput id="rate-minimum" v-model="minimumPercent" class="num rate" aria-label="Minimum return on principal (%)" /><span class="unit">%</span></span>
-                        <button type="button" class="xbtn" aria-label="Remove minimum return" @click.stop="removeFeature('minimum')">×</button>
+                        <span class="ctrl"><NumberInput id="rate-minimum" v-model="minimumPercent" class="num rate" aria-label="Minimum return on principal (%)" /><span class="unit">%</span><button type="button" class="xbtn" aria-label="Remove minimum return" @click.stop="removeFeature('minimum')">×</button></span>
                       </div>
                       <ul v-if="issuesFor('minimumReturn').length" class="errors" role="alert"><li v-for="message in issuesFor('minimumReturn')" :key="message">{{ message }}</li></ul>
                     </li>
@@ -947,7 +957,7 @@ const chart = computed(() => {
           <p v-if="chart" class="explanation">All amounts are illustrative.</p>
         </section>
 
-        <aside class="panel structure-json" aria-labelledby="structure-json-heading">
+        <aside ref="jsonPanel" class="panel structure-json" aria-labelledby="structure-json-heading">
           <header class="panel-head"><h2 id="structure-json-heading">Structure JSON<span v-if="errors.length" class="badge invalid">Invalid terms</span></h2><p>{{ errors.length ? 'A live draft containing invalid terms. Correct the highlighted terms before treating it as a valid structure.' : 'The same terms as data' }}</p></header>
           <div class="json-wrap">
             <button type="button" :class="['copybtn', copyState]" aria-label="Copy the structure JSON" :title="copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : 'Copy JSON'" @click="copyJson">
