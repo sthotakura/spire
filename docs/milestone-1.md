@@ -39,7 +39,6 @@ For the 110 final-level scenario, the positive underlier return is 10%. Multiply
 - Displayed amounts are rounded to two decimal places. The calculator uses JavaScript numbers and is not a production money calculation.
 - There are no coupons, caps, buffers, barriers, observation schedules, valuation schedules, early-redemption rights, or physical settlement.
 - The payoff diagram and scenarios show contractual maturity payments only. They are not valuations, investment advice, or guarantees of issuer payment.
-- The JSON panel is a sample representation of this example, not an industry standard.
 
 ## Architecture decision
 

@@ -970,7 +970,6 @@ const chart = computed(() => {
             <span class="visually-hidden" role="status">{{ copyState === 'copied' ? 'Structure JSON copied' : copyState === 'failed' ? 'Could not copy the structure JSON' : '' }}</span>
             <pre><code><span v-for="(line, index) in jsonLines" :key="index" :class="['jl', { on: line.concept && highlighted(line.concept) }]">{{ line.text }}</span></code></pre>
           </div>
-          <p class="aside">Sample representation, not an industry standard.</p>
         </aside>
       </div>
 
