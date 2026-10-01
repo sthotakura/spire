@@ -109,20 +109,27 @@ export interface Term {
   months: number
 }
 
+// The legal form. A note is a debt security of its issuer. A deposit is held by a bank and repaid in full at the end of its
+// term, so it cannot pay less than principal: it has no downside participation and no principal protection term.
+export type Wrapper = 'note' | 'deposit'
+
 export interface Product {
-  wrapper: 'note'
+  wrapper: Wrapper
   redemption: 'bullet'
   term: Term
   underlier: Underlier
   payoff: {
-    // Features are listed in the order the payment applies them: participation with its buffer and cap, then the protection floor.
+    // Features are listed in the order the payment applies them: participation with its buffer and cap, then the floor.
     participations: Participation[]
     principalProtection?: number
+    // The lowest return the product pays on principal, whatever the underlier does: a floor of principal × (1 + minimum return),
+    // not an addition to the participated return. Deposits only, since no note with one was verified.
+    minimumReturn?: number
   }
   principalAmount: number
 }
 
-// A note on a single asset.
+// A product on a single asset.
 export type SingleProduct = Product & { underlier: SingleUnderlier }
 
 export const downsideOf = (note: Product) => note.payoff.participations.find((participation): participation is DownsideParticipation => participation.direction === 'downside')
@@ -134,7 +141,7 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
     ? { direction: 'downside', buffer, barrier, rate: participation.rate }
     : { direction: 'upside', rate: participation.rate, cap })
 
-export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'participations' | 'principalProtection' | 'cap'
+export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn'
 
 // Real notes can average over many more dates, such as monthly over several years, and a lookback period often observes
 // every trading day for weeks. This reference keeps the count small enough for each observed level to be set by hand.
@@ -224,6 +231,16 @@ export function productIssues(note: Product): ProductIssue[] {
   if (protection !== undefined && (!Number.isFinite(protection) || protection < 0 || protection > 1)) issues.push({ field: 'principalProtection', message: 'Principal protection must be between 0% and 100%.' })
   const cap = upsideOf(note)?.cap
   if (cap !== undefined && (!Number.isFinite(cap) || cap <= 0)) issues.push({ field: 'cap', message: 'Cap must be greater than zero.' })
+  // A deposit is repaid in full, so nothing may take the payment below principal, and principal needs no protection term.
+  if (note.wrapper === 'deposit' && downsideOf(note)) issues.push({ field: 'participations', message: 'A deposit repays principal in full, so it cannot have downside participation.' })
+  if (note.wrapper === 'deposit' && protection !== undefined) issues.push({ field: 'principalProtection', message: 'A deposit repays principal in full, so it has no principal protection term.' })
+  const minimum = note.payoff.minimumReturn
+  if (minimum !== undefined) {
+    if (!Number.isFinite(minimum) || minimum <= 0) issues.push({ field: 'minimumReturn', message: 'Minimum return must be greater than zero.' })
+    // A minimum at or above the cap would fix the payment whatever the underlier does.
+    else if (cap !== undefined && Number.isFinite(cap) && minimum >= cap) issues.push({ field: 'minimumReturn', message: 'Minimum return must be less than the cap.' })
+    if (note.wrapper !== 'deposit') issues.push({ field: 'minimumReturn', message: 'A minimum return is available on deposits only.' })
+  }
   return issues
 }
 
@@ -316,7 +333,8 @@ export interface PaymentBreakdown {
   capApplies: boolean
   // The payment after the cap and before the floor.
   unflooredPayment: number
-  // Zero when the note has no principal protection: a holder cannot lose more than the principal amount.
+  // The lowest payment. On a note it is principal × protection, or zero without protection: a holder cannot lose more than
+  // the principal amount. On a deposit it is principal, or principal × (1 + minimum return) with a minimum return.
   floor: number
   floorApplies: boolean
   payment: number
@@ -342,12 +360,14 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
   const barrierHolds = direction === 'downside' && belowBarrier === false
   const participatedReturn = barrierHolds ? 0 : (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0))
   const uncappedPayment = note.principalAmount * (1 + participatedReturn)
-  // A cap is above principal and so above any floor, which cannot exceed principal. The order of the two cannot change the result.
+  // A cap is above any floor: protection cannot exceed principal, and a minimum return must be below the cap. The order of
+  // the two cannot change the result.
   const cap = upsideOf(note)?.cap
   const capAmount = cap === undefined ? undefined : note.principalAmount * (1 + cap)
   const capApplies = capAmount !== undefined && uncappedPayment > capAmount
   const unflooredPayment = capApplies ? capAmount : uncappedPayment
-  const floor = note.principalAmount * (note.payoff.principalProtection ?? 0)
+  const { minimumReturn, principalProtection } = note.payoff
+  const floor = note.principalAmount * (minimumReturn !== undefined ? 1 + minimumReturn : note.wrapper === 'deposit' ? 1 : principalProtection ?? 0)
   return {
     initialLevel: levels.initial,
     underlierReturn,
@@ -369,4 +389,10 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
 
 export function maturityPayment(note: Product, levels: DeterminedLevels): number {
   return paymentBreakdown(note, levels).payment
+}
+
+// The return over the whole term as a return a year, compounded once a year: (payment ÷ principal)^(12 ÷ term months) − 1.
+// Issuers state it beside market-linked deposit payments as an annual yield; it is derived from the term, not a term itself.
+export function annualisedReturn(payment: number, principalAmount: number, termMonths: number): number {
+  return (payment / principalAmount) ** (12 / termMonths) - 1
 }

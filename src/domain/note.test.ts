@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { basketBreakdown, equalWeights, finalLevelFrom, initialLevelFrom, maturityPayment, productIssues, paymentBreakdown, validateProduct, type BasketUnderlier, type DownsideParticipation, type Product, type SingleProduct, type UpsideParticipation } from './note'
+import { annualisedReturn, basketBreakdown, equalWeights, finalLevelFrom, initialLevelFrom, maturityPayment, productIssues, paymentBreakdown, validateProduct, type BasketUnderlier, type DownsideParticipation, type Product, type SingleProduct, type UpsideParticipation } from './note'
 
 const note: SingleProduct = {
   wrapper: 'note',
@@ -649,5 +649,79 @@ describe('weighted basket', () => {
     expect(() => basketBreakdown(withWeights(0.5, 0.6), [[100], [40]])).toThrow('Weights must add up to 100%.')
     expect(() => basketBreakdown(basket, [[100]])).toThrow('Expected observed levels for 2 assets.')
     expect(() => basketBreakdown(averaged, [[100], [40]])).toThrow('Expected 2 observed levels.')
+  })
+})
+
+// Synthetic deposits shaped like three public market-linked CDs (docs/deposit.md): one with a minimum supplemental amount,
+// one with high participation and no cap, and one with a maximum payment amount.
+describe('market-linked deposit', () => {
+  const deposit: SingleProduct = { ...note, wrapper: 'deposit', term: { months: 60 }, payoff: { participations: [{ direction: 'upside', rate: 1 }] } }
+  const withMinimum: SingleProduct = { ...deposit, term: { months: 84 }, payoff: { ...deposit.payoff, minimumReturn: 0.0525 } }
+  const capped: SingleProduct = { ...deposit, payoff: { participations: [{ direction: 'upside', rate: 1, cap: 0.3 }] } }
+  const leveraged: SingleProduct = { ...deposit, payoff: { participations: [{ direction: 'upside', rate: 2.65 }] } }
+  const pays = (product: Product, change: number) => maturityPayment(product, { initial: 100, final: 100 * (1 + change) })
+
+  it('pays the greater of the participation and the minimum return, so the minimum is a floor, not an addition', () => {
+    for (const [change, payment] of [[0.7, 1700], [0.07, 1070], [0.0525, 1052.5], [0.05, 1052.5], [0, 1052.5], [-0.1, 1052.5], [-0.7, 1052.5]]) {
+      expect(pays(withMinimum, change)).toBeCloseTo(payment, 8)
+    }
+  })
+
+  it('repays principal on a fall without a minimum, at any participation rate', () => {
+    for (const change of [-0.5, -0.1, 0]) expect(pays(leveraged, change)).toBe(1000)
+    expect(pays(leveraged, 0.1)).toBeCloseTo(1265, 8)
+  })
+
+  it('caps the payment at the maximum return', () => {
+    for (const [change, payment] of [[0.6, 1300], [0.3, 1300], [0.2, 1200], [0.05, 1050], [0, 1000], [-0.5, 1000]]) {
+      expect(pays(capped, change)).toBeCloseTo(payment, 8)
+    }
+  })
+
+  it('has a floor of principal, which only the minimum return raises', () => {
+    expect(paymentBreakdown(deposit, { initial: 100, final: 50 })).toMatchObject({ floor: 1000, floorApplies: false, payment: 1000 })
+    expect(paymentBreakdown(withMinimum, { initial: 100, final: 50 })).toMatchObject({ floor: 1052.5, floorApplies: true, payment: 1052.5 })
+    expect(paymentBreakdown(withMinimum, { initial: 100, final: 120 })).toMatchObject({ floorApplies: false, payment: 1200 })
+  })
+
+  it('pays principal plus the minimum when it has no participation', () => {
+    expect(pays({ ...withMinimum, payoff: { participations: [], minimumReturn: 0.0525 } }, 0.3)).toBeCloseTo(1052.5, 8)
+  })
+
+  it('accepts upside participation, a cap and a minimum return below it', () => {
+    expect(validateProduct(deposit)).toEqual([])
+    expect(validateProduct({ ...capped, payoff: { ...capped.payoff, minimumReturn: 0.05 } })).toEqual([])
+  })
+
+  it('rejects anything that could pay less than principal', () => {
+    const downside: SingleProduct = { ...deposit, payoff: { participations: [{ direction: 'upside', rate: 1 }, { direction: 'downside', rate: 1 }] } }
+    expect(productIssues(downside)).toEqual([{ field: 'participations', message: 'A deposit repays principal in full, so it cannot have downside participation.' }])
+    expect(productIssues({ ...deposit, payoff: { ...deposit.payoff, principalProtection: 1 } })).toEqual([{ field: 'principalProtection', message: 'A deposit repays principal in full, so it has no principal protection term.' }])
+  })
+
+  it.each([0, -0.01, Number.NaN])('rejects a minimum return of %s', (minimumReturn) => {
+    expect(productIssues({ ...deposit, payoff: { ...deposit.payoff, minimumReturn } })).toEqual([{ field: 'minimumReturn', message: 'Minimum return must be greater than zero.' }])
+  })
+
+  it('rejects a minimum return at or above the cap', () => {
+    for (const minimumReturn of [0.3, 0.4]) {
+      expect(productIssues({ ...capped, payoff: { ...capped.payoff, minimumReturn } })).toEqual([{ field: 'minimumReturn', message: 'Minimum return must be less than the cap.' }])
+    }
+  })
+
+  it('allows a minimum return on deposits only', () => {
+    expect(productIssues({ ...note, payoff: { ...note.payoff, minimumReturn: 0.05 } })).toEqual([{ field: 'minimumReturn', message: 'A minimum return is available on deposits only.' }])
+  })
+})
+
+describe('annualised return', () => {
+  // The public basket CD's table: $1,052.50 after 7 years is 0.73% a year, $1,070.00 is 0.97% and $1,700.00 is 7.88%.
+  it.each([[1052.5, 0.0073], [1070, 0.0097], [1700, 0.0788]])('turns %s after 7 years into %s a year', (payment, yearly) => {
+    expect(annualisedReturn(payment, 1000, 84)).toBeCloseTo(yearly, 4)
+  })
+
+  it('raises the growth to the power of 12 ÷ term months, including part years', () => {
+    expect(annualisedReturn(1100, 1000, 18)).toBeCloseTo(1.1 ** (12 / 18) - 1, 12)
+    expect(annualisedReturn(1000, 1000, 36)).toBe(0)
   })
 })
