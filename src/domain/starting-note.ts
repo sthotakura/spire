@@ -6,15 +6,15 @@ export const startingInitialLevel = 100
 // The note the page opens on: a valid note whose payoff has no features, so it only repays principal.
 export const startingProduct: SingleProduct = {
   wrapper: 'note',
-  redemption: 'bullet',
+  principalAmount: 1000,
   term: { months: 36 },
+  redemption: 'bullet',
   underlier: {
     kind: 'single',
     components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }],
     determination: { initial: { kind: 'given', level: startingInitialLevel }, final: { kind: 'final-date' } },
   },
   payoff: { participations: [] },
-  principalAmount: 1000,
 }
 
 // A hypothetical final level for exploring the starting note. It is a scenario input, not a note term.

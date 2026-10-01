@@ -115,8 +115,9 @@ export type Wrapper = 'note' | 'deposit'
 
 export interface Product {
   wrapper: Wrapper
-  redemption: 'bullet'
+  principalAmount: number
   term: Term
+  redemption: 'bullet'
   underlier: Underlier
   payoff: {
     // Features are listed in the order the payment applies them: participation with its buffer and cap, then the floor.
@@ -126,7 +127,6 @@ export interface Product {
     // not an addition to the participated return. Deposits only, since no note with one was verified.
     minimumReturn?: number
   }
-  principalAmount: number
 }
 
 // A product on a single asset.

@@ -309,8 +309,9 @@ const underlier = computed<Underlier>(() => !isBasket.value
     })
 const note = computed<Product>(() => ({
   wrapper: wrapper.value,
-  redemption: 'bullet',
+  principalAmount: principal.value,
   term: { months: termMonths.value },
+  redemption: 'bullet',
   underlier: underlier.value,
   payoff: {
     participations: withSubFeatures(selectedDirections.value.map((direction) => ({ direction, rate: participationPercent[direction] / 100 })), {
@@ -321,7 +322,6 @@ const note = computed<Product>(() => ({
     principalProtection: protectionSelected.value ? protectionPercent.value / 100 : undefined,
     minimumReturn: minimumSelected.value ? fractionFrom(minimumPercent.value) : undefined,
   },
-  principalAmount: principal.value,
 }))
 const jsonLines = computed(() => structureLines(note.value))
 const formula = computed(() => paymentFormula(note.value))

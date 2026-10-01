@@ -26,11 +26,11 @@ The term sits at the top of the product, beside the principal amount. Two concep
 ```json
 {
   "wrapper": "note",
-  "redemption": "bullet",
+  "principalAmount": 1000,
   "term": { "months": 36 },
+  "redemption": "bullet",
   "underlier": { … },
-  "payoff": { … },
-  "principalAmount": 1000
+  "payoff": { … }
 }
 ```
 
@@ -43,7 +43,7 @@ The term sits at the top of the product, beside the principal amount. Two concep
 
 - **Outline.** A Term field on the Wrapper row, beside Principal. It is entered in months, and a whole number of years is shown beside it ("36 months (3 years)").
 - **Summary.** The sentence states the length: "A 3-year note that…", or "An 18-month note that…". A whole number of years is stated in years.
-- **Structure JSON.** The `term` key after `redemption`. Like `principalAmount`, it is highlighted with the wrapper.
+- **Structure JSON.** The `term` key after `principalAmount` and before `redemption`, in the outline's order: principal and term sit on the wrapper's row. Both are highlighted with the wrapper.
 - **Payment.** No change. The worked calculation, scenario table and chart are unchanged for a note.
 
 ## Decisions
