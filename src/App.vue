@@ -22,6 +22,7 @@ const toggleHint = (hint: string) => { activeHint.value = activeHint.value === h
 const hints = {
   wrapper: 'The legal form sets what the holder owns and who owes the payments. A note is a debt of its issuer, so every payment depends on the issuer’s ability to pay.',
   redemption: 'Sets when the note ends and principal is paid back: at scheduled maturity, or earlier if its terms allow a call or a put. A bullet note pays once, at maturity.',
+  term: 'The length of the product, stated as a duration such as 3 years. Principal is repaid at the end of the term. The issue and maturity dates that put the term on a calendar are set when the product is issued.',
   underlier: 'What the payoff reads: the asset it tracks and how its change is measured, from where it starts. A single underlier tracks one asset. A basket tracks several and combines their changes into one return.',
   asset: 'The equity or equity index the note tracks. Holding the note does not mean owning the asset.',
   determination: 'Sets which observed levels measure the underlier’s change: final ÷ initial − 1. The initial and final levels are each set on their own. Point-to-point uses the fixed initial level and the level on the final date; moves in between do not count. Lookback starts from the lowest of the levels on the pricing date and on several dates after it, so a fall soon after pricing lowers the starting point. Averaging takes the final level as the average of the levels observed on several dates before maturity, so a sharp move on the last date counts for less.',
@@ -87,6 +88,9 @@ const [startingComponent] = startingNote.underlier.components
 const assetKind = ref<AssetKind>(startingComponent.asset.kind)
 const assetName = ref(startingComponent.asset.name)
 const principal = ref(startingNote.principalAmount)
+const termMonths = ref(startingNote.term.months)
+// A term of whole years is also shown in years, as term sheets often state it.
+const termYears = computed(() => Number.isInteger(termMonths.value) && termMonths.value > 0 && termMonths.value % 12 === 0 ? `${termMonths.value / 12} year${termMonths.value === 12 ? '' : 's'}` : null)
 // The level on the pricing date. With a fixed initial level it is the stated term; with lookback it is the first observed
 // level, a scenario input. Keeping one value means switching between the two keeps the reader's number.
 const initialLevel = ref(startingInitialLevel)
@@ -281,6 +285,7 @@ const underlier = computed<Underlier>(() => !isBasket.value
 const note = computed<Note>(() => ({
   wrapper: 'note',
   redemption: 'bullet',
+  term: { months: termMonths.value },
   underlier: underlier.value,
   payoff: {
     participations: withSubFeatures(selectedDirections.value.map((direction) => ({ direction, rate: participationPercent[direction] / 100 })), {
@@ -652,8 +657,9 @@ const chart = computed(() => {
                 <span class="ctrl pick"><select aria-label="Wrapper" :value="note.wrapper"><option v-for="option in wrapperOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
                 <span class="ndesc">{{ partDescriptions.wrapper }}</span>
                 <span class="ctrl block"><label for="principal">Principal</label><HintToggle id="principal" about="principal" :text="hints.principal" :active="activeHint === 'principal'" @toggle="toggleHint('principal')" /><NumberInput id="principal" v-model="principal" class="num" /></span>
+                <span class="ctrl block"><label for="term">Term</label><HintToggle id="term" about="term" :text="hints.term" :active="activeHint === 'term'" @toggle="toggleHint('term')" /><NumberInput id="term" v-model="termMonths" class="num count" /><span class="unit">months{{ termYears ? ` (${termYears})` : '' }}</span></span>
               </div>
-              <ul v-if="issuesFor('principalAmount').length" class="errors" role="alert"><li v-for="message in issuesFor('principalAmount')" :key="message">{{ message }}</li></ul>
+              <ul v-if="issuesFor('principalAmount', 'term').length" class="errors" role="alert"><li v-for="message in issuesFor('principalAmount', 'term')" :key="message">{{ message }}</li></ul>
               <ul>
                 <li :class="['node', { sel: highlighted('redemption') }]" :style="conceptStyle('redemption')">
                   <div class="nrow" @click="select('redemption')" @focusin="focusRow('redemption')">

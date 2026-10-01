@@ -5,6 +5,7 @@ import { marketingNames } from './names'
 const noteWith = ({ participations = [], principalProtection, cap, buffer }: { participations?: Participation[]; principalProtection?: number; cap?: number; buffer?: number }): Note => ({
   wrapper: 'note',
   redemption: 'bullet',
+  term: { months: 36 },
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },
   payoff: { participations: withSubFeatures(participations, { buffer, cap }), principalProtection },
   principalAmount: 1000,

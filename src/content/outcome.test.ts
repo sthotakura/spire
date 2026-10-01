@@ -5,6 +5,7 @@ import { explainOutcome } from './outcome'
 const noteWith = (participations: Participation[], principalProtection?: number, cap?: number, buffer?: number): SingleNote => ({
   wrapper: 'note',
   redemption: 'bullet',
+  term: { months: 36 },
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },
   payoff: { participations: withSubFeatures(participations, { buffer, cap }), principalProtection },
   principalAmount: 1000,

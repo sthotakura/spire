@@ -4,6 +4,7 @@ import { basketBreakdown, equalWeights, finalLevelFrom, initialLevelFrom, maturi
 const note: SingleNote = {
   wrapper: 'note',
   redemption: 'bullet',
+  term: { months: 36 },
   underlier: {
     kind: 'single',
     components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }],
@@ -192,6 +193,20 @@ describe('protected participation note', () => {
 
     for (const finalLevel of [0, 50, 100, 120]) expect(maturityPayment(absent, { initial: 100, final: finalLevel })).toBe(maturityPayment(zero, { initial: 100, final: finalLevel }))
     expect(absent.payoff.principalProtection).toBeUndefined()
+  })
+})
+
+describe('term', () => {
+  it.each([1, 18, 36, 120])('allows a term of %d months', (months) => {
+    expect(validateNote({ ...note, term: { months } })).toEqual([])
+  })
+
+  it.each([0, -12, 121, 1.5, Number.NaN])('rejects a term of %d months', (months) => {
+    expect(noteIssues({ ...note, term: { months } })).toEqual([{ field: 'term', message: 'Term must be a whole number of months from 1 to 120.' }])
+  })
+
+  it('does not change the payment', () => {
+    for (const final of [60, 100, 130]) expect(maturityPayment({ ...note, term: { months: 6 } }, { initial: 100, final })).toBe(maturityPayment({ ...note, term: { months: 120 } }, { initial: 100, final }))
   })
 })
 

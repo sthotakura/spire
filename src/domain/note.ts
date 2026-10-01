@@ -104,9 +104,15 @@ export interface BasketUnderlier {
 
 export type Underlier = SingleUnderlier | BasketUnderlier
 
+// The product's length, as a duration. It is part of the structure; the dates that put it on a calendar belong to issuance.
+export interface Term {
+  months: number
+}
+
 export interface Note {
   wrapper: 'note'
   redemption: 'bullet'
+  term: Term
   underlier: Underlier
   payoff: {
     // Features are listed in the order the payment applies them: participation with its buffer and cap, then the protection floor.
@@ -128,12 +134,16 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
     ? { direction: 'downside', buffer, barrier, rate: participation.rate }
     : { direction: 'upside', rate: participation.rate, cap })
 
-export type NoteIssueField = 'principalAmount' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'participations' | 'principalProtection' | 'cap'
+export type NoteIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'participations' | 'principalProtection' | 'cap'
 
 // Real notes can average over many more dates, such as monthly over several years, and a lookback period often observes
 // every trading day for weeks. This reference keeps the count small enough for each observed level to be set by hand.
 export const observationCountRange = { min: 2, max: 12 }
 const isObservationCount = (count: number) => Number.isInteger(count) && count >= observationCountRange.min && count <= observationCountRange.max
+
+// Terms in days need a day-count convention, so the term is whole months. The upper limit keeps a monthly coupon schedule
+// short enough to read; real terms can be longer.
+export const termRange = { min: 1, max: 120 }
 
 export interface NoteIssue {
   field: NoteIssueField
@@ -197,6 +207,8 @@ function finalIssues(final: FinalDetermination): NoteIssue[] {
 export function noteIssues(note: Note): NoteIssue[] {
   const issues: NoteIssue[] = underlierIssues(note.underlier)
   if (!Number.isFinite(note.principalAmount) || note.principalAmount <= 0) issues.push({ field: 'principalAmount', message: 'Principal must be greater than zero.' })
+  const { months } = note.term
+  if (!Number.isInteger(months) || months < termRange.min || months > termRange.max) issues.push({ field: 'term', message: `Term must be a whole number of months from ${termRange.min} to ${termRange.max}.` })
   const buffer = downsideOf(note)?.buffer
   if (buffer !== undefined && (!Number.isFinite(buffer) || buffer <= 0 || buffer > 1)) issues.push({ field: 'buffer', message: 'Buffer must be greater than 0% and at most 100%.' })
   const barrier = downsideOf(note)?.barrier

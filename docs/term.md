@@ -1,6 +1,6 @@
 # Term
 
-This is a proposal, not yet built. It adds the term, the length of a product, as a term of every product. It changes no payment built so far. Coupons are the first concept that reads it ([coupon.md](coupon.md)). The work is section 20 of [PLAN.md](../PLAN.md).
+This increment adds the term, the length of a product, as a term of every product. It changes no payment built so far. Coupons are the first concept that reads it ([coupon.md](coupon.md)). The work is section 20 of [PLAN.md](../PLAN.md).
 
 ## Established concepts
 
@@ -41,17 +41,19 @@ The term sits at the top of the product, beside the principal amount. Two concep
 
 ## Consequences
 
-- **Outline.** A Term row beside Principal, entered in months and shown as years when it is a whole number of years ("36 months (3 years)").
-- **Summary.** The sentence states the length: "A 3-year note that…".
-- **Structure JSON.** The `term` key after `redemption`, with its own colour and highlights, like the other concepts.
+- **Outline.** A Term field on the Wrapper row, beside Principal. It is entered in months, and a whole number of years is shown beside it ("36 months (3 years)").
+- **Summary.** The sentence states the length: "A 3-year note that…", or "An 18-month note that…". A whole number of years is stated in years.
+- **Structure JSON.** The `term` key after `redemption`. Like `principalAmount`, it is highlighted with the wrapper.
 - **Payment.** No change. The worked calculation, scenario table and chart are unchanged for a note.
 
 ## Decisions
 
 1. **The term is a product concept.** It is a duration, not a date.
 2. **It sits at the top of the product**, not under redemption, because the coupon reads it as well. Under redemption, the coupon would read a term of another concept.
+3. **It is shown with the wrapper, beside the principal**, and is not a concept of its own. The Wrapper row already holds the principal, a term of the whole product rather than of the legal form, so the term joins it there.
 
 ## Open questions
 
 1. **Early redemption.** An autocall or an issuer call can end a product before its term. The term would then be the scheduled length, and the actual length would depend on the scenario. This is not settled until early redemption is modelled.
-2. **The final observation and the term.** The final observation date usually falls a few business days before the end of the term. Both are left as words until observation dates are modelled.
+2. **A product row.** The Wrapper row stands in for the whole product: it holds the principal and the term, and the other parts nest under it. Whether they move to a product row of their own, with the wrapper beside redemption, or stay with the wrapper is open until a deposit shows how much the wrapper itself decides.
+3. **The final observation and the term.** The final observation date usually falls a few business days before the end of the term. Both are left as words until observation dates are modelled.

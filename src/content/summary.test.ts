@@ -5,6 +5,7 @@ import { summarize } from './summary'
 const note: SingleNote = {
   wrapper: 'note',
   redemption: 'bullet',
+  term: { months: 36 },
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },
   payoff: {
     participations: [
@@ -20,10 +21,31 @@ const withTerms = (n: SingleNote, buffer?: number, cap?: number): SingleNote => 
 const sentence = (n: SingleNote) => summarize(n).map(({ text }) => text).join('')
 const conceptOf = (n: SingleNote, phrase: string) => summarize(n).find(({ text }) => text === phrase)?.concept
 
+describe('note summary with a term', () => {
+  it.each([
+    [36, 'A 3-year note'],
+    [12, 'A 1-year note'],
+    [96, 'An 8-year note'],
+    [6, 'A 6-month note'],
+    [8, 'An 8-month note'],
+    [11, 'An 11-month note'],
+    [18, 'An 18-month note'],
+    [80, 'An 80-month note'],
+    [0, 'A —-month note'],
+    [Number.NaN, 'A —-month note'],
+  ])('states a term of %d months as "%s"', (months, start) => {
+    expect(sentence({ ...note, term: { months } })).toMatch(new RegExp(`^${start} that redeems`))
+  })
+
+  it('names the term as part of the wrapper, beside the principal', () => {
+    expect(summarize(note).filter(({ concept }) => concept === 'wrapper').map(({ text }) => text)).toEqual(['3-year note'])
+  })
+})
+
 describe('note summary with a cap', () => {
   it('adds the cap after the protection', () => {
     const capped = withTerms(note, undefined, 0.2)
-    expect(sentence(capped)).toBe('A note that redeems at maturity and pays 150% of the upside and 100% of the downside of Synthetic Index, measured point-to-point from 100, with 90% principal protection and a maximum return of 20%.')
+    expect(sentence(capped)).toBe('A 3-year note that redeems at maturity and pays 150% of the upside and 100% of the downside of Synthetic Index, measured point-to-point from 100, with 90% principal protection and a maximum return of 20%.')
     expect(conceptOf(capped, 'a maximum return of 20%')).toBe('cap')
   })
 
@@ -68,7 +90,7 @@ describe('note summary with lookback', () => {
 
 describe('note summary', () => {
   it('describes upside and downside participation together', () => {
-    expect(sentence(note)).toBe('A note that redeems at maturity and pays 150% of the upside and 100% of the downside of Synthetic Index, measured point-to-point from 100, with 90% principal protection.')
+    expect(sentence(note)).toBe('A 3-year note that redeems at maturity and pays 150% of the upside and 100% of the downside of Synthetic Index, measured point-to-point from 100, with 90% principal protection.')
     expect(conceptOf(note, '150% of the upside')).toBe('upside')
     expect(conceptOf(note, '100% of the downside')).toBe('downside')
   })
@@ -88,7 +110,7 @@ describe('note summary', () => {
   })
 
   it('names the concept each phrase describes', () => {
-    expect(conceptOf(note, 'note')).toBe('wrapper')
+    expect(conceptOf(note, '3-year note')).toBe('wrapper')
     expect(conceptOf(note, 'at maturity')).toBe('redemption')
     expect(conceptOf(note, 'Synthetic Index')).toBe('asset')
     expect(conceptOf(note, 'point-to-point')).toBe('determination')
@@ -98,23 +120,23 @@ describe('note summary', () => {
 
   it('says a note with no features repays its principal', () => {
     const principalOnly = { ...note, payoff: { participations: [] } }
-    expect(sentence(principalOnly)).toBe('A note that redeems at maturity and repays its principal, linked to Synthetic Index, measured point-to-point from 100.')
+    expect(sentence(principalOnly)).toBe('A 3-year note that redeems at maturity and repays its principal, linked to Synthetic Index, measured point-to-point from 100.')
     expect(conceptOf(principalOnly, 'repays its principal')).toBe('payoff')
   })
 
   it('leaves out the protection clause when protection is absent', () => {
     const unprotected = { ...note, payoff: { participations: [{ direction: 'upside' as const, rate: 1 }] } }
-    expect(sentence(unprotected)).toBe('A note that redeems at maturity and pays 100% of the upside of Synthetic Index, measured point-to-point from 100.')
+    expect(sentence(unprotected)).toBe('A 3-year note that redeems at maturity and pays 100% of the upside of Synthetic Index, measured point-to-point from 100.')
   })
 
   it('keeps the protection clause when there is protection but no participation', () => {
     const protectionOnly = { ...note, payoff: { participations: [], principalProtection: 0.9 } }
-    expect(sentence(protectionOnly)).toBe('A note that redeems at maturity and repays its principal, linked to Synthetic Index, measured point-to-point from 100, with 90% principal protection.')
+    expect(sentence(protectionOnly)).toBe('A 3-year note that redeems at maturity and repays its principal, linked to Synthetic Index, measured point-to-point from 100, with 90% principal protection.')
   })
 
   it('keeps describing a draft that is not valid yet', () => {
     const draft: SingleNote = { ...note, underlier: { ...note.underlier, components: [{ asset: { kind: 'equity-index', name: ' ' } }] }, payoff: { ...note.payoff, participations: [], principalProtection: Number.NaN } }
-    expect(sentence(draft)).toBe('A note that redeems at maturity and repays its principal, linked to the underlier, measured point-to-point from 100, with — principal protection.')
+    expect(sentence(draft)).toBe('A 3-year note that redeems at maturity and repays its principal, linked to the underlier, measured point-to-point from 100, with — principal protection.')
   })
 })
 

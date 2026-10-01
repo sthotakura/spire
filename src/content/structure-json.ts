@@ -15,7 +15,8 @@ export function structureLines(note: Note): StructureLine[] {
 
   const conceptAt = (path: Path): ConceptId | null => {
     const [top, second, third, fourth] = path
-    if (top === 'wrapper' || top === 'principalAmount') return 'wrapper'
+    // The principal and the term are terms of the whole product, shown on the wrapper's row.
+    if (top === 'wrapper' || top === 'principalAmount' || top === 'term') return 'wrapper'
     if (top === 'redemption') return 'redemption'
     if (top === 'underlier') {
       if (second === 'components' && typeof third === 'number') return 'asset'

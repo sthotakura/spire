@@ -23,6 +23,7 @@ const basket: BasketUnderlier = {
 const note: Note = {
   wrapper: 'note',
   redemption: 'bullet',
+  term: { months: 36 },
   underlier: basket,
   payoff: { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }, { direction: 'upside', rate: 1 }] },
   principalAmount: 1000,
@@ -35,7 +36,7 @@ const breakdown = paymentBreakdown(note, measured.levels)
 
 describe('a basket in words', () => {
   it('names an equally weighted basket and its assets', () => {
-    expect(sentence(note)).toBe('A note that redeems at maturity and pays 100% of the upside and 100% of the downside of an equally weighted basket of Synthetic Index A and Synthetic Co, measured point-to-point from each asset’s initial level, with a barrier at 70% of the initial basket level.')
+    expect(sentence(note)).toBe('A 3-year note that redeems at maturity and pays 100% of the upside and 100% of the downside of an equally weighted basket of Synthetic Index A and Synthetic Co, measured point-to-point from each asset’s initial level, with a barrier at 70% of the initial basket level.')
     expect(summarize(note).find(({ text }) => text === 'equally weighted basket')?.concept).toBe('basket-return')
     expect(summarize(note).find(({ text }) => text === 'Synthetic Co')?.concept).toBe('asset')
   })

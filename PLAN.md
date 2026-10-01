@@ -178,7 +178,7 @@ Open questions:
 - Add the term, the product's length, as a term of every product: `"term": { "months": 36 }`, at the top beside the principal amount. The proposal is in [docs/term.md](docs/term.md).
 - The term is a duration, so it belongs to the structure. The issue and maturity dates that put it on a calendar belong to issuance and stay out.
 - Use whole months, from 1 to 120. Terms in days need a day-count convention and are left out.
-- Show it in the outline (a Term row beside Principal), the summary ("A 3-year note that…") and the Structure JSON. No payment changes; the existing tests pass unchanged apart from the JSON's new key.
+- Show it in the outline (a Term field on the Wrapper row, beside Principal, and highlighted with the wrapper as the principal is; whether both move to a product row of their own is open), the summary ("A 3-year note that…", "An 18-month note that…") and the Structure JSON. No payment changes; the existing tests pass unchanged apart from the new key and the summary's opening words.
 
 ## 21. Add a fixed deposit
 

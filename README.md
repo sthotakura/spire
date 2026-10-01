@@ -12,7 +12,7 @@ The wrapper is a **note**; **bullet** describes its one-payment-at-maturity rede
 
 ## Interface direction
 
-The single-page application shows the product as an outline of its concepts: wrapper, redemption behavior, underlier (its asset, initial level and determination method), and payoff. Each term sits beside the concept it belongs to. The note starts with no payoff features, so it only repays principal, and the reader adds a buffer, a cap, downside participation, principal protection, and upside participation one at a time.
+The single-page application shows the product as an outline of its concepts: wrapper, redemption behavior, term, underlier (its asset, initial level and determination method), and payoff. Each term sits beside the concept it belongs to. The note starts with no payoff features, so it only repays principal, and the reader adds a buffer, a cap, downside participation, principal protection, and upside participation one at a time.
 
 Beside the outline the page shows a one-sentence summary of the note, a payoff diagram with draggable handles, a worked calculation of the maturity payment, a scenario table, and the note's structure as JSON. Selecting a concept highlights it in each of them.
 

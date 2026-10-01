@@ -7,6 +7,7 @@ export const startingInitialLevel = 100
 export const startingNote: SingleNote = {
   wrapper: 'note',
   redemption: 'bullet',
+  term: { months: 36 },
   underlier: {
     kind: 'single',
     components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }],

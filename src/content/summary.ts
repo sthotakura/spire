@@ -30,6 +30,15 @@ function underlierPhrase(note: Note): SummarySegment[] {
     : [{ text: 'a ' }, { text: 'weighted basket', concept: 'basket-return' }, { text: ' of ' }, ...listed(assets)]
 }
 
+// The term as an adjective, in years when it is a whole number of them: "3-year", "18-month". The article before it
+// follows the sound of the number: "an 8-year", "an 11-month", "an 18-month", "an 80-month".
+function termPhrase(months: number): { article: string; text: string } {
+  if (!Number.isFinite(months) || months <= 0) return { article: 'A ', text: '—-month' }
+  const number = months % 12 === 0 ? months / 12 : months
+  const text = `${number}-${months % 12 === 0 ? 'year' : 'month'}`
+  return { article: /^(8\d*|11|18)$/.test(String(number)) ? 'An ' : 'A ', text }
+}
+
 export function summarize(note: Note): SummarySegment[] {
   const upside = note.payoff.participations.find(({ direction }) => direction === 'upside')
   const downside = note.payoff.participations.find(({ direction }) => direction === 'downside')
@@ -67,9 +76,11 @@ export function summarize(note: Note): SummarySegment[] {
   if (cap !== undefined) clauses.push({ text: `a maximum return of ${percent(cap)}`, concept: 'cap' })
   const features: SummarySegment[] = clauses.flatMap((clause, index) => [{ text: index === 0 ? ', with ' : index === clauses.length - 1 ? ' and ' : ', ' }, clause])
 
+  const term = termPhrase(note.term.months)
   return [
-    { text: 'A ' },
-    { text: 'note', concept: 'wrapper' },
+    { text: term.article },
+    // The term is a term of the whole product, shown with the wrapper as the principal is.
+    { text: `${term.text} note`, concept: 'wrapper' },
     { text: ' that redeems ' },
     { text: 'at maturity', concept: 'redemption' },
     ...payoff,
