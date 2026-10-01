@@ -59,7 +59,7 @@ describe('a deposit in the calculation', () => {
     expect(steps(withMinimum, 50).map(({ n, title, how, value }) => [n, title, how, value]).slice(3)).toEqual([
       [4, 'Payment before minimum', '1,000 × (1 + 0%)', '1,000'],
       [5, 'Minimum return', '1,000 × (1 + 5.25%) · applies here', '1,052.5'],
-      [6, 'Payment at maturity', 'The higher of steps 4 and 5', '1,052.5'],
+      [6, 'Payment at maturity', '1,000, floored at 1,052.5', '1,052.5'],
       [7, 'Annualised return', '(1,052.5 ÷ 1,000)^(1 ÷ 7 years) − 1', '0.73% a year'],
     ])
   })
@@ -70,8 +70,8 @@ describe('a deposit in the calculation', () => {
 
   it('says why a deposit without a minimum still repays principal', () => {
     expect(step(capped, 50, 'Minimum return')).toMatchObject({ how: 'Not added. A deposit repays principal in full, so the payment is never below it', muted: true })
-    expect(step(capped, 160, 'Payment at maturity')).toMatchObject({ how: 'The lower of steps 4 and 5', value: '1,300' })
-    expect(step(deposit, 110, 'Payment at maturity')).toMatchObject({ how: 'Step 4', value: '1,100' })
+    expect(step(capped, 160, 'Payment at maturity')).toMatchObject({ how: '1,600, capped at 1,300', value: '1,300' })
+    expect(step(deposit, 110, 'Payment at maturity')).toMatchObject({ how: 'Same as the payment before minimum', value: '1,100' })
   })
 
   it('states the annualised return for a note too, since every product has a term', () => {

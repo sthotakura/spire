@@ -24,8 +24,8 @@ function participationStep(note: Product, breakdown: PaymentBreakdown, direction
   const title = direction === 'upside' ? 'Upside participation' : 'Downside participation'
   const rate = note.payoff.participations.find((candidate) => candidate.direction === direction)?.rate
   if (rate === undefined) {
-    const how = direction === 'upside' ? 'Not selected, so a rise does not add to principal'
-      : note.wrapper === 'deposit' ? 'Not on a deposit, which repays principal in full' : 'Not selected, so a fall does not reduce principal'
+    const how = direction === 'upside' ? 'Not added, so a rise leaves principal unchanged'
+      : note.wrapper === 'deposit' ? 'Not on a deposit, which repays principal in full' : 'Not added, so a fall leaves principal unchanged'
     return { title, how, value: 'Not added', muted: true, concept: direction }
   }
   const contribution = direction === breakdown.direction ? breakdown.participatedReturn : 0
@@ -115,10 +115,7 @@ export function calculationSteps(note: Product, breakdown: PaymentBreakdown, obs
     participationStep(note, b, 'upside'),
     { title: withCap ? 'Payment before cap' : deposit ? 'Payment before minimum' : 'Payment before protection', how: `${formatAmount(principal)} × (1 ${b.participatedReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(b.participatedReturn))})`, value: formatAmount(b.uncappedPayment) },
   )
-  // Numbers follow the order of the steps, so the closing step can refer to the ones it combines.
-  const before = steps.length
   if (withCap) steps.push({ title: 'Cap', how: `${formatAmount(principal)} × (1 + ${formatPercent(cap)}) · ${b.capApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.capAmount ?? 0), concept: 'cap' })
-  const capStep = steps.length
   if (deposit) {
     steps.push(minimum !== undefined
       ? { title: 'Minimum return', how: `${formatAmount(principal)} × (1 + ${twoDecimalPercent(minimum)}) · ${b.floorApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.floor), concept: 'minimum-return' }
@@ -126,14 +123,15 @@ export function calculationSteps(note: Product, breakdown: PaymentBreakdown, obs
   } else {
     steps.push(withProtection
       ? { title: 'Protection floor', how: `${formatPercent(principalProtection)} × ${formatAmount(principal)} · ${b.floorApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.floor), concept: 'protection' }
-      : { title: 'Protection floor', how: hasDownside ? 'No protection selected, so some or all of the principal can be lost' : 'No protection selected. Without downside participation, principal is not reduced', value: 'Not added', muted: true, concept: 'protection' })
+      : { title: 'Protection floor', how: hasDownside ? 'Not added, so some or all of the principal can be lost' : 'Not added. Without downside participation, a fall does not reduce principal', value: 'Not added', muted: true, concept: 'protection' })
   }
-  const floorStep = steps.length
-  // Without a floor, a note's payment cannot fall below zero; a deposit's cannot fall below principal, which nothing reduces.
-  const noFloor = deposit ? '' : withCap ? ', then not below zero' : ''
-  const combine = withCap
-    ? `The lower of steps ${before} and ${capStep}${withFloor ? `, then the higher of that and step ${floorStep}` : noFloor}`
-    : withFloor ? `The higher of steps ${before} and ${floorStep}` : deposit ? `Step ${before}` : `The higher of step ${before} and zero`
+  // The closing step names the amounts it combines, in the payment rule's words. Without a floor, a note's payment cannot fall
+  // below zero; a deposit's cannot fall below principal, which nothing reduces.
+  const limits = [
+    withCap ? `capped at ${formatAmount(b.capAmount ?? 0)}` : '',
+    withFloor ? `floored at ${formatAmount(b.floor)}` : deposit ? '' : 'not below zero',
+  ].filter(Boolean)
+  const combine = limits.length ? `${formatAmount(b.uncappedPayment)}, ${limits.join(' and ')}` : `Same as the payment before minimum`
   steps.push({ title: 'Payment at maturity', how: combine, value: formatAmount(b.payment), result: true })
   // Derived from the term, as issuers state an annual yield beside each payment. It is not a term of the product.
   const years = note.term.months / 12

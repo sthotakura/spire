@@ -36,15 +36,15 @@ describe('calculation steps', () => {
 
   it('keeps a direction that is not selected visible as not added', () => {
     const note = noteWith([{ direction: 'upside', rate: 1 }])
-    expect(step(note, 80, 'Downside participation')).toMatchObject({ how: 'Not selected, so a fall does not reduce principal', value: 'Not added', muted: true })
-    expect(step(noteWith([]), 110, 'Upside participation')).toMatchObject({ how: 'Not selected, so a rise does not add to principal', value: 'Not added', muted: true })
+    expect(step(note, 80, 'Downside participation')).toMatchObject({ how: 'Not added, so a fall leaves principal unchanged', value: 'Not added', muted: true })
+    expect(step(noteWith([]), 110, 'Upside participation')).toMatchObject({ how: 'Not added, so a rise leaves principal unchanged', value: 'Not added', muted: true })
   })
 
-  it('numbers the closing step from the steps it combines', () => {
-    expect(step(noteWith(both, 0.9, 0.2), 110, 'Payment at maturity')?.how).toBe('The lower of steps 4 and 5, then the higher of that and step 6')
-    expect(step(noteWith(both, 0.9), 110, 'Payment at maturity')?.how).toBe('The higher of steps 4 and 5')
-    expect(step(noteWith(both), 110, 'Payment at maturity')?.how).toBe('The higher of step 4 and zero')
-    expect(step(noteWith(both, undefined, 0.2), 110, 'Payment at maturity')?.how).toBe('The lower of steps 4 and 5, then not below zero')
+  it('states the closing step with the amounts it combines, in the payment rule\'s words', () => {
+    expect(step(noteWith(both, 0.9, 0.2), 110, 'Payment at maturity')?.how).toBe('1,100, capped at 1,200 and floored at 900')
+    expect(step(noteWith(both, 0.9), 110, 'Payment at maturity')?.how).toBe('1,100, floored at 900')
+    expect(step(noteWith(both), 110, 'Payment at maturity')?.how).toBe('1,100, not below zero')
+    expect(step(noteWith(both, undefined, 0.2), 110, 'Payment at maturity')?.how).toBe('1,100, capped at 1,200 and not below zero')
   })
 
   describe('with a buffer', () => {
@@ -53,7 +53,7 @@ describe('calculation steps', () => {
 
     it('adds a buffer step before downside participation', () => {
       expect(steps(buffered(downFull), 70).map(({ title }) => title).slice(0, 4)).toEqual(['Synthetic Index return', 'Buffer', 'Downside participation', 'Upside participation'])
-      expect(step(buffered(downFull), 70, 'Payment at maturity')?.how).toBe('The higher of steps 5 and 6')
+      expect(step(buffered(downFull), 70, 'Payment at maturity')?.how).toBe('800, floored at 900')
     })
 
     it('shows the part of the fall the buffer absorbs, and downside participation on the rest', () => {
@@ -103,7 +103,7 @@ describe('calculation steps', () => {
       { n: 1, title: 'Final level of Synthetic Index', how: '(100 + 120 + 90 + 130) ÷ 4', value: '110', concept: 'final-level' },
       { n: 2, title: 'Synthetic Index return', how: '110 ÷ 100 − 1', value: '+10%', concept: 'determination' },
     ])
-    expect(averaged.find(({ title }) => title === 'Payment at maturity')?.how).toBe('The higher of step 5 and zero')
+    expect(averaged.find(({ title }) => title === 'Payment at maturity')?.how).toBe('1,100, not below zero')
   })
 
   it('adds a step that takes the lookback level before the return', () => {
@@ -114,7 +114,7 @@ describe('calculation steps', () => {
       { n: 1, title: 'Lookback level of Synthetic Index', how: 'min(100, 97, 92, 95)', value: '92', concept: 'initial-level' },
       { n: 2, title: 'Synthetic Index return', how: '110 ÷ 92 − 1', value: '+19.6%', concept: 'determination' },
     ])
-    expect(lookback.find(({ title }) => title === 'Payment at maturity')).toMatchObject({ how: 'The higher of step 5 and zero', value: '1,195.65' })
+    expect(lookback.find(({ title }) => title === 'Payment at maturity')).toMatchObject({ how: '1,195.65, not below zero', value: '1,195.65' })
   })
 
   it('takes the lookback level, then averages the final level, when the note does both', () => {
