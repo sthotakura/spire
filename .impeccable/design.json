@@ -1,0 +1,736 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-01T16:26:00.514Z",
+  "title": "Design System: SPIRe",
+  "extensions": {
+    "colorMeta": {
+      "ledger-blue": {
+        "role": "primary",
+        "displayName": "Ledger Blue",
+        "canonical": "#2369bd",
+        "tonalRamp": [
+          "#000047",
+          "#001c6c",
+          "#004192",
+          "#1e65b9",
+          "#458ae1",
+          "#6ab0ff",
+          "#c0d3ec",
+          "#ddf0ff"
+        ]
+      },
+      "ledger-blue-deep": {
+        "role": "primary",
+        "displayName": "Ledger Blue Deep",
+        "canonical": "#195aa9",
+        "tonalRamp": [
+          "#000045",
+          "#001e69",
+          "#00418e",
+          "#2665b5",
+          "#4b8add",
+          "#6fb0ff",
+          "#c0d3ec",
+          "#ddf0ff"
+        ]
+      },
+      "ledger-blue-mark": {
+        "role": "primary",
+        "displayName": "Ledger Blue Mark",
+        "canonical": "#1e68c3",
+        "tonalRamp": [
+          "#00004c",
+          "#001971",
+          "#003f97",
+          "#1964be",
+          "#4189e7",
+          "#67afff",
+          "#c0d3ec",
+          "#def0ff"
+        ]
+      },
+      "focus-blue": {
+        "role": "primary",
+        "displayName": "Focus Blue",
+        "canonical": "#2a70c9",
+        "tonalRamp": [
+          "#00004a",
+          "#001a6f",
+          "#004095",
+          "#1c64bc",
+          "#4489e4",
+          "#69afff",
+          "#c0d3ec",
+          "#def0ff"
+        ]
+      },
+      "selection-wash": {
+        "role": "primary",
+        "displayName": "Selection Wash",
+        "canonical": "#e3eeff",
+        "tonalRamp": [
+          "#050b16",
+          "#1f2733",
+          "#3d4653",
+          "#5d6775",
+          "#808a99",
+          "#a4afbf",
+          "#c7d2e2",
+          "#e4efff"
+        ]
+      },
+      "result-wash": {
+        "role": "primary",
+        "displayName": "Result Wash",
+        "canonical": "#edf5ff",
+        "tonalRamp": [
+          "#070c12",
+          "#21272e",
+          "#3f464e",
+          "#60676f",
+          "#838a93",
+          "#a7afb8",
+          "#cad2db",
+          "#e7eff9"
+        ]
+      },
+      "hover-wash": {
+        "role": "primary",
+        "displayName": "Hover Wash",
+        "canonical": "#f3f8ff",
+        "tonalRamp": [
+          "#080b10",
+          "#23272c",
+          "#41454b",
+          "#62666c",
+          "#858990",
+          "#aaaeb5",
+          "#cdd1d8",
+          "#eaeff6"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#17243a",
+        "tonalRamp": [
+          "#020a1e",
+          "#19263d",
+          "#37455e",
+          "#576781",
+          "#7a8aa5",
+          "#9eafcb",
+          "#c2d2ec",
+          "#dff0ff"
+        ]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Ink Soft",
+        "canonical": "#2c3c55",
+        "tonalRamp": [
+          "#010a1f",
+          "#18273e",
+          "#35465f",
+          "#556782",
+          "#788aa7",
+          "#9cafcd",
+          "#c2d2ec",
+          "#dff0ff"
+        ]
+      },
+      "slate": {
+        "role": "neutral",
+        "displayName": "Slate",
+        "canonical": "#42536d",
+        "tonalRamp": [
+          "#010a1f",
+          "#17273e",
+          "#35465f",
+          "#556782",
+          "#788aa7",
+          "#9cafcd",
+          "#c1d2ec",
+          "#dff0ff"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "canonical": "#66758b",
+        "tonalRamp": [
+          "#030b1b",
+          "#1a2739",
+          "#38465a",
+          "#58677d",
+          "#7b8aa1",
+          "#9fafc7",
+          "#c2d2eb",
+          "#dff0ff"
+        ]
+      },
+      "faint": {
+        "role": "neutral",
+        "displayName": "Faint",
+        "canonical": "#8794a8",
+        "tonalRamp": [
+          "#040b19",
+          "#1c2737",
+          "#3a4657",
+          "#5b677a",
+          "#7d8a9e",
+          "#a2afc4",
+          "#c4d2e7",
+          "#e1f0ff"
+        ]
+      },
+      "page": {
+        "role": "neutral",
+        "displayName": "Page",
+        "canonical": "#f4f7fb",
+        "tonalRamp": [
+          "#090b0e",
+          "#242729",
+          "#434548",
+          "#64666a",
+          "#87898d",
+          "#abaeb2",
+          "#ced1d5",
+          "#eceff3"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#454545",
+          "#666666",
+          "#898989",
+          "#aeaeae",
+          "#d1d1d1",
+          "#eeeeee"
+        ]
+      },
+      "code-wash": {
+        "role": "primary",
+        "displayName": "Code Wash",
+        "canonical": "#f7f9fc",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#252629",
+          "#434547",
+          "#646669",
+          "#87898c",
+          "#acaeb1",
+          "#cfd1d4",
+          "#edeff1"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#dce4ee",
+        "tonalRamp": [
+          "#070c12",
+          "#21272e",
+          "#3f464e",
+          "#60676f",
+          "#838a93",
+          "#a7afb8",
+          "#cad2dc",
+          "#e7eff9"
+        ]
+      },
+      "field-edge": {
+        "role": "neutral",
+        "displayName": "Field Edge",
+        "canonical": "#cdd8e7",
+        "tonalRamp": [
+          "#050b15",
+          "#1f2732",
+          "#3d4652",
+          "#5d6774",
+          "#808a98",
+          "#a4afbd",
+          "#c7d2e1",
+          "#e4f0ff"
+        ]
+      },
+      "divider": {
+        "role": "neutral",
+        "displayName": "Divider",
+        "canonical": "#e5ebf2",
+        "tonalRamp": [
+          "#080c10",
+          "#22272c",
+          "#41464b",
+          "#61676d",
+          "#848a90",
+          "#a9afb5",
+          "#ccd2d8",
+          "#e9eff6"
+        ]
+      },
+      "error": {
+        "role": "error",
+        "displayName": "Error",
+        "canonical": "#b42318",
+        "tonalRamp": [
+          "#3b0000",
+          "#640000",
+          "#8e0000",
+          "#b7271c",
+          "#e25242",
+          "#ff7966",
+          "#eac8c2",
+          "#ffe5df"
+        ]
+      },
+      "concept-wrapper": {
+        "role": "tertiary",
+        "displayName": "Dusty Navy",
+        "canonical": "#4f6fae",
+        "tonalRamp": [
+          "#000036",
+          "#082159",
+          "#25427d",
+          "#4564a2",
+          "#6788c9",
+          "#8aaef1",
+          "#c3d2ec",
+          "#e1efff"
+        ]
+      },
+      "concept-redemption": {
+        "role": "tertiary",
+        "displayName": "Sea Teal",
+        "canonical": "#2e8b83",
+        "tonalRamp": [
+          "#001411",
+          "#00332d",
+          "#00534d",
+          "#0c766e",
+          "#409a92",
+          "#68c0b7",
+          "#b4dad5",
+          "#d2f8f3"
+        ]
+      },
+      "concept-underlier": {
+        "role": "tertiary",
+        "displayName": "Iris",
+        "canonical": "#7a5cb5",
+        "tonalRamp": [
+          "#16003b",
+          "#31075f",
+          "#4f2e83",
+          "#7051a9",
+          "#9375d1",
+          "#b89af9",
+          "#d3cce9",
+          "#f1e9ff"
+        ]
+      },
+      "concept-asset": {
+        "role": "tertiary",
+        "displayName": "Lilac",
+        "canonical": "#9c6ade",
+        "tonalRamp": [
+          "#1d0045",
+          "#38006a",
+          "#581e90",
+          "#7946b7",
+          "#9d6bdf",
+          "#c290ff",
+          "#d5cbe8",
+          "#f3e9ff"
+        ]
+      },
+      "concept-determination": {
+        "role": "tertiary",
+        "displayName": "Ochre",
+        "canonical": "#b7791f",
+        "tonalRamp": [
+          "#270000",
+          "#491200",
+          "#6d3400",
+          "#925600",
+          "#b87a21",
+          "#e09f4d",
+          "#e2cdb5",
+          "#ffebd2"
+        ]
+      },
+      "concept-initial-level": {
+        "role": "tertiary",
+        "displayName": "Walnut",
+        "canonical": "#8b4f2b",
+        "tonalRamp": [
+          "#260000",
+          "#481200",
+          "#6c330b",
+          "#915431",
+          "#b77853",
+          "#df9c77",
+          "#e8caba",
+          "#ffe7d7"
+        ]
+      },
+      "concept-final-level": {
+        "role": "tertiary",
+        "displayName": "Olive",
+        "canonical": "#6b6412",
+        "tonalRamp": [
+          "#130a00",
+          "#2f2700",
+          "#4e4700",
+          "#6f6818",
+          "#938c41",
+          "#b8b166",
+          "#d5d3b5",
+          "#f2f0d2"
+        ]
+      },
+      "concept-basket-return": {
+        "role": "tertiary",
+        "displayName": "Slate Violet",
+        "canonical": "#5f5aa2",
+        "tonalRamp": [
+          "#0d0037",
+          "#241759",
+          "#40397e",
+          "#605ba3",
+          "#827fca",
+          "#a6a4f2",
+          "#cdceeb",
+          "#ebebff"
+        ]
+      },
+      "concept-payoff": {
+        "role": "tertiary",
+        "displayName": "Slate",
+        "canonical": "#42536d",
+        "tonalRamp": [
+          "#010a1f",
+          "#17273e",
+          "#35465f",
+          "#556782",
+          "#788aa7",
+          "#9cafcd",
+          "#c1d2ec",
+          "#dff0ff"
+        ]
+      },
+      "concept-protection": {
+        "role": "tertiary",
+        "displayName": "Ledger Blue",
+        "canonical": "#2369bd",
+        "tonalRamp": [
+          "#000047",
+          "#001c6c",
+          "#004192",
+          "#1e65b9",
+          "#458ae1",
+          "#6ab0ff",
+          "#c0d3ec",
+          "#ddf0ff"
+        ]
+      },
+      "concept-minimum-return": {
+        "role": "tertiary",
+        "displayName": "Indigo",
+        "canonical": "#4338ca",
+        "tonalRamp": [
+          "#190063",
+          "#22008b",
+          "#351db3",
+          "#4f4bdc",
+          "#6e72ff",
+          "#909aff",
+          "#cacfec",
+          "#e7edff"
+        ]
+      },
+      "concept-upside": {
+        "role": "tertiary",
+        "displayName": "Field Green",
+        "canonical": "#2b8a3e",
+        "tonalRamp": [
+          "#001600",
+          "#003600",
+          "#005706",
+          "#157b2f",
+          "#43a053",
+          "#6bc677",
+          "#c1d9c2",
+          "#def6df"
+        ]
+      },
+      "concept-downside": {
+        "role": "tertiary",
+        "displayName": "Burnt Orange",
+        "canonical": "#d9480f",
+        "tonalRamp": [
+          "#3d0000",
+          "#660000",
+          "#8f0000",
+          "#b92600",
+          "#e4521f",
+          "#ff7a4b",
+          "#eac9be",
+          "#ffe6dc"
+        ]
+      },
+      "concept-cap": {
+        "role": "tertiary",
+        "displayName": "Plum",
+        "canonical": "#a23b8c",
+        "tonalRamp": [
+          "#2b0022",
+          "#510042",
+          "#760864",
+          "#9d3688",
+          "#c55cad",
+          "#ee81d4",
+          "#e3c7db",
+          "#ffe5f8"
+        ]
+      },
+      "concept-buffer": {
+        "role": "tertiary",
+        "displayName": "Cyan Teal",
+        "canonical": "#1aa3b8",
+        "tonalRamp": [
+          "#001225",
+          "#003145",
+          "#005366",
+          "#00768a",
+          "#009aaf",
+          "#46c0d6",
+          "#b4d9e0",
+          "#d1f6fe"
+        ]
+      },
+      "concept-barrier": {
+        "role": "tertiary",
+        "displayName": "Lavender",
+        "canonical": "#9775fa",
+        "tonalRamp": [
+          "#1b0052",
+          "#320078",
+          "#4e1c9f",
+          "#6d46c7",
+          "#8f6cf0",
+          "#b393ff",
+          "#d1cdea",
+          "#eeeaff"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The one intro headline."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Panel titles and the wordmark."
+      },
+      "summary": {
+        "displayName": "Summary",
+        "purpose": "The one-sentence product summary with concept chips."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section headings inside a panel."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Explanation, outcome, formula and outline rows."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field labels, descriptions, legend and table headers."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Structure JSON only."
+      }
+    },
+    "shadows": [
+      {
+        "name": "panel-ambient",
+        "value": "0 5px 20px #20375508",
+        "purpose": "Near-invisible tone under in-flow panels."
+      },
+      {
+        "name": "tooltip",
+        "value": "0 5px 18px #2037551f",
+        "purpose": "Hint tooltips floating above content."
+      },
+      {
+        "name": "menu",
+        "value": "0 12px 34px #2037554d",
+        "purpose": "The add-feature menu."
+      }
+    ],
+    "motion": [
+      {
+        "name": "none",
+        "value": "0s",
+        "purpose": "No transitions; highlight and selection change immediately."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "two-column",
+        "value": "1399px"
+      },
+      {
+        "name": "one-column",
+        "value": "899px"
+      },
+      {
+        "name": "compact",
+        "value": "760px"
+      },
+      {
+        "name": "narrow",
+        "value": "400px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Add Button",
+      "kind": "button",
+      "refersTo": "add-button",
+      "description": "Add feature and Add asset share this one dashed style.",
+      "html": "<button class=\"ds-addbtn\">+ Add feature</button>",
+      "css": ".ds-addbtn{border:1px dashed #9db8dd;background:#fff;color:#2369bd;border-radius:8px;padding:6px 12px;font:650 13.5px/1.2 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;cursor:pointer;white-space:nowrap}.ds-addbtn:hover{background:#f3f8ff}.ds-addbtn:focus-visible{outline:2px solid #2a70c9;outline-offset:2px}"
+    },
+    {
+      "name": "Hint Button",
+      "kind": "button",
+      "description": "An ⓘ glyph that opens a definition tooltip.",
+      "html": "<button class=\"ds-hint\" aria-label=\"About buffer\">ⓘ</button>",
+      "css": ".ds-hint{border:0;background:none;color:#2369bd;font-size:17px;line-height:1;padding:3px;border-radius:4px;cursor:pointer}.ds-hint:hover,.ds-hint:focus-visible{background:#e8f1ff;outline:none}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A number field with digit separators.",
+      "html": "<input class=\"ds-input\" type=\"text\" value=\"1,000\">",
+      "css": ".ds-input{width:120px;padding:10px 11px;border:1px solid #cdd8e7;border-radius:7px;background:#fff;color:#17243a;font:15px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;font-variant-numeric:tabular-nums}.ds-input:focus-visible{outline:2px solid #2a70c9;outline-offset:2px}"
+    },
+    {
+      "name": "Tabs",
+      "kind": "nav",
+      "refersTo": "tab",
+      "description": "Text tabs on a divider rail.",
+      "html": "<div class=\"ds-tabs\"><button class=\"ds-tab ds-on\">How the payment is worked out</button><button class=\"ds-tab\">Scenarios</button></div>",
+      "css": ".ds-tabs{display:flex;gap:4px;border-bottom:1px solid #e5ebf2}.ds-tab{border:0;border-bottom:3px solid transparent;background:none;color:#66758b;padding:10px 12px;font:650 14px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;cursor:pointer}.ds-tab:hover{color:#195aa9}.ds-tab.ds-on{color:#195aa9;border-bottom-color:#2369bd}.ds-tab:focus-visible{outline:2px solid #2a70c9;outline-offset:2px;border-radius:6px}"
+    },
+    {
+      "name": "Name Chip",
+      "kind": "chip",
+      "refersTo": "name-chip",
+      "description": "An \"Often marketed as\" name.",
+      "html": "<button class=\"ds-chip\">Buffered note</button>",
+      "css": ".ds-chip{border:1px solid #cfe0f5;background:#edf4fc;color:#315d91;border-radius:99px;padding:6px 11px;font:600 12px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;cursor:pointer}.ds-chip:hover{background:#dcebfb;border-color:#9db8dd}.ds-chip:focus-visible{outline:2px solid #2a70c9;outline-offset:2px}"
+    },
+    {
+      "name": "Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "A flat white workspace panel.",
+      "html": "<section class=\"ds-panel\"><h2>Payoff at maturity</h2><p class=\"ds-help\">What it pays for each hypothetical final level</p></section>",
+      "css": ".ds-panel{background:#fff;border:1px solid #dce4ee;border-radius:12px;padding:25px;box-shadow:0 5px 20px #20375508;color:#17243a;font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif}.ds-panel h2{font-size:23px;letter-spacing:-.03em;margin:0 0 3px}.ds-help{color:#66758b;font-size:14px;line-height:1.45;margin:0}"
+    },
+    {
+      "name": "Outline Row",
+      "kind": "custom",
+      "description": "A payoff feature row in the structure tree, edged in its concept colour; every row shares the 2px edge.",
+      "html": "<div class=\"ds-nrow ds-sel\" style=\"--c:#1aa3b8\"><span class=\"ds-nlabel\">Buffer</span><span class=\"ds-ndesc\">The fall the holder does not bear.</span></div>",
+      "css": ".ds-nrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-height:44px;padding:6px 8px 6px 10px;border-radius:9px;border-left:2px solid var(--c);font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;color:#17243a}.ds-nrow:hover{background:#f7f9fc}.ds-nrow.ds-sel{background:color-mix(in srgb,var(--c) 6%,#fff);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--c) 40%,#fff)}.ds-nlabel{flex:1;font-size:14px;font-weight:650}.ds-ndesc{flex-basis:100%;margin-top:-4px;color:#66758b;font-size:12.5px;line-height:1.4}"
+    },
+    {
+      "name": "Summary Concept Chip",
+      "kind": "custom",
+      "description": "A concept phrase inside the summary sentence.",
+      "html": "<p class=\"ds-summary\">A note with <button class=\"ds-concept\" style=\"--c:#2b8a3e\">upside participation</button> and a <button class=\"ds-concept ds-on\" style=\"--c:#a23b8c\">cap</button>.</p>",
+      "css": ".ds-summary{margin:0;font:400 17px/1.85 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;color:#2c3c55}.ds-concept{border:0;border-bottom:2px solid var(--c);border-radius:6px 6px 2px 2px;background:color-mix(in srgb,var(--c) 10%,#fff);color:#17243a;font:inherit;font-weight:650;line-height:1.4;padding:0 6px;cursor:pointer}.ds-concept:hover,.ds-concept:focus-visible{background:color-mix(in srgb,var(--c) 22%,#fff);outline:none}.ds-concept.ds-on{background:color-mix(in srgb,var(--c) 26%,#fff)}"
+    },
+    {
+      "name": "Calculation Result Step",
+      "kind": "custom",
+      "refersTo": "calc-result",
+      "description": "The final step of the worked calculation.",
+      "html": "<div class=\"ds-step\"><span class=\"ds-n\">5</span><b>Payment at maturity</b><span class=\"ds-v\">1,120.00</span></div>",
+      "css": ".ds-step{display:grid;grid-template-columns:24px 1fr auto;gap:2px 10px;align-items:center;padding:11px 10px;border-radius:8px;background:#edf5ff;font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;color:#17243a}.ds-n{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#2369bd;color:#fff;font-size:12px;font-weight:650}.ds-step b{font-size:14px}.ds-v{font-variant-numeric:tabular-nums;font-weight:700;font-size:20px;letter-spacing:-.03em}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Exploded Diagram",
+    "overview": "SPIRe shows a structured product taken apart. Each concept (wrapper, redemption, underlier, determination, each payoff feature) is a labelled piece with its own colour, and that colour follows it into every view: the outline row's left bar, the underline in the summary sentence, the term in the payment rule, the line and handle on the chart, the highlighted lines of the structure JSON. Select a piece and it lights up wherever it acts. The diagram is the product; the chrome around it stays out of the way.\n\nThe mood is quiet, precise and explanatory. Surfaces are cool white panels on a pale blue-grey page, with one blue accent for interaction and nothing decorative. Every row in the outline is something the reader can change, so every row, Payoff included, is styled the same way. Density is moderate: a three-column workspace (outline, preview, JSON) that folds to two and then one, with small, exact type for terms and a larger, airy sentence for the summary. State changes are instant, with no transitions or motion; the reader's attention belongs on what changed, not on how it changed.\n\nIt must never look like a trading terminal (dark, dense, ticker-style), fintech marketing (gradients, glossy hero art, a sales tone) or a bank brochure (stock imagery, corporate gloss implying an issuer). It is a reference that explains, not a market or a pitch.",
+    "keyCharacteristics": [
+      "One colour per concept, carried identically through every view.",
+      "One bar weight for every outline row: no part of the structure is louder than another.",
+      "One interaction blue; everything else is neutral slate on white.",
+      "Flat panels with a near-invisible shadow; hairline borders do the separating.",
+      "Small, exact labels; a generous, readable summary sentence.",
+      "No motion; highlight and selection are immediate.",
+      "Light theme only."
+    ],
+    "rules": [
+      {
+        "name": "The One Concept, One Colour Rule",
+        "body": "A concept's colour is fixed and appears on every representation of that concept, in every view. Never reuse a concept hue for decoration, and never give one concept two colours.",
+        "section": "colors"
+      },
+      {
+        "name": "The Colour Means Something Rule",
+        "body": "Outside the concept palette, the only saturated colour on the page is Ledger Blue, and only for interaction. A new concept gets a new hue checked against the hues it can touch on the chart; a new control gets Ledger Blue.",
+        "section": "colors"
+      },
+      {
+        "name": "The Weight, Not Size Rule",
+        "body": "Inside a panel, hierarchy comes from weight (400 / 600 / 650 / 700) across a narrow 12–15px band. Only the display headline, panel titles, the Payoff section heading (17px), summary sentence and final payment step get larger sizes.",
+        "section": "typography"
+      },
+      {
+        "name": "The Outline Mirrors the Calculation Rule",
+        "body": "Payoff features appear in the order the payment applies them, in the outline and in the JSON alike, so the outline reads like the worked calculation beside it.",
+        "section": "layout"
+      },
+      {
+        "name": "The Float Only When Floating Rule",
+        "body": "A shadow means the element is above the page and will go away (tooltip, menu). Anything that stays in the layout is flat.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do style every outline row the same way, Payoff included: one 2px colour bar, one name style.",
+      "Do give every add button the same dashed style.",
+      "Do give every new concept its own hue in the concept palette and apply it through `--c` on every element that represents it.",
+      "Do keep interaction in Ledger Blue (`#2369bd`) and focus as a 2px `#2a70c9` outline offset 2px.",
+      "Do separate surfaces with hairlines (`#dce4ee`) and tone; keep panels flat.",
+      "Do show selection with concept-colour tints (6–26% `color-mix` with white) and inset rings, identically in every view.",
+      "Do use tabular figures for every value that can change.",
+      "Do keep `src/style.css` in its existing form: minified, one rule group per line."
+    ],
+    "donts": [
+      "Don't make it look like a trading terminal: no dark theme, ticker density or flashing values.",
+      "Don't make it look like fintech marketing: no gradients, glossy hero art or sales tone.",
+      "Don't make it look like a bank brochure: no stock imagery or corporate gloss that implies an issuer.",
+      "Don't use a concept colour for decoration, or the blue accent for anything but interaction and the protection concept.",
+      "Don't add transitions or motion to highlight and selection; changes are immediate.",
+      "Don't add elevation to in-flow content; shadows are only for tooltips and menus.",
+      "Don't put a small uppercase label above a heading; each panel heading carries one plain line beneath it instead."
+    ]
+  }
+}
