@@ -1,4 +1,4 @@
-import { downsideOf, finalLevelFrom, initialLevelFrom, upsideOf, type BasketBreakdown, type ParticipationDirection, type PaymentBreakdown, type Product, type SingleProduct } from '../domain/note'
+import { annualisedReturn, downsideOf, finalLevelFrom, initialLevelFrom, upsideOf, type BasketBreakdown, type ParticipationDirection, type PaymentBreakdown, type Product, type SingleProduct } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface CalculationStep {
@@ -15,7 +15,9 @@ const formatAmount = (value: number) => value.toLocaleString('en-US', { maximumF
 const formatPercent = (value: number) => `${(value * 100).toFixed(1).replace(/\.0$/, '')}%`
 // Weights are stated to two decimal places of a percent, such as 33.34%.
 const weightPercent = (fraction: number) => `${(fraction * 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
-const signedPercent = (fraction: number) => `${fraction < 0 ? '−' : '+'}${formatPercent(Math.abs(fraction))}`
+// Minimum returns and annual yields are stated to two decimal places of a percent, such as 5.25% or 0.73%.
+const twoDecimalPercent = (fraction: number) => `${(fraction * 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
+const signedPercent =(fraction: number) => `${fraction < 0 ? '−' : '+'}${formatPercent(Math.abs(fraction))}`
 
 // Each direction is its own step, as in the payment rule, so a selected rate stays visible even when the return does not reach it.
 function participationStep(note: Product, breakdown: PaymentBreakdown, direction: ParticipationDirection): Omit<CalculationStep, 'n'> {
@@ -103,22 +105,37 @@ export function calculationSteps(note: Product, breakdown: PaymentBreakdown, obs
   if (barrier !== undefined) {
     steps.push(basket ? barrierStep(barrier.level, b, 'basket level', basket.levels.final) : barrierStep(barrier.level, b, 'final level', finalLevelFrom(note.underlier.determination.final, observedLevels)))
   }
+  // A deposit's floor is its minimum return; a note's is its protection.
+  const deposit = note.wrapper === 'deposit'
+  const minimum = note.payoff.minimumReturn
+  const withFloor = deposit ? minimum !== undefined : withProtection
   steps.push(
     participationStep(note, b, 'downside'),
     participationStep(note, b, 'upside'),
-    { title: withCap ? 'Payment before cap' : 'Payment before protection', how: `${formatAmount(principal)} × (1 ${b.participatedReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(b.participatedReturn))})`, value: formatAmount(b.uncappedPayment) },
+    { title: withCap ? 'Payment before cap' : deposit ? 'Payment before minimum' : 'Payment before protection', how: `${formatAmount(principal)} × (1 ${b.participatedReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(b.participatedReturn))})`, value: formatAmount(b.uncappedPayment) },
   )
   // Numbers follow the order of the steps, so the closing step can refer to the ones it combines.
   const before = steps.length
   if (withCap) steps.push({ title: 'Cap', how: `${formatAmount(principal)} × (1 + ${formatPercent(cap)}) · ${b.capApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.capAmount ?? 0), concept: 'cap' })
   const capStep = steps.length
-  steps.push(withProtection
-    ? { title: 'Protection floor', how: `${formatPercent(principalProtection)} × ${formatAmount(principal)} · ${b.floorApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.floor), concept: 'protection' }
-    : { title: 'Protection floor', how: hasDownside ? 'No protection selected, so some or all of the principal can be lost' : 'No protection selected. Without downside participation, principal is not reduced', value: 'Not added', muted: true, concept: 'protection' })
+  if (deposit) {
+    steps.push(minimum !== undefined
+      ? { title: 'Minimum return', how: `${formatAmount(principal)} × (1 + ${twoDecimalPercent(minimum)}) · ${b.floorApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.floor), concept: 'minimum-return' }
+      : { title: 'Minimum return', how: 'Not added. A deposit repays principal in full, so the payment is never below it', value: 'Not added', muted: true, concept: 'minimum-return' })
+  } else {
+    steps.push(withProtection
+      ? { title: 'Protection floor', how: `${formatPercent(principalProtection)} × ${formatAmount(principal)} · ${b.floorApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.floor), concept: 'protection' }
+      : { title: 'Protection floor', how: hasDownside ? 'No protection selected, so some or all of the principal can be lost' : 'No protection selected. Without downside participation, principal is not reduced', value: 'Not added', muted: true, concept: 'protection' })
+  }
   const floorStep = steps.length
+  // Without a floor, a note's payment cannot fall below zero; a deposit's cannot fall below principal, which nothing reduces.
+  const noFloor = deposit ? '' : withCap ? ', then not below zero' : ''
   const combine = withCap
-    ? `The lower of steps ${before} and ${capStep}, then ${withProtection ? `the higher of that and step ${floorStep}` : 'not below zero'}`
-    : withProtection ? `The higher of steps ${before} and ${floorStep}` : `The higher of step ${before} and zero`
+    ? `The lower of steps ${before} and ${capStep}${withFloor ? `, then the higher of that and step ${floorStep}` : noFloor}`
+    : withFloor ? `The higher of steps ${before} and ${floorStep}` : deposit ? `Step ${before}` : `The higher of step ${before} and zero`
   steps.push({ title: 'Payment at maturity', how: combine, value: formatAmount(b.payment), result: true })
+  // Derived from the term, as issuers state an annual yield beside each payment. It is not a term of the product.
+  const years = note.term.months / 12
+  steps.push({ title: 'Annualised return', how: `(${formatAmount(b.payment)} ÷ ${formatAmount(principal)})^(1 ÷ ${formatAmount(years)} ${years === 1 ? 'year' : 'years'}) − 1`, value: `${twoDecimalPercent(annualisedReturn(b.payment, principal, note.term.months))} a year` })
   return steps.map((step, index) => ({ ...step, n: index + 1 }))
 }

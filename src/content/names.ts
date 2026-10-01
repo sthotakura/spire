@@ -52,9 +52,20 @@ export function marketingNames(note: Product): MarketingName[] {
     })
   }
 
+  // A deposit repays principal in full, and its return depends on the underlier.
+  if (note.wrapper === 'deposit' && isRate(upside)) {
+    names.push({
+      name: 'Market-linked deposit',
+      vocabulary: 'US descriptive',
+      reason: 'Principal is repaid in full at the end of the term, and the return depends on the underlier. In the US it is sold as a market-linked CD; EU and UK rules call it a structured deposit.',
+      concepts: ['wrapper', 'upside'],
+    })
+  }
+
   // Without protection, a buffer, a barrier or a cap. A value that is present but invalid is not absent, so a draft with one gets no name here.
+  // These names describe notes, so a deposit gets none of them.
   const unprotected = protection === undefined || protection === 0
-  if (unprotected && buffer === undefined && barrier === undefined && cap === undefined && isRate(upside) && (downside === undefined || isRate(downside))) {
+  if (note.wrapper === 'note' && unprotected && buffer === undefined && barrier === undefined && cap === undefined && isRate(upside) && (downside === undefined || isRate(downside))) {
     if (downside === 1 && upside === 1) {
       names.push({ name: 'Tracker', vocabulary: 'SSPA', reason: 'The payment follows the underlier one for one, up and down.', concepts: ['upside', 'downside'] })
     } else if (downside === 1 && upside > 1) {

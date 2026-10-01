@@ -7,6 +7,9 @@ const units = (value: number) => Math.abs(value).toLocaleString('en-US', { maxim
 export function explainOutcome(note: Product, breakdown: PaymentBreakdown): string {
   const { initialLevel, underlierReturn, direction, bufferAbsorbs, barrierLevel, belowBarrier, participationRate, participatedReturn, capAmount, capApplies, unflooredPayment, floor, floorApplies, payment } = breakdown
   const hasProtection = note.payoff.principalProtection !== undefined
+  const hasMinimum = note.payoff.minimumReturn !== undefined
+  // A deposit's floor is its minimum return; a note's is its protection.
+  const floorName = hasMinimum ? 'minimum' : 'floor'
   const hasCap = capAmount !== undefined
   const principal = note.principalAmount
 
@@ -23,6 +26,7 @@ export function explainOutcome(note: Product, breakdown: PaymentBreakdown): stri
 
   let participation: string
   if (underlierReturn === 0) participation = 'A flat return leaves principal unchanged.'
+  else if (participationRate === undefined && direction === 'downside' && note.wrapper === 'deposit') participation = 'A deposit repays principal in full, so a fall does not reduce it.'
   else if (participationRate === undefined) participation = `No ${direction} participation is selected, so principal is unchanged.`
   else if (direction === 'downside' && belowBarrier === false) participation = `It ended at or above the ${units(barrierLevel ?? 0)} barrier, so downside participation does not apply and principal is unchanged.`
   else if (direction === 'downside' && belowBarrier) participation = `It ended below the ${units(barrierLevel ?? 0)} barrier, so downside participation of ${percent(participationRate)} deducts the whole ${percent(participatedReturn)} from principal.`
@@ -35,10 +39,11 @@ export function explainOutcome(note: Product, breakdown: PaymentBreakdown): stri
   }
 
   const reasons: string[] = []
-  if (hasCap && hasProtection && !capApplies && !floorApplies) reasons.push(`neither the ${units(capAmount)} cap nor the ${units(floor)} floor applies`)
+  const hasFloor = hasProtection || hasMinimum
+  if (hasCap && hasFloor && !capApplies && !floorApplies) reasons.push(`neither the ${units(capAmount)} cap nor the ${units(floor)} ${floorName} applies`)
   else {
     if (hasCap) reasons.push(`the ${units(capAmount)} cap ${capApplies ? 'applies' : 'does not apply'}`)
-    if (hasProtection) reasons.push(`the ${units(floor)} floor ${floorApplies ? 'applies' : 'does not apply'}`)
+    if (hasFloor) reasons.push(`the ${units(floor)} ${floorName} ${floorApplies ? 'applies' : 'does not apply'}`)
     else if (unflooredPayment < 0) reasons.push('the payment cannot fall below zero')
     else if (participatedReturn < 0) reasons.push('there is no principal protection')
   }

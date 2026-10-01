@@ -49,8 +49,10 @@ export function paymentFormula(note: Product): FormulaLine[] {
   const barrierTest = basket ? 'Basket level < Barrier × 100' : `Final level < Barrier × ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level`
   if (barrier !== undefined) lines.push({ segments: [{ text: 'downside only when ' }, { text: barrierTest, concept: 'barrier' }] })
   if (cap !== undefined) lines.push({ segments: [{ text: 'capped at ' }, { text: 'Principal × (1 + Cap)', concept: 'cap' }] })
-  // Without protection the payment still cannot fall below zero. That only matters when a fall reduces principal.
-  if (principalProtection !== undefined) lines.push({ segments: [{ text: 'floored at ' }, { text: 'Principal × Protection', concept: 'protection' }] })
+  // Without protection the payment still cannot fall below zero. That only matters when a fall reduces principal, which a
+  // deposit never allows, so a deposit has a floor line only for its minimum return.
+  if (note.payoff.minimumReturn !== undefined) lines.push({ segments: [{ text: 'floored at ' }, { text: 'Principal × (1 + Minimum)', concept: 'minimum-return' }] })
+  else if (principalProtection !== undefined) lines.push({ segments: [{ text: 'floored at ' }, { text: 'Principal × Protection', concept: 'protection' }] })
   else if (downside) lines.push({ segments: [{ text: 'floored at 0' }] })
   return lines
 }
@@ -73,16 +75,22 @@ export function paymentInWords(note: Product): string {
   const barrier = downside?.barrier
   const from = note.underlier.determination.initial.kind === 'lookback' ? 'lookback' : 'initial'
 
-  if (!upside && !downside) return `The payment is always principal, ${amount(principal)}, whatever ${name} does.`
+  const minimum = note.payoff.minimumReturn
+  if (!upside && !downside) {
+    return minimum === undefined
+      ? `The payment is always principal, ${amount(principal)}, whatever ${name} does.`
+      : `The payment is always principal plus the minimum return, ${amount(principal * (1 + minimum))}, whatever ${name} does.`
+  }
 
   const rise = upside && `each 1% rise in ${name} adds ${perPoint(upside.rate)} of principal`
   const beyond = buffer === undefined ? '' : ` beyond the first ${percent(buffer)}`
   const fall = downside && (upside ? `each 1% fall${beyond} takes ${perPoint(downside.rate)} away` : `each 1% fall in ${name}${beyond} takes ${perPoint(downside.rate)} of principal away`)
   const onlyBelow = barrier === undefined ? '' : `, but only if ${name} ends below ${percent(barrier.level)} of its ${from} level`
   const moves = [rise, fall && `${fall}${onlyBelow}`].filter(Boolean).join(', and ')
-  const unchanged = !upside ? ' A rise leaves principal unchanged.' : !downside ? ' A fall leaves principal unchanged.' : ''
+  // With a minimum return a fall pays the minimum, which the limits below state.
+  const unchanged = !upside ? ' A rise leaves principal unchanged.' : !downside && minimum === undefined ? ' A fall leaves principal unchanged.' : ''
 
-  const floor = principalProtection !== undefined ? amount(principal * principalProtection) : downside ? 'zero' : undefined
+  const floor = minimum !== undefined ? amount(principal * (1 + minimum)) : principalProtection !== undefined ? amount(principal * principalProtection) : downside ? 'zero' : undefined
   const ceiling = cap !== undefined ? amount(principal * (1 + cap)) : undefined
   const limits = ceiling && floor ? ` The payment never goes above ${ceiling} or below ${floor}.`
     : ceiling ? ` The payment never goes above ${ceiling}.`

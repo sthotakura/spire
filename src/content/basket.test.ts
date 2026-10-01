@@ -74,7 +74,7 @@ describe('a basket in the calculation', () => {
       ['Basket level', '100 × (1 + 10%)', '110', 'basket-return'],
       ['Barrier', '70% × 100 · basket level 110 is not below it, so a fall does not reduce principal', '70', 'barrier'],
     ])
-    expect(steps.at(-1)?.value).toBe('1,100')
+    expect(steps.find(({ title }) => title === 'Payment at maturity')?.value).toBe('1,100')
   })
 
   it('says the basket level, not a final level, is not below the barrier', () => {

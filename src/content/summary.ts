@@ -7,12 +7,12 @@ export interface SummarySegment {
 }
 
 const percent = (fraction: number) => Number.isFinite(fraction) ? `${(fraction * 100).toFixed(1).replace(/\.0$/, '')}%` : '—'
-// Weights are stated to two decimal places of a percent, such as 33.34%.
+// Weights and minimum returns are stated to two decimal places of a percent, such as 33.34% or 5.25%.
 const weightPercent = (fraction: number) => Number.isFinite(fraction) ? `${(fraction * 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}%` : '—'
 const amount = (value: number) => Number.isFinite(value) ? value.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'
 
 // Describes a note in plain words. Segments with a concept name the part of the note they describe.
-// A note with no participation only repays principal. The buffer, barrier, protection and cap clauses appear only when those features are present.
+// A product with no participation only repays principal. The buffer, barrier, protection, cap and minimum return clauses appear only when those features are present.
 // Names the assets in a list: "A", "A and B", "A, B and C".
 const listed = (items: SummarySegment[][]): SummarySegment[] => items.flatMap((item, index) => [...(index === 0 ? [] : [{ text: index === items.length - 1 ? ' and ' : ', ' }]), ...item])
 
@@ -74,13 +74,15 @@ export function summarize(note: Product): SummarySegment[] {
   if (barrier !== undefined) clauses.push({ text: `a barrier at ${percent(barrier.level)} of the ${initial.kind === 'lookback' ? 'lookback level' : basket ? 'initial basket level' : 'initial level'}`, concept: 'barrier' })
   if (protection !== undefined) clauses.push({ text: `${percent(protection)} principal protection`, concept: 'protection' })
   if (cap !== undefined) clauses.push({ text: `a maximum return of ${percent(cap)}`, concept: 'cap' })
+  const minimum = note.payoff.minimumReturn
+  if (minimum !== undefined) clauses.push({ text: `a minimum return of ${weightPercent(minimum)}`, concept: 'minimum-return' })
   const features: SummarySegment[] = clauses.flatMap((clause, index) => [{ text: index === 0 ? ', with ' : index === clauses.length - 1 ? ' and ' : ', ' }, clause])
 
   const term = termPhrase(note.term.months)
   return [
     { text: term.article },
     // The term is a term of the whole product, shown with the wrapper as the principal is.
-    { text: `${term.text} note`, concept: 'wrapper' },
+    { text: `${term.text} ${note.wrapper}`, concept: 'wrapper' },
     { text: ' that redeems ' },
     { text: 'at maturity', concept: 'redemption' },
     ...payoff,

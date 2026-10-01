@@ -17,7 +17,7 @@ const step = (note: SingleProduct, finalLevel: number, title: string) => steps(n
 describe('calculation steps', () => {
   it('shows each participation direction as its own step, in the order of the outline', () => {
     expect(steps(noteWith(both, 0.9, 0.2), 110).map(({ n, title }) => `${n} ${title}`)).toEqual([
-      '1 Synthetic Index return', '2 Downside participation', '3 Upside participation', '4 Payment before cap', '5 Cap', '6 Protection floor', '7 Payment at maturity',
+      '1 Synthetic Index return', '2 Downside participation', '3 Upside participation', '4 Payment before cap', '5 Cap', '6 Protection floor', '7 Payment at maturity', '8 Annualised return',
     ])
   })
 
@@ -103,7 +103,7 @@ describe('calculation steps', () => {
       { n: 1, title: 'Final level of Synthetic Index', how: '(100 + 120 + 90 + 130) ÷ 4', value: '110', concept: 'final-level' },
       { n: 2, title: 'Synthetic Index return', how: '110 ÷ 100 − 1', value: '+10%', concept: 'determination' },
     ])
-    expect(averaged[averaged.length - 1].how).toBe('The higher of step 5 and zero')
+    expect(averaged.find(({ title }) => title === 'Payment at maturity')?.how).toBe('The higher of step 5 and zero')
   })
 
   it('adds a step that takes the lookback level before the return', () => {
@@ -114,7 +114,7 @@ describe('calculation steps', () => {
       { n: 1, title: 'Lookback level of Synthetic Index', how: 'min(100, 97, 92, 95)', value: '92', concept: 'initial-level' },
       { n: 2, title: 'Synthetic Index return', how: '110 ÷ 92 − 1', value: '+19.6%', concept: 'determination' },
     ])
-    expect(lookback[lookback.length - 1]).toMatchObject({ how: 'The higher of step 5 and zero', value: '1,195.65' })
+    expect(lookback.find(({ title }) => title === 'Payment at maturity')).toMatchObject({ how: 'The higher of step 5 and zero', value: '1,195.65' })
   })
 
   it('takes the lookback level, then averages the final level, when the note does both', () => {
