@@ -64,6 +64,10 @@ describe('a deposit in the calculation', () => {
     ])
   })
 
+  it('says a deposit has no downside participation, rather than that it was not selected', () => {
+    expect(step(capped, 50, 'Downside participation')).toMatchObject({ how: 'Not on a deposit, which repays principal in full', muted: true })
+  })
+
   it('says why a deposit without a minimum still repays principal', () => {
     expect(step(capped, 50, 'Minimum return')).toMatchObject({ how: 'Not added. A deposit repays principal in full, so the payment is never below it', muted: true })
     expect(step(capped, 160, 'Payment at maturity')).toMatchObject({ how: 'The lower of steps 4 and 5', value: '1,300' })

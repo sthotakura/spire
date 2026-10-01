@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
+import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, minimumReturnFromY, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
 import { paymentBreakdown, withSubFeatures, type Product } from '../domain/note'
 import { startingProduct } from '../domain/starting-note'
 
@@ -207,5 +207,16 @@ describe('payoff regimes', () => {
       { point: '0,0', regime: 'floor' }, { point: '1,0', regime: 'floor' }, { point: '2,1', regime: 'upside' }, { point: '3,2', regime: 'upside' }, { point: '4,2', regime: 'cap' },
     ])
     expect(runs).toEqual([{ regime: 'floor', points: '0,0 1,0 2,1' }, { regime: 'upside', points: '2,1 3,2 4,2' }, { regime: 'cap', points: '4,2' }])
+  })
+})
+
+describe('minimum return handle', () => {
+  it('sets the minimum as a return on principal, snapped to 1% and kept in range', () => {
+    expect(minimumReturnFromY(amountToY(1050, 2000, plot), 1000, 2000, plot)).toBe(5)
+    expect(minimumReturnFromY(amountToY(1052.4, 2000, plot), 1000, 2000, plot)).toBe(5)
+    expect(minimumReturnFromY(plot.bottom, 1000, 2000, plot)).toBe(1)
+    expect(minimumReturnFromY(plot.top - 40, 1000, 2000, plot)).toBe(100)
+    expect(clampMinimumReturn(0)).toBe(1)
+    expect(clampMinimumReturn(5.4)).toBe(5)
   })
 })

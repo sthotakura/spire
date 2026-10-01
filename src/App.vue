@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { amountToY, barrierFromX, bufferFromX, fitAmountAxis, bufferLevel, capBindLevel, capFromY, clamp, clampBarrier, clampBuffer, clampCap, clampFinalLevel, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelAxisFactor, levelToX, protectionFromY, regimeOf, slopeLevel, splitAtJumps, splitByRegime, upsideRateFromY, type Sample, type AmountAxis, type Plot, type Regime } from './chart/geometry'
+import { amountToY, barrierFromX, bufferFromX, fitAmountAxis, bufferLevel, capBindLevel, capFromY, clamp, clampBarrier, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelAxisFactor, levelToX, minimumReturnFromY, protectionFromY, regimeOf, slopeLevel, splitAtJumps, splitByRegime, upsideRateFromY, type Sample, type AmountAxis, type Plot, type Regime } from './chart/geometry'
 import HintToggle from './components/HintToggle.vue'
 import NumberInput from './components/NumberInput.vue'
 import TabGroup from './components/TabGroup.vue'
@@ -13,35 +13,37 @@ import { scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
-import { basketBreakdown, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, productIssues, observationCountOf, paymentBreakdown, downsideOf, upsideOf, withSubFeatures, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind } from './domain/note'
+import { basketBreakdown, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, productIssues, observationCountOf, paymentBreakdown, downsideOf, upsideOf, withSubFeatures, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
 const activeHint = ref<string | null>(null)
 const toggleHint = (hint: string) => { activeHint.value = activeHint.value === hint ? null : hint }
 const hints = {
-  wrapper: 'The legal form sets what the holder owns and who owes the payments. A note is a debt of its issuer, so every payment depends on the issuer’s ability to pay.',
-  redemption: 'Sets when the note ends and principal is paid back: at scheduled maturity, or earlier if its terms allow a call or a put. A bullet note pays once, at maturity.',
+  wrapper: 'The legal form sets what the holder owns and who owes the payments. A note is a debt of its issuer, so every payment depends on the issuer’s ability to pay. A deposit is held by a bank and repaid in full at the end of its term. It is usually insured up to a limit; any payment above the limit depends on the bank’s ability to pay.',
+  redemption: 'Sets when the product ends and principal is paid back: at scheduled maturity, or earlier if its terms allow a call or a put. Bullet redemption pays once, at maturity.',
   term: 'The length of the product, stated as a duration such as 3 years. Principal is repaid at the end of the term. The issue and maturity dates that put the term on a calendar are set when the product is issued.',
   underlier: 'What the payoff reads: the asset it tracks and how its change is measured, from where it starts. A single underlier tracks one asset. A basket tracks several and combines their changes into one return.',
-  asset: 'The equity or equity index the note tracks. Holding the note does not mean owning the asset.',
+  asset: 'The equity or equity index the product tracks. Holding the product does not mean owning the asset.',
   determination: 'Sets which observed levels measure the underlier’s change: final ÷ initial − 1. The initial and final levels are each set on their own. Point-to-point uses the fixed initial level and the level on the final date; moves in between do not count. Lookback starts from the lowest of the levels on the pricing date and on several dates after it, so a fall soon after pricing lowers the starting point. Averaging takes the final level as the average of the levels observed on several dates before maturity, so a sharp move on the last date counts for less.',
   'lookback-observations': 'The number of dates after pricing whose levels can lower the starting point. The lowest of their levels and the level on the pricing date is the lookback level.',
   observations: 'The number of dates whose levels are averaged into the final level. Each observed level counts equally.',
-  payoff: 'The rules that turn the underlier’s change into the maturity payment. With no features the note repays principal. Each feature adds a rule, such as a share of the gain or a minimum payment.',
+  payoff: 'The rules that turn the underlier’s change into the maturity payment. With no features the product repays principal. Each feature adds a rule, such as a share of the gain or a minimum payment.',
   principal: 'The amount used as the base for the maturity payment.',
-  'initial-level': 'The level the underlier’s return is measured from. Fixed states it as a term of this note: two notes on the same asset can start from different levels. Lookback takes the lowest level observed on the pricing date and several dates after it. When a note’s strike is set at 100% of it, it is often called the strike level.',
+  'initial-level': 'The level the underlier’s return is measured from. Fixed states it as a term of this product: two products on the same asset can start from different levels. Lookback takes the lowest level observed on the pricing date and several dates after it. When a note’s strike is set at 100% of it, it is often called the strike level.',
   downside: 'The share of a negative underlier return, beyond any buffer, deducted from principal before the protection floor applies.',
   buffer: 'The fall the holder does not bear, as a percentage of the initial level. A fall within it leaves principal unchanged. A larger fall reduces principal by the amount beyond it, at the downside participation rate.',
   barrier: 'A level of the underlier, as a percentage of the initial level. If the final level ends below it, downside participation applies to the whole fall; at or above it, a fall leaves principal unchanged. It is observed on the final observation date.',
   upside: 'The share of a positive underlier return added to principal.',
-  cap: 'The most the note can pay above principal, as a percentage of principal, however far the underlier rises.',
+  cap: 'The most the product can pay above principal, as a percentage of principal, however far the underlier rises.',
   protection: 'The minimum contractual maturity payment as a percentage of principal. Protection applies at maturity and depends on the issuer’s ability to pay.',
+  'minimum-return': 'The lowest return the deposit pays on principal, whatever the underlier does. The payment is the greater of the participated payment and principal plus this return, so it is a floor, not an addition.',
   'basket-return': 'How a basket’s asset returns make its one return. Weighted adds up each asset’s return times its weight. The basket level starts at 100 and moves by that return, and the payoff reads it as it reads a single asset’s level.',
   weight: 'The asset’s share of the basket, fixed on the pricing date. The weights add up to 100%: the total beside Add asset shows how much is left to allocate, or how much is over.',
 }
 const wrapperOptions = [
   { id: 'note', label: 'Note', description: 'A debt security with payments defined by its terms and subject to the issuer’s ability to pay.', available: true },
+  { id: 'deposit', label: 'Deposit', description: 'Money held by a bank and repaid in full at the end of the term.', available: true },
   { id: 'certificate-or-warrant', label: 'Certificate or warrant', description: 'Distinct security forms whose rights and legal treatment depend on their market and terms.', available: false },
   { id: 'etf', label: 'ETF', description: 'A fund whose shares trade on an exchange and represent an interest in a portfolio.', available: false },
 ] as const
@@ -69,7 +71,7 @@ const partDescriptions = {
   determination: 'How the underlier’s change is measured',
   'initial-level': 'Where the change is measured from',
   'final-level': 'Where the change is measured to',
-  payoff: 'What the note pays at maturity',
+  payoff: 'What the product pays at maturity',
   'basket-return': 'How the asset returns make one return',
 }
 const underlierOptions = [
@@ -88,6 +90,7 @@ const [startingComponent] = startingProduct.underlier.components
 const assetKind = ref<AssetKind>(startingComponent.asset.kind)
 const assetName = ref(startingComponent.asset.name)
 const principal = ref(startingProduct.principalAmount)
+const wrapper = ref<Wrapper>(startingProduct.wrapper)
 const termMonths = ref(startingProduct.term.months)
 // A term of whole years is also shown in years, as term sheets often state it.
 const termYears = computed(() => Number.isInteger(termMonths.value) && termMonths.value > 0 && termMonths.value % 12 === 0 ? `${termMonths.value / 12} year${termMonths.value === 12 ? '' : 's'}` : null)
@@ -164,13 +167,13 @@ const observedLevels = ref<number[]>([startingFinalLevel])
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
 const select = (concept: ConceptId) => { selected.value = concept }
-const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', 'minimum-return': '#0b7a75', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa' }
+const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', 'minimum-return': '#4338ca', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa' }
 const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
 // Payoff features are added one at a time to a payoff that starts with none. A removed feature keeps its last value.
 // A buffer or barrier belongs to downside participation and a cap to upside participation, so each is added under its direction.
-type FeatureId = 'barrier' | 'buffer' | 'cap' | 'coupon' | 'digital' | 'downside' | 'protection' | 'upside'
+type FeatureId = 'barrier' | 'buffer' | 'cap' | 'coupon' | 'digital' | 'downside' | 'minimum' | 'protection' | 'upside'
 const payoffFeatures: ReadonlyArray<{ id: FeatureId; label: string; description: string; available: boolean; requires?: ParticipationDirection }> = [
   { id: 'barrier', label: 'Barrier', description: 'Downside participation applies only if the underlier ends below a stated level.', available: true, requires: 'downside' },
   { id: 'buffer', label: 'Buffer', description: 'Protects against an initial portion of underlier losses.', available: true, requires: 'downside' },
@@ -178,6 +181,7 @@ const payoffFeatures: ReadonlyArray<{ id: FeatureId; label: string; description:
   { id: 'coupon', label: 'Coupon', description: 'An additional contractual payment on stated dates.', available: false },
   { id: 'digital', label: 'Digital', description: 'Pays a predefined amount if a stated condition is met.', available: false },
   { id: 'downside', label: 'Downside participation', description: 'Negative underlier return is multiplied by the downside participation rate until the protection floor applies.', available: true },
+  { id: 'minimum', label: 'Minimum return', description: 'Sets the lowest return paid on principal, whatever the underlier does.', available: true },
   { id: 'protection', label: 'Principal protection', description: 'Sets the minimum contractual maturity payment as a percentage of principal.', available: true },
   { id: 'upside', label: 'Upside participation', description: 'Positive underlier return is multiplied by the upside participation rate.', available: true },
 ]
@@ -192,17 +196,36 @@ const bufferSelected = ref(false)
 const bufferPercent = ref(firstFeatureValues.buffer)
 const barrierSelected = ref(false)
 const barrierPercent = ref(firstFeatureValues.barrier)
+const minimumSelected = ref(false)
+const minimumPercent = ref(firstFeatureValues.minimum)
 const selectedDirections = computed(() => (['downside', 'upside'] as ParticipationDirection[]).filter((direction) => selectedParticipation[direction]))
-const isAdded = (id: FeatureId) => id === 'protection' ? protectionSelected.value : id === 'cap' ? capSelected.value : id === 'buffer' ? bufferSelected.value : id === 'barrier' ? barrierSelected.value : id === 'downside' || id === 'upside' ? selectedParticipation[id] : false
+const isAdded = (id: FeatureId) => id === 'protection' ? protectionSelected.value : id === 'minimum' ? minimumSelected.value : id === 'cap' ? capSelected.value : id === 'buffer' ? bufferSelected.value : id === 'barrier' ? barrierSelected.value : id === 'downside' || id === 'upside' ? selectedParticipation[id] : false
 // Why a feature cannot be added yet, or null when it can: it needs its direction first, and a buffer and a barrier are not combined.
+// A deposit is repaid in full, so it takes nothing that could pay less than principal; a minimum return is on deposits only.
+const depositExcludes: ReadonlyArray<FeatureId> = ['downside', 'buffer', 'barrier', 'protection']
 const blockedReason = (id: FeatureId) => {
+  if (wrapper.value === 'deposit' && depositExcludes.includes(id)) return 'Not on a deposit'
+  if (wrapper.value !== 'deposit' && id === 'minimum') return 'Deposits only'
   const requires = payoffFeatures.find((feature) => feature.id === id)?.requires
   if (requires && !selectedParticipation[requires]) return `Needs ${participationLabels[requires].toLowerCase()}`
   if (id === 'barrier' && bufferSelected.value) return 'Not with a buffer'
   if (id === 'buffer' && barrierSelected.value) return 'Not with a barrier'
   return null
 }
-const hasFeatures = computed(() => protectionSelected.value || capSelected.value || bufferSelected.value || barrierSelected.value || selectedDirections.value.length > 0)
+// Why a wrapper cannot be chosen, or null when it can. Switching never removes the reader's terms, so a wrapper is
+// unavailable while the payoff has a feature it does not allow.
+const wrapperBlockedReason = (id: string) => {
+  if (id === 'deposit' && selectedParticipation.downside) return 'Not with downside participation'
+  if (id === 'deposit' && protectionSelected.value) return 'Not with principal protection'
+  if (id === 'note' && minimumSelected.value) return 'Not with a minimum return'
+  return null
+}
+const setWrapper = (id: string) => {
+  if (id !== 'note' && id !== 'deposit') return
+  beginGesture()
+  wrapper.value = id
+}
+const hasFeatures = computed(() => protectionSelected.value || minimumSelected.value || capSelected.value || bufferSelected.value || barrierSelected.value || selectedDirections.value.length > 0)
 
 const paletteOpen = ref(false)
 const paletteQuery = ref('')
@@ -228,6 +251,7 @@ const addFeature = async (id: FeatureId) => {
   if (!feature?.available || isAdded(id) || blockedReason(id)) return
   beginGesture()
   if (id === 'protection') protectionSelected.value = true
+  else if (id === 'minimum') minimumSelected.value = true
   else if (id === 'cap') capSelected.value = true
   else if (id === 'buffer') bufferSelected.value = true
   else if (id === 'barrier') barrierSelected.value = true
@@ -239,6 +263,7 @@ const addFeature = async (id: FeatureId) => {
 const removeFeature = async (id: FeatureId) => {
   beginGesture()
   if (id === 'protection') protectionSelected.value = false
+  else if (id === 'minimum') minimumSelected.value = false
   else if (id === 'cap') capSelected.value = false
   else if (id === 'buffer') bufferSelected.value = false
   else if (id === 'barrier') barrierSelected.value = false
@@ -246,7 +271,7 @@ const removeFeature = async (id: FeatureId) => {
   // Removing a direction removes the buffer, barrier or cap that belongs to it.
   if (id === 'downside') { bufferSelected.value = false; barrierSelected.value = false }
   if (id === 'upside') capSelected.value = false
-  if (selected.value === id || (id === 'downside' && (selected.value === 'buffer' || selected.value === 'barrier')) || (id === 'upside' && selected.value === 'cap')) selected.value = 'payoff'
+  if (selected.value === id || (id === 'minimum' && selected.value === 'minimum-return') || (id === 'downside' && (selected.value === 'buffer' || selected.value === 'barrier')) || (id === 'upside' && selected.value === 'cap')) selected.value = 'payoff'
   await nextTick()
   addButton.value?.focus()
 }
@@ -261,8 +286,8 @@ const closeOnOutsidePointer = (event: PointerEvent) => {
 onMounted(() => document.addEventListener('pointerdown', closeOnOutsidePointer))
 onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutsidePointer))
 
-// A weight entered as a percent, as a fraction without the floating-point noise of dividing (33.34 / 100 is 0.33340000000000003).
-const weightFrom = (percent: number) => Math.round(percent * 1e8) / 1e10
+// A weight or minimum return entered as a percent, as a fraction without the floating-point noise of dividing (33.34 / 100 is 0.33340000000000003).
+const fractionFrom = (percent: number) => Math.round(percent * 1e8) / 1e10
 // The weights entered so far and how far they are from 100%, so the reader can see what is left to allocate.
 const weightTotal = computed(() => {
   const total = Math.round(basketAssets.value.reduce((sum, { weightPercent }) => sum + weightPercent, 0) * 100) / 100
@@ -275,7 +300,7 @@ const underlier = computed<Underlier>(() => !isBasket.value
   ? { kind: 'single', components: [{ asset: { kind: assetKind.value, name: assetName.value } }], determination: determination.value }
   : {
       kind: 'basket',
-      components: basketAssets.value.map(({ kind, name, weightPercent }) => ({ asset: { kind, name }, weight: weightFrom(weightPercent) })),
+      components: basketAssets.value.map(({ kind, name, weightPercent }) => ({ asset: { kind, name }, weight: fractionFrom(weightPercent) })),
       determination: {
         initial: { kind: 'given', levels: basketAssets.value.map(({ name, initialLevel }) => ({ asset: name, level: initialLevel })) },
         final: determination.value.final,
@@ -283,7 +308,7 @@ const underlier = computed<Underlier>(() => !isBasket.value
       },
     })
 const note = computed<Product>(() => ({
-  wrapper: 'note',
+  wrapper: wrapper.value,
   redemption: 'bullet',
   term: { months: termMonths.value },
   underlier: underlier.value,
@@ -294,6 +319,7 @@ const note = computed<Product>(() => ({
       cap: capSelected.value ? capPercent.value / 100 : undefined,
     }),
     principalProtection: protectionSelected.value ? protectionPercent.value / 100 : undefined,
+    minimumReturn: minimumSelected.value ? fractionFrom(minimumPercent.value) : undefined,
   },
   principalAmount: principal.value,
 }))
@@ -372,7 +398,7 @@ const signedPercent = (value: number) => `${value < 0 ? '−' : '+'}${formatPerc
 const participationSummary = computed(() => selectedDirections.value
   .map((direction) => `${formatPercent(participationPercent[direction] / 100)} ${participationLabels[direction].toLowerCase()}`)
   .join(' and ') || 'none')
-const floorSummary = computed(() => protectionSelected.value ? `${formatPercent(protectionPercent.value / 100)} of principal` : 'zero')
+const floorSummary = computed(() => minimumSelected.value ? `${formatAmount(principal.value * (1 + minimumPercent.value / 100))}, principal plus the minimum return` : protectionSelected.value ? `${formatPercent(protectionPercent.value / 100)} of principal` : wrapper.value === 'deposit' ? 'principal' : 'zero')
 const bufferSummary = computed(() => formatPercent(bufferPercent.value / 100))
 const capSummary = computed(() => `${formatAmount(principal.value * (1 + capPercent.value / 100))} (a ${formatPercent(capPercent.value / 100)} return on principal)`)
 const chartDescription = computed(() => {
@@ -381,7 +407,7 @@ const chartDescription = computed(() => {
     ? `${bufferSelected.value ? `stays at principal for falls within the buffer, then falls` : barrierSelected.value ? 'stays at principal for falls that end at or above the barrier, then drops by the whole fall below it and falls' : 'falls'} with negative underlier returns${protectionSelected.value ? ' until the protection floor applies' : ', but not below zero'}`
     : 'stays at principal for negative underlier returns'
   const rise = selectedParticipation.upside ? `rises with positive underlier returns${capSelected.value ? ' until the cap applies' : ''}` : 'stays at principal for flat or positive underlier returns'
-  return `Contractual maturity payment ${fall}. It ${rise}.`
+  return `Contractual maturity payment ${fall}. It ${rise}.${minimumSelected.value ? ' It never falls below principal plus the minimum return.' : ''}`
 })
 const buildTimestampIso = __BUILD_TIMESTAMP__
 const buildTimestamp = new Intl.DateTimeFormat('en-GB', {
@@ -438,7 +464,9 @@ function beginGesture() { ghostNote.value = JSON.parse(JSON.stringify(note.value
 const focusRow = (concept: ConceptId) => { select(concept); beginGesture() }
 
 type HandleId = 'floor' | 'slope' | 'cap' | 'buffer' | 'barrier' | 'final'
-const handleConcept: Record<HandleId, ConceptId | null> = { floor: 'protection', slope: 'upside', cap: 'cap', buffer: 'buffer', barrier: 'barrier', final: null }
+// The floor is the minimum return on a deposit that has one, and protection otherwise. The two cannot both be present.
+const floorConcept = computed<ConceptId>(() => minimumSelected.value ? 'minimum-return' : 'protection')
+const handleConcept = (id: HandleId): ConceptId | null => id === 'floor' ? floorConcept.value : { slope: 'upside', cap: 'cap', buffer: 'buffer', barrier: 'barrier', final: null }[id] as ConceptId | null
 const dragging = ref<HandleId | null>(null)
 // The axis in view when a drag starts, held until it ends so the line does not move under the pointer.
 const frozenAxis = ref<AmountAxis | null>(null)
@@ -448,7 +476,7 @@ const svgPoint = (event: PointerEvent) => {
   return matrix ? point.matrixTransform(matrix.inverse()) : point
 }
 const focusHandle = (id: HandleId) => {
-  const concept = handleConcept[id]
+  const concept = handleConcept(id)
   if (!concept) return
   select(concept)
   beginGesture()
@@ -466,7 +494,8 @@ const dragMove = (id: HandleId, event: PointerEvent) => {
   if (dragging.value !== id) return
   const point = svgPoint(event)
   const top = chart.value?.axis.top ?? 0
-  if (id === 'floor') protectionPercent.value = protectionFromY(point.y, principal.value, top, plot)
+  if (id === 'floor' && minimumSelected.value) minimumPercent.value = minimumReturnFromY(point.y, principal.value, top, plot)
+  else if (id === 'floor') protectionPercent.value = protectionFromY(point.y, principal.value, top, plot)
   else if (id === 'slope') participationPercent.upside = upsideRateFromY(point.y, principal.value, top, plot, capFraction.value)
   else if (id === 'cap') capPercent.value = capFromY(point.y, principal.value, top, plot)
   else if (id === 'buffer') bufferPercent.value = bufferFromX(point.x, axisScale.value, plot, determinedInitialLevel.value)
@@ -481,7 +510,8 @@ const keyHandle = (id: HandleId, event: KeyboardEvent) => {
   const delta = keyDelta(event.key, event.shiftKey, id === 'slope' ? 5 : 1)
   if (delta === null) return
   event.preventDefault()
-  if (id === 'floor') protectionPercent.value = clampProtection(protectionPercent.value + delta)
+  if (id === 'floor' && minimumSelected.value) minimumPercent.value = clampMinimumReturn(minimumPercent.value + delta)
+  else if (id === 'floor') protectionPercent.value = clampProtection(protectionPercent.value + delta)
   else if (id === 'slope') participationPercent.upside = clampUpsideRate(participationPercent.upside + delta)
   else if (id === 'cap') capPercent.value = clampCap(capPercent.value + delta)
   // A larger buffer sits further left, so the left and right keys move the handle the way they point.
@@ -496,7 +526,7 @@ const axisScale = computed(() => isBasket.value ? basketStartingLevel : initialL
 const capFraction = computed(() => capSelected.value ? capPercent.value / 100 : undefined)
 const chartHighlight = computed(() => ({
   line: selected.value === 'payoff',
-  floor: protectionSelected.value && highlighted('protection'),
+  floor: (protectionSelected.value || minimumSelected.value) && highlighted(floorConcept.value),
   cap: capSelected.value && highlighted('cap'),
   buffer: bufferSelected.value && highlighted('buffer'),
   barrier: barrierSelected.value && highlighted('barrier'),
@@ -508,8 +538,8 @@ const chartHighlight = computed(() => ({
   final: highlighted('final-level'),
 }))
 // Each regime is drawn in its concept's colour, in the line, the legend and the guides.
-const regimeConcept: Record<Regime, ConceptId> = { principal: 'payoff', buffer: 'buffer', barrier: 'barrier', downside: 'downside', upside: 'upside', floor: 'protection', cap: 'cap' }
-const regimeLabel: Record<Regime, string> = { principal: 'Principal repaid', buffer: 'Buffer', barrier: 'Barrier', downside: 'Downside participation', upside: 'Upside participation', floor: 'Protection floor', cap: 'Cap' }
+const regimeConcept = computed<Record<Regime, ConceptId>>(() => ({ principal: 'payoff', buffer: 'buffer', barrier: 'barrier', downside: 'downside', upside: 'upside', floor: floorConcept.value, cap: 'cap' }))
+const regimeLabel = computed<Record<Regime, string>>(() => ({ principal: 'Principal repaid', buffer: 'Buffer', barrier: 'Barrier', downside: 'Downside participation', upside: 'Upside participation', floor: minimumSelected.value ? 'Minimum return' : 'Protection floor', cap: 'Cap' }))
 const chart = computed(() => {
   if (!initialValid.value) return null
   const principalAmount = principal.value
@@ -531,7 +561,9 @@ const chart = computed(() => {
   const breakdowns = levels.map((level) => paymentBreakdown(note.value, at(level)))
   const values = breakdowns.map((b) => b.payment)
   const jumps = jumpsIn(levels, values)
-  const floorAmount = principalAmount * (note.value.payoff.principalProtection ?? 0)
+  const { minimumReturn } = note.value.payoff
+  const floorAmount = principalAmount * (minimumReturn !== undefined ? 1 + minimumReturn : note.value.payoff.principalProtection ?? 0)
+  const hasFloor = protectionSelected.value || minimumSelected.value
   const capAmount = principalAmount * (1 + (upsideOf(note.value)?.cap ?? 0))
   // The cap line stays in view even where the payoff does not reach it.
   const axis = frozenAxis.value ?? fitAmountAxis(Math.max(...values, capSelected.value ? capAmount : 0), principalAmount)
@@ -542,7 +574,7 @@ const chart = computed(() => {
   const samples: Sample[] = levels.map((level, i) => ({ point: point(level, values[i]), regime: regimeOf(breakdowns[i]), jump: jumps[i] }))
   const pieces = splitAtJumps(samples)
   const segments = splitByRegime(samples)
-  const legend = [...new Set(segments.map((segment) => segment.regime))].map((regime) => ({ regime, concept: regimeConcept[regime], label: regimeLabel[regime] }))
+  const legend = [...new Set(segments.map((segment) => segment.regime))].map((regime) => ({ regime, concept: regimeConcept.value[regime], label: regimeLabel.value[regime] }))
   const samplesWhere = (keep: (level: number) => boolean) => samples.filter((_, i) => keep(levels[i]))
   const atInitial = point(initial, maturityPayment(note.value, at(initial)))
   const ghost = ghostNote.value
@@ -598,9 +630,12 @@ const chart = computed(() => {
     downsidePieces: splitAtJumps([...samplesWhere((level) => level < initial), { point: atInitial }]),
     upsidePoints: [atInitial, ...samplesWhere((level) => level > initial).map(({ point }) => point)].join(' '),
     principalY: y(principalAmount),
+    // A protection floor is at or below principal, so its label goes under its line and the principal's over. A minimum
+    // return is just above principal, so the two labels swap sides and do not overlap.
+    labelsSwap: minimumSelected.value,
     // Compact labels (such as 1.5K) keep large principals inside the left margin.
     amountTicks: Array.from({ length: Math.round(axis.top / axis.step) + 1 }, (_, i) => axis.step * i).map((amount) => ({ y: y(amount), label: amount.toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: 2 }) })),
-    floorY: protectionSelected.value ? y(floorAmount) : null,
+    floorY: hasFloor ? y(floorAmount) : null,
     floorAmount,
     capY: capSelected.value ? y(capAmount) : null,
     capLabelY,
@@ -620,7 +655,8 @@ const chart = computed(() => {
     barrierLabel: barrierX === null ? null : { x: barrierLabelLeft ? barrierX + 6 : barrierX - 6, anchor: barrierLabelLeft ? 'start' : 'end' },
     barrierHandle: barrierX === null ? null : { x: barrierX, y: y(principalAmount) },
     capHandle: otherHandles[0],
-    floorHandle: protectionSelected.value ? { x: plot.left + (plot.right - plot.left) * 0.25, y: y(floorAmount) } : null,
+    // The floor handle sits a quarter of the way across, or just past its label when the label is longer, as on narrow screens.
+    floorHandle: hasFloor ? { x: Math.max(plot.left + (plot.right - plot.left) * 0.25, plot.left + 20 + labelWidth(`${minimumSelected.value ? 'Minimum' : 'Floor'} ${formatAmount(floorAmount)}`) + handleRadius.value + 8), y: y(floorAmount) } : null,
     slopeHandle: otherHandles[1],
     finalHandle,
     bubble: finalHandle && bubbleX !== null && { text: bubbleText, width: bubbleWidth, x: bubbleX, y: finalHandle.y < plot.top + 40 || coversCapLabel || coversHandle ? finalHandle.y + 16 : finalHandle.y - 34 },
@@ -654,7 +690,7 @@ const chart = computed(() => {
             <li :class="['node', { sel: highlighted('wrapper') }]" :style="conceptStyle('wrapper')">
               <div class="nrow" @click="select('wrapper')" @focusin="focusRow('wrapper')">
                 <span class="nlabel">Wrapper<HintToggle id="wrapper" about="wrapper" :text="hints.wrapper" :active="activeHint === 'wrapper'" @toggle="toggleHint('wrapper')" /></span>
-                <span class="ctrl pick"><select aria-label="Wrapper" :value="note.wrapper"><option v-for="option in wrapperOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
+                <span class="ctrl pick"><select aria-label="Wrapper" :value="note.wrapper" @change="setWrapper(($event.target as HTMLSelectElement).value)"><option v-for="option in wrapperOptions" :key="option.id" :value="option.id" :disabled="!option.available || !!wrapperBlockedReason(option.id)">{{ option.label }}{{ !option.available ? ' (unavailable)' : wrapperBlockedReason(option.id) ? ` (${wrapperBlockedReason(option.id)?.toLowerCase()})` : '' }}</option></select></span>
                 <span class="ndesc">{{ partDescriptions.wrapper }}</span>
                 <span class="ctrl block"><label for="principal">Principal</label><HintToggle id="principal" about="principal" :text="hints.principal" :active="activeHint === 'principal'" @toggle="toggleHint('principal')" /><NumberInput id="principal" v-model="principal" class="num" /></span>
                 <span class="ctrl block"><label for="term">Term</label><HintToggle id="term" about="term" :text="hints.term" :active="activeHint === 'term'" @toggle="toggleHint('term')" /><NumberInput id="term" v-model="termMonths" class="num count" /><span class="unit">months{{ termYears ? ` (${termYears})` : '' }}</span></span>
@@ -795,8 +831,16 @@ const chart = computed(() => {
                       </div>
                       <ul v-if="issuesFor('principalProtection').length" class="errors" role="alert"><li v-for="message in issuesFor('principalProtection')" :key="message">{{ message }}</li></ul>
                     </li>
+                    <li v-if="minimumSelected" :class="['node', { sel: highlighted('minimum-return') }]" :style="conceptStyle('minimum-return')">
+                      <div class="nrow" @click="select('minimum-return')" @focusin="focusRow('minimum-return')">
+                        <span class="nlabel">Minimum return<HintToggle id="minimum-return" about="minimum return" :text="hints['minimum-return']" :active="activeHint === 'minimum-return'" @toggle="toggleHint('minimum-return')" /></span>
+                        <span class="ctrl"><NumberInput id="rate-minimum" v-model="minimumPercent" class="num rate" aria-label="Minimum return on principal (%)" /><span class="unit">%</span></span>
+                        <button type="button" class="xbtn" aria-label="Remove minimum return" @click.stop="removeFeature('minimum')">×</button>
+                      </div>
+                      <ul v-if="issuesFor('minimumReturn').length" class="errors" role="alert"><li v-for="message in issuesFor('minimumReturn')" :key="message">{{ message }}</li></ul>
+                    </li>
                     <li v-if="!hasFeatures" class="empty-payoff">
-                      <p>This note only repays principal. Add a feature, such as upside participation or principal protection, to change what it pays.</p>
+                      <p>This {{ wrapper }} only repays principal. Add a feature, such as upside participation or {{ wrapper === 'deposit' ? 'a minimum return' : 'principal protection' }}, to change what it pays.</p>
                     </li>
                     <li ref="paletteRoot" class="addrow"@keydown.esc="closePalette(true)">
                       <button ref="addButton" type="button" class="addbtn" aria-haspopup="dialog" :aria-expanded="paletteOpen" @click="paletteOpen ? closePalette() : openPalette()">＋ Add feature</button>
@@ -825,7 +869,7 @@ const chart = computed(() => {
               <defs><clipPath id="plot-clip"><rect :x="plot.left" :y="plot.top" :width="plot.right - plot.left" :height="plot.bottom - plot.top"/></clipPath></defs>
               <line :x1="plot.left" :y1="plot.bottom" :x2="plot.right" :y2="plot.bottom" class="axis-line"/><line :x1="plot.left" :y1="plot.top" :x2="plot.left" :y2="plot.bottom" class="axis-line"/>
               <line :x1="plot.left" :y1="chart.principalY" :x2="plot.right" :y2="chart.principalY" class="ref-line principal"/>
-              <line v-if="chart.floorY !== null" :x1="plot.left" :y1="chart.floorY" :x2="plot.right" :y2="chart.floorY" :class="['ref-line', { on: chartHighlight.floor }]" :style="conceptStyle('protection')"/>
+              <line v-if="chart.floorY !== null" :x1="plot.left" :y1="chart.floorY" :x2="plot.right" :y2="chart.floorY" :class="['ref-line', { on: chartHighlight.floor }]" :style="conceptStyle(floorConcept)"/>
               <line v-if="chart.capY !== null" :x1="plot.left" :y1="chart.capY" :x2="plot.right" :y2="chart.capY" :class="['ref-line', { on: chartHighlight.cap }]" :style="conceptStyle('cap')"/>
               <line v-if="chart.bufferX !== null" :x1="chart.bufferX" :y1="plot.top" :x2="chart.bufferX" :y2="plot.bottom" :class="['ref-line', { on: chartHighlight.buffer }]" :style="conceptStyle('buffer')"/>
               <line v-if="chart.barrierX !== null" :x1="chart.barrierX" :y1="plot.top" :x2="chart.barrierX" :y2="plot.bottom" :class="['ref-line', { on: chartHighlight.barrier }]" :style="conceptStyle('barrier')"/>
@@ -844,15 +888,15 @@ const chart = computed(() => {
               <line v-if="chart.finalHandle" :x1="chart.finalHandle.x" :y1="chart.finalHandle.y" :x2="chart.finalHandle.x" :y2="plot.bottom" class="final-guide"/>
               <g v-for="tick in chart.amountTicks" :key="tick.y"><line :x1="plot.left - 4" :y1="tick.y" :x2="plot.left" :y2="tick.y" class="axis-line"/><text :x="plot.left - 7" :y="tick.y" text-anchor="end" dominant-baseline="middle" class="axis-label">{{ tick.label }}</text></g>
               <text :x="plot.left + 2" y="24" class="axis-label">Payment</text>
-              <line :x1="plot.left + 4" :y1="chart.principalY - 10" :x2="plot.left + 16" :y2="chart.principalY - 10" class="ref-swatch principal"/><text :x="plot.left + 20" :y="chart.principalY - 6" class="ref-label">Principal {{ formatAmount(principal) }}</text>
-              <template v-if="chart.floorY !== null"><line :x1="plot.left + 4" :y1="chart.floorY + 10" :x2="plot.left + 16" :y2="chart.floorY + 10" :class="['ref-swatch', { on: chartHighlight.floor }]" :style="conceptStyle('protection')"/><text :x="plot.left + 20" :y="chart.floorY + 14" :class="['ref-label', { on: chartHighlight.floor }]">Floor {{ formatAmount(chart.floorAmount) }}</text></template>
+              <line :x1="plot.left + 4" :y1="chart.principalY + (chart.labelsSwap ? 10 : -10)" :x2="plot.left + 16" :y2="chart.principalY + (chart.labelsSwap ? 10 : -10)" class="ref-swatch principal"/><text :x="plot.left + 20" :y="chart.principalY + (chart.labelsSwap ? 14 : -6)" class="ref-label">Principal {{ formatAmount(principal) }}</text>
+              <template v-if="chart.floorY !== null"><line :x1="plot.left + 4" :y1="chart.floorY + (chart.labelsSwap ? -10 : 10)" :x2="plot.left + 16" :y2="chart.floorY + (chart.labelsSwap ? -10 : 10)" :class="['ref-swatch', { on: chartHighlight.floor }]" :style="conceptStyle(floorConcept)"/><text :x="plot.left + 20" :y="chart.floorY + (chart.labelsSwap ? -6 : 14)" :class="['ref-label', { on: chartHighlight.floor }]">{{ minimumSelected ? 'Minimum' : 'Floor' }} {{ formatAmount(chart.floorAmount) }}</text></template>
               <template v-if="chart.capY !== null"><line :x1="chart.capLabelRight - 12" :y1="chart.capLabelY - 4" :x2="chart.capLabelRight" :y2="chart.capLabelY - 4" :class="['ref-swatch', { on: chartHighlight.cap }]" :style="conceptStyle('cap')"/><text :x="chart.capLabelRight - 16" :y="chart.capLabelY" text-anchor="end" :class="['ref-label', { on: chartHighlight.cap }]">Cap {{ formatAmount(chart.capAmount) }}</text></template>
               <text v-if="chart.bufferLabel" :x="chart.bufferLabel.x" :y="plot.top + 12" :text-anchor="chart.bufferLabel.anchor" :class="['ref-label', { on: chartHighlight.buffer }]">Buffer {{ bufferSummary }}</text>
               <text v-if="chart.barrierLabel" :x="chart.barrierLabel.x" :y="plot.top + 12" :text-anchor="chart.barrierLabel.anchor" :class="['ref-label', { on: chartHighlight.barrier }]">Barrier {{ formatAmount(chart.barrierLevel ?? 0) }}</text>
               <text v-if="chart.lookbackX !== null" :x="chart.lookbackLabelX" y="331" text-anchor="middle" class="axis-label">Lookback {{ formatAmount(determinedInitialLevel) }}</text>
               <text :x="plot.left - 3" y="331" class="axis-label">0</text><text :x="chart.initialX" y="331" text-anchor="middle" class="axis-label">{{ lookingBack ? 'Pricing' : 'Initial' }} {{ formatAmount(initialLevel) }}</text><text :x="plot.right" y="331" text-anchor="end" class="axis-label">{{ formatAmount(chart.end) }}</text>
               <g v-if="chart.bubble" class="bubble" :transform="`translate(${chart.bubble.x} ${chart.bubble.y})`"><rect :width="chart.bubble.width" height="22" rx="6"/><text :x="chart.bubble.width / 2" y="15" text-anchor="middle">{{ chart.bubble.text }}</text></g>
-              <g v-if="chart.floorHandle" :class="['handle', { on: highlighted('protection') }]" :style="conceptStyle('protection')" :transform="`translate(${chart.floorHandle.x} ${chart.floorHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Principal protection" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="protectionPercent" :aria-valuetext="`${protectionPercent}% protection`" @pointerdown="startDrag('floor', $event)" @pointermove="dragMove('floor', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('floor', $event)" @focus="focusHandle('floor')">
+              <g v-if="chart.floorHandle" :class="['handle', { on: highlighted(floorConcept) }]" :style="conceptStyle(floorConcept)" :transform="`translate(${chart.floorHandle.x} ${chart.floorHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" :aria-label="minimumSelected ? 'Minimum return' : 'Principal protection'" :aria-valuemin="minimumSelected ? 1 : 0" aria-valuemax="100" :aria-valuenow="minimumSelected ? minimumPercent : protectionPercent" :aria-valuetext="minimumSelected ? `${minimumPercent}% minimum return` : `${protectionPercent}% protection`" @pointerdown="startDrag('floor', $event)" @pointermove="dragMove('floor', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('floor', $event)" @focus="focusHandle('floor')">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
               <g v-if="chart.capHandle" :class="['handle', { on: highlighted('cap') }]" :style="conceptStyle('cap')" :transform="`translate(${chart.capHandle.x} ${chart.capHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Cap" aria-valuemin="1" aria-valuemax="100" :aria-valuenow="capPercent" :aria-valuetext="`${capPercent}% maximum return`" @pointerdown="startDrag('cap', $event)" @pointermove="dragMove('cap', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('cap', $event)" @focus="focusHandle('cap')">
@@ -880,11 +924,11 @@ const chart = computed(() => {
 
           <TabGroup v-model="activeTab" :tabs="tabs" label="The payment and its scenarios">
             <template #calculation>
-              <div v-if="lookingBack" class="hint-field"><div class="field-heading"><span id="lookback-levels-label" class="observed-heading">Lookback level: hypothetical levels of {{ underlierLabel }} on the lookback dates</span><button type="button" class="hint-button" aria-label="About the lookback level" aria-controls="lookback-levels-hint" :aria-expanded="activeHint === 'lookback-levels'" @click="toggleHint('lookback-levels')">ⓘ</button><p v-if="activeHint === 'lookback-levels'" id="lookback-levels-hint" class="hint-text" role="tooltip">Hypothetical levels on the pricing date and each lookback date after it, earliest first. The lowest of them is the lookback level, which the return is measured from. Changing them does not change the note's terms.</p></div><div class="observed-levels" role="group" aria-labelledby="lookback-levels-label" :style="conceptStyle('initial-level')"><span class="observed-op" aria-hidden="true">min(</span><span class="observed-cell"><label for="lookback-pricing" class="observed-name">Pricing<template v-if="isLowest(initialLevel)"> · lowest</template></label><NumberInput id="lookback-pricing" v-model="initialLevel" :class="['observed-input', { lowest: isLowest(initialLevel) }]" /></span><template v-for="(level, index) in afterPricing" :key="index"><span class="observed-op" aria-hidden="true">,</span><span class="observed-cell"><label :for="`lookback-${index}`" class="observed-name">Obs {{ index + 1 }}<template v-if="isLowest(level)"> · lowest</template></label><NumberInput :id="`lookback-${index}`" :model-value="level" :class="['observed-input', { lowest: isLowest(level) }]" @update:model-value="setAfterPricing(index, $event)" /></span></template><span class="observed-op" aria-hidden="true">) =</span><span class="observed-cell"><span class="observed-name">Lookback level</span><output class="observed-result" aria-live="polite">{{ Number.isFinite(determinedInitialLevel) ? formatAmount(determinedInitialLevel) : '—' }}</output></span></div></div>
+              <div v-if="lookingBack" class="hint-field"><div class="field-heading"><span id="lookback-levels-label" class="observed-heading">Lookback level: hypothetical levels of {{ underlierLabel }} on the lookback dates</span><button type="button" class="hint-button" aria-label="About the lookback level" aria-controls="lookback-levels-hint" :aria-expanded="activeHint === 'lookback-levels'" @click="toggleHint('lookback-levels')">ⓘ</button><p v-if="activeHint === 'lookback-levels'" id="lookback-levels-hint" class="hint-text" role="tooltip">Hypothetical levels on the pricing date and each lookback date after it, earliest first. The lowest of them is the lookback level, which the return is measured from. Changing them does not change the {{ wrapper }}'s terms.</p></div><div class="observed-levels" role="group" aria-labelledby="lookback-levels-label" :style="conceptStyle('initial-level')"><span class="observed-op" aria-hidden="true">min(</span><span class="observed-cell"><label for="lookback-pricing" class="observed-name">Pricing<template v-if="isLowest(initialLevel)"> · lowest</template></label><NumberInput id="lookback-pricing" v-model="initialLevel" :class="['observed-input', { lowest: isLowest(initialLevel) }]" /></span><template v-for="(level, index) in afterPricing" :key="index"><span class="observed-op" aria-hidden="true">,</span><span class="observed-cell"><label :for="`lookback-${index}`" class="observed-name">Obs {{ index + 1 }}<template v-if="isLowest(level)"> · lowest</template></label><NumberInput :id="`lookback-${index}`" :model-value="level" :class="['observed-input', { lowest: isLowest(level) }]" @update:model-value="setAfterPricing(index, $event)" /></span></template><span class="observed-op" aria-hidden="true">) =</span><span class="observed-cell"><span class="observed-name">Lookback level</span><output class="observed-result" aria-live="polite">{{ Number.isFinite(determinedInitialLevel) ? formatAmount(determinedInitialLevel) : '—' }}</output></span></div></div>
               <p v-if="lookbackError" class="errors" role="alert">{{ lookbackError }}</p>
-              <div v-if="isBasket" class="hint-field"><div class="field-heading"><span id="basket-levels-label" class="observed-heading">{{ averaging ? 'Final levels: hypothetical levels of each asset on the averaging dates' : 'Final levels: hypothetical level of each asset on the final date' }}</span><button type="button" class="hint-button" aria-label="About the basket's final levels" aria-controls="basket-levels-hint" :aria-expanded="activeHint === 'basket-levels'" @click="toggleHint('basket-levels')">ⓘ</button><p v-if="activeHint === 'basket-levels'" id="basket-levels-hint" class="hint-text" role="tooltip">Hypothetical levels for this scenario, earliest first. Each asset's return is measured from its own initial level{{ averaging ? ' to the average of its levels' : '' }}. Dragging the final level on the chart moves every asset's return by the same amount. Changing them does not change the note's terms.</p></div><div class="table-wrap basket-levels" :style="conceptStyle('final-level')"><table aria-labelledby="basket-levels-label"><thead><tr><th scope="col">Asset</th><th v-for="(_, index) in basketObservations[0]" :key="index" scope="col">{{ averaging ? `Obs ${index + 1}${index === basketObservations[0].length - 1 ? ' · final date' : ''}` : 'Final date' }}</th><th v-if="averaging" scope="col">Final level</th><th scope="col">Return</th></tr></thead><tbody><tr v-for="(levels, asset) in basketObservations" :key="asset"><th scope="row">{{ basketAssets[asset].name.trim() || `Asset ${asset + 1}` }}</th><td v-for="(level, index) in levels" :key="index"><NumberInput :model-value="level" class="observed-input" :aria-label="`${basketAssets[asset].name.trim() || `Asset ${asset + 1}`}, ${averaging ? `observation ${index + 1}` : 'final date'}`" @update:model-value="setBasketObservation(asset, index, $event)" /></td><td v-if="averaging"><output class="observed-result" aria-live="polite">{{ basketMeasure ? formatAmount(basketMeasure.components[asset].finalLevel) : '—' }}</output></td><td class="asset-return">{{ basketMeasure ? signedPercent(basketMeasure.components[asset].componentReturn) : '—' }}</td></tr></tbody></table></div></div>
-              <div v-else-if="averaging" class="hint-field"><div class="field-heading"><span id="observed-levels-label" class="observed-heading">Final level: hypothetical levels of {{ underlierLabel }} on the averaging dates</span><button type="button" class="hint-button" aria-label="About the averaged final level" aria-controls="observed-levels-hint" :aria-expanded="activeHint === 'observed-levels'" @click="toggleHint('observed-levels')">ⓘ</button><p v-if="activeHint === 'observed-levels'" id="observed-levels-hint" class="hint-text" role="tooltip">Hypothetical levels on each averaging date, earliest first. Their average is the final level. Changing them does not change the note's terms.</p></div><div class="observed-levels" role="group" aria-labelledby="observed-levels-label" :style="conceptStyle('final-level')"><template v-for="(level, index) in observations" :key="index"><span v-if="index > 0" class="observed-op" aria-hidden="true">+</span><span class="observed-cell"><label :for="`observation-${index}`" class="observed-name">Obs {{ index + 1 }}<template v-if="index === observations.length - 1"> · final date</template></label><NumberInput :id="`observation-${index}`" :model-value="level" class="observed-input" @update:model-value="setObservation(index, $event)" /></span></template><span class="observed-op" aria-hidden="true">÷ {{ observations.length }} =</span><span class="observed-cell"><span class="observed-name">Final level</span><output class="observed-result" aria-live="polite">{{ Number.isFinite(finalLevel) ? formatAmount(finalLevel) : '—' }}</output></span></div></div>
-              <div v-else class="hint-field"><div class="field-heading"><label for="final-level">Final level: hypothetical level of {{ underlierLabel }} on the final date</label><button type="button" class="hint-button" aria-label="About the final level" aria-controls="final-level-hint" :aria-expanded="activeHint === 'final-level'" @click="toggleHint('final-level')">ⓘ</button><p v-if="activeHint === 'final-level'" id="final-level-hint" class="hint-text" role="tooltip">A hypothetical level for this scenario. Changing it does not change the note's terms.</p></div><NumberInput id="final-level" :model-value="observations[0]" class="final-input" @update:model-value="setObservation(0, $event)" /></div>
+              <div v-if="isBasket" class="hint-field"><div class="field-heading"><span id="basket-levels-label" class="observed-heading">{{ averaging ? 'Final levels: hypothetical levels of each asset on the averaging dates' : 'Final levels: hypothetical level of each asset on the final date' }}</span><button type="button" class="hint-button" aria-label="About the basket's final levels" aria-controls="basket-levels-hint" :aria-expanded="activeHint === 'basket-levels'" @click="toggleHint('basket-levels')">ⓘ</button><p v-if="activeHint === 'basket-levels'" id="basket-levels-hint" class="hint-text" role="tooltip">Hypothetical levels for this scenario, earliest first. Each asset's return is measured from its own initial level{{ averaging ? ' to the average of its levels' : '' }}. Dragging the final level on the chart moves every asset's return by the same amount. Changing them does not change the {{ wrapper }}'s terms.</p></div><div class="table-wrap basket-levels" :style="conceptStyle('final-level')"><table aria-labelledby="basket-levels-label"><thead><tr><th scope="col">Asset</th><th v-for="(_, index) in basketObservations[0]" :key="index" scope="col">{{ averaging ? `Obs ${index + 1}${index === basketObservations[0].length - 1 ? ' · final date' : ''}` : 'Final date' }}</th><th v-if="averaging" scope="col">Final level</th><th scope="col">Return</th></tr></thead><tbody><tr v-for="(levels, asset) in basketObservations" :key="asset"><th scope="row">{{ basketAssets[asset].name.trim() || `Asset ${asset + 1}` }}</th><td v-for="(level, index) in levels" :key="index"><NumberInput :model-value="level" class="observed-input" :aria-label="`${basketAssets[asset].name.trim() || `Asset ${asset + 1}`}, ${averaging ? `observation ${index + 1}` : 'final date'}`" @update:model-value="setBasketObservation(asset, index, $event)" /></td><td v-if="averaging"><output class="observed-result" aria-live="polite">{{ basketMeasure ? formatAmount(basketMeasure.components[asset].finalLevel) : '—' }}</output></td><td class="asset-return">{{ basketMeasure ? signedPercent(basketMeasure.components[asset].componentReturn) : '—' }}</td></tr></tbody></table></div></div>
+              <div v-else-if="averaging" class="hint-field"><div class="field-heading"><span id="observed-levels-label" class="observed-heading">Final level: hypothetical levels of {{ underlierLabel }} on the averaging dates</span><button type="button" class="hint-button" aria-label="About the averaged final level" aria-controls="observed-levels-hint" :aria-expanded="activeHint === 'observed-levels'" @click="toggleHint('observed-levels')">ⓘ</button><p v-if="activeHint === 'observed-levels'" id="observed-levels-hint" class="hint-text" role="tooltip">Hypothetical levels on each averaging date, earliest first. Their average is the final level. Changing them does not change the {{ wrapper }}'s terms.</p></div><div class="observed-levels" role="group" aria-labelledby="observed-levels-label" :style="conceptStyle('final-level')"><template v-for="(level, index) in observations" :key="index"><span v-if="index > 0" class="observed-op" aria-hidden="true">+</span><span class="observed-cell"><label :for="`observation-${index}`" class="observed-name">Obs {{ index + 1 }}<template v-if="index === observations.length - 1"> · final date</template></label><NumberInput :id="`observation-${index}`" :model-value="level" class="observed-input" @update:model-value="setObservation(index, $event)" /></span></template><span class="observed-op" aria-hidden="true">÷ {{ observations.length }} =</span><span class="observed-cell"><span class="observed-name">Final level</span><output class="observed-result" aria-live="polite">{{ Number.isFinite(finalLevel) ? formatAmount(finalLevel) : '—' }}</output></span></div></div>
+              <div v-else class="hint-field"><div class="field-heading"><label for="final-level">Final level: hypothetical level of {{ underlierLabel }} on the final date</label><button type="button" class="hint-button" aria-label="About the final level" aria-controls="final-level-hint" :aria-expanded="activeHint === 'final-level'" @click="toggleHint('final-level')">ⓘ</button><p v-if="activeHint === 'final-level'" id="final-level-hint" class="hint-text" role="tooltip">A hypothetical level for this scenario. Changing it does not change the {{ wrapper }}'s terms.</p></div><NumberInput id="final-level" :model-value="observations[0]" class="final-input" @update:model-value="setObservation(0, $event)" /></div>
               <p v-if="finalError" class="errors" role="alert">{{ finalError }}</p>
               <div class="formula" role="group" aria-label="Payment rule"><div v-for="(line, index) in formula" :key="index" :class="['fline', { limit: !line.lead }]"><span class="flead">{{ line.lead }}</span><span class="feq">{{ line.lead ? '=' : '' }}</span><span class="fexpr"><template v-for="(segment, part) in line.segments" :key="part"><span v-if="segment.concept" :class="['fterm', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)">{{ segment.text }}</span><template v-else>{{ segment.text }}</template></template></span></div><p class="fwords"><b>In words:</b> {{ formulaWords }}</p></div>
               <ol class="calc-steps" aria-live="polite"><li v-for="step in calculation" :key="step.n" :class="{ hl: step.concept && highlighted(step.concept), muted: step.muted, result: step.result }"><span class="calc-n">{{ step.n }}</span><b>{{ step.title }}</b><span class="calc-value">{{ step.value }}</span><span class="calc-how">{{ step.how }}</span></li></ol>
@@ -894,7 +938,7 @@ const chart = computed(() => {
               <template v-if="chart">
                 <h3>Example scenarios</h3>
                 <p class="table-scroll-hint">Scroll horizontally to see every scenario column.</p>
-                <div class="table-wrap"><table><thead><tr><th>{{ isBasket ? 'Basket level' : 'Final level' }}</th><th>Underlier change</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected">Payment before protection</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}<span v-if="row.atBarrier" class="floor-note">at barrier</span></td><td>{{ formatPercent(row.returnValue) }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="protectionSelected && row.floorApplied" class="floor-note">floor applied</span></td></tr></tbody></table></div>
+                <div class="table-wrap"><table><thead><tr><th>{{ isBasket ? 'Basket level' : 'Final level' }}</th><th>Underlier change</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected || minimumSelected">Payment before {{ minimumSelected ? 'minimum' : 'protection' }}</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}<span v-if="row.atBarrier" class="floor-note">at barrier</span></td><td>{{ formatPercent(row.returnValue) }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected || minimumSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="(protectionSelected || minimumSelected) && row.floorApplied" class="floor-note">{{ minimumSelected ? 'minimum applied' : 'floor applied' }}</span></td></tr></tbody></table></div>
                 <p class="scenario-formula"><template v-if="lookingBack">Each change is measured from the lookback level, {{ formatAmount(determinedInitialLevel) }}. </template><template v-if="averaging">Each final level is the average of the observed levels. </template><strong>Selected participation:</strong> {{ participationSummary }}. A move in an unselected direction does not change principal before protection.<template v-if="bufferSelected"> The buffer absorbs the first {{ bufferSummary }} of a fall.</template> The payment cannot fall below {{ floorSummary }}.<template v-if="capSelected"> It cannot exceed {{ capSummary }}.</template></p>
               </template>
               <p v-else class="help">Enter valid terms to see the scenarios.</p>
@@ -906,7 +950,7 @@ const chart = computed(() => {
         <aside class="panel structure-json" aria-labelledby="structure-json-heading">
           <p class="eyebrow">{{ errors.length ? 'Draft structure · invalid terms' : 'Selected structure' }}</p>
           <h2 id="structure-json-heading">Structure JSON</h2>
-          <p class="help">{{ errors.length ? 'A live draft containing invalid terms. Correct the highlighted terms before treating it as a valid structure.' : "A live representation of the note's contractual terms." }}</p>
+          <p class="help">{{ errors.length ? 'A live draft containing invalid terms. Correct the highlighted terms before treating it as a valid structure.' : `A live representation of the ${wrapper}'s contractual terms.` }}</p>
           <div class="json-wrap">
             <button type="button" :class="['copybtn', copyState]" aria-label="Copy the structure JSON" :title="copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : 'Copy JSON'" @click="copyJson">
               <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">

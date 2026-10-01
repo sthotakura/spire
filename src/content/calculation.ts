@@ -24,7 +24,8 @@ function participationStep(note: Product, breakdown: PaymentBreakdown, direction
   const title = direction === 'upside' ? 'Upside participation' : 'Downside participation'
   const rate = note.payoff.participations.find((candidate) => candidate.direction === direction)?.rate
   if (rate === undefined) {
-    const how = direction === 'upside' ? 'Not selected, so a rise does not add to principal' : 'Not selected, so a fall does not reduce principal'
+    const how = direction === 'upside' ? 'Not selected, so a rise does not add to principal'
+      : note.wrapper === 'deposit' ? 'Not on a deposit, which repays principal in full' : 'Not selected, so a fall does not reduce principal'
     return { title, how, value: 'Not added', muted: true, concept: direction }
   }
   const contribution = direction === breakdown.direction ? breakdown.participatedReturn : 0

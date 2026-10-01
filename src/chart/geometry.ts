@@ -49,12 +49,14 @@ export const upsideRateRange = { min: 5, max: 200 }
 export const capRange = { min: 1, max: 100 }
 export const bufferRange = { min: 1, max: 100 }
 export const barrierRange = { min: 1, max: 99 }
+export const minimumReturnRange = { min: 1, max: 100 }
 
 export const clampProtection = (percent: number) => clamp(Math.round(percent), protectionRange.min, protectionRange.max)
 export const clampUpsideRate = (percent: number) => clamp(Math.round(percent), upsideRateRange.min, upsideRateRange.max)
 export const clampCap = (percent: number) => clamp(Math.round(percent), capRange.min, capRange.max)
 export const clampBuffer = (percent: number) => clamp(Math.round(percent), bufferRange.min, bufferRange.max)
 export const clampBarrier = (percent: number) => clamp(Math.round(percent), barrierRange.min, barrierRange.max)
+export const clampMinimumReturn = (percent: number) => clamp(Math.round(percent), minimumReturnRange.min, minimumReturnRange.max)
 export const clampFinalLevel = (level: number, initialLevel: number) => clamp(Math.round(level), 0, Math.floor(initialLevel * levelAxisFactor))
 
 // Dragging the floor handle to a height sets protection, snapped to 1%.
@@ -77,6 +79,9 @@ export const upsideRateFromY = (y: number, principal: number, top: number, plot:
 
 // Dragging the cap handle to a height sets the cap as a return on principal, snapped to 1%.
 export const capFromY = (y: number, principal: number, top: number, plot: Plot) => clampCap((dragAmount(y, top, plot) / principal - 1) * 100)
+
+// Dragging the minimum-return handle to a height sets the minimum as a return on principal, snapped to 1%.
+export const minimumReturnFromY = (y: number, principal: number, top: number, plot: Plot) => clampMinimumReturn((dragAmount(y, top, plot) / principal - 1) * 100)
 
 // The buffer handle sits where losses start: the level the underlier can fall to before principal is reduced.
 export const bufferLevel = (initialLevel: number, buffer: number) => initialLevel * (1 - buffer)
