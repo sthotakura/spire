@@ -86,7 +86,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 
 - Nest the asset and the determination method under the underlier, in the domain, the Structure JSON and the outline alike. The outline and the JSON must keep the same shape: the JSON is how we test whether a product is expressed correctly.
 - Give a single underlier a `components` list with exactly one entry, so a basket later only adds entries and a combination rule. Keep the initial level beside the asset, as a term of the note. (Superseded by section 18.) The model, decisions and open questions are in [docs/underlier-model.md](docs/underlier-model.md).
-- Show a one-line meaning under each part of the outline, in neutral wording for investors and structurers alike, with fuller definitions in the ⓘ hints.
+- Show a one-line meaning under each part of the outline, in neutral wording for investors and structurers alike, with fuller definitions in the ⓘ hints. (Later removed: shown only on the selected row, they made the outline jump on every selection. The ⓘ hints hold the meanings.)
 - Make determination a dropdown like the others, show digit separators in number fields, and drop the "units" label from amounts.
 - Keep one **Add feature** entry point for payoff features; the empty payoff names two examples as plain text.
 - Show the payment rule above the worked calculation, built from the features that are added, and name the asset wherever the final level appears, so a basket can later show one final level per asset.

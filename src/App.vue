@@ -65,18 +65,6 @@ const finalDeterminationOptions: ReadonlyArray<{ id: FinalDetermination['kind'];
   { id: 'averaging', label: 'Averaging', description: 'Uses the average of levels observed on several stated dates.' },
   { id: 'final-date', label: 'Final date', description: 'Uses the level on the one final date.' },
 ]
-// A one-line meaning under each part's name, so the outline reads without opening every hint.
-const partDescriptions = {
-  wrapper: 'The form the product takes',
-  redemption: 'When principal is repaid',
-  underlier: 'What the return is linked to',
-  asset: 'What is tracked',
-  determination: 'How the underlier’s change is measured',
-  'initial-level': 'Where the change is measured from',
-  'final-level': 'Where the change is measured to',
-  payoff: 'What the product pays at maturity',
-  'basket-return': 'How the asset returns make one return',
-}
 const underlierOptions = [
   { id: 'basket', label: 'Basket', description: 'Several assets whose changes are combined into one return.', available: true },
   { id: 'single', label: 'Single', description: 'One asset.', available: true },
@@ -749,7 +737,6 @@ const chart = computed(() => {
               <div class="nrow" @click="select('wrapper')" @focusin="focusRow('wrapper')">
                 <span class="nlabel">Wrapper<HintToggle id="wrapper" about="wrapper" :text="hints.wrapper" :active="activeHint === 'wrapper'" @toggle="toggleHint('wrapper')" /></span>
                 <span class="ctrl pick"><select aria-label="Wrapper" :value="note.wrapper" @change="setWrapper(($event.target as HTMLSelectElement).value)"><option v-for="option in wrapperOptions" :key="option.id" :value="option.id" :disabled="!option.available || !!wrapperBlockedReason(option.id)">{{ option.label }}{{ !option.available ? ' (unavailable)' : wrapperBlockedReason(option.id) ? ` (${wrapperBlockedReason(option.id)?.toLowerCase()})` : '' }}</option></select></span>
-                <span class="ndesc">{{ partDescriptions.wrapper }}</span>
                 <span class="ctrl-line">
                   <span class="ctrl"><label for="principal">Principal</label><HintToggle id="principal" about="principal" :text="hints.principal" :active="activeHint === 'principal'" @toggle="toggleHint('principal')" /><NumberInput id="principal" v-model="principal" class="num" /></span>
                   <span class="ctrl"><label for="term">Term</label><HintToggle id="term" about="term" :text="hints.term" :active="activeHint === 'term'" @toggle="toggleHint('term')" /><NumberInput id="term" v-model="termMonths" class="num count" /><span class="unit">months{{ termYears ? ` (${termYears})` : '' }}</span></span>
@@ -761,21 +748,18 @@ const chart = computed(() => {
                   <div class="nrow" @click="select('redemption')" @focusin="focusRow('redemption')">
                     <span class="nlabel">Redemption<HintToggle id="redemption" about="redemption" :text="hints.redemption" :active="activeHint === 'redemption'" @toggle="toggleHint('redemption')" /></span>
                     <span class="ctrl pick"><select aria-label="Redemption" :value="note.redemption"><option v-for="option in redemptionOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
-                    <span class="ndesc">{{ partDescriptions.redemption }}</span>
                   </div>
                 </li>
                 <li :class="['node', { sel: highlighted('underlier') }]" :style="conceptStyle('underlier')">
                   <div class="nrow" @click="select('underlier')" @focusin="focusRow('underlier')">
                     <span class="nlabel">Underlier<HintToggle id="underlier" about="underlier" :text="hints.underlier" :active="activeHint === 'underlier'" @toggle="toggleHint('underlier')" /></span>
                     <span class="ctrl pick"><select aria-label="Underlier" :value="underlierKind" @change="setUnderlierKind(($event.target as HTMLSelectElement).value as Underlier['kind'])"><option v-for="option in underlierOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
-                    <span class="ndesc">{{ partDescriptions.underlier }}</span>
                   </div>
                   <ul>
                     <li v-if="!isBasket" :class="['node', { sel: highlighted('asset') }]" :style="conceptStyle('asset')">
                       <div class="nrow" @click="select('asset')" @focusin="focusRow('asset')">
                         <span class="nlabel">Asset<HintToggle id="asset" about="asset" :text="hints.asset" :active="activeHint === 'asset'" @toggle="toggleHint('asset')" /></span>
                         <span class="ctrl pick"><select v-model="assetKind" aria-label="Asset type"><option v-for="option in assetOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
-                        <span class="ndesc">{{ partDescriptions.asset }}</span>
                         <span class="ctrl block"><label for="asset-name">Name</label><input id="asset-name" v-model="assetName" type="text" placeholder="Synthetic Index" /></span>
                       </div>
                       <ul v-if="issuesFor('underlierName').length" class="errors" role="alert"><li v-for="message in issuesFor('underlierName')" :key="message">{{ message }}</li></ul>
@@ -786,7 +770,6 @@ const chart = computed(() => {
                           <span class="nlabel">Asset<HintToggle v-if="index === 0" id="asset" about="asset" :text="hints.asset" :active="activeHint === 'asset'" @toggle="toggleHint('asset')" /></span>
                           <span class="ctrl pick"><select v-model="asset.kind" :aria-label="`Asset ${index + 1} type`"><option v-for="option in assetOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
                           <button v-if="basketAssets.length > 2" type="button" class="xbtn" :aria-label="`Remove ${asset.name.trim() || `asset ${index + 1}`}`" @click.stop="removeAsset(index)">×</button>
-                          <span v-if="index === 0" class="ndesc">{{ partDescriptions.asset }}</span>
                           <span class="ctrl block"><label :for="`asset-name-${index}`">Name</label><input :id="`asset-name-${index}`" v-model="asset.name" type="text" placeholder="Synthetic Asset" /></span>
                           <span class="ctrl block"><label :for="`weight-${index}`">Weight</label><HintToggle v-if="index === 0" id="weight" about="weight" :text="hints.weight" :active="activeHint === 'weight'" @toggle="toggleHint('weight')" /><NumberInput :id="`weight-${index}`" v-model="asset.weightPercent" class="num rate" /><span class="unit">%</span></span>
                         </div>
@@ -797,14 +780,12 @@ const chart = computed(() => {
                     <li :class="['node', { sel: highlighted('determination') }]" :style="conceptStyle('determination')">
                       <div class="nrow" @click="select('determination')" @focusin="focusRow('determination')">
                         <span class="nlabel">Determination<HintToggle id="determination" about="determination" :text="hints.determination" :active="activeHint === 'determination'" @toggle="toggleHint('determination')" /></span>
-                        <span class="ndesc">{{ partDescriptions.determination }}</span>
                       </div>
                       <ul>
                         <li :class="['node', { sel: highlighted('initial-level') }]" :style="conceptStyle('initial-level')">
                           <div class="nrow" @click="select('initial-level')" @focusin="focusRow('initial-level')">
                             <span class="nlabel">Initial level<HintToggle id="initial-level" about="initial level" :text="hints['initial-level']" :active="activeHint === 'initial-level'" @toggle="toggleHint('initial-level')" /></span>
                             <span class="ctrl pick"><select id="initial-determination" v-model="initialKind" aria-label="Initial level"><option v-for="option in initialDeterminationOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="isBasket && option.id === 'lookback'">{{ option.label }}{{ isBasket && option.id === 'lookback' ? ' (single asset only)' : '' }}</option></select></span>
-                            <span class="ndesc">{{ partDescriptions['initial-level'] }}</span>
                             <span v-if="lookingBack" class="ctrl block wraps"><label for="lookback-count">Observations after pricing</label><HintToggle id="lookback-count" about="observations after pricing" :text="hints['lookback-observations']" :active="activeHint === 'lookback-observations'" @toggle="toggleHint('lookback-observations')" /><NumberInput id="lookback-count" v-model="lookbackCount" class="num count" /></span>
                             <span v-if="lookingBack" class="ctrl block wraps"><span class="flabel">Observed levels</span><span class="unit">Hypothetical, set in the calculation</span></span>
                             <template v-else-if="isBasket"><span v-for="(asset, index) in basketAssets" :key="index" class="ctrl block"><label :for="`initial-level-${index}`">{{ asset.name.trim() || `Asset ${index + 1}` }}</label><NumberInput :id="`initial-level-${index}`" v-model="asset.initialLevel" class="num" /></span></template>
@@ -816,7 +797,6 @@ const chart = computed(() => {
                           <div class="nrow" @click="select('final-level')" @focusin="focusRow('final-level')">
                             <span class="nlabel">Final level<HintToggle id="final-level" about="final level" :text="hints['final-level']" :active="activeHint === 'final-level'" @toggle="toggleHint('final-level')" /></span>
                             <span class="ctrl pick"><select id="final-determination" v-model="finalKind" aria-label="Final level"><option v-for="option in finalDeterminationOptions" :key="option.id" :value="option.id" :title="option.description">{{ option.label }}</option></select></span>
-                            <span class="ndesc">{{ partDescriptions['final-level'] }}</span>
                             <span v-if="averaging" class="ctrl block"><label for="observation-count">Observations</label><HintToggle id="observation-count" about="observations" :text="hints.observations" :active="activeHint === 'observations'" @toggle="toggleHint('observations')" /><NumberInput id="observation-count" v-model="observationCount" class="num count" /></span>
                             <span class="ctrl block wraps"><span class="flabel">{{ averaging ? 'Observed levels' : isBasket ? 'Levels on the final date' : 'Level on the final date' }}</span><span class="unit">{{ averaging || isBasket ? 'Hypothetical, set in the calculation' : 'Hypothetical, set on the chart' }}</span></span>
                           </div>
@@ -826,7 +806,6 @@ const chart = computed(() => {
                           <div class="nrow" @click="select('basket-return')" @focusin="focusRow('basket-return')">
                             <span class="nlabel">Basket return<HintToggle id="basket-return" about="basket return" :text="hints['basket-return']" :active="activeHint === 'basket-return'" @toggle="toggleHint('basket-return')" /></span>
                             <span class="ctrl pick"><select aria-label="Basket return" value="weighted"><option v-for="option in basketReturnOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
-                            <span class="ndesc">{{ partDescriptions['basket-return'] }}</span>
                           </div>
                         </li>
                       </ul>
@@ -836,7 +815,6 @@ const chart = computed(() => {
                 <li :class="['node', { sel: highlighted('payoff') }]" :style="conceptStyle('payoff')">
                   <div class="nrow" @click="select('payoff')" @focusin="focusRow('payoff')">
                     <span class="nlabel">Payoff<HintToggle id="payoff" about="payoff" :text="hints.payoff" :active="activeHint === 'payoff'" @toggle="toggleHint('payoff')" /></span>
-                    <span class="ndesc">{{ partDescriptions.payoff }}</span>
                   </div>
                   <ul v-if="issuesFor('participations').length" class="errors" role="alert"><li v-for="message in issuesFor('participations')" :key="message">{{ message }}</li></ul>
                   <ul>
