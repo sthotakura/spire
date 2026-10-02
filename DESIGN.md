@@ -37,6 +37,7 @@ colors:
   concept-cap: "#a23b8c"
   concept-buffer: "#1aa3b8"
   concept-barrier: "#9775fa"
+  concept-absolute-return: "#d4a017"
 typography:
   display:
     fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
@@ -155,9 +156,9 @@ A cool, low-chroma neutral world in which the only saturated colour is meaning: 
 - **Selection Wash** (`selection-wash`) and **Result Wash** (`result-wash`): pale blue fills for a selected JSON line and the final payment step. **Hover Wash** (`hover-wash`) is the hover fill for buttons and highlighted calculation steps.
 
 ### Concept palette
-Sixteen hues, one per concept, applied through a single CSS variable (`--c`) on the element that represents the concept. They are mid-tone so they read as lines, bars and underlines on white, and as 6–26% `color-mix` tints for fills. Protection shares Ledger Blue, and payoff shares Slate.
+Seventeen hues, one per concept, applied through a single CSS variable (`--c`) on the element that represents the concept. They are mid-tone so they read as lines, bars and underlines on white, and as 6–26% `color-mix` tints for fills. Protection shares Ledger Blue, and payoff shares Slate.
 
-- **Wrapper** Dusty Navy, **Redemption** Sea Teal, **Underlier** Iris, **Asset** Lilac, **Determination** Ochre, **Initial level** Walnut, **Final level** Olive, **Basket return** Slate Violet, **Payoff** Slate, **Protection** Ledger Blue, **Minimum return** Indigo, **Upside** Field Green, **Downside** Burnt Orange, **Cap** Plum, **Buffer** Cyan Teal, **Barrier** Lavender.
+- **Wrapper** Dusty Navy, **Redemption** Sea Teal, **Underlier** Iris, **Asset** Lilac, **Determination** Ochre, **Initial level** Walnut, **Final level** Olive, **Basket return** Slate Violet, **Payoff** Slate, **Protection** Ledger Blue, **Minimum return** Indigo, **Upside** Field Green, **Downside** Burnt Orange, **Cap** Plum, **Buffer** Cyan Teal, **Barrier** Lavender, **Absolute return** Gold.
 
 ### Neutral
 - **Ink** (`ink`): headings, values, the final-level dot and bubble on the chart.

@@ -204,6 +204,10 @@ Absolute return pays a fall within the buffer as a gain; beyond the buffer the h
 - **The payment jumps at the buffer level**, which belongs to absolute return. The chart draws two pieces, as for the barrier, with a filled mark on the end the level pays and an open mark on the other, at the barrier's jump too. The buffer handle moves to the filled end. The scenarios add a row at the buffer level.
 - **Build order.** The domain (rule, validation, the cap change), with tests built from the public examples; then the content (summary, JSON, payment rule, calculation, outcome, scenarios); then the interface.
 
+## 23. Redesign the payoff chart (proposed)
+
+With several features the chart is accurate but hard to read. A public filing's payoff diagram reads more easily: it draws the note against a 1:1 underlier line, uses % change on the horizontal axis, and labels the features instead of relying on colour. The proposal, a before-and-after mock and the decisions it needs are in [docs/payoff-chart.md](docs/payoff-chart.md). It changes how a payoff is drawn, not what any product pays. Decided so far: the horizontal axis is fixed from −100% to +100%, and the underlier reference line is a neutral grey. Nothing is built until the remaining decisions are agreed.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.
