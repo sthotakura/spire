@@ -128,7 +128,7 @@ export function calculationSteps(note: Product, breakdown: PaymentBreakdown, obs
     participationStep(note, b, 'upside'),
     { title: withCap ? 'Payment before cap' : deposit ? 'Payment before minimum' : 'Payment before protection', how: `${formatAmount(principal)} × (1 ${b.participatedReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(b.participatedReturn))})`, value: formatAmount(b.uncappedPayment) },
   )
-  if (withCap) steps.push({ title: 'Cap', how: `${formatAmount(principal)} × (1 + ${formatPercent(cap)}) · ${b.capApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.capAmount ?? 0), concept: 'cap' })
+  if (withCap) steps.push({ title: 'Cap', how: `${formatAmount(principal)} × (1 + ${formatPercent(cap)}) · ${b.capApplies ? 'applies here' : absoluteReturn !== undefined && b.direction === 'downside' ? 'limits a rise only' : 'not binding here'}`, value: formatAmount(b.capAmount ?? 0), concept: 'cap' })
   if (deposit) {
     steps.push(minimum !== undefined
       ? { title: 'Minimum return', how: `${formatAmount(principal)} × (1 + ${twoDecimalPercent(minimum)}) · ${b.floorApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.floor), concept: 'minimum-return' }

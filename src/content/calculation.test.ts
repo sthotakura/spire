@@ -148,6 +148,7 @@ describe('calculation steps with absolute return', () => {
   it('mutes absolute return beyond the buffer and on a rise', () => {
     expect(step(note, 80, 'Absolute return')).toMatchObject({ how: '100% × |−20%| · the fall is beyond the buffer, so it pays no gain', value: '0%', muted: true })
     expect(step(note, 80, 'Downside participation')).toMatchObject({ value: '−5%' })
+    expect(step(note, 95, 'Cap')?.how).toBe('1,000 × (1 + 40%) · limits a rise only')
     expect(step(note, 110, 'Absolute return')).toMatchObject({ how: 'Pays 100% of a fall within the buffer as a gain · applies only when the return is negative', value: '0%', muted: true })
     expect(step(note, 100, 'Absolute return')?.how).toBe('Pays 100% of a fall within the buffer as a gain · applies only when the return is negative')
   })

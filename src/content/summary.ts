@@ -75,7 +75,8 @@ export function summarize(note: Product): SummarySegment[] {
   // starting level for a basket.
   if (barrier !== undefined) clauses.push({ text: `a barrier at ${percent(barrier.level)} of the ${initial.kind === 'lookback' ? 'lookback level' : basket ? 'initial basket level' : 'initial level'}`, concept: 'barrier' })
   if (protection !== undefined) clauses.push({ text: `${percent(protection)} principal protection`, concept: 'protection' })
-  if (cap !== undefined) clauses.push({ text: `a maximum return of ${percent(cap)}`, concept: 'cap' })
+  // The cap limits a rise only. With absolute return a fall can pay more, so the clause says which return it limits.
+  if (cap !== undefined) clauses.push({ text: `a maximum return of ${percent(cap)}${absoluteReturn !== undefined ? ' on a rise' : ''}`, concept: 'cap' })
   const minimum = note.payoff.minimumReturn
   if (minimum !== undefined) clauses.push({ text: `a minimum return of ${weightPercent(minimum)}`, concept: 'minimum-return' })
   const features: SummarySegment[] = clauses.flatMap((clause, index) => [{ text: index === 0 ? ', with ' : index === clauses.length - 1 ? ' and ' : ', ' }, clause])

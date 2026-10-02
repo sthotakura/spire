@@ -156,4 +156,9 @@ describe('summary with absolute return', () => {
     expect(sentence(dualDirectional)).toContain(', with a 15% buffer and 100% absolute return on a fall within it.')
     expect(conceptOf(dualDirectional, '100% absolute return on a fall within it')).toBe('absolute-return')
   })
+
+  it('says the cap limits a rise, since a fall within the buffer can pay more', () => {
+    const capped = { ...note, payoff: { participations: withSubFeatures(note.payoff.participations, { buffer: 0.1, absoluteReturn: { rate: 1 }, cap: 0.05 }) } }
+    expect(sentence(capped)).toContain(' and a maximum return of 5% on a rise.')
+  })
 })
