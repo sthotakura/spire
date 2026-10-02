@@ -31,6 +31,7 @@ const hints = {
   payoff: 'The rules that turn the underlier’s change into the maturity payment. With no features the product repays principal. Each feature adds a rule, such as a share of the gain or a minimum payment.',
   principal: 'The amount used as the base for the maturity payment.',
   'initial-level': 'The level the underlier’s return is measured from. Fixed states it as a term of this product: two products on the same asset can start from different levels. Lookback takes the lowest level observed on the pricing date and several dates after it. When a note’s strike is set at 100% of it, it is often called the strike level.',
+  'final-level': 'The level the underlier’s return is measured to. Final date uses the level on the one final observation date; moves before it do not count. Averaging takes the average of the levels observed on several dates before maturity, so a sharp move on the last date counts for less.',
   downside: 'The share of a negative underlier return, beyond any buffer, deducted from principal before the protection floor applies.',
   buffer: 'The fall the holder does not bear, as a percentage of the initial level. A fall within it leaves principal unchanged. A larger fall reduces principal by the amount beyond it, at the downside participation rate.',
   barrier: 'A level of the underlier, as a percentage of the initial level. If the final level ends below it, downside participation applies to the whole fall; at or above it, a fall leaves principal unchanged. It is observed on the final observation date.',
@@ -771,7 +772,7 @@ const chart = computed(() => {
                         </li>
                         <li :class="['node', { sel: highlighted('final-level') }]" :style="conceptStyle('final-level')">
                           <div class="nrow" @click="select('final-level')" @focusin="focusRow('final-level')">
-                            <span class="nlabel">Final level</span>
+                            <span class="nlabel">Final level<HintToggle id="final-level" about="final level" :text="hints['final-level']" :active="activeHint === 'final-level'" @toggle="toggleHint('final-level')" /></span>
                             <span class="ctrl pick"><select id="final-determination" v-model="finalKind" aria-label="Final level"><option v-for="option in finalDeterminationOptions" :key="option.id" :value="option.id" :title="option.description">{{ option.label }}</option></select></span>
                             <span class="ndesc">{{ partDescriptions['final-level'] }}</span>
                             <span v-if="averaging" class="ctrl block"><label for="observation-count">Observations</label><HintToggle id="observation-count" about="observations" :text="hints.observations" :active="activeHint === 'observations'" @toggle="toggleHint('observations')" /><NumberInput id="observation-count" v-model="observationCount" class="num count" /></span>
