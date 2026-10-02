@@ -129,3 +129,19 @@ describe('payment rule with absolute return', () => {
     expect(paymentInWords(lowCap)).toContain('The payment never goes above 1,150 or below zero.')
   })
 })
+
+describe('payment rule with absolute return above a barrier', () => {
+  const trigger: Product = { ...startingProduct, payoff: { participations: withSubFeatures([down, { direction: 'upside', rate: 1.25 }], { barrier: { level: 0.7, observation: 'final' as const }, absoluteReturn: { rate: 0.5 } }) } }
+
+  it('pays a fall that ends at or above the barrier as a gain', () => {
+    expect(text(trigger).slice(2)).toEqual([
+      'downside only when Final level < Barrier × Initial level',
+      'but Principal × (1 + Absolute × |Return|) when Final level ≥ Barrier × Initial level and Return < 0',
+      'floored at 0',
+    ])
+  })
+
+  it('says a larger fall counts in full', () => {
+    expect(paymentInWords(trigger)).toBe(`Each 1% rise in ${startingProduct.underlier.components[0].asset.name} adds 1.25% of principal, and each 1% fall, up to 30%, adds 0.5%. A larger fall pays no gain, and each 1% of the whole fall takes 1% of principal away. The payment never goes below zero.`)
+  })
+})

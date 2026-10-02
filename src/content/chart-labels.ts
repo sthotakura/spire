@@ -36,8 +36,10 @@ export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, s
       labels.barrier = `A fall of up to ${percent(1 - barrier.level)} repays principal`
       labels.downside = `A fall past ${percent(1 - barrier.level)} loses ${perPoint(rate)} per 1% of the whole fall`
     } else labels.downside = `Each 1% fall loses ${perPoint(rate)}`
-    if (absoluteReturn !== undefined && buffer !== undefined) {
-      labels['absolute-return'] = absoluteReturn.rate === 1 ? `A fall of up to ${percent(buffer)} is paid as a gain` : `A fall of up to ${percent(buffer)} pays ${percent(absoluteReturn.rate)} of it as a gain`
+    // Absolute return pays the falls downside participation does not reach: up to the buffer, or down to the barrier.
+    const reach = buffer ?? (barrier !== undefined ? 1 - barrier.level : undefined)
+    if (absoluteReturn !== undefined && reach !== undefined) {
+      labels['absolute-return'] = absoluteReturn.rate === 1 ? `A fall of up to ${percent(reach)} is paid as a gain` : `A fall of up to ${percent(reach)} pays ${percent(absoluteReturn.rate)} of it as a gain`
     }
     // The lowest payment is at a fall to zero. Without a floor it can still be above zero, as with a buffer.
     const lowest = maturityPayment(product, { initial: 1, final: 0 })

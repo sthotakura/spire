@@ -28,9 +28,12 @@ export function explainOutcome(note: Product, breakdown: PaymentBreakdown): stri
   if (underlierReturn === 0) participation = 'A flat return leaves principal unchanged.'
   else if (participationRate === undefined && direction === 'downside' && note.wrapper === 'deposit') participation = 'A deposit repays principal in full, so a fall does not reduce it.'
   else if (participationRate === undefined) participation = `No ${direction} participation is selected, so principal is unchanged.`
+  else if (absoluteReturnApplies) {
+    const within = barrierLevel !== undefined ? `It ended at or above the ${units(barrierLevel)} barrier` : `The fall is within the ${percent(downsideOf(note)?.buffer ?? 0)} buffer`
+    participation = `${within}, so absolute return of ${percent(downsideOf(note)?.absoluteReturn?.rate ?? 0)} adds ${percent(participatedReturn)} to principal.`
+  }
   else if (direction === 'downside' && belowBarrier === false) participation = `It ended at or above the ${units(barrierLevel ?? 0)} barrier, so downside participation does not apply and principal is unchanged.`
-  else if (direction === 'downside' && belowBarrier) participation = `It ended below the ${units(barrierLevel ?? 0)} barrier, so downside participation of ${percent(participationRate)} deducts the whole ${percent(participatedReturn)} from principal.`
-  else if (absoluteReturnApplies) participation = `The fall is within the ${percent(downsideOf(note)?.buffer ?? 0)} buffer, so absolute return of ${percent(downsideOf(note)?.absoluteReturn?.rate ?? 0)} adds ${percent(participatedReturn)} to principal.`
+  else if (direction === 'downside' && belowBarrier) participation = `It ended below the ${units(barrierLevel ?? 0)} barrier, so ${absoluteReturnApplies === false ? 'it pays no absolute return, and ' : ''}downside participation of ${percent(participationRate)} deducts the whole ${percent(participatedReturn)} from principal.`
   else if (bufferAbsorbs && participatedReturn === 0) participation = `The ${percent(downsideOf(note)?.buffer ?? 0)} buffer absorbs the whole fall, so principal is unchanged.`
   else if (bufferAbsorbs) participation = `${absoluteReturnApplies === false ? 'The fall is beyond the buffer, so it pays no absolute return. ' : ''}The buffer absorbs the first ${percent(bufferAbsorbs)} of the fall, and downside participation of ${percent(participationRate)} deducts ${percent(participatedReturn)} from principal.`
   else {

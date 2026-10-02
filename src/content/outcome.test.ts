@@ -112,3 +112,16 @@ describe('outcome with absolute return', () => {
     expect(explain(note, 80)).toBe('The underlier fell 20%. The fall is beyond the buffer, so it pays no absolute return. The buffer absorbs the first 15% of the fall, and downside participation of 100% deducts 5% from principal. The 1,400 cap does not apply and there is no principal protection, so the contractual payment is 950, 50 less than principal.')
   })
 })
+
+describe('outcome with absolute return above a barrier', () => {
+  const base = noteWith([{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1.25 }])
+  const trigger = { ...base, payoff: { participations: withSubFeatures(base.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const }, absoluteReturn: { rate: 0.5 } }) } }
+
+  it('pays a fall that ends at or above the barrier as a gain', () => {
+    expect(explain(trigger, 95)).toBe('The underlier fell 5%. It ended at or above the 70 barrier, so absolute return of 50% adds 2.5% to principal. The contractual payment is 1,025, 25 more than principal.')
+  })
+
+  it('counts the whole fall below the barrier, with no gain', () => {
+    expect(explain(trigger, 60)).toBe('The underlier fell 40%. It ended below the 70 barrier, so it pays no absolute return, and downside participation of 100% deducts the whole 40% from principal. There is no principal protection, so the contractual payment is 600, 400 less than principal.')
+  })
+})

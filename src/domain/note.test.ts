@@ -508,10 +508,37 @@ describe('absolute return', () => {
     expect(productIssues(withDownside(dualDirectional, { absoluteReturn: { rate } }))).toEqual([{ field: 'absoluteReturn', message: 'Absolute return must be greater than zero.' }])
   })
 
-  it('needs a buffer, even with a barrier', () => {
-    const message = { field: 'absoluteReturn', message: 'Absolute return pays a fall within the buffer, so it needs a buffer.' }
-    expect(productIssues(withDownside(dualDirectional, { buffer: undefined }))).toEqual([message])
-    expect(productIssues(withDownside(dualDirectional, { buffer: undefined, barrier: { level: 0.8, observation: 'final' } }))).toEqual([message])
+  it('needs a buffer or a barrier', () => {
+    expect(productIssues(withDownside(dualDirectional, { buffer: undefined }))).toEqual([{ field: 'absoluteReturn', message: 'Absolute return needs a buffer or a barrier.' }])
+    expect(productIssues(withDownside(dualDirectional, { buffer: undefined, barrier: { level: 0.8, observation: 'final' } }))).toEqual([])
+  })
+
+  describe('with a barrier', () => {
+    // A public trigger note on its worst performing index: 125% upside, a 70% downside threshold, 50% absolute return.
+    const trigger = withUpside(withDownside({ ...note, payoff: { ...note.payoff, principalProtection: undefined } }, { barrier: { level: 0.7, observation: 'final' }, absoluteReturn: { rate: 0.5 } }), { rate: 1.25 })
+
+    it.each([
+      [105, 1062.5],
+      [95, 1025],
+      [70, 1150],
+      [69.99, 699.9],
+      [15, 150],
+      [0, 0],
+    ])('pays %s final level as %s units, as the public note does', (finalLevel, expected) => {
+      expect(maturityPayment(trigger, { initial: 100, final: finalLevel })).toBeCloseTo(expected, 8)
+    })
+
+    it('pays the gain at or above the barrier and counts the whole fall below it', () => {
+      expect(paymentBreakdown(trigger, { initial: 100, final: 70 })).toMatchObject({ absoluteReturnApplies: true, belowBarrier: false })
+      const below = paymentBreakdown(trigger, { initial: 100, final: 69 })
+      expect(below).toMatchObject({ absoluteReturnApplies: false, belowBarrier: true })
+      expect(below.participatedReturn).toBeCloseTo(-0.31, 8)
+    })
+
+    it('is measured from the determined initial level, such as a lookback level', () => {
+      // Lookback level 80, so the barrier is 56: a final level of 60 is a 25% fall, paid at 50% as a gain.
+      expect(maturityPayment(trigger, { initial: 80, final: 60 })).toBeCloseTo(1125, 8)
+    })
   })
 })
 

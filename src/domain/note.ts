@@ -2,8 +2,8 @@ export type AssetKind = 'equity' | 'equity-index'
 export type ParticipationDirection = 'downside' | 'upside'
 
 // Each direction carries the features that only make sense with it: a buffer changes the fall downside participation
-// applies to, a barrier decides whether downside participation applies at all, absolute return pays a fall within the
-// buffer as a gain, and a cap limits the return upside participation can add. Their keys are listed in the order the
+// applies to, a barrier decides whether downside participation applies at all, absolute return pays as a gain a fall that
+// downside participation does not reach, and a cap limits the return upside participation can add. Their keys are listed in the order the
 // payment applies them.
 export interface DownsideParticipation {
   direction: 'downside'
@@ -14,8 +14,9 @@ export interface DownsideParticipation {
   rate: number
 }
 
-// A fall no larger than the buffer pays its size, times the rate, as a gain. Beyond the buffer it pays nothing, and the
-// holder bears the fall beyond the buffer as before, so the payment drops at the buffer level (docs/absolute-return.md).
+// A fall that downside participation does not reach pays its size, times the rate, as a gain: a fall within the buffer, or
+// one that ends at or above the barrier. Past it the gain is gone and the holder bears the fall as the buffer or barrier sets
+// out, so the payment drops there (docs/absolute-return.md).
 export interface AbsoluteReturn {
   rate: number
 }
@@ -234,8 +235,8 @@ export function productIssues(note: Product): ProductIssue[] {
   const absoluteReturn = downsideOf(note)?.absoluteReturn
   if (absoluteReturn !== undefined) {
     if (!Number.isFinite(absoluteReturn.rate) || absoluteReturn.rate <= 0) issues.push({ field: 'absoluteReturn', message: 'Absolute return must be greater than zero.' })
-    // Absolute return above a barrier is public, but no note with its terms was read, so it needs a buffer for now.
-    if (buffer === undefined) issues.push({ field: 'absoluteReturn', message: 'Absolute return pays a fall within the buffer, so it needs a buffer.' })
+    // Without a buffer or a barrier, downside participation reaches every fall, so no fall is left to pay as a gain.
+    if (buffer === undefined && barrier === undefined) issues.push({ field: 'absoluteReturn', message: 'Absolute return needs a buffer or a barrier.' })
   }
   for (const participation of note.payoff.participations) {
     if (!Number.isFinite(participation.rate) || participation.rate <= 0) issues.push({ field: 'participations', message: `${participation.direction === 'upside' ? 'Upside' : 'Downside'} participation must be greater than zero.` })
@@ -337,7 +338,8 @@ export interface PaymentBreakdown {
   // Undefined when the note has no barrier. Otherwise the barrier as an underlier level, and whether the final level is below it.
   barrierLevel?: number
   belowBarrier?: boolean
-  // Undefined when the note has no absolute return. Otherwise whether the fall is within the buffer, so it is paid as a gain.
+  // Undefined when the note has no absolute return. Otherwise whether the fall is paid as a gain: within the buffer, or ending
+  // at or above the barrier.
   absoluteReturnApplies?: boolean
   // Undefined when that direction has no participation, so principal is unchanged.
   participationRate?: number
@@ -374,10 +376,12 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
   const belowBarrier = barrierLevel === undefined ? undefined : levels.final < barrierLevel
   // At or above the barrier, downside participation does not apply, so a fall leaves principal unchanged.
   const barrierHolds = direction === 'downside' && belowBarrier === false
-  // A fall the buffer absorbs whole is paid as a gain. Public notes compare the final level with the buffer level, and a
-  // final level at it is within the buffer. Comparing levels also keeps 85 ÷ 100 − 1 from falling just outside a 15% buffer.
+  // A fall downside participation does not reach is paid as a gain: one the buffer absorbs whole, or one that ends at or above
+  // the barrier. Public notes compare the final level with the buffer level, and a final level at it is within the buffer.
+  // Comparing levels also keeps 85 ÷ 100 − 1 from falling just outside a 15% buffer.
   const absoluteReturn = downsideOf(note)?.absoluteReturn
-  const absoluteReturnApplies = absoluteReturn === undefined || buffer === undefined ? undefined : direction === 'downside' && levels.final >= levels.initial * (1 - buffer)
+  const absoluteReturnApplies = absoluteReturn === undefined ? undefined
+    : direction === 'downside' && (buffer !== undefined ? levels.final >= levels.initial * (1 - buffer) : belowBarrier === false)
   const participatedReturn = absoluteReturnApplies ? absoluteReturn!.rate * -underlierReturn
     : barrierHolds ? 0 : (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0))
   const uncappedPayment = note.principalAmount * (1 + participatedReturn)

@@ -35,8 +35,8 @@ const hints = {
   'final-level': 'The level the underlier’s return is measured to. Final date uses the level on the one final observation date; moves before it do not count. Averaging takes the average of the levels observed on several dates before maturity, so a sharp move on the last date counts for less.',
   downside: 'The share of a negative underlier return, beyond any buffer, deducted from principal before the protection floor applies.',
   buffer: 'The fall the holder does not bear, as a percentage of the initial level. A fall within it leaves principal unchanged, unless absolute return pays it as a gain. A larger fall reduces principal by the amount beyond it, at the downside participation rate.',
-  barrier: 'A level of the underlier, as a percentage of the initial level. If the final level ends below it, downside participation applies to the whole fall; at or above it, a fall leaves principal unchanged. It is observed on the final observation date.',
-  'absolute-return': 'Pays a fall within the buffer as a gain: each 1% fall adds the absolute return rate, as a percentage of principal. A fall beyond the buffer pays no gain and reduces principal as the buffer sets out, so the payment drops at the buffer level.',
+  barrier: 'A level of the underlier, as a percentage of the initial level. If the final level ends below it, downside participation applies to the whole fall; at or above it, a fall leaves principal unchanged, unless absolute return pays it as a gain. It is observed on the final observation date.',
+  'absolute-return': 'Pays as a gain a fall that downside participation does not reach, within the buffer or ending at or above the barrier: each 1% fall adds the absolute return rate, as a percentage of principal. A larger fall pays no gain and reduces principal as the buffer or barrier sets out, so the payment drops there.',
   upside: 'The share of a positive underlier return added to principal.',
   cap: 'The most upside participation can add to principal, as a percentage of principal, however far the underlier rises.',
   protection: 'The minimum contractual maturity payment as a percentage of principal. Protection applies at maturity and depends on the issuer’s ability to pay.',
@@ -166,7 +166,7 @@ const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concep
 // A buffer, barrier or absolute return belongs to downside participation and a cap to upside participation, so each is added under its direction.
 type FeatureId = 'absolute-return' | 'barrier' | 'buffer' | 'cap' | 'coupon' | 'digital' | 'downside' | 'minimum' | 'protection' | 'upside'
 const payoffFeatures: ReadonlyArray<{ id: FeatureId; label: string; description: string; available: boolean; requires?: ParticipationDirection }> = [
-  { id: 'absolute-return', label: 'Absolute return', description: 'Pays a fall within the buffer as a gain.', available: true, requires: 'downside' },
+  { id: 'absolute-return', label: 'Absolute return', description: 'Pays a fall within the buffer, or ending above the barrier, as a gain.', available: true, requires: 'downside' },
   { id: 'barrier', label: 'Barrier', description: 'Downside participation applies only if the underlier ends below a stated level.', available: true, requires: 'downside' },
   { id: 'buffer', label: 'Buffer', description: 'Protects against an initial portion of underlier losses.', available: true, requires: 'downside' },
   { id: 'cap', label: 'Cap', description: 'Limits the return upside participation can add.', available: true, requires: 'upside' },
@@ -195,7 +195,7 @@ const minimumPercent = ref(firstFeatureValues.minimum)
 const selectedDirections = computed(() => (['downside', 'upside'] as ParticipationDirection[]).filter((direction) => selectedParticipation[direction]))
 const isAdded = (id: FeatureId) => id === 'protection' ? protectionSelected.value : id === 'minimum' ? minimumSelected.value : id === 'cap' ? capSelected.value : id === 'buffer' ? bufferSelected.value : id === 'barrier' ? barrierSelected.value : id === 'absolute-return' ? absoluteSelected.value : id === 'downside' || id === 'upside' ? selectedParticipation[id] : false
 // Why a feature cannot be added yet, or null when it can: it needs its direction first, a buffer and a barrier are not combined,
-// and absolute return pays within a buffer, so it needs one.
+// and absolute return pays the falls a buffer or barrier keeps from downside participation, so it needs one of them.
 // A deposit is repaid in full, so it takes nothing that could pay less than principal; a minimum return is on deposits only.
 const depositExcludes: ReadonlyArray<FeatureId> = ['downside', 'buffer', 'barrier', 'protection']
 const blockedReason = (id: FeatureId) => {
@@ -205,7 +205,7 @@ const blockedReason = (id: FeatureId) => {
   if (requires && !selectedParticipation[requires]) return `Needs ${participationLabels[requires].toLowerCase()}`
   if (id === 'barrier' && bufferSelected.value) return 'Not with a buffer'
   if (id === 'buffer' && barrierSelected.value) return 'Not with a barrier'
-  if (id === 'absolute-return' && !bufferSelected.value) return 'Needs a buffer'
+  if (id === 'absolute-return' && !bufferSelected.value && !barrierSelected.value) return 'Needs a buffer or barrier'
   return null
 }
 // Why a wrapper cannot be chosen, or null when it can. Switching never removes the reader's terms, so a wrapper is
@@ -266,12 +266,13 @@ const removeFeature = async (id: FeatureId) => {
   else if (id === 'barrier') barrierSelected.value = false
   else if (id === 'absolute-return') absoluteSelected.value = false
   else if (id === 'downside' || id === 'upside') selectedParticipation[id] = false
-  // Removing a direction removes the buffer, barrier or cap that belongs to it, and removing the buffer removes the absolute return paid within it.
+  // Removing a direction removes the buffer, barrier or cap that belongs to it, and removing the buffer or barrier removes the
+  // absolute return that depends on it.
   if (id === 'downside') { bufferSelected.value = false; barrierSelected.value = false }
-  if (id === 'downside' || id === 'buffer') absoluteSelected.value = false
+  if (id === 'downside' || id === 'buffer' || id === 'barrier') absoluteSelected.value = false
   if (id === 'upside') capSelected.value = false
   if (selected.value === id || (id === 'minimum' && selected.value === 'minimum-return') || (id === 'downside' && (selected.value === 'buffer' || selected.value === 'barrier' || selected.value === 'absolute-return'))
-    || (id === 'buffer' && selected.value === 'absolute-return') || (id === 'upside' && selected.value === 'cap')) selected.value = 'payoff'
+    || ((id === 'buffer' || id === 'barrier') && selected.value === 'absolute-return') || (id === 'upside' && selected.value === 'cap')) selected.value = 'payoff'
   await nextTick()
   addButton.value?.focus()
 }
@@ -406,7 +407,7 @@ const capSummary = computed(() => `${formatAmount(principal.value * (1 + capPerc
 const chartDescription = computed(() => {
   if (!hasFeatures.value) return 'Contractual maturity payment stays at principal for every final level.'
   const fall = selectedParticipation.downside
-    ? `${absoluteSelected.value ? 'rises with falls within the buffer, then drops at the buffer level and falls' : bufferSelected.value ? `stays at principal for falls within the buffer, then falls` : barrierSelected.value ? 'stays at principal for falls that end at or above the barrier, then drops by the whole fall below it and falls' : 'falls'} with negative underlier returns${protectionSelected.value ? ' until the protection floor applies' : ', but not below zero'}`
+    ? `${absoluteSelected.value ? `rises with falls ${barrierSelected.value ? 'that end at or above the barrier, then drops by the whole fall below it' : 'within the buffer, then drops at the buffer level'} and falls` : bufferSelected.value ? `stays at principal for falls within the buffer, then falls` : barrierSelected.value ? 'stays at principal for falls that end at or above the barrier, then drops by the whole fall below it and falls' : 'falls'} with negative underlier returns${protectionSelected.value ? ' until the protection floor applies' : ', but not below zero'}`
     : 'stays at principal for negative underlier returns'
   const rise = selectedParticipation.upside ? `rises with positive underlier returns${capSelected.value ? ' until the cap applies' : ''}` : 'stays at principal for flat or positive underlier returns'
   return `Contractual maturity payment ${fall}. It ${rise}.${minimumSelected.value ? ' It never falls below principal plus the minimum return.' : ''}`
@@ -632,8 +633,10 @@ const chart = computed(() => {
   const bufferAt = bufferLevel(initial, bufferPercent.value / 100)
   const bufferX = bufferSelected.value ? x(bufferAt) : null
   const bufferY = absoluteSelected.value ? pinnedY(maturityPayment(note.value, at(bufferAt))) : y(principalAmount)
-  // The barrier handle sits at the barrier on the principal line, where the payment is still principal.
+  // The barrier handle sits at the barrier on the principal line, where the payment is still principal. With absolute return
+  // the payment there is the gain, at the top of the jump.
   const barrierX = barrierAt === undefined ? null : x(barrierAt)
+  const barrierY = barrierAt !== undefined && absoluteSelected.value ? pinnedY(maturityPayment(note.value, at(barrierAt))) : y(principalAmount)
   const ring = handleRadius.value + 5
   const slopeAt = slopeLevel(initial, capFraction.value)
   const otherHandles = [
@@ -701,7 +704,7 @@ const chart = computed(() => {
     initialX: x(initial),
     end,
     bufferHandle: bufferX === null ? null : { x: bufferX, y: bufferY },
-    barrierHandle: barrierX === null ? null : { x: barrierX, y: y(principalAmount) },
+    barrierHandle: barrierX === null ? null : { x: barrierX, y: barrierY },
     capHandle: otherHandles[0],
     // The floor handle sits a quarter of the way across, on the floor's level.
     floorHandle: hasFloor ? { x: plot.left + (plot.right - plot.left) * 0.25, y: y(floorAmount) } : null,
@@ -831,13 +834,6 @@ const chart = computed(() => {
                           </div>
                           <ul v-if="issuesFor('buffer').length" class="errors" role="alert"><li v-for="message in issuesFor('buffer')" :key="message">{{ message }}</li></ul>
                         </li>
-                        <li v-if="absoluteSelected" :class="['node', { sel: highlighted('absolute-return') }]" :style="conceptStyle('absolute-return')">
-                          <div class="nrow" @click="select('absolute-return')" @focusin="focusRow('absolute-return')">
-                            <span class="nlabel">Absolute return<HintToggle id="absolute-return" about="absolute return rate" :text="hints['absolute-return']" :active="activeHint === 'absolute-return'" @toggle="toggleHint('absolute-return')" /></span>
-                            <span class="ctrl"><NumberInput id="rate-absolute-return" v-model="absolutePercent" class="num rate" aria-label="Absolute return rate (%)" /><span class="unit">%</span><button type="button" class="xbtn" aria-label="Remove absolute return" @click.stop="removeFeature('absolute-return')">×</button></span>
-                          </div>
-                          <ul v-if="issuesFor('absoluteReturn').length" class="errors" role="alert"><li v-for="message in issuesFor('absoluteReturn')" :key="message">{{ message }}</li></ul>
-                        </li>
                         <li v-if="barrierSelected" :class="['node', { sel: highlighted('barrier') }]" :style="conceptStyle('barrier')">
                           <div class="nrow" @click="select('barrier')" @focusin="focusRow('barrier')">
                             <span class="nlabel">Barrier<HintToggle id="barrier" about="barrier" :text="hints.barrier" :active="activeHint === 'barrier'" @toggle="toggleHint('barrier')" /></span>
@@ -845,6 +841,13 @@ const chart = computed(() => {
                             <span class="ctrl block"><label for="barrier-observation">Observed</label><select id="barrier-observation" value="final"><option value="final">Final date</option><option value="daily" disabled>Daily (unavailable)</option></select></span>
                           </div>
                           <ul v-if="issuesFor('barrier').length" class="errors" role="alert"><li v-for="message in issuesFor('barrier')" :key="message">{{ message }}</li></ul>
+                        </li>
+                        <li v-if="absoluteSelected" :class="['node', { sel: highlighted('absolute-return') }]" :style="conceptStyle('absolute-return')">
+                          <div class="nrow" @click="select('absolute-return')" @focusin="focusRow('absolute-return')">
+                            <span class="nlabel">Absolute return<HintToggle id="absolute-return" about="absolute return rate" :text="hints['absolute-return']" :active="activeHint === 'absolute-return'" @toggle="toggleHint('absolute-return')" /></span>
+                            <span class="ctrl"><NumberInput id="rate-absolute-return" v-model="absolutePercent" class="num rate" aria-label="Absolute return rate (%)" /><span class="unit">%</span><button type="button" class="xbtn" aria-label="Remove absolute return" @click.stop="removeFeature('absolute-return')">×</button></span>
+                          </div>
+                          <ul v-if="issuesFor('absoluteReturn').length" class="errors" role="alert"><li v-for="message in issuesFor('absoluteReturn')" :key="message">{{ message }}</li></ul>
                         </li>
                       </ul>
                     </li>
@@ -971,7 +974,7 @@ const chart = computed(() => {
                 <h3>Example scenarios</h3>
                 <p class="table-scroll-hint">Scroll horizontally to see every scenario column.</p>
                 <div class="table-wrap"><table><thead><tr><th>{{ isBasket ? 'Basket level' : 'Final level' }}</th><th>Underlier change</th><th v-if="absoluteSelected">Absolute return</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected || minimumSelected">Payment before {{ minimumSelected ? 'minimum' : 'protection' }}</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}<span v-if="row.atBarrier" class="floor-note">at barrier</span><span v-if="row.atBuffer" class="floor-note">at buffer</span></td><td>{{ formatPercent(row.returnValue) }}</td><td v-if="absoluteSelected">{{ row.absolute ?? '—' }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected || minimumSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="(protectionSelected || minimumSelected) && row.floorApplied" class="floor-note">{{ minimumSelected ? 'minimum applied' : 'floor applied' }}</span></td></tr></tbody></table></div>
-                <p class="scenario-formula"><template v-if="lookingBack">Each change is measured from the lookback level, {{ formatAmount(determinedInitialLevel) }}. </template><template v-if="averaging">Each final level is the average of the observed levels. </template><strong>Selected participation:</strong> {{ participationSummary }}. A move in a direction without participation leaves principal unchanged before any floor applies.<template v-if="bufferSelected"> The buffer absorbs the first {{ bufferSummary }} of a fall.</template><template v-if="absoluteSelected"> A fall within it pays {{ absoluteSummary }} of the fall as a gain.</template> The payment cannot fall below {{ floorSummary }}.<template v-if="capSelected"> It cannot exceed {{ capSummary }}.</template></p>
+                <p class="scenario-formula"><template v-if="lookingBack">Each change is measured from the lookback level, {{ formatAmount(determinedInitialLevel) }}. </template><template v-if="averaging">Each final level is the average of the observed levels. </template><strong>Selected participation:</strong> {{ participationSummary }}. A move in a direction without participation leaves principal unchanged before any floor applies.<template v-if="bufferSelected"> The buffer absorbs the first {{ bufferSummary }} of a fall.</template><template v-if="absoluteSelected"> A fall {{ barrierSelected ? 'that ends at or above the barrier' : 'within the buffer' }} pays {{ absoluteSummary }} of the fall as a gain.</template> The payment cannot fall below {{ floorSummary }}.<template v-if="capSelected"> It cannot exceed {{ capSummary }}.</template></p>
               </template>
               <p v-else class="help">Enter valid terms to see the scenarios.</p>
             </template>

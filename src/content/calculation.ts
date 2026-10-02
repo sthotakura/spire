@@ -51,13 +51,14 @@ function bufferStep(buffer: number, breakdown: PaymentBreakdown): Omit<Calculati
 }
 
 // A fall within the buffer, paid as a gain. Beyond the buffer, or on a rise, it pays nothing.
-function absoluteReturnStep(rate: number, breakdown: PaymentBreakdown): Omit<CalculationStep, 'n'> {
+function absoluteReturnStep(rate: number, breakdown: PaymentBreakdown, withBarrier: boolean): Omit<CalculationStep, 'n'> {
   const how = `${formatPercent(rate)} × |${signedPercent(breakdown.underlierReturn)}|`
   const title = 'Absolute return'
   if (breakdown.absoluteReturnApplies) return { title, how, value: signedPercent(breakdown.participatedReturn), concept: 'absolute-return' }
-  if (breakdown.direction === 'downside') return { title, how: `${how} · the fall is beyond the buffer, so it pays no gain`, value: '0%', muted: true, concept: 'absolute-return' }
+  const past = withBarrier ? 'the level ends below the barrier' : 'the fall is beyond the buffer'
+  if (breakdown.direction === 'downside') return { title, how: `${how} · ${past}, so it pays no gain`, value: '0%', muted: true, concept: 'absolute-return' }
   // On a rise there is no fall to pay, so the step states the feature, as the buffer step does.
-  return { title, how: `Pays ${formatPercent(rate)} of a fall within the buffer as a gain · applies only when the return is negative`, value: '0%', muted: true, concept: 'absolute-return' }
+  return { title, how: `Pays ${formatPercent(rate)} of a fall ${withBarrier ? 'that ends at or above the barrier' : 'within the buffer'} as a gain · applies only when the return is negative`, value: '0%', muted: true, concept: 'absolute-return' }
 }
 
 // Whether the final level is below the barrier. Only then does downside participation apply, to the whole fall.
@@ -115,10 +116,11 @@ export function calculationSteps(note: Product, breakdown: PaymentBreakdown, obs
   const hasDownside = downsideOf(note) !== undefined
   const steps = note.underlier.kind === 'basket' ? basketSteps(basket!) : singleSteps({ ...note, underlier: note.underlier }, b, observedLevels, initialObservations)
   if (buffer !== undefined) steps.push(bufferStep(buffer, b))
-  if (absoluteReturn !== undefined) steps.push(absoluteReturnStep(absoluteReturn.rate, b))
   if (barrier !== undefined) {
     steps.push(basket ? barrierStep(barrier.level, b, 'basket level', basket.levels.final) : barrierStep(barrier.level, b, 'final level', finalLevelFrom(note.underlier.determination.final, observedLevels)))
   }
+  // Absolute return comes after the buffer or barrier that decides whether it pays.
+  if (absoluteReturn !== undefined) steps.push(absoluteReturnStep(absoluteReturn.rate, b, barrier !== undefined))
   // A deposit's floor is its minimum return; a note's is its protection.
   const deposit = note.wrapper === 'deposit'
   const minimum = note.payoff.minimumReturn

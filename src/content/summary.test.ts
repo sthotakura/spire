@@ -162,3 +162,10 @@ describe('summary with absolute return', () => {
     expect(sentence(capped)).toContain(' and a maximum return of 5% on a rise.')
   })
 })
+
+describe('summary with absolute return above a barrier', () => {
+  it('names absolute return after the barrier it pays above', () => {
+    const trigger = { ...note, payoff: { ...note.payoff, participations: withSubFeatures(note.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const }, absoluteReturn: { rate: 0.5 } }) } }
+    expect(sentence(trigger)).toContain('with a barrier at 70% of the initial level, 50% absolute return on a fall that ends at or above it and 90% principal protection.')
+  })
+})

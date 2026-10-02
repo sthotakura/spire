@@ -153,3 +153,19 @@ describe('calculation steps with absolute return', () => {
     expect(step(note, 100, 'Absolute return')?.how).toBe('Pays 100% of a fall within the buffer as a gain · applies only when the return is negative')
   })
 })
+
+describe('calculation steps with absolute return above a barrier', () => {
+  const base = noteWith([{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1.25 }])
+  const trigger = { ...base, payoff: { participations: withSubFeatures(base.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const }, absoluteReturn: { rate: 0.5 } }) } }
+
+  it('puts absolute return after the barrier and pays the gain above it', () => {
+    expect(steps(trigger, 95).map(({ title }) => title).slice(0, 4)).toEqual(['Synthetic Index return', 'Barrier', 'Absolute return', 'Downside participation'])
+    expect(step(trigger, 95, 'Absolute return')).toMatchObject({ how: '50% × |−5%|', value: '+2.5%' })
+    expect(step(trigger, 95, 'Payment at maturity')).toMatchObject({ value: '1,025' })
+  })
+
+  it('says the gain stops below the barrier', () => {
+    expect(step(trigger, 60, 'Absolute return')).toMatchObject({ how: '50% × |−40%| · the level ends below the barrier, so it pays no gain', muted: true })
+    expect(step(trigger, 110, 'Absolute return')?.how).toBe('Pays 50% of a fall that ends at or above the barrier as a gain · applies only when the return is negative')
+  })
+})

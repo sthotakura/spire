@@ -1,6 +1,6 @@
 # Absolute return
 
-This increment adds absolute return as a sub-feature of downside participation, next to the buffer. It does not add absolute return above a barrier, worst-of baskets, a separate maximum for the absolute return, or pricing. The work follows section 15 of [PLAN.md](../PLAN.md), which nested the buffer and cap under their directions.
+This increment adds absolute return as a sub-feature of downside participation, next to the buffer or the barrier. It does not add worst-of baskets, a barrier observed every day, a separate maximum for the absolute return, or pricing. The work follows section 15 of [PLAN.md](../PLAN.md), which nested the buffer and cap under their directions.
 
 ## Established concepts
 
@@ -16,6 +16,7 @@ This increment adds absolute return as a sub-feature of downside participation, 
 - The **maximum upside payment** sits on the upside case only. The absolute return case is not "subject to" it. In the capped note it cannot bind there anyway: a 69% maximum return is above the 15% the buffer allows.
 - The payment jumps at the buffer level. From the formulas, in the capped note a final level of 85% of the initial level pays $1,150, and 84.99% pays about $999.90. Neither filing gives a table row on each side; the diagrams draw the drop.
 - The SSPA's **Twin Win Certificate (1340)** has the barrier form: "Profits possible with rising and falling underlying", "Falling underlying price converts into profit up to the barrier", and "If the barrier is breached, the product changes into a Tracker Certificate", so the whole fall then counts ([SSPA Swiss Derivative Map](https://sspa.ch/wp-content/uploads/2020/09/map_en.pdf)). Its barrier is drawn as observed during the product's lifetime, which the model does not support ([barrier.md](barrier.md)).
+- A fourth note from the same issuer and date has the barrier form, observed on the final date only ([Dual Directional Trigger PLUS, No. 18,961](https://www.morganstanley.com/structuredinvestments/docs/prospectus/prelim/ProspectusRed61781LUU2.pdf)), on the worst performing of two indices. Its "downside threshold level" is 70% of each initial level, read on the observation date. If the final level "is greater than or equal to its downside threshold level", it pays principal plus the absolute underlier return times an **absolute return participation rate of 50%**, "effectively limited to a positive return of 15%". Below the threshold it pays "stated principal amount × performance factor", so the whole fall counts, and "could be zero". Its examples, at a 125% leverage factor: a 5% rise pays $1,062.50, a 5% fall pays $1,025, and an 85% fall pays $150.
 
 ## Proposal
 
@@ -37,15 +38,26 @@ unfloored payment = principal × (1 + participated return), with the cap applied
 maturity payment  = max(floor, unfloored payment)
 ```
 
-One rule covers it: absolute return pays when downside participation applies to none of the fall. With a buffer, that is a fall no larger than the buffer. The same rule would cover a fall that leaves the final level at or above a barrier, which is why absolute return sits on downside participation rather than inside the buffer.
+One rule covers it: absolute return pays when downside participation applies to none of the fall. With a buffer, that is a fall no larger than the buffer. With a barrier, it is a fall that leaves the final level at or above the barrier, which is why absolute return sits on downside participation rather than inside the buffer:
+
+```json
+{ "direction": "downside", "barrier": { "level": 0.7, "observation": "final" }, "absoluteReturn": { "rate": 0.5 }, "rate": 1 }
+```
+
+| Final level | 70% barrier, 50% absolute return, 100% downside | Payment |
+| ---: | :--- | ---: |
+| 95 | 1,000 × (1 + 50% × 5%) | 1,025 |
+| 70 (at the barrier) | 1,000 × (1 + 50% × 30%) | 1,150 |
+| 69.99 | 1,000 × 0.6999, the whole fall | 699.90 |
+| 15 | 1,000 × 0.15 | 150 |
 
 ## Decisions
 
 1. **Absolute return is a sub-feature of downside participation**, not of the buffer. A buffer or a barrier marks where downside participation starts. Absolute return decides what happens before that, so it belongs to the same direction as both. Its key comes after `buffer` and before `rate`, in the order the payment applies them.
-2. **It requires a buffer.** Without a buffer or barrier, downside participation applies to every fall, so absolute return has no range to pay in. The barrier form (the SSPA Twin Win) is public, but no filing with its exact terms has been read, so absolute return with a barrier is not allowed yet.
+2. **It requires a buffer or a barrier.** Without either, downside participation applies to every fall, so absolute return has no range to pay in. At first only the buffer form was allowed, because no filing with the barrier form's terms had been read. The trigger note above verifies it, with the barrier read on the final date only as the model's is, so absolute return now takes either. A buffer and a barrier still cannot both apply ([barrier.md](barrier.md)), so it has one or the other.
 3. **A cap limits upside participation only.** This follows the capped note, where the maximum upside payment applies to the upside case alone, and it follows the model: since section 15 of the plan the cap is part of upside participation. Until now the payment applied the cap to any payment above it, which made no difference because only a rise could pay more than principal. With absolute return a fall can too, so the payment changes to apply the cap only on a rise. A cap below the buffer is allowed: with a 10% cap and a 15% buffer, a 15% fall pays 1,150 while no rise pays more than 1,100. No public note shows this, and it is not prevented.
 4. **Upside participation is not required.** Without it a rise repays principal and a fall within the buffer pays a gain. No public note with this shape was found, but the rule is well defined without upside participation.
-5. **The rate is a term**, greater than zero, because both notes state it as one. Neither shows a rate other than 100%.
+5. **The rate is a term**, greater than zero, because the notes state it as one. The buffered notes use 100%; the trigger note uses 50%.
 6. **The edge belongs to absolute return.** A fall of exactly the buffer pays the full absolute return, as both notes say ("greater than or equal to the buffer level"). This matches the barrier, where a final level at the barrier repays principal. As in the notes, the payment compares the final level with the buffer level, initial level × (1 − buffer), rather than the return with the buffer, which floating-point arithmetic would put just outside it.
 7. **A flat return stays in the upside case.** The model treats a flat return as upside. The participation and leveraged notes put an unchanged level in the absolute return case instead, but there both cases pay principal, so only the label in the calculation differs. The jump note puts it in the upside case, where it matters: an unchanged level pays the fixed upside payment, $1,530 in its example, not principal. The model's choice agrees with that note.
 8. **The minimum payment stays derived.** Both notes state a "minimum payment at maturity" equal to the buffer amount. It follows from the buffer and a 100% downside rate (a final level of 0 pays principal × buffer), so it is not a separate term.
@@ -87,8 +99,8 @@ With a 90% protection floor added, the last two rows pay 900. The floor does not
 
 ## Open questions
 
-1. **Absolute return above a barrier.** The SSPA Twin Win has this form, with a barrier observed during the product's lifetime. Is there a public note with a barrier observed on the final date only, which the model could express? It would allow absolute return with a barrier without changing the rule above.
-2. **Rates other than 100%.** Is there a public note whose absolute return participation rate is not 100%?
+1. **Absolute return above a barrier.** *Settled:* the trigger note above has it, with the barrier read on the final date only. The SSPA Twin Win's barrier is observed every day, which waits for daily observation ([barrier.md](barrier.md)).
+2. **Rates other than 100%.** *Settled:* the trigger note's rate is 50%.
 3. **A maximum on the absolute return itself.** Both notes bound it with the buffer alone. Does any note state a separate maximum?
 4. **Names.** Is there a generic public name for the buffered form? "Twin win" may be used loosely for it, but the SSPA definition is the barrier form.
 5. **A fixed upside payment.** The jump note pays the greater of the underlier's rise and a fixed return whenever the final level is at or above the initial level. That is an upside feature the model does not have. It is close to the deposit's minimum return, but paid only when the underlier has not fallen, so the payment jumps at the initial level as well as at the buffer. Absolute return does not depend on it, and it is not part of this increment.

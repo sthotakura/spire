@@ -66,3 +66,9 @@ describe('payoff chart labels', () => {
     expect(payoffLabels(deposit)['minimum-return']).toBe('Never below 1,050')
   })
 })
+
+describe('payoff chart labels with absolute return above a barrier', () => {
+  it('says how far a fall can go and still be paid as a gain', () => {
+    expect(payoffLabels(productWith([down(), up(1.25)], { barrier: 0.7, absoluteReturn: 0.5 }))['absolute-return']).toBe('A fall of up to 30% pays 50% of it as a gain')
+  })
+})
