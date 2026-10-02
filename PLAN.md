@@ -195,6 +195,15 @@ A fixed deposit is not modelled. It has no underlier and no embedded option, so 
 - **Names.** "Market-linked deposit" (a market-linked CD in the US, a structured deposit in the EU and UK), added to [docs/marketing-names.md](docs/marketing-names.md).
 - **Build order.** The rename; then the domain (wrapper rules, minimum return, payment), with tests built from the public examples; then the content (summary, JSON, payment rule, calculation, annualised return, outcome, scenarios, names); then the interface.
 
+## 22. Add absolute return
+
+Absolute return pays a fall within the buffer as a gain; beyond the buffer the holder bears the fall as before. Public "dual directional" notes pair it with upside participation. The proposal, the two public notes it rests on and a worked example are in [docs/absolute-return.md](docs/absolute-return.md).
+
+- **A sub-feature of downside participation**, after the buffer: `{ "direction": "downside", "buffer": 0.15, "absoluteReturn": { "rate": 1 }, "rate": 1 }`. It requires a buffer; absolute return above a barrier waits for a verified filing. Upside participation is not required.
+- **The cap limits upside participation only.** The capped public note applies its maximum upside payment to a rise alone, and the cap is part of upside participation. The payment changes to match; no payment that could be written before changes.
+- **The payment jumps at the buffer level**, which belongs to absolute return. The chart draws two pieces, as for the barrier, and the scenarios add a row at the buffer level.
+- **Build order.** The domain (rule, validation, the cap change), with tests built from the public examples; then the content (summary, JSON, payment rule, calculation, outcome, scenarios); then the interface.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.

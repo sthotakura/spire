@@ -429,6 +429,92 @@ describe('barrier', () => {
   })
 })
 
+describe('absolute return', () => {
+  // The worked example in docs/absolute-return.md: 120% upside with a 40% cap, a 15% buffer, 100% absolute return, 100% downside, no protection.
+  const dualDirectional = withUpside(withDownside({ ...note, payoff: { ...note.payoff, principalProtection: undefined } }, { buffer: 0.15, absoluteReturn: { rate: 1 } }), { rate: 1.2, cap: 0.4 })
+
+  it.each([
+    [140, 1400],
+    [110, 1120],
+    [100, 1000],
+    [95, 1050],
+    [85, 1150],
+    [84.99, 999.9],
+    [50, 650],
+    [0, 150],
+  ])('pays %s final level as %s units', (finalLevel, expected) => {
+    expect(maturityPayment(dualDirectional, { initial: 100, final: finalLevel })).toBeCloseTo(expected, 8)
+  })
+
+  // A public capped note: 100% upside up to a $1,690 maximum, a 15% buffer and 100% absolute return.
+  it.each([
+    [105, 1050],
+    [200, 1690],
+    [95, 1050],
+    [5, 200],
+  ])('matches the public capped note at %s', (finalLevel, expected) => {
+    const capped = withUpside(dualDirectional, { rate: 1, cap: 0.69 })
+    expect(maturityPayment(capped, { initial: 100, final: finalLevel })).toBeCloseTo(expected, 8)
+  })
+
+  // A public leveraged note, on its worst performing index: 139% upside, a 20% buffer and 100% absolute return.
+  it.each([
+    [105, 1069.5],
+    [95, 1050],
+    [5, 250],
+  ])('matches the public leveraged note at %s', (finalLevel, expected) => {
+    const leveraged = withUpside(withDownside(dualDirectional, { buffer: 0.2 }), { rate: 1.39, cap: undefined })
+    expect(maturityPayment(leveraged, { initial: 100, final: finalLevel })).toBeCloseTo(expected, 8)
+  })
+
+  it('applies its rate to the fall', () => {
+    expect(maturityPayment(withDownside(dualDirectional, { absoluteReturn: { rate: 0.5 } }), { initial: 100, final: 90 })).toBeCloseTo(1050, 8)
+  })
+
+  it('is not limited by the cap, which limits upside participation only', () => {
+    const lowCap = withUpside(dualDirectional, { cap: 0.1 })
+    expect(maturityPayment(lowCap, { initial: 100, final: 85 })).toBeCloseTo(1150, 8)
+    expect(maturityPayment(lowCap, { initial: 100, final: 120 })).toBeCloseTo(1100, 8)
+    expect(paymentBreakdown(lowCap, { initial: 100, final: 85 }).capApplies).toBe(false)
+  })
+
+  it('pays a fall within the buffer as a gain without upside participation', () => {
+    const downsideOnly: SingleProduct = { ...dualDirectional, payoff: { participations: dualDirectional.payoff.participations.filter(({ direction }) => direction === 'downside') } }
+    expect(maturityPayment(downsideOnly, { initial: 100, final: 120 })).toBe(1000)
+    expect(maturityPayment(downsideOnly, { initial: 100, final: 95 })).toBeCloseTo(1050, 8)
+  })
+
+  it('combines with a protection floor, which does not reach the gain', () => {
+    const floored = { ...dualDirectional, payoff: { ...dualDirectional.payoff, principalProtection: 0.9 } }
+    expect(maturityPayment(floored, { initial: 100, final: 95 })).toBeCloseTo(1050, 8)
+    expect(maturityPayment(floored, { initial: 100, final: 50 })).toBe(900)
+  })
+
+  it('is measured from the determined initial level, such as a lookback level', () => {
+    // Lookback level 80: a final level of 70 is a 12.5% fall, within the 15% buffer.
+    expect(maturityPayment(dualDirectional, { initial: 80, final: 70 })).toBeCloseTo(1125, 8)
+  })
+
+  it('reports whether the fall is paid as a gain', () => {
+    const atBuffer = paymentBreakdown(dualDirectional, { initial: 100, final: 85 })
+    expect(atBuffer.absoluteReturnApplies).toBe(true)
+    expect(atBuffer.participatedReturn).toBeCloseTo(0.15, 8)
+    expect(paymentBreakdown(dualDirectional, { initial: 100, final: 80 })).toMatchObject({ absoluteReturnApplies: false })
+    expect(paymentBreakdown(dualDirectional, { initial: 100, final: 110 }).absoluteReturnApplies).toBe(false)
+    expect(paymentBreakdown(note, { initial: 100, final: 95 }).absoluteReturnApplies).toBeUndefined()
+  })
+
+  it.each([0, -0.1, Number.NaN])('rejects a rate of %s', (rate) => {
+    expect(productIssues(withDownside(dualDirectional, { absoluteReturn: { rate } }))).toEqual([{ field: 'absoluteReturn', message: 'Absolute return must be greater than zero.' }])
+  })
+
+  it('needs a buffer, even with a barrier', () => {
+    const message = { field: 'absoluteReturn', message: 'Absolute return pays a fall within the buffer, so it needs a buffer.' }
+    expect(productIssues(withDownside(dualDirectional, { buffer: undefined }))).toEqual([message])
+    expect(productIssues(withDownside(dualDirectional, { buffer: undefined, barrier: { level: 0.8, observation: 'final' } }))).toEqual([message])
+  })
+})
+
 describe('averaging determination', () => {
   const averaging = (observationCount: number): SingleProduct => ({ ...note, underlier: { ...note.underlier, determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'averaging', observationCount } } } })
 

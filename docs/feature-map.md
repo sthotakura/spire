@@ -19,6 +19,8 @@ Six coupon types become two small choices. Modelling each cell as its own type w
 ### Payoff at maturity
 
 - **Upside participation, downside participation, protection floor, cap, buffer, barrier.** Already modelled.
+- **Absolute return.** Pays a fall within the buffer as a gain. Proposed in [absolute-return.md](absolute-return.md).
+- **Fixed upside payment.** When the final level is at or above the initial level, pays principal plus the greater of the rise and a fixed return, so the payment jumps at the initial level. Seen in a public "Jump Securities" note ([absolute-return.md](absolute-return.md), open question 5). It is conditional on the underlier not falling, unlike the deposit's unconditional minimum return. Not yet modelled.
 - **Additional upside.** A working label, not yet checked against public sources. Candidates: a second participation tier above a level, or a fixed return added to participation. Needs a public definition, and a public name if one exists.
 
 ### Coupons (a new concept, beside the payoff)

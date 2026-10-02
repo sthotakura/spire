@@ -2,13 +2,21 @@ export type AssetKind = 'equity' | 'equity-index'
 export type ParticipationDirection = 'downside' | 'upside'
 
 // Each direction carries the features that only make sense with it: a buffer changes the fall downside participation
-// applies to, a barrier decides whether downside participation applies at all, and a cap limits the return upside
-// participation can add. Their keys are listed in the order the payment applies them.
+// applies to, a barrier decides whether downside participation applies at all, absolute return pays a fall within the
+// buffer as a gain, and a cap limits the return upside participation can add. Their keys are listed in the order the
+// payment applies them.
 export interface DownsideParticipation {
   direction: 'downside'
   // The fall the holder does not bear, as a fraction of the initial level. Downside participation applies only to the fall beyond it.
   buffer?: number
   barrier?: Barrier
+  absoluteReturn?: AbsoluteReturn
+  rate: number
+}
+
+// A fall no larger than the buffer pays its size, times the rate, as a gain. Beyond the buffer it pays nothing, and the
+// holder bears the fall beyond the buffer as before, so the payment drops at the buffer level (docs/absolute-return.md).
+export interface AbsoluteReturn {
   rate: number
 }
 
@@ -135,13 +143,13 @@ export type SingleProduct = Product & { underlier: SingleUnderlier }
 export const downsideOf = (note: Product) => note.payoff.participations.find((participation): participation is DownsideParticipation => participation.direction === 'downside')
 export const upsideOf = (note: Product) => note.payoff.participations.find((participation): participation is UpsideParticipation => participation.direction === 'upside')
 
-// Puts a buffer or barrier on downside participation and a cap on upside participation. Each is dropped when its direction is absent.
-export const withSubFeatures = (participations: Participation[], { buffer, barrier, cap }: { buffer?: number; barrier?: Barrier; cap?: number }): Participation[] =>
+// Puts a buffer, barrier or absolute return on downside participation and a cap on upside participation. Each is dropped when its direction is absent.
+export const withSubFeatures = (participations: Participation[], { buffer, barrier, absoluteReturn, cap }: { buffer?: number; barrier?: Barrier; absoluteReturn?: AbsoluteReturn; cap?: number }): Participation[] =>
   participations.map((participation) => participation.direction === 'downside'
-    ? { direction: 'downside', buffer, barrier, rate: participation.rate }
+    ? { direction: 'downside', buffer, barrier, absoluteReturn, rate: participation.rate }
     : { direction: 'upside', rate: participation.rate, cap })
 
-export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn'
+export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn'
 
 // Real notes can average over many more dates, such as monthly over several years, and a lookback period often observes
 // every trading day for weeks. This reference keeps the count small enough for each observed level to be set by hand.
@@ -223,6 +231,12 @@ export function productIssues(note: Product): ProductIssue[] {
   if (barrier !== undefined && (!Number.isFinite(barrier.level) || barrier.level <= 0 || barrier.level >= 1)) issues.push({ field: 'barrier', message: 'Barrier must be greater than 0% and less than 100% of the initial level.' })
   // No public note combining the two was verified, so they are not combined.
   if (barrier !== undefined && buffer !== undefined) issues.push({ field: 'barrier', message: 'A barrier and a buffer cannot both apply to downside participation.' })
+  const absoluteReturn = downsideOf(note)?.absoluteReturn
+  if (absoluteReturn !== undefined) {
+    if (!Number.isFinite(absoluteReturn.rate) || absoluteReturn.rate <= 0) issues.push({ field: 'absoluteReturn', message: 'Absolute return must be greater than zero.' })
+    // Absolute return above a barrier is public, but no note with its terms was read, so it needs a buffer for now.
+    if (buffer === undefined) issues.push({ field: 'absoluteReturn', message: 'Absolute return pays a fall within the buffer, so it needs a buffer.' })
+  }
   for (const participation of note.payoff.participations) {
     if (!Number.isFinite(participation.rate) || participation.rate <= 0) issues.push({ field: 'participations', message: `${participation.direction === 'upside' ? 'Upside' : 'Downside'} participation must be greater than zero.` })
   }
@@ -323,12 +337,14 @@ export interface PaymentBreakdown {
   // Undefined when the note has no barrier. Otherwise the barrier as an underlier level, and whether the final level is below it.
   barrierLevel?: number
   belowBarrier?: boolean
+  // Undefined when the note has no absolute return. Otherwise whether the fall is within the buffer, so it is paid as a gain.
+  absoluteReturnApplies?: boolean
   // Undefined when that direction has no participation, so principal is unchanged.
   participationRate?: number
   participatedReturn: number
   // Principal plus the participated return, before any cap or floor.
   uncappedPayment: number
-  // Undefined when the note has no cap. Otherwise principal plus the maximum return.
+  // Undefined when the note has no cap. Otherwise principal plus the maximum return. It limits upside participation only.
   capAmount?: number
   capApplies: boolean
   // The payment after the cap and before the floor.
@@ -358,13 +374,18 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
   const belowBarrier = barrierLevel === undefined ? undefined : levels.final < barrierLevel
   // At or above the barrier, downside participation does not apply, so a fall leaves principal unchanged.
   const barrierHolds = direction === 'downside' && belowBarrier === false
-  const participatedReturn = barrierHolds ? 0 : (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0))
+  // A fall the buffer absorbs whole is paid as a gain. Public notes compare the final level with the buffer level, and a
+  // final level at it is within the buffer. Comparing levels also keeps 85 ÷ 100 − 1 from falling just outside a 15% buffer.
+  const absoluteReturn = downsideOf(note)?.absoluteReturn
+  const absoluteReturnApplies = absoluteReturn === undefined || buffer === undefined ? undefined : direction === 'downside' && levels.final >= levels.initial * (1 - buffer)
+  const participatedReturn = absoluteReturnApplies ? absoluteReturn!.rate * -underlierReturn
+    : barrierHolds ? 0 : (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0))
   const uncappedPayment = note.principalAmount * (1 + participatedReturn)
-  // A cap is above any floor: protection cannot exceed principal, and a minimum return must be below the cap. The order of
-  // the two cannot change the result.
+  // The cap limits upside participation only, so a fall paid as a gain is not capped. A cap is above any floor: protection
+  // cannot exceed principal, and a minimum return must be below the cap. The order of the two cannot change the result.
   const cap = upsideOf(note)?.cap
   const capAmount = cap === undefined ? undefined : note.principalAmount * (1 + cap)
-  const capApplies = capAmount !== undefined && uncappedPayment > capAmount
+  const capApplies = capAmount !== undefined && direction === 'upside' && uncappedPayment > capAmount
   const unflooredPayment = capApplies ? capAmount : uncappedPayment
   const { minimumReturn, principalProtection } = note.payoff
   const floor = note.principalAmount * (minimumReturn !== undefined ? 1 + minimumReturn : note.wrapper === 'deposit' ? 1 : principalProtection ?? 0)
@@ -375,6 +396,7 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
     bufferAbsorbs,
     barrierLevel,
     belowBarrier,
+    absoluteReturnApplies,
     participationRate,
     participatedReturn,
     uncappedPayment,

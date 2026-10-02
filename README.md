@@ -30,7 +30,7 @@ The first milestone does not cover real market pricing, volatility, Greeks, live
 
 See [PLAN.md](PLAN.md) for the immediate work and open questions.
 
-The original first-milestone concepts and example are recorded in [docs/milestone-1.md](docs/milestone-1.md). The subsequent separation of protection, upside participation, and downside participation is recorded in [docs/participation-and-protection.md](docs/participation-and-protection.md), the buffer in [docs/buffer.md](docs/buffer.md), averaging in [docs/averaging.md](docs/averaging.md), lookback in [docs/lookback.md](docs/lookback.md), the term in [docs/term.md](docs/term.md), and the market-linked deposit in [docs/deposit.md](docs/deposit.md).
+The original first-milestone concepts and example are recorded in [docs/milestone-1.md](docs/milestone-1.md). The subsequent separation of protection, upside participation, and downside participation is recorded in [docs/participation-and-protection.md](docs/participation-and-protection.md), the buffer in [docs/buffer.md](docs/buffer.md), averaging in [docs/averaging.md](docs/averaging.md), lookback in [docs/lookback.md](docs/lookback.md), the term in [docs/term.md](docs/term.md), the market-linked deposit in [docs/deposit.md](docs/deposit.md), and absolute return in [docs/absolute-return.md](docs/absolute-return.md).
 
 ## Run locally
 
