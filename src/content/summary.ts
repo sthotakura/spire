@@ -12,7 +12,7 @@ const weightPercent = (fraction: number) => Number.isFinite(fraction) ? `${(frac
 const amount = (value: number) => Number.isFinite(value) ? value.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'
 
 // Describes a note in plain words. Segments with a concept name the part of the note they describe.
-// A product with no participation only repays principal. The buffer, barrier, protection, cap and minimum return clauses appear only when those features are present.
+// A product with no participation only repays principal. The buffer, barrier, absolute return, protection, cap and minimum return clauses appear only when those features are present.
 // Names the assets in a list: "A", "A and B", "A, B and C".
 const listed = (items: SummarySegment[][]): SummarySegment[] => items.flatMap((item, index) => [...(index === 0 ? [] : [{ text: index === items.length - 1 ? ' and ' : ', ' }]), ...item])
 
@@ -48,6 +48,7 @@ export function summarize(note: Product): SummarySegment[] {
   const cap = upsideOf(note)?.cap
   const buffer = downsideOf(note)?.buffer
   const barrier = downsideOf(note)?.barrier
+  const absoluteReturn = downsideOf(note)?.absoluteReturn
   const { initial, final } = note.underlier.determination
   const count = (value: number) => Number.isFinite(value) ? value : '—'
   // Each level of the determination adds its own phrase. A fixed initial level and a final level on the final date is point-to-point.
@@ -69,6 +70,7 @@ export function summarize(note: Product): SummarySegment[] {
 
   const clauses: SummarySegment[] = []
   if (buffer !== undefined) clauses.push({ text: `a ${percent(buffer)} buffer`, concept: 'buffer' })
+  if (absoluteReturn !== undefined) clauses.push({ text: `${percent(absoluteReturn.rate)} absolute return on a fall within it`, concept: 'absolute-return' })
   // The barrier is a fraction of the level the return is measured from: the lookback level with lookback, and the basket's
   // starting level for a basket.
   if (barrier !== undefined) clauses.push({ text: `a barrier at ${percent(barrier.level)} of the ${initial.kind === 'lookback' ? 'lookback level' : basket ? 'initial basket level' : 'initial level'}`, concept: 'barrier' })

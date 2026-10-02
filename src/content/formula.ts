@@ -21,6 +21,7 @@ export function paymentFormula(note: Product): FormulaLine[] {
   const cap = upsideOf(note)?.cap
   const buffer = downsideOf(note)?.buffer
   const barrier = downsideOf(note)?.barrier
+  const absoluteReturn = downsideOf(note)?.absoluteReturn
 
   const terms: FormulaSegment[] = []
   if (upside) terms.push({ text: 'Upside × max(Return, 0)', concept: 'upside' })
@@ -48,7 +49,12 @@ export function paymentFormula(note: Product): FormulaLine[] {
   // The barrier decides whether the downside term counts at all, so it qualifies the payment rather than changing the term.
   const barrierTest = basket ? 'Basket level < Barrier × 100' : `Final level < Barrier × ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level`
   if (barrier !== undefined) lines.push({ segments: [{ text: 'downside only when ' }, { text: barrierTest, concept: 'barrier' }] })
-  if (cap !== undefined) lines.push({ segments: [{ text: 'capped at ' }, { text: 'Principal × (1 + Cap)', concept: 'cap' }] })
+  // Absolute return replaces the payment for a fall within the buffer, so it qualifies the payment as the barrier does.
+  if (absoluteReturn !== undefined) {
+    lines.push({ segments: [{ text: 'but ' }, { text: 'Principal × (1 + Absolute × |Return|)', concept: 'absolute-return' }, { text: ' when ' }, { text: '−Buffer ≤ Return < 0', concept: 'buffer' }] })
+  }
+  // The cap limits upside participation only, which matters once a fall can pay a gain.
+  if (cap !== undefined) lines.push({ segments: [{ text: absoluteReturn !== undefined ? 'a rise capped at ' : 'capped at ' }, { text: 'Principal × (1 + Cap)', concept: 'cap' }] })
   // Without protection the payment still cannot fall below zero. That only matters when a fall reduces principal, which a
   // deposit never allows, so a deposit has a floor line only for its minimum return.
   if (note.payoff.minimumReturn !== undefined) lines.push({ segments: [{ text: 'floored at ' }, { text: 'Principal × (1 + Minimum)', concept: 'minimum-return' }] })
@@ -73,6 +79,7 @@ export function paymentInWords(note: Product): string {
   const cap = upside?.cap
   const buffer = downside?.buffer
   const barrier = downside?.barrier
+  const absoluteReturn = downside?.absoluteReturn
   const from = note.underlier.determination.initial.kind === 'lookback' ? 'lookback' : 'initial'
 
   const minimum = note.payoff.minimumReturn
@@ -86,15 +93,21 @@ export function paymentInWords(note: Product): string {
   const beyond = buffer === undefined ? '' : ` beyond the first ${percent(buffer)}`
   const fall = downside && (upside ? `each 1% fall${beyond} takes ${perPoint(downside.rate)} away` : `each 1% fall in ${name}${beyond} takes ${perPoint(downside.rate)} of principal away`)
   const onlyBelow = barrier === undefined ? '' : `, but only if ${name} ends below ${percent(barrier.level)} of its ${from} level`
-  const moves = [rise, fall && `${fall}${onlyBelow}`].filter(Boolean).join(', and ')
+  // With absolute return a fall within the buffer adds to principal, and a larger fall loses that gain.
+  const gain = absoluteReturn && buffer !== undefined && downside
+    && `each 1% fall${upside ? '' : ` in ${name}`} of up to ${percent(buffer)} adds ${perPoint(absoluteReturn.rate)}${upside ? '' : ' of principal'}`
+  const moves = [rise, gain || (fall && `${fall}${onlyBelow}`)].filter(Boolean).join(', and ')
+  const larger = gain ? ` A larger fall pays no gain, and each 1% beyond the first ${percent(buffer!)} takes ${perPoint(downside!.rate)} of principal away.` : ''
   // With a minimum return a fall pays the minimum, which the limits below state.
   const unchanged = !upside ? ' A rise leaves principal unchanged.' : !downside && minimum === undefined ? ' A fall leaves principal unchanged.' : ''
 
   const floor = minimum !== undefined ? amount(principal * (1 + minimum)) : principalProtection !== undefined ? amount(principal * principalProtection) : downside ? 'zero' : undefined
-  const ceiling = cap !== undefined ? amount(principal * (1 + cap)) : undefined
+  // The cap limits a rise only, so with absolute return the highest payment is the larger of the cap and the most a fall can pay.
+  const highest = cap === undefined ? undefined : Math.max(1 + cap, absoluteReturn && buffer !== undefined ? 1 + absoluteReturn.rate * buffer : 0)
+  const ceiling = highest !== undefined ? amount(principal * highest) : undefined
   const limits = ceiling && floor ? ` The payment never goes above ${ceiling} or below ${floor}.`
     : ceiling ? ` The payment never goes above ${ceiling}.`
       : floor ? ` The payment never goes below ${floor}.` : ''
 
-  return `${moves[0].toUpperCase()}${moves.slice(1)}.${unchanged}${limits}`
+  return `${moves[0].toUpperCase()}${moves.slice(1)}.${larger}${unchanged}${limits}`
 }

@@ -26,7 +26,7 @@ export function structureLines(note: Product): StructureLine[] {
     if (top !== 'payoff') return null
     if (second === 'principalProtection') return 'protection'
     if (second === 'minimumReturn') return 'minimum-return'
-    if (second === 'participations' && typeof third === 'number') return fourth === 'buffer' || fourth === 'barrier' || fourth === 'cap' ? fourth : note.payoff.participations[third]?.direction ?? 'payoff'
+    if (second === 'participations' && typeof third === 'number') return fourth === 'buffer' || fourth === 'barrier' || fourth === 'cap' ? fourth : fourth === 'absoluteReturn' ? 'absolute-return' : note.payoff.participations[third]?.direction ?? 'payoff'
     return 'payoff'
   }
 

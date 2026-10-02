@@ -28,7 +28,8 @@ function participationStep(note: Product, breakdown: PaymentBreakdown, direction
       : note.wrapper === 'deposit' ? 'Not on a deposit, which repays principal in full' : 'Not added, so a fall leaves principal unchanged'
     return { title, how, value: 'Not added', muted: true, concept: direction }
   }
-  const contribution = direction === breakdown.direction ? breakdown.participatedReturn : 0
+  // A fall paid as a gain is absolute return's contribution, not downside participation's.
+  const contribution = direction === breakdown.direction && !breakdown.absoluteReturnApplies ? breakdown.participatedReturn : 0
   const buffer = direction === 'downside' ? downsideOf(note)?.buffer : undefined
   const how = `${formatPercent(rate)} × ${direction === 'upside' ? 'max' : 'min'}(${signedPercent(breakdown.underlierReturn)}${buffer === undefined ? '' : ` + ${formatPercent(buffer)}`}, 0)`
   // The buffer and the barrier belong to downside participation, so only its step gives them as the reason.
@@ -47,6 +48,14 @@ function bufferStep(buffer: number, breakdown: PaymentBreakdown): Omit<Calculati
   if (absorbs === 0) return { title, how: `Absorbs the first ${formatPercent(buffer)} of a fall · applies only when the return is negative`, value: '0%', muted: true, concept: 'buffer' }
   const how = absorbs < buffer ? 'absorbs the whole fall here' : `absorbs ${formatPercent(absorbs)} of the ${formatPercent(-breakdown.underlierReturn)} fall here`
   return { title, how: `Absorbs the first ${formatPercent(buffer)} of a fall · ${how}`, value: `+${formatPercent(absorbs)}`, concept: 'buffer' }
+}
+
+// A fall within the buffer, paid as a gain. Beyond the buffer, or on a rise, it pays nothing.
+function absoluteReturnStep(rate: number, breakdown: PaymentBreakdown): Omit<CalculationStep, 'n'> {
+  const how = `${formatPercent(rate)} × |${signedPercent(breakdown.underlierReturn)}|`
+  if (breakdown.absoluteReturnApplies) return { title: 'Absolute return', how, value: signedPercent(breakdown.participatedReturn), concept: 'absolute-return' }
+  const reason = breakdown.direction === 'downside' ? 'the fall is beyond the buffer, so it pays no gain' : 'applies only to a fall within the buffer'
+  return { title: 'Absolute return', how: `${how} · ${reason}`, value: '0%', muted: true, concept: 'absolute-return' }
 }
 
 // Whether the final level is below the barrier. Only then does downside participation apply, to the whole fall.
@@ -98,11 +107,13 @@ export function calculationSteps(note: Product, breakdown: PaymentBreakdown, obs
   const cap = upsideOf(note)?.cap
   const buffer = downsideOf(note)?.buffer
   const barrier = downsideOf(note)?.barrier
+  const absoluteReturn = downsideOf(note)?.absoluteReturn
   const withCap = cap !== undefined
   const withProtection = principalProtection !== undefined
   const hasDownside = downsideOf(note) !== undefined
   const steps = note.underlier.kind === 'basket' ? basketSteps(basket!) : singleSteps({ ...note, underlier: note.underlier }, b, observedLevels, initialObservations)
   if (buffer !== undefined) steps.push(bufferStep(buffer, b))
+  if (absoluteReturn !== undefined) steps.push(absoluteReturnStep(absoluteReturn.rate, b))
   if (barrier !== undefined) {
     steps.push(basket ? barrierStep(barrier.level, b, 'basket level', basket.levels.final) : barrierStep(barrier.level, b, 'final level', finalLevelFrom(note.underlier.determination.final, observedLevels)))
   }

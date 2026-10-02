@@ -60,3 +60,12 @@ describe('selection', () => {
     expect(isHighlighted('determination', 'asset')).toBe(false)
   })
 })
+
+describe('selection of absolute return', () => {
+  it('belongs to downside participation and highlights neither the buffer nor its direction', () => {
+    expect(isHighlighted('downside', 'absolute-return')).toBe(true)
+    expect(isHighlighted('payoff', 'absolute-return')).toBe(true)
+    expect(isHighlighted('absolute-return', 'buffer')).toBe(false)
+    expect(isHighlighted('absolute-return', 'downside')).toBe(false)
+  })
+})

@@ -129,3 +129,25 @@ describe('calculation steps', () => {
     expect(step(note, 110, 'Payment at maturity')).toMatchObject({ value: '1,100', result: true })
   })
 })
+
+describe('calculation steps with absolute return', () => {
+  const dualDirectional = noteWith([{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1.2 }])
+  const note = { ...dualDirectional, payoff: { participations: withSubFeatures(dualDirectional.payoff.participations, { buffer: 0.15, absoluteReturn: { rate: 1 }, cap: 0.4 }) } }
+
+  it('adds an absolute return step after the buffer', () => {
+    expect(steps(note, 95).map(({ title }) => title).slice(0, 4)).toEqual(['Synthetic Index return', 'Buffer', 'Absolute return', 'Downside participation'])
+  })
+
+  it('credits a fall within the buffer to absolute return, not downside participation', () => {
+    expect(step(note, 95, 'Absolute return')).toMatchObject({ how: '100% × |−5%|', value: '+5%', concept: 'absolute-return' })
+    expect(step(note, 95, 'Absolute return')?.muted).toBeUndefined()
+    expect(step(note, 95, 'Downside participation')).toMatchObject({ value: '0%', muted: true })
+    expect(step(note, 95, 'Payment at maturity')).toMatchObject({ value: '1,050' })
+  })
+
+  it('mutes absolute return beyond the buffer and on a rise', () => {
+    expect(step(note, 80, 'Absolute return')).toMatchObject({ how: '100% × |−20%| · the fall is beyond the buffer, so it pays no gain', value: '0%', muted: true })
+    expect(step(note, 80, 'Downside participation')).toMatchObject({ value: '−5%' })
+    expect(step(note, 110, 'Absolute return')).toMatchObject({ how: '100% × |+10%| · applies only to a fall within the buffer', muted: true })
+  })
+})

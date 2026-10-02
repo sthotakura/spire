@@ -96,3 +96,11 @@ describe('structure lines', () => {
     expect(linesOf(startingProduct, 'protection')).toEqual([])
   })
 })
+
+describe('structure JSON with absolute return', () => {
+  it('nests absolute return under downside participation, after the buffer', () => {
+    const dualDirectional: SingleProduct = { ...fullNote, payoff: { participations: withSubFeatures(fullNote.payoff.participations, { buffer: 0.15, absoluteReturn: { rate: 1 } }) } }
+    expect(asText(dualDirectional)).toContain('"buffer": 0.15,\n        "absoluteReturn": {\n          "rate": 1\n        },\n        "rate": 1')
+    expect(structureLines(dualDirectional).filter(({ concept }) => concept === 'absolute-return').map(({ text }) => text.trim())).toEqual(['"absoluteReturn": {', '"rate": 1', '},'])
+  })
+})

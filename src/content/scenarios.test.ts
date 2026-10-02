@@ -81,3 +81,20 @@ describe('scenario rows with a barrier', () => {
     expect(scenarioRows(notes[2][1], 100).map(({ atBarrier }) => atBarrier)).toEqual([false, false, false, false])
   })
 })
+
+describe('scenario rows with absolute return', () => {
+  const dualDirectional = withFeatures([{ direction: 'downside', buffer: 0.15, absoluteReturn: { rate: 1 }, rate: 1 }, { direction: 'upside', rate: 1 }])
+
+  it('add a row at the buffer level, the most a fall can pay', () => {
+    const rows = scenarioRows(dualDirectional, 100)
+    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 85, 100, 110, 130])
+    expect(rows.map(({ atBuffer }) => atBuffer)).toEqual([false, true, false, false, false])
+    expect(rows[1].breakdown.absoluteReturnApplies).toBe(true)
+    expect(rows.map(({ breakdown }) => Math.round(breakdown.payment))).toEqual([750, 1150, 1000, 1100, 1300])
+  })
+
+  it('add no buffer row for a buffer without absolute return', () => {
+    const buffered = withFeatures([{ direction: 'downside', buffer: 0.15, rate: 1 }])
+    expect(scenarioRows(buffered, 100).some(({ atBuffer }) => atBuffer)).toBe(false)
+  })
+})

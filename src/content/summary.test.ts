@@ -149,3 +149,11 @@ describe('note summary with a barrier', () => {
     expect(sentence(lookback)).toContain('a barrier at 70% of the lookback level')
   })
 })
+
+describe('summary with absolute return', () => {
+  it('names absolute return after the buffer it pays within', () => {
+    const dualDirectional = { ...note, payoff: { participations: withSubFeatures(note.payoff.participations, { buffer: 0.15, absoluteReturn: { rate: 1 } }) } }
+    expect(sentence(dualDirectional)).toContain(', with a 15% buffer and 100% absolute return on a fall within it.')
+    expect(conceptOf(dualDirectional, '100% absolute return on a fall within it')).toBe('absolute-return')
+  })
+})

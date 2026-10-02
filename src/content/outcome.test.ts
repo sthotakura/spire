@@ -99,3 +99,16 @@ describe('outcome explanation', () => {
     expect(explain(noteWith([]), 60)).toBe('The underlier fell 40%. No downside participation is selected, so principal is unchanged. The contractual payment is 1,000, the same as principal.')
   })
 })
+
+describe('outcome with absolute return', () => {
+  const dualDirectional = noteWith([{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1.2 }])
+  const note = { ...dualDirectional, payoff: { participations: withSubFeatures(dualDirectional.payoff.participations, { buffer: 0.15, absoluteReturn: { rate: 1 }, cap: 0.4 }) } }
+
+  it('pays a fall within the buffer as a gain', () => {
+    expect(explain(note, 95)).toBe('The underlier fell 5%. The fall is within the 15% buffer, so absolute return of 100% adds 5% to principal. The 1,400 cap does not apply, so the contractual payment is 1,050, 50 more than principal.')
+  })
+
+  it('says a fall beyond the buffer pays no absolute return', () => {
+    expect(explain(note, 80)).toBe('The underlier fell 20%. The fall is beyond the buffer, so it pays no absolute return. The buffer absorbs the first 15% of the fall, and downside participation of 100% deducts 5% from principal. The 1,400 cap does not apply and there is no principal protection, so the contractual payment is 950, 50 less than principal.')
+  })
+})
