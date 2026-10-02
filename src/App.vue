@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { amountToY, barrierFromX, bufferFromX, fitAmountAxis, bufferLevel, capBindLevel, capFromY, clamp, clampBarrier, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, clampProtection, clampUpsideRate, finalLevelFromX, jumpLevelOf, keyDelta, levelAxisFactor, levelToX, minimumReturnFromY, protectionFromY, regimeOf, slopeLevel, splitAtJumps, splitByRegime, upsideRateFromY, type Sample, type AmountAxis, type Plot, type Regime } from './chart/geometry'
+import { amountToY, barrierFromX, bufferFromX, fitAmountAxis, bufferLevel, capBindLevel, capFromY, clamp, clampBarrier, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, clampProtection, clampUpsideRate, finalLevelFromX, jumpLevelOf, keyDelta, leaderStart, levelAxisFactor, levelToX, minimumReturnFromY, placeLabels, protectionFromY, regimeOf, regimeRuns, returnTicks, slopeLevel, splitAtJumps, splitByRegime, upsideRateFromY, wrapWords, type Box, type RegimeRun, type Sample, type AmountAxis, type Plot, type Regime } from './chart/geometry'
+import { payoffLabels, type PayoffLabelKey } from './content/chart-labels'
 import HintToggle from './components/HintToggle.vue'
 import NumberInput from './components/NumberInput.vue'
 import TabGroup from './components/TabGroup.vue'
@@ -552,33 +553,28 @@ const keyHandle = (id: HandleId, event: KeyboardEvent) => {
   else setFinalLevel(clampFinalLevel(finalLevel.value + delta, axisScale.value))
 }
 
-// The chart's horizontal axis is scaled on the pricing-date level, or on the basket's starting level.
-const axisScale = computed(() => isBasket.value ? basketStartingLevel : initialLevel.value)
+// The chart's horizontal axis is the underlier's change, from −100% to +100% of the level the return is measured from: the
+// initial level, the lookback level, or the basket's starting level. With lookback, editing a level can rescale it.
+const axisScale = computed(() => determinedInitialLevel.value)
 // The cap as a fraction of principal, or undefined when the note has none. The slope handle's position depends on it.
 const capFraction = computed(() => capSelected.value ? capPercent.value / 100 : undefined)
 const chartHighlight = computed(() => ({
-  line: selected.value === 'payoff',
-  floor: (protectionSelected.value || minimumSelected.value) && highlighted(floorConcept.value),
-  cap: capSelected.value && highlighted('cap'),
-  buffer: bufferSelected.value && highlighted('buffer'),
-  barrier: barrierSelected.value && highlighted('barrier'),
-  downside: selectedParticipation.downside && selected.value === 'downside',
-  upside: selectedParticipation.upside && selected.value === 'upside',
-  // The initial-level term belongs to the asset and is where the initial level starts; the lookback level is the initial level itself.
   initial: highlighted('initial-level'),
-  lookback: highlighted('initial-level'),
   final: highlighted('final-level'),
 }))
-// Each regime is drawn in its concept's colour, in the line, the legend and the guides.
+// A feature is selected when the reader picks one part of the payoff rather than the whole of it, which is selected at rest.
+const featureSelected = computed(() => selected.value !== 'payoff')
+// Each regime is drawn in its concept's colour and labelled with what that concept does.
 const regimeConcept = computed<Record<Regime, ConceptId>>(() => ({ principal: 'payoff', buffer: 'buffer', barrier: 'barrier', absolute: 'absolute-return', downside: 'downside', upside: 'upside', floor: floorConcept.value, cap: 'cap' }))
-const regimeLabel = computed<Record<Regime, string>>(() => ({ principal: 'Principal repaid', buffer: 'Buffer', barrier: 'Barrier', absolute: 'Absolute return', downside: 'Downside participation', upside: 'Upside participation', floor: minimumSelected.value ? 'Minimum return' : 'Protection floor', cap: 'Cap' }))
+// The order labels claim space in, after the selected feature's: the features that bend the line first, principal last.
+const labelPriority: ReadonlyArray<PayoffLabelKey> = ['cap', 'absolute-return', 'buffer', 'barrier', 'protection', 'minimum-return', 'downside', 'upside', 'lowest', 'payoff']
+// A change of the underlier, as the axis and the bubble show it: +30%, −5%, 0%.
+const changeText = (change: number) => Math.abs(change) < 5e-4 ? '0%' : signedPercent(change)
 const chart = computed(() => {
   if (!initialValid.value) return null
   const principalAmount = principal.value
-  // The axis is scaled on the pricing-date level, so editing a level after pricing does not rescale it. The payoff bends
-  // at the level the return is measured from, which with lookback can be lower.
-  const scale = axisScale.value
   const initial = determinedInitialLevel.value
+  const scale = axisScale.value
   const end = scale * levelAxisFactor
   const axisLevels = Array.from({ length: 257 }, (_, i) => end * i / 256)
   // The final levels to sample for a note. A jump, at a barrier or where absolute return stops, adds one level just below it
@@ -598,7 +594,7 @@ const chart = computed(() => {
   const floorAmount = principalAmount * (minimumReturn !== undefined ? 1 + minimumReturn : note.value.payoff.principalProtection ?? 0)
   const hasFloor = protectionSelected.value || minimumSelected.value
   const capAmount = principalAmount * (1 + (upsideOf(note.value)?.cap ?? 0))
-  // The cap line stays in view even where the payoff does not reach it.
+  // The cap stays in view even where the payoff does not reach it.
   const axis = frozenAxis.value ?? fitAmountAxis(Math.max(...values, capSelected.value ? capAmount : 0), principalAmount)
   const x = (level: number) => levelToX(level, scale, plot)
   const y = (amount: number) => amountToY(amount, axis.top, plot)
@@ -607,48 +603,49 @@ const chart = computed(() => {
   const samples: Sample[] = levels.map((level, i) => ({ point: point(level, values[i]), regime: regimeOf(breakdowns[i]), jump: jumps[i] }))
   const pieces = splitAtJumps(samples)
   const segments = splitByRegime(samples)
-  const legend = [...new Set(segments.map((segment) => segment.regime))].map((regime) => ({ regime, concept: regimeConcept.value[regime], label: regimeLabel.value[regime] }))
-  const samplesWhere = (keep: (level: number) => boolean) => samples.filter((_, i) => keep(levels[i]))
-  const atInitial = point(initial, maturityPayment(note.value, at(initial)))
+  const runs = regimeRuns(samples.map(({ regime }) => regime), jumps)
+  // The note is read against a payment that moves 1:1 with the underlier: zero at −100%, twice principal at +100%.
+  const underlierY = (level: number) => y(principalAmount * level / initial)
+  // A selected feature shades the gap between the note and the 1:1 line where it sets the payment.
+  const shades = !featureSelected.value ? [] : runs.filter(({ regime }) => highlighted(regimeConcept.value[regime])).map(({ regime, start, end: last }) => {
+    const span = levels.slice(start, last + 1)
+    return { concept: regimeConcept.value[regime], points: [...span.map((level, i) => point(level, values[start + i])), ...span.slice().reverse().map((level) => `${x(level)},${underlierY(level)}`)].join(' ') }
+  })
+  // Droplines mark where the rule changes, from the line down to the axis. At a jump they start from the higher end.
+  const drops = runs.slice(1).map(({ start }) => ({ x: x(levels[start]), y: Math.min(y(values[start]), y(values[start - 1])) }))
   const ghost = ghostNote.value
   // The levels after pricing are not note terms, so the ghost reads the current ones, fitted to its own lookback count.
   const ghostInitialEnd = ghost?.underlier.determination.initial
   const ghostObservations = ghostInitialEnd?.kind === 'lookback' ? [initialLevel.value, ...fitLookbackObservations(lookbackLevels.value, initialObservationCountOf(ghostInitialEnd) - 1)] : []
-  // A ghost of the other kind of underlier is not drawn: its horizontal axis measures something else.
+  // A ghost of the other kind of underlier is not drawn: its horizontal axis measures something else. Nor is one measured
+  // from another level, since the axis is the change from the current one.
   const ghostDrawable = ghost !== null && ghost.underlier.kind === underlierKind.value && productIssues(ghost).length === 0 && ghostObservations.every((level) => Number.isFinite(level) && level > 0)
   const ghostInitial = !ghostDrawable ? Number.NaN : ghost.underlier.kind === 'basket' ? basketStartingLevel : initialLevelFrom(ghost.underlier.determination.initial, ghostObservations)
-  const ghostLevels = levelsFor(ghostDrawable ? jumpLevelOf(ghost, ghostInitial) : undefined)
-  const ghostValues = ghostDrawable ? ghostLevels.map((level) => maturityPayment(ghost, { initial: ghostInitial, final: level })) : []
+  const ghostOnAxis = ghostDrawable && ghostInitial === initial
+  const ghostLevels = levelsFor(ghostOnAxis ? jumpLevelOf(ghost, ghostInitial) : undefined)
+  const ghostValues = ghostOnAxis ? ghostLevels.map((level) => maturityPayment(ghost, { initial: ghostInitial, final: level })) : []
   const ghostJumps = jumpsIn(ghostLevels, ghostValues)
-  const ghostPieces = ghostDrawable ? splitAtJumps(ghostLevels.map((level, i) => ({ point: point(level, ghostValues[i]), jump: ghostJumps[i] }))) : []
+  const ghostPieces = ghostOnAxis ? splitAtJumps(ghostLevels.map((level, i) => ({ point: point(level, ghostValues[i]), jump: ghostJumps[i] }))) : []
   const finalHandle = payment.value === null ? null : { x: x(clamp(finalLevel.value, 0, end)), y: pinnedY(payment.value) }
-  const bubbleText = payment.value === null ? '' : `${formatAmount(finalLevel.value)} → ${formatAmount(payment.value)}`
+  // The bubble gives the change, the final level it comes from, and the payment.
+  const bubbleText = payment.value === null ? '' : `${changeText(finalLevel.value / initial - 1)} (${formatAmount(finalLevel.value)}) → ${formatAmount(payment.value)}`
   const labelWidth = (text: string) => text.length * 6.4 * labelScale.value
   const bubbleWidth = 16 + labelWidth(bubbleText)
-  const capLabelY = y(capAmount) - 6 < plot.top + 10 ? y(capAmount) + 14 : y(capAmount) - 6 // above the cap line, or below it when the line is at the top of the plot
   // The cap handle sits where the line actually bends flat. When the upside rate is too low for that to be in view,
-  // it falls back to a fixed spot on the cap's reference line instead of floating over the wrong-coloured segment.
+  // it falls back to a fixed spot on the cap's level instead of floating over the wrong-coloured segment.
   const upsideRate = selectedParticipation.upside ? participationPercent.upside / 100 : undefined
   const bindLevel = capSelected.value ? capBindLevel(initial, upsideOf(note.value)?.cap ?? 0, upsideRate) : undefined
   const capOnCurve = bindLevel !== undefined && bindLevel <= end
   const capHandleX = capSelected.value ? (capOnCurve ? x(bindLevel as number) : plot.left + (plot.right - plot.left) * 0.8) : null
-  // The cap label normally sits at the right edge. It shifts left of the handle instead only when the handle would otherwise sit on top of it.
-  const capTextWidth = `Cap ${formatAmount(capAmount)}`.length * 6.4 * labelScale.value
-  const capLabelOverlapsHandle = capOnCurve && capHandleX !== null && capHandleX + handleRadius.value + 6 > plot.right - 20 - capTextWidth
-  const capLabelRight = capLabelOverlapsHandle ? Math.min(plot.right - 4, (capHandleX as number) - handleRadius.value - 6) : plot.right - 4
-  // The tooltip normally sits above its handle. It drops below when that would cover the cap label or another handle.
+  // The bubble normally sits above its dot. It drops below near the top of the plot, or when it would cover a handle.
   const bubbleX = finalHandle && clamp(finalHandle.x - bubbleWidth / 2, plot.left + 2, plot.right - bubbleWidth - 2)
-  const capLabelLeft = capLabelRight - 16 - capTextWidth
   // The buffer handle sits where losses start, which is always on the principal line. With absolute return the payment jumps
-  // there, and the handle sits on the end the buffer level pays, at the top of the jump. Its label sits beside the guide at the top of the plot.
+  // there, and the handle sits on the end the buffer level pays, at the top of the jump.
   const bufferAt = bufferLevel(initial, bufferPercent.value / 100)
   const bufferX = bufferSelected.value ? x(bufferAt) : null
   const bufferY = absoluteSelected.value ? pinnedY(maturityPayment(note.value, at(bufferAt))) : y(principalAmount)
-  const bufferLabelLeft = bufferX !== null && bufferX < plot.left + 90
-  // The barrier handle sits at the barrier on the principal line, where the payment is still principal. Its label sits beside the guide.
+  // The barrier handle sits at the barrier on the principal line, where the payment is still principal.
   const barrierX = barrierAt === undefined ? null : x(barrierAt)
-  const barrierLabelLeft = barrierX !== null && barrierX < plot.left + 90
-  const coversCapLabel = capSelected.value && finalHandle !== null && bubbleX !== null && bubbleX + bubbleWidth > capLabelLeft && finalHandle.y - 34 + 22 > capLabelY - 12 * labelScale.value && finalHandle.y - 34 < capLabelY + 4
   const ring = handleRadius.value + 5
   const slopeAt = slopeLevel(initial, capFraction.value)
   const otherHandles = [
@@ -656,48 +653,73 @@ const chart = computed(() => {
     selectedParticipation.upside ? { x: x(slopeAt), y: pinnedY(maturityPayment(note.value, at(slopeAt))) } : null,
   ]
   const coversHandle = finalHandle !== null && bubbleX !== null && otherHandles.some((handle) => handle !== null && bubbleX < handle.x + ring && bubbleX + bubbleWidth > handle.x - ring && finalHandle.y - 34 < handle.y + ring && finalHandle.y - 12 > handle.y - ring)
+  const bubble = finalHandle && bubbleX !== null ? { text: bubbleText, width: bubbleWidth, x: bubbleX, y: finalHandle.y < plot.top + 40 || coversHandle ? finalHandle.y + 16 : finalHandle.y - 34 } : null
+  // Labels say what each piece of the line does. Each sits by the middle of the longest stretch its concept sets, and they
+  // are placed in priority order, the selected feature's first, clear of the bubble, the final-level dot and the principal label.
+  const texts = payoffLabels(note.value)
+  // A minimum return is just above principal, so the principal label goes under its line there instead of over it.
+  const principalBelow = minimumSelected.value
+  const longest = new Map<PayoffLabelKey, RegimeRun>()
+  for (const run of runs) {
+    const key = regimeConcept.value[run.regime]
+    const current = longest.get(key)
+    if (texts[key] && (!current || run.end - run.start > current.end - current.start)) longest.set(key, run)
+  }
+  // A label points at the middle of its stretch, or at a quarter of the way along either side when the middle is crowded.
+  const along = (run: RegimeRun) => [0.5, 0.25, 0.75].map((share) => Math.round(run.start + (run.end - run.start) * share))
+  const anchors = new Map<PayoffLabelKey, number[]>([...longest].map(([key, run]) => [key, along(run)]))
+  // The lowest payment is at a fall to zero, the first sample. A cap reached only beyond the axis is labelled at the last.
+  if (texts.lowest && runs[0] && regimeConcept.value[runs[0].regime] !== floorConcept.value) anchors.set('lowest', [0])
+  if (texts.cap && !anchors.has('cap')) anchors.set('cap', [levels.length - 1])
+  const lineHeight = 13 * labelScale.value
+  const first = selected.value as PayoffLabelKey
+  const order = [...(featureSelected.value && anchors.has(first) ? [first] : []), ...labelPriority.filter((key) => !(featureSelected.value && key === first))]
+  const requests = order.filter((key) => anchors.has(key)).map((key) => {
+    const lines = wrapWords(texts[key] as string, 26)
+    return { id: key, lines, anchors: (anchors.get(key) as number[]).map((i) => ({ x: x(levels[i]), y: y(values[i]) })), width: Math.max(...lines.map((line) => line.length)) * 6.2 * labelScale.value + 6, height: lines.length * lineHeight + 4 }
+  })
+  const obstacles: Box[] = [
+    { x: plot.left + 4, y: y(principalAmount) + (principalBelow ? 2 : -18 * labelScale.value), width: 20 + labelWidth(`Principal ${formatAmount(principalAmount)}`), height: 16 * labelScale.value },
+    ...(bubble ? [{ x: bubble.x, y: bubble.y, width: bubble.width, height: 22 }] : []),
+    ...(finalHandle ? [{ x: finalHandle.x - ring, y: finalHandle.y - ring, width: ring * 2, height: ring * 2 }] : []),
+    // Labels keep off the note's line and the 1:1 line, so the text never sits on a line it describes.
+    ...levels.filter((_, i) => i % 2 === 0).flatMap((level, i) => [{ x: x(level), y: y(values[i * 2]), width: 0, height: 0 }, { x: x(level), y: underlierY(level), width: 0, height: 0 }]),
+  ]
+  const labels = placeLabels(requests, obstacles, plot).map((label) => ({
+    ...label,
+    lines: requests.find(({ id }) => id === label.id)?.lines ?? [],
+    from: leaderStart(label),
+    // The lowest payment is where downside participation ends, so it belongs to it.
+    concept: (label.id === 'lowest' ? 'downside' : label.id) as ConceptId,
+  }))
   return {
     axis,
     pieces,
     segments,
-    legend,
+    shades,
+    drops,
+    labels,
+    lineHeight,
+    underlierPoints: `${x(0)},${underlierY(0)} ${x(end)},${underlierY(end)}`,
     ghostPieces: ghostPieces.join('|') !== pieces.join('|') ? ghostPieces : [],
     // Each jump has a mark at both ends, in the colour of the piece it ends: filled at the payment the jump level pays, open at
     // the payment just below it, which the level itself does not pay. A small jump stays visible this way.
     jumpMarks: jumps.flatMap((jump, i) => jump ? [{ x: x(levels[i]), closedY: y(values[i]), openY: y(values[i - 1]), closed: regimeConcept.value[samples[i].regime], open: regimeConcept.value[samples[i - 1].regime] }] : []),
-    downsidePieces: splitAtJumps([...samplesWhere((level) => level < initial), { point: atInitial }]),
-    upsidePoints: [atInitial, ...samplesWhere((level) => level > initial).map(({ point }) => point)].join(' '),
     principalY: y(principalAmount),
-    // A protection floor is at or below principal, so its label goes under its line and the principal's over. A minimum
-    // return is just above principal, so the two labels swap sides and do not overlap.
-    labelsSwap: minimumSelected.value,
+    principalBelow,
     // Compact labels (such as 1.5K) keep large principals inside the left margin.
     amountTicks: Array.from({ length: Math.round(axis.top / axis.step) + 1 }, (_, i) => axis.step * i).map((amount) => ({ y: y(amount), label: amount.toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: 2 }) })),
-    floorY: hasFloor ? y(floorAmount) : null,
-    floorAmount,
-    capY: capSelected.value ? y(capAmount) : null,
-    capLabelY,
-    capLabelRight,
-    capAmount,
-    initialX: x(scale),
-    // The lookback level is a separate reference line, left of the initial level, whenever the note looks back. Its label
-    // sits under the axis beside the initial label, moved left when the two would overlap.
-    lookbackX: lookingBack.value ? x(initial) : null,
-    lookbackLabelX: Math.min(x(initial), x(scale) - (labelWidth(`Pricing ${formatAmount(scale)}`) + labelWidth(`Lookback ${formatAmount(initial)}`)) / 2 - 8),
+    returnTicks: returnTicks.map((change) => ({ x: x(initial * (1 + change)), label: changeText(change), zero: change === 0 })),
+    initialX: x(initial),
     end,
-    bufferX,
-    bufferLabel: bufferX === null ? null : { x: bufferLabelLeft ? bufferX + 6 : bufferX - 6, anchor: bufferLabelLeft ? 'start' : 'end' },
     bufferHandle: bufferX === null ? null : { x: bufferX, y: bufferY },
-    barrierX,
-    barrierLevel: barrierAt,
-    barrierLabel: barrierX === null ? null : { x: barrierLabelLeft ? barrierX + 6 : barrierX - 6, anchor: barrierLabelLeft ? 'start' : 'end' },
     barrierHandle: barrierX === null ? null : { x: barrierX, y: y(principalAmount) },
     capHandle: otherHandles[0],
-    // The floor handle sits a quarter of the way across, or just past its label when the label is longer, as on narrow screens.
-    floorHandle: hasFloor ? { x: Math.max(plot.left + (plot.right - plot.left) * 0.25, plot.left + 20 + labelWidth(`${minimumSelected.value ? 'Minimum' : 'Floor'} ${formatAmount(floorAmount)}`) + handleRadius.value + 8), y: y(floorAmount) } : null,
+    // The floor handle sits a quarter of the way across, on the floor's level.
+    floorHandle: hasFloor ? { x: plot.left + (plot.right - plot.left) * 0.25, y: y(floorAmount) } : null,
     slopeHandle: otherHandles[1],
     finalHandle,
-    bubble: finalHandle && bubbleX !== null && { text: bubbleText, width: bubbleWidth, x: bubbleX, y: finalHandle.y < plot.top + 40 || coversCapLabel || coversHandle ? finalHandle.y + 16 : finalHandle.y - 34 },
+    bubble,
   }
 })
 </script>
@@ -903,23 +925,17 @@ const chart = computed(() => {
         <section class="panel preview" aria-label="Payoff preview">
           <header class="panel-head"><h2>Payoff at {{ wrapper === 'deposit' ? 'maturity' : 'redemption' }}</h2><p>What it pays for each hypothetical final level</p></header>
           <template v-if="chart">
-            <svg ref="chartSvg" class="chart" viewBox="0 0 620 350" role="group" :aria-label="chartDescription" :style="{ '--label': `${11 * labelScale}px` }">
+            <svg ref="chartSvg" :class="['chart', { 'feature-selected': featureSelected }]" viewBox="0 0 620 350" role="group" :aria-label="chartDescription" :style="{ '--label': `${11 * labelScale}px` }">
               <defs><clipPath id="plot-clip"><rect :x="plot.left" :y="plot.top" :width="plot.right - plot.left" :height="plot.bottom - plot.top"/></clipPath></defs>
               <line :x1="plot.left" :y1="plot.bottom" :x2="plot.right" :y2="plot.bottom" class="axis-line"/><line :x1="plot.left" :y1="plot.top" :x2="plot.left" :y2="plot.bottom" class="axis-line"/>
               <line :x1="plot.left" :y1="chart.principalY" :x2="plot.right" :y2="chart.principalY" class="ref-line principal"/>
-              <line v-if="chart.floorY !== null" :x1="plot.left" :y1="chart.floorY" :x2="plot.right" :y2="chart.floorY" :class="['ref-line', { on: chartHighlight.floor }]" :style="conceptStyle(floorConcept)"/>
-              <line v-if="chart.capY !== null" :x1="plot.left" :y1="chart.capY" :x2="plot.right" :y2="chart.capY" :class="['ref-line', { on: chartHighlight.cap }]" :style="conceptStyle('cap')"/>
-              <line v-if="chart.bufferX !== null" :x1="chart.bufferX" :y1="plot.top" :x2="chart.bufferX" :y2="plot.bottom" :class="['ref-line', { on: chartHighlight.buffer }]" :style="conceptStyle('buffer')"/>
-              <line v-if="chart.barrierX !== null" :x1="chart.barrierX" :y1="plot.top" :x2="chart.barrierX" :y2="plot.bottom" :class="['ref-line', { on: chartHighlight.barrier }]" :style="conceptStyle('barrier')"/>
-              <line v-if="chartHighlight.initial":x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" class="highlight-line" :style="conceptStyle('initial-level')"/>
-              <line :x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" :class="['ref-line initial', { on: chartHighlight.initial }]" :style="conceptStyle('initial-level')"/>
-              <line v-if="chart.lookbackX !== null" :x1="chart.lookbackX" :y1="plot.top" :x2="chart.lookbackX" :y2="plot.bottom" :class="['ref-line', { on: chartHighlight.lookback }]" :style="conceptStyle('initial-level')"/>
+              <line v-if="chartHighlight.initial" :x1="chart.initialX" :y1="plot.top" :x2="chart.initialX" :y2="plot.bottom" class="highlight-line" :style="conceptStyle('initial-level')"/>
+              <line v-for="(drop, index) in chart.drops" :key="`drop-${index}`" :x1="drop.x" :y1="drop.y" :x2="drop.x" :y2="plot.bottom" class="drop-line"/>
               <g clip-path="url(#plot-clip)">
+                <polygon v-for="(shade, index) in chart.shades" :key="`shade-${index}`" :points="shade.points" class="shade" :style="conceptStyle(shade.concept)"/>
+                <polyline :points="chart.underlierPoints" class="underlier-line"/>
                 <polyline v-for="(piece, index) in chart.ghostPieces" :key="`ghost-${index}`" :points="piece" class="ghost-line"/>
                 <polyline v-for="(piece, index) in chart.pieces" :key="`casing-${index}`" :points="piece" class="payoff-casing"/>
-                <template v-if="chartHighlight.line"><polyline v-for="(piece, index) in chart.pieces" :key="`line-${index}`" :points="piece" class="highlight-line" :style="conceptStyle('payoff')"/></template>
-                <template v-if="chartHighlight.downside"><polyline v-for="(piece, index) in chart.downsidePieces" :key="`downside-${index}`" :points="piece" class="highlight-line" :style="conceptStyle('downside')"/></template>
-                <polyline v-if="chartHighlight.upside" :points="chart.upsidePoints" class="highlight-line" :style="conceptStyle('upside')"/>
                 <polyline v-for="(segment, index) in chart.segments" :key="index" :points="segment.points" class="payoff-line" :style="conceptStyle(regimeConcept[segment.regime])"/>
                 <g v-for="(mark, index) in chart.jumpMarks" :key="`jump-${index}`" aria-hidden="true"><circle :cx="mark.x" :cy="mark.openY" r="5" class="jump-open" :style="conceptStyle(mark.open)"/><circle :cx="mark.x" :cy="mark.closedY" r="5" class="jump-closed" :style="conceptStyle(mark.closed)"/></g>
               </g>
@@ -927,13 +943,12 @@ const chart = computed(() => {
               <line v-if="chart.finalHandle" :x1="chart.finalHandle.x" :y1="chart.finalHandle.y" :x2="chart.finalHandle.x" :y2="plot.bottom" class="final-guide"/>
               <g v-for="tick in chart.amountTicks" :key="tick.y"><line :x1="plot.left - 4" :y1="tick.y" :x2="plot.left" :y2="tick.y" class="axis-line"/><text :x="plot.left - 7" :y="tick.y" text-anchor="end" dominant-baseline="middle" class="axis-label">{{ tick.label }}</text></g>
               <text :x="plot.left + 2" y="24" class="axis-label">Payment</text>
-              <line :x1="plot.left + 4" :y1="chart.principalY + (chart.labelsSwap ? 10 : -10)" :x2="plot.left + 16" :y2="chart.principalY + (chart.labelsSwap ? 10 : -10)" class="ref-swatch principal"/><text :x="plot.left + 20" :y="chart.principalY + (chart.labelsSwap ? 14 : -6)" class="ref-label">Principal {{ formatAmount(principal) }}</text>
-              <template v-if="chart.floorY !== null"><line :x1="plot.left + 4" :y1="chart.floorY + (chart.labelsSwap ? -10 : 10)" :x2="plot.left + 16" :y2="chart.floorY + (chart.labelsSwap ? -10 : 10)" :class="['ref-swatch', { on: chartHighlight.floor }]" :style="conceptStyle(floorConcept)"/><text :x="plot.left + 20" :y="chart.floorY + (chart.labelsSwap ? -6 : 14)" :class="['ref-label', { on: chartHighlight.floor }]">{{ minimumSelected ? 'Minimum' : 'Floor' }} {{ formatAmount(chart.floorAmount) }}</text></template>
-              <template v-if="chart.capY !== null"><line :x1="chart.capLabelRight - 12" :y1="chart.capLabelY - 4" :x2="chart.capLabelRight" :y2="chart.capLabelY - 4" :class="['ref-swatch', { on: chartHighlight.cap }]" :style="conceptStyle('cap')"/><text :x="chart.capLabelRight - 16" :y="chart.capLabelY" text-anchor="end" :class="['ref-label', { on: chartHighlight.cap }]">Cap {{ formatAmount(chart.capAmount) }}</text></template>
-              <text v-if="chart.bufferLabel" :x="chart.bufferLabel.x" :y="plot.top + 12" :text-anchor="chart.bufferLabel.anchor" :class="['ref-label', { on: chartHighlight.buffer }]">Buffer {{ bufferSummary }}</text>
-              <text v-if="chart.barrierLabel" :x="chart.barrierLabel.x" :y="plot.top + 12" :text-anchor="chart.barrierLabel.anchor" :class="['ref-label', { on: chartHighlight.barrier }]">Barrier {{ formatAmount(chart.barrierLevel ?? 0) }}</text>
-              <text v-if="chart.lookbackX !== null" :x="chart.lookbackLabelX" y="331" text-anchor="middle" class="axis-label">Lookback {{ formatAmount(determinedInitialLevel) }}</text>
-              <text :x="plot.left - 3" y="331" class="axis-label">0</text><text :x="chart.initialX" y="331" text-anchor="middle" class="axis-label">{{ lookingBack ? 'Pricing' : 'Initial' }} {{ formatAmount(initialLevel) }}</text><text :x="plot.right" y="331" text-anchor="end" class="axis-label">{{ formatAmount(chart.end) }}</text>
+              <line :x1="plot.left + 4" :y1="chart.principalY + (chart.principalBelow ? 10 : -10)" :x2="plot.left + 16" :y2="chart.principalY + (chart.principalBelow ? 10 : -10)" class="ref-swatch principal"/><text :x="plot.left + 20" :y="chart.principalY + (chart.principalBelow ? 14 : -6)" class="ref-label">Principal {{ formatAmount(principal) }}</text>
+              <text v-for="tick in chart.returnTicks" :key="tick.label" :x="tick.x" y="331" text-anchor="middle" :class="['axis-label', { zero: tick.zero }]">{{ tick.label }}</text>
+              <g v-for="label in chart.labels" :key="label.id" :class="['feature-label', { on: featureSelected && highlighted(label.concept) }]" aria-hidden="true">
+                <path :d="`M${label.from.x},${label.from.y} L${label.anchor.x},${label.anchor.y}`" class="leader"/>
+                <text v-for="(line, index) in label.lines" :key="index" :x="label.x + 3" :y="label.y + chart.lineHeight * (index + 1) - 1" class="ref-label">{{ line }}</text>
+              </g>
               <g v-if="chart.bubble" class="bubble" :transform="`translate(${chart.bubble.x} ${chart.bubble.y})`"><rect :width="chart.bubble.width" height="22" rx="6"/><text :x="chart.bubble.width / 2" y="15" text-anchor="middle">{{ chart.bubble.text }}</text></g>
               <g v-if="chart.floorHandle" :class="['handle', { on: highlighted(floorConcept) }]" :style="conceptStyle(floorConcept)" :transform="`translate(${chart.floorHandle.x} ${chart.floorHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" :aria-label="minimumSelected ? 'Minimum return' : 'Principal protection'" :aria-valuemin="minimumSelected ? 1 : 0" aria-valuemax="100" :aria-valuenow="minimumSelected ? minimumPercent : protectionPercent" :aria-valuetext="minimumSelected ? `${minimumPercent}% minimum return` : `${protectionPercent}% protection`" @pointerdown="startDrag('floor', $event)" @pointermove="dragMove('floor', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('floor', $event)" @focus="focusHandle('floor')">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
@@ -954,9 +969,9 @@ const chart = computed(() => {
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
             </svg>
-            <div class="chart-axis-title">{{ isBasket ? `Final level of the basket${averaging ? `, from each asset's average of ${observationCount} observed levels` : ''}` : `Final level of ${underlierLabel}${averaging ? `, the average of ${observations.length} observed levels` : ''}` }} →</div>
-            <ul class="chart-legend" aria-label="What sets the payment"><li v-for="item in chart.legend" :key="item.regime" :style="conceptStyle(item.concept)"><span class="legend-swatch" aria-hidden="true"></span>{{ item.label }}</li></ul>
-            <p class="chart-hint">Drag a handle on the chart, or focus one and use the arrow keys. Shift takes bigger steps. A grey line shows the payoff before your last change.</p>
+            <div class="chart-axis-title">Change in {{ isBasket ? `the basket from its starting level${averaging ? `, each asset averaged over ${observationCount} observed levels` : ''}` : `${underlierLabel} from its ${lookingBack ? 'lookback' : 'initial'} level${averaging ? `, averaged over ${observations.length} observed levels` : ''}` }} →</div>
+            <ul class="chart-legend" aria-label="Key"><li :style="conceptStyle('payoff')"><span class="legend-swatch" aria-hidden="true"></span>The {{ wrapper }}</li><li><span class="legend-swatch underlier" aria-hidden="true"></span>Moving 1:1 with {{ isBasket ? 'the basket' : underlierLabel }}</li></ul>
+            <p class="chart-hint">Point at the chart to show its handles, then drag one, or focus one and use the arrow keys. Shift takes bigger steps. Select a feature to shade what it changes. A faint line shows the payoff before your last change.</p>
           </template>
           <p v-else class="help">Enter valid terms to see the payoff.</p>
 

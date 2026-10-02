@@ -1,0 +1,68 @@
+import { describe, expect, it } from 'vitest'
+import { withSubFeatures, type Participation, type Product } from '../domain/note'
+import { startingProduct } from '../domain/starting-note'
+import { payoffLabels } from './chart-labels'
+
+const productWith = (participations: Participation[], terms: { buffer?: number; barrier?: number; absoluteReturn?: number; cap?: number; principalProtection?: number } = {}): Product => ({
+  ...startingProduct,
+  payoff: {
+    participations: withSubFeatures(participations, {
+      buffer: terms.buffer,
+      barrier: terms.barrier === undefined ? undefined : { level: terms.barrier, observation: 'final' },
+      absoluteReturn: terms.absoluteReturn === undefined ? undefined : { rate: terms.absoluteReturn },
+      cap: terms.cap,
+    }),
+    principalProtection: terms.principalProtection,
+  },
+})
+const down = (rate = 1): Participation => ({ direction: 'downside', rate })
+const up = (rate = 1): Participation => ({ direction: 'upside', rate })
+
+describe('payoff chart labels', () => {
+  it('says a product with no features repays principal', () => {
+    expect(payoffLabels(startingProduct)).toEqual({ payoff: 'Repays principal 1,000' })
+  })
+
+  it('describes the dual directional note in the proposal', () => {
+    expect(payoffLabels(productWith([down(), up()], { buffer: 0.15, absoluteReturn: 1, cap: 0.5 }))).toEqual({
+      payoff: 'Repays principal 1,000',
+      upside: 'Each 1% rise adds 1%',
+      cap: 'Capped at 1,500',
+      buffer: 'A fall of up to 15% repays principal',
+      downside: 'A fall past 15% loses 1% per 1% beyond it',
+      'absolute-return': 'A fall of up to 15% is paid as a gain',
+      lowest: 'Lowest payment 150',
+    })
+  })
+
+  it('gives an absolute return rate other than 100%', () => {
+    expect(payoffLabels(productWith([down()], { buffer: 0.1, absoluteReturn: 0.2 }))['absolute-return']).toBe('A fall of up to 10% pays 20% of it as a gain')
+  })
+
+  it('says a barrier counts the whole fall past it', () => {
+    const labels = payoffLabels(productWith([down()], { barrier: 0.7 }))
+    expect(labels.barrier).toBe('A fall of up to 30% repays principal')
+    expect(labels.downside).toBe('A fall past 30% loses 1% per 1% of the whole fall')
+    expect(labels.lowest).toBeUndefined()
+  })
+
+  it('states rates per 1% move', () => {
+    expect(payoffLabels(productWith([down(1.5), up(1.39)])).upside).toBe('Each 1% rise adds 1.39%')
+    expect(payoffLabels(productWith([down(1.5), up(1.39)])).downside).toBe('Each 1% fall loses 1.5%')
+  })
+
+  it('says where a cap beyond the axis is reached', () => {
+    expect(payoffLabels(productWith([up(0.2)], { cap: 0.5 })).cap).toBe('Capped at 1,500, reached at +250%')
+  })
+
+  it('names the floor, and gives no lowest payment when a floor sets it', () => {
+    const labels = payoffLabels(productWith([down()], { principalProtection: 0.9 }))
+    expect(labels.protection).toBe('Never below 900')
+    expect(labels.lowest).toBeUndefined()
+  })
+
+  it('names a deposit minimum return', () => {
+    const deposit: Product = { ...startingProduct, wrapper: 'deposit', payoff: { participations: [up()], minimumReturn: 0.05 } }
+    expect(payoffLabels(deposit)['minimum-return']).toBe('Never below 1,050')
+  })
+})

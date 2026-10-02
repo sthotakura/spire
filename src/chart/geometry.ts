@@ -1,5 +1,6 @@
 // Chart geometry and drag math, kept apart from Vue so it can be tested on its own.
-// The vertical axis starts at zero and is fitted to the payoff. The page holds it still while the reader drags, so the line
+// The horizontal axis is the underlier's change, from −100% to +100% of the level the return is measured from, so the
+// initial level sits at the centre. The vertical axis starts at zero and is fitted to the payoff. The page holds it still while the reader drags, so the line
 // does not move under the pointer, and refits it when the drag ends.
 
 import { downsideOf, type PaymentBreakdown, type Product } from '../domain/note'
@@ -11,7 +12,7 @@ export interface Plot {
   bottom: number
 }
 
-export const levelAxisFactor = 1.6 // horizontal axis spans 0 to this many times the initial level
+export const levelAxisFactor = 2 // horizontal axis spans 0 to this many times the initial level: −100% to +100%
 export const slopeLevelFactor = 1.5 // the slope handle sits at this many times the initial level
 
 export const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value))
@@ -87,7 +88,6 @@ export const minimumReturnFromY = (y: number, principal: number, top: number, pl
 export const bufferLevel = (initialLevel: number, buffer: number) => initialLevel * (1 - buffer)
 
 // Dragging the buffer handle sideways sets the buffer as the fall from the level the return is measured from, snapped to 1%.
-// The axis stays scaled on the initial-level term, so with lookback the two levels differ.
 export const bufferFromX = (x: number, initialLevel: number, plot: Plot, measuredFrom: number) => clampBuffer((1 - xToLevel(x, initialLevel, plot) / measuredFrom) * 100)
 
 // Dragging the barrier handle sideways sets the barrier as a percentage of the level the return is measured from, snapped to 1%.
@@ -153,3 +153,88 @@ export const splitAtJumps = (samples: ReadonlyArray<Pick<Sample, 'point' | 'jump
   }
   return pieces.map((piece) => piece.join(' '))
 }
+
+// The underlier's changes the horizontal axis marks, every 20% from −100% to +100%.
+export const returnTicks = Array.from({ length: 11 }, (_, i) => Math.round((i / 5 - 1) * 10) / 10)
+
+// A stretch of sampled points set by one rule, by index, start and end included. A jump starts a new stretch.
+export interface RegimeRun {
+  regime: Regime
+  start: number
+  end: number
+}
+
+export function regimeRuns(regimes: ReadonlyArray<Regime>, jumps: ReadonlyArray<boolean | undefined>): RegimeRun[] {
+  const runs: RegimeRun[] = []
+  regimes.forEach((regime, i) => {
+    const last = runs[runs.length - 1]
+    if (last?.regime === regime && !jumps[i]) last.end = i
+    else runs.push({ regime, start: i, end: i })
+  })
+  return runs
+}
+
+// Breaks a label into lines of at most `maxChars` characters, at spaces. A word longer than that gets a line of its own.
+export function wrapWords(text: string, maxChars: number): string[] {
+  const lines: string[] = []
+  for (const word of text.split(' ')) {
+    const last = lines[lines.length - 1]
+    if (last !== undefined && `${last} ${word}`.length <= maxChars) lines[lines.length - 1] = `${last} ${word}`
+    else lines.push(word)
+  }
+  return lines
+}
+
+export interface Box {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface LabelRequest {
+  id: string
+  // Points on the line the label can describe, the preferred one first.
+  anchors: ReadonlyArray<{ x: number; y: number }>
+  width: number
+  height: number
+}
+
+export interface PlacedLabel extends Box {
+  id: string
+  anchor: { x: number; y: number }
+}
+
+const overlaps = (a: Box, b: Box) => a.x <= b.x + b.width && b.x <= a.x + a.width && a.y <= b.y + b.height && b.y <= a.y + a.height
+const inside = (box: Box, plot: Plot) => box.x >= plot.left + 2 && box.x + box.width <= plot.right - 2 && box.y >= plot.top && box.y + box.height <= plot.bottom - 2
+
+// Places labels in the order given, which is their priority. Each label tries its anchors in turn and fixed slots around each,
+// above before below, right before left before centred, near before far, and takes the first that stays inside the plot and
+// clear of the obstacles and of the labels already placed. A label with no free slot is dropped, so the chart never shows two labels on
+// top of each other. Obstacles can be points, such as samples of a line, given as boxes with no size.
+export function placeLabels(requests: ReadonlyArray<LabelRequest>, obstacles: ReadonlyArray<Box>, plot: Plot, gap = { x: 10, y: 22 }): PlacedLabel[] {
+  const placed: PlacedLabel[] = []
+  for (const request of requests) {
+    search: for (const anchor of request.anchors) {
+      for (const reach of [1, 2, 3]) {
+        const slot = [[1, -1], [-1, -1], [0, -1], [1, 1], [-1, 1], [0, 1]].map(([sx, sy]): Box => ({
+          x: sx > 0 ? anchor.x + gap.x * reach : sx < 0 ? anchor.x - gap.x * reach - request.width : anchor.x - request.width / 2,
+          y: sy < 0 ? anchor.y - gap.y * reach - request.height : anchor.y + gap.y * reach,
+          width: request.width,
+          height: request.height,
+        })).find((box) => inside(box, plot) && !obstacles.some((obstacle) => overlaps(box, obstacle)) && !placed.some((other) => overlaps(box, other)))
+        if (slot) {
+          placed.push({ ...slot, id: request.id, anchor })
+          break search
+        }
+      }
+    }
+  }
+  return placed
+}
+
+// Where a leader from a label to its anchor leaves the label: the point of the label's box nearest the anchor.
+export const leaderStart = (label: PlacedLabel) => ({
+  x: clamp(label.anchor.x, label.x, label.x + label.width),
+  y: clamp(label.anchor.y, label.y, label.y + label.height),
+})

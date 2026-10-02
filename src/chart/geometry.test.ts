@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, minimumReturnFromY, clampProtection, clampUpsideRate, finalLevelFromX, jumpLevelOf, keyDelta, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
+import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, minimumReturnFromY, clampProtection, clampUpsideRate, finalLevelFromX, jumpLevelOf, keyDelta, leaderStart, levelToX, placeLabels, regimeRuns, returnTicks, wrapWords, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
 import { paymentBreakdown, withSubFeatures, type Product } from '../domain/note'
 import { startingProduct } from '../domain/starting-note'
 
@@ -8,14 +8,15 @@ const plot: Plot = { left: 50, right: 590, top: 35, bottom: 230 }
 describe('chart geometry', () => {
   it('maps the axes to the plot edges', () => {
     expect(levelToX(0, 100, plot)).toBe(50)
-    expect(levelToX(160, 100, plot)).toBe(590)
+    expect(levelToX(200, 100, plot)).toBe(590)
+    expect(levelToX(100, 100, plot)).toBe(320) // the initial level, 0%, is at the centre
     expect(amountToY(0, 2000, plot)).toBe(230)
     expect(amountToY(2000, 2000, plot)).toBe(35)
     expect(amountToY(1000, 2000, plot)).toBeCloseTo(132.5, 8)
   })
 
   it('converts back and forth without loss', () => {
-    for (const level of [0, 37, 100, 160]) expect(xToLevel(levelToX(level, 100, plot), 100, plot)).toBeCloseTo(level, 8)
+    for (const level of [0, 37, 100, 160, 200]) expect(xToLevel(levelToX(level, 100, plot), 100, plot)).toBeCloseTo(level, 8)
     for (const amount of [0, 250, 1000, 1999]) expect(yToAmount(amountToY(amount, 2000, plot), 2000, plot)).toBeCloseTo(amount, 8)
   })
 })
@@ -102,8 +103,8 @@ describe('drag conversions', () => {
     expect(finalLevelFromX(levelToX(110, 100, plot), 100, plot)).toBe(110)
     expect(finalLevelFromX(levelToX(110.4, 100, plot), 100, plot)).toBe(110)
     expect(finalLevelFromX(plot.left - 30, 100, plot)).toBe(0)
-    expect(finalLevelFromX(plot.right + 30, 100, plot)).toBe(160)
-    expect(finalLevelFromX(plot.right + 30, 100.5, plot)).toBe(160)
+    expect(finalLevelFromX(plot.right + 30, 100, plot)).toBe(200)
+    expect(finalLevelFromX(plot.right + 30, 100.5, plot)).toBe(201)
   })
 
   it('limits handle values without limiting what can be typed', () => {
@@ -113,7 +114,7 @@ describe('drag conversions', () => {
     expect(clampCap(0)).toBe(1)
     expect(clampUpsideRate(250)).toBe(200)
     expect(clampUpsideRate(1)).toBe(5)
-    expect(clampFinalLevel(500, 100)).toBe(160)
+    expect(clampFinalLevel(500, 100)).toBe(200)
     expect(clampFinalLevel(-4, 100)).toBe(0)
   })
 })
@@ -242,5 +243,64 @@ describe('minimum return handle', () => {
     expect(minimumReturnFromY(plot.top - 40, 1000, 2000, plot)).toBe(100)
     expect(clampMinimumReturn(0)).toBe(1)
     expect(clampMinimumReturn(5.4)).toBe(5)
+  })
+})
+
+describe('payoff chart labels', () => {
+  it('marks the axis every 20% from −100% to +100%', () => {
+    expect(returnTicks).toEqual([-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1])
+  })
+
+  it('splits sampled points into stretches set by one rule, and starts a new one at a jump', () => {
+    expect(regimeRuns(['downside', 'downside', 'absolute', 'absolute', 'upside'], [false, false, true, false, false])).toEqual([
+      { regime: 'downside', start: 0, end: 1 }, { regime: 'absolute', start: 2, end: 3 }, { regime: 'upside', start: 4, end: 4 },
+    ])
+    expect(regimeRuns(['downside', 'downside', 'downside'], [false, true, false])).toEqual([{ regime: 'downside', start: 0, end: 0 }, { regime: 'downside', start: 1, end: 2 }])
+  })
+
+  it('wraps a label at spaces', () => {
+    expect(wrapWords('A fall of up to 15% is paid as a gain', 20)).toEqual(['A fall of up to 15%', 'is paid as a gain'])
+    expect(wrapWords('Capped at 1,500', 20)).toEqual(['Capped at 1,500'])
+  })
+
+  const label = (id: string, x: number, y: number, ...more: Array<{ x: number; y: number }>) => ({ id, anchors: [{ x, y }, ...more], width: 100, height: 20 })
+
+  it('places a label above and to the right of its anchor when there is room', () => {
+    const [placed] = placeLabels([label('cap', 200, 150)], [], plot)
+    expect(placed).toMatchObject({ id: 'cap', x: 210, y: 108 })
+    expect(leaderStart(placed)).toEqual({ x: 210, y: 128 })
+  })
+
+  it('moves a label to another slot to stay inside the plot and clear of obstacles', () => {
+    // Too near the right edge for the right-hand slots, so it goes above and to the left.
+    expect(placeLabels([label('cap', 560, 150)], [], plot)[0]).toMatchObject({ x: 450, y: 108 })
+    // An obstacle over the slot above and to the right.
+    expect(placeLabels([label('cap', 200, 150)], [{ x: 200, y: 100, width: 120, height: 30 }], plot)[0]).toMatchObject({ x: 90, y: 108 })
+  })
+
+  it('keeps a label off a line given as points, and centres it when the sides are taken', () => {
+    // A line across the slots above the anchor sends the label below it.
+    const line = Array.from({ length: 60 }, (_, i) => ({ x: 100 + i * 4, y: 120, width: 0, height: 0 }))
+    expect(placeLabels([label('cap', 200, 150)], line, plot)[0]).toMatchObject({ x: 210, y: 172 })
+    // In a plot too narrow for either side, it takes the centred slot above.
+    expect(placeLabels([label('cap', 65, 50)], [], { left: 0, right: 130, top: 0, bottom: 90 })[0]).toMatchObject({ x: 15, y: 8 })
+  })
+
+  it('tries the next anchor when no slot around the first is free', () => {
+    const crowded = { left: 0, right: 130, top: 0, bottom: 90 }
+    const [first, second] = placeLabels([label('first', 10, 45), label('second', 10, 45, { x: 120, y: 45 })], [], crowded)
+    expect(first).toMatchObject({ id: 'first' })
+    expect(second).toMatchObject({ id: 'second', x: 20, y: 67 })
+    // An obstacle over every slot around the first anchor sends the label to its second.
+    const [moved] = placeLabels([label('cap', 10, 45, { x: 250, y: 45 })], [{ x: 0, y: 0, width: 100, height: 90 }], { left: 0, right: 300, top: 0, bottom: 90 })
+    expect(moved).toMatchObject({ x: 140, y: 3, anchor: { x: 250, y: 45 } })
+  })
+
+  it('places labels in priority order and drops one with no free slot', () => {
+    const crowded = { left: 0, right: 130, top: 0, bottom: 90 }
+    const placed = placeLabels([label('first', 10, 45), label('second', 10, 45)], [], crowded)
+    expect(placed.map(({ id }) => id)).toEqual(['first', 'second'])
+    const full = placeLabels([label('first', 10, 45), label('second', 10, 45), label('third', 10, 45)], [], crowded)
+    expect(full.map(({ id }) => id)).toEqual(['first', 'second'])
   })
 })

@@ -78,9 +78,9 @@ This plan covers the first useful, public, browser-only version. It records deci
 
 ## 9. Make the chart evident
 
-- Give each payoff feature its own colour, used the same way in the summary sentence, the outline, and the chart: downside participation orange, principal protection blue, upside participation green, cap magenta, and principal repaid slate. The set passes the dataviz palette check for lightness, chroma and colour-vision separation; red with green was rejected because it fails that check. Direct labels and a legend carry identity as well as colour.
+- Give each payoff feature its own colour, used the same way in the summary sentence, the outline, and the chart: downside participation orange, principal protection blue, upside participation green, cap magenta, and principal repaid slate. The set passes the dataviz palette check for lightness, chroma and colour-vision separation; red with green was rejected because it fails that check. Direct labels and a legend carry identity as well as colour. (Section 23 replaced the legend with labels on the line and a two-entry key.)
 - Draw the payoff line in the colour of the rule that sets the payment at each level (`regimeOf` in `src/chart/geometry.ts`, derived from the payment breakdown), so the reader sees where the floor or cap binds.
-- Colour the floor and cap guide lines and their handles to match, mark their labels with a matching swatch, and keep the initial-level and principal lines neutral.
+- Colour the floor and cap guide lines and their handles to match, mark their labels with a matching swatch, and keep the initial-level and principal lines neutral. (Section 23 replaced the guide lines with droplines and labels.)
 
 ## 10. Model the underlier and explain the outline
 
@@ -204,9 +204,14 @@ Absolute return pays a fall within the buffer as a gain; beyond the buffer the h
 - **The payment jumps at the buffer level**, which belongs to absolute return. The chart draws two pieces, as for the barrier, with a filled mark on the end the level pays and an open mark on the other, at the barrier's jump too. The buffer handle moves to the filled end. The scenarios add a row at the buffer level.
 - **Build order.** The domain (rule, validation, the cap change), with tests built from the public examples; then the content (summary, JSON, payment rule, calculation, outcome, scenarios); then the interface.
 
-## 23. Redesign the payoff chart (proposed)
+## 23. Redesign the payoff chart
 
-With several features the chart is accurate but hard to read. A public filing's payoff diagram reads more easily: it draws the note against a 1:1 underlier line, uses % change on the horizontal axis, and labels the features instead of relying on colour. The proposal, a before-and-after mock and the decisions it needs are in [docs/payoff-chart.md](docs/payoff-chart.md). It changes how a payoff is drawn, not what any product pays. Decided so far: the horizontal axis is fixed from −100% to +100%, and the underlier reference line is a neutral grey. Nothing is built until the remaining decisions are agreed.
+With several features the chart was accurate but hard to read. A public filing's payoff diagram reads more easily: it draws the note against a 1:1 underlier line, uses % change on the horizontal axis, and labels the features instead of relying on colour. The proposal, a before-and-after mock and the decisions are in [docs/payoff-chart.md](docs/payoff-chart.md). It changes how a payoff is drawn, not what any product pays.
+
+- **Axis.** The horizontal axis is the underlier's change, fixed from −100% to +100% of the level the return is measured from (the initial, lookback or basket starting level). This replaces the axis in index levels scaled on the initial-level term (section 14); the vertical axis is unchanged. With lookback the pricing-date level has no reference line of its own; the calculation shows it.
+- **The 1:1 line.** A neutral grey dashed line is the payment moving 1:1 with the underlier. Selecting a feature tints the gap it makes against it; nothing is tinted at rest.
+- **Labels instead of a legend.** Each piece of the line gets a plain-words label from `src/content/chart-labels.ts`, placed in priority order by `placeLabels` in `src/chart/geometry.ts`, clear of the lines and each other, and dropped when there is no room. The legend becomes a two-entry key.
+- **Less clutter.** Droplines replace the guide lines, the bubble gives the change, the level and the payment, and handles show on hover, focus or selection.
 
 ## Later direction: a composable form
 
