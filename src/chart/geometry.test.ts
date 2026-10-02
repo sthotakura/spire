@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, minimumReturnFromY, clampProtection, clampUpsideRate, finalLevelFromX, keyDelta, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
+import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, minimumReturnFromY, clampProtection, clampUpsideRate, finalLevelFromX, jumpLevelOf, keyDelta, levelToX, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
 import { paymentBreakdown, withSubFeatures, type Product } from '../domain/note'
 import { startingProduct } from '../domain/starting-note'
 
@@ -200,6 +200,30 @@ describe('payoff regimes', () => {
     expect(regimeAt(buffered, 85)).toBe('downside')
     expect(regimeAt(buffered, 50)).toBe('floor')
     expect(regimeAt(buffered, 110)).toBe('upside')
+  })
+
+  it('names absolute return where it pays a fall as a gain, and downside participation past the buffer', () => {
+    const dualDirectional: Product = { ...startingProduct, payoff: { participations: [{ direction: 'downside', buffer: 0.15, absoluteReturn: { rate: 1 }, rate: 1 }, { direction: 'upside', rate: 1, cap: 0.1 }] } }
+    expect(regimeAt(dualDirectional, 95)).toBe('absolute')
+    expect(regimeAt(dualDirectional, 85)).toBe('absolute')
+    expect(regimeAt(dualDirectional, 84.99)).toBe('downside')
+    // The cap limits a rise only, so a fall paid above it is still absolute return's.
+    expect(regimeAt(dualDirectional, 86)).toBe('absolute')
+    expect(regimeAt(dualDirectional, 100)).toBe('upside')
+  })
+
+  it('finds the level where the payment jumps: at a barrier, or where absolute return stops', () => {
+    const barriered: Product = { ...startingProduct, payoff: { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }] } }
+    const dualDirectional: Product = { ...startingProduct, payoff: { participations: [{ direction: 'downside', buffer: 0.15, absoluteReturn: { rate: 1 }, rate: 1 }] } }
+    const buffered: Product = { ...startingProduct, payoff: { participations: [{ direction: 'downside', buffer: 0.15, rate: 1 }] } }
+    expect(jumpLevelOf(barriered, 100)).toBe(70)
+    expect(jumpLevelOf(dualDirectional, 80)).toBe(68)
+    expect(jumpLevelOf(buffered, 100)).toBeUndefined()
+    expect(jumpLevelOf(startingProduct, 100)).toBeUndefined()
+    // The level is where the payment computes the edge, so it pays the gain and the level just below does not.
+    const edge = jumpLevelOf(dualDirectional, 100)!
+    expect(paymentBreakdown(dualDirectional, { initial: 100, final: edge }).absoluteReturnApplies).toBe(true)
+    expect(paymentBreakdown(dualDirectional, { initial: 100, final: edge * (1 - 1e-9) }).absoluteReturnApplies).toBe(false)
   })
 
   it('splits points into runs that share their joins', () => {

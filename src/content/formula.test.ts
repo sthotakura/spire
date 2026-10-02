@@ -123,7 +123,7 @@ describe('payment rule with absolute return', () => {
   })
 
   it('says a larger fall loses the gain, and states the highest payment of either kind', () => {
-    expect(paymentInWords(dualDirectional)).toBe(`Each 1% rise in ${startingProduct.underlier.components[0].asset.name} adds 1.2% of principal, and each 1% fall of up to 15% adds 1%. A larger fall pays no gain, and each 1% beyond the first 15% takes 1% of principal away. The payment never goes above 1,400 or below zero.`)
+    expect(paymentInWords(dualDirectional)).toBe(`Each 1% rise in ${startingProduct.underlier.components[0].asset.name} adds 1.2% of principal, and each 1% fall, up to 15%, adds 1%. A larger fall pays no gain, and each 1% beyond the first 15% takes 1% of principal away. The payment never goes above 1,400 or below zero.`)
     // A 10% cap is below the 15% the buffer lets a fall pay, so the highest payment is 1,150.
     const lowCap = { ...dualDirectional, payoff: { participations: withSubFeatures(dualDirectional.payoff.participations, { buffer: 0.15, absoluteReturn: { rate: 1 }, cap: 0.1 }) } }
     expect(paymentInWords(lowCap)).toContain('The payment never goes above 1,150 or below zero.')

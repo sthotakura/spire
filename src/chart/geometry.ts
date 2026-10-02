@@ -2,7 +2,7 @@
 // The vertical axis starts at zero and is fitted to the payoff. The page holds it still while the reader drags, so the line
 // does not move under the pointer, and refits it when the drag ends.
 
-import type { PaymentBreakdown } from '../domain/note'
+import { downsideOf, type PaymentBreakdown, type Product } from '../domain/note'
 
 export interface Plot {
   left: number
@@ -103,13 +103,23 @@ export const keyDelta = (key: string, shift: boolean, step: number): number | nu
 }
 
 // The rule that sets the payment at a final level. The line is drawn in one colour per rule, so the reader can see which one binds where.
-export type Regime = 'principal' | 'buffer' | 'barrier' | 'downside' | 'upside' | 'floor' | 'cap'
+export type Regime = 'principal' | 'buffer' | 'barrier' | 'absolute' | 'downside' | 'upside' | 'floor' | 'cap'
 
 // A fall the buffer absorbs in full leaves principal unchanged, but it is the buffer, not the absence of participation, that holds the payment there.
-// A fall that ends at or above a barrier is held at principal by the barrier in the same way.
-export const regimeOf = (b: PaymentBreakdown): Regime => b.floorApplies ? 'floor' : b.capApplies ? 'cap' : b.participationRate === undefined ? 'principal'
+// A fall that ends at or above a barrier is held at principal by the barrier in the same way. A fall within the buffer that
+// absolute return pays as a gain is absolute return's.
+export const regimeOf = (b: PaymentBreakdown): Regime => b.floorApplies ? 'floor' : b.capApplies ? 'cap' : b.absoluteReturnApplies ? 'absolute' : b.participationRate === undefined ? 'principal'
   : b.direction === 'downside' && b.belowBarrier === false ? 'barrier'
     : b.direction === 'downside' && b.bufferAbsorbs && b.participatedReturn === 0 ? 'buffer' : b.direction
+
+// The final level where the payment jumps, if it does: at a barrier, or at the buffer level when absolute return stops
+// paying there. Each is computed as the payment computes it, so the samples either side of it fall on the right sides.
+export const jumpLevelOf = (product: Product, initialLevel: number): number | undefined => {
+  const downside = downsideOf(product)
+  if (downside?.barrier !== undefined) return downside.barrier.level * initialLevel
+  if (downside?.absoluteReturn !== undefined && downside.buffer !== undefined) return bufferLevel(initialLevel, downside.buffer)
+  return undefined
+}
 
 // A sampled point on the payoff line. A jump marks where the payment changes at once, such as at a barrier: the line breaks
 // there instead of joining the two sides, since a joining segment would show payments the note never makes.

@@ -201,7 +201,7 @@ Absolute return pays a fall within the buffer as a gain; beyond the buffer the h
 
 - **A sub-feature of downside participation**, after the buffer: `{ "direction": "downside", "buffer": 0.15, "absoluteReturn": { "rate": 1 }, "rate": 1 }`. It requires a buffer; absolute return above a barrier waits for a verified filing. Upside participation is not required.
 - **The cap limits upside participation only.** The capped public note applies its maximum upside payment to a rise alone, and the cap is part of upside participation. The payment changes to match; no payment that could be written before changes.
-- **The payment jumps at the buffer level**, which belongs to absolute return. The chart draws two pieces, as for the barrier, and the scenarios add a row at the buffer level.
+- **The payment jumps at the buffer level**, which belongs to absolute return. The chart draws two pieces, as for the barrier, with a filled mark on the end the level pays and an open mark on the other, at the barrier's jump too. The buffer handle moves to the filled end. The scenarios add a row at the buffer level.
 - **Build order.** The domain (rule, validation, the cap change), with tests built from the public examples; then the content (summary, JSON, payment rule, calculation, outcome, scenarios); then the interface.
 
 ## Later direction: a composable form

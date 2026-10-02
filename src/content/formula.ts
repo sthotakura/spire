@@ -95,7 +95,7 @@ export function paymentInWords(note: Product): string {
   const onlyBelow = barrier === undefined ? '' : `, but only if ${name} ends below ${percent(barrier.level)} of its ${from} level`
   // With absolute return a fall within the buffer adds to principal, and a larger fall loses that gain.
   const gain = absoluteReturn && buffer !== undefined && downside
-    && `each 1% fall${upside ? '' : ` in ${name}`} of up to ${percent(buffer)} adds ${perPoint(absoluteReturn.rate)}${upside ? '' : ' of principal'}`
+    && `each 1% fall${upside ? '' : ` in ${name}`}, up to ${percent(buffer)}, adds ${perPoint(absoluteReturn.rate)}${upside ? '' : ' of principal'}`
   const moves = [rise, gain || (fall && `${fall}${onlyBelow}`)].filter(Boolean).join(', and ')
   const larger = gain ? ` A larger fall pays no gain, and each 1% beyond the first ${percent(buffer!)} takes ${perPoint(downside!.rate)} of principal away.` : ''
   // With a minimum return a fall pays the minimum, which the limits below state.
