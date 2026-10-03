@@ -22,6 +22,13 @@ The first release supports only the combination we can define and test precisely
 
 ## Technology direction
 
+The reader-facing book, **Structured products, built from their parts**, is
+written in `docs/book/` and rendered by the book view. Its chapter navigation
+is generated from the numbered Markdown files. See
+[docs/book-outline.md](docs/book-outline.md) for chapter status and the working
+research behind each chapter. Locally, open `/book/`; the production base path
+places it under `/spire/book/`. The chapters currently remain drafts.
+
 Use TypeScript and Vue with Vite to build a static single-page application. Keep payoff logic and validation in framework-independent TypeScript modules. Add a backend only when a concrete capability requires one.
 
 ## Boundaries

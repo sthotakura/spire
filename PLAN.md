@@ -213,6 +213,112 @@ With several features the chart was accurate but hard to read. A public filing's
 - **Labels instead of a legend.** Each piece of the line gets a plain-words label from `src/content/chart-labels.ts`, placed in priority order by `placeLabels` in `src/chart/geometry.ts`, clear of the lines and each other, and dropped when there is no room. The legend becomes a two-entry key.
 - **Less clutter.** Droplines replace the guide lines, the bubble gives the change, the level and the payment, and handles show on hover, focus or selection.
 
+## 24. Publish the reader-facing book
+
+Create a separate reader-facing book from stable material, while keeping the
+existing `docs/*.md` files as working research and design records. The book's
+working title is **Structured Products, Built from Their Parts**. The book and
+the application share vocabulary and concepts, but the book teaches them in a
+reader-friendly order rather than copying the Structure JSON exactly.
+
+### Source boundary
+
+Progress: 19 reader-facing draft chapters now cover the supported model,
+including determination methods and market-linked deposits. The book view
+discovers numbered Markdown chapters and provides contents and adjacent-chapter
+navigation. The chapter map and source links are in `docs/book-outline.md`.
+Coupons and scheduling remain planned. Hosted direct navigation and publication
+still need verification; a successful build alone does not confirm them.
+
+- Add `docs/book-outline.md` as the book index, chapter map and writing status.
+- Add `docs/book/` for edited chapters intended for readers.
+- Do not move or rewrite existing concept documents in this milestone.
+- Existing concept documents remain the source material for definitions,
+  assumptions, examples and open questions.
+- Do not present project-specific assumptions as universal financial facts.
+
+### Initial book outline
+
+Use this order unless a later domain decision gives a clear reason to change it:
+
+1. What is a structured product?
+2. Wrapper
+3. Redemption behaviour
+4. Term
+5. Underliers: single underlier, basket and determination methods
+6. Payoff and payment
+7. Participation: upside and downside
+8. Principal protection
+9. Cap
+10. Buffer
+11. Barrier
+12. Absolute return
+13. Combining payoff features
+14. Worked synthetic examples
+15. Payoff diagrams and scenarios
+16. The structure as JSON
+17. Coupons and other extensions
+18. Observation dates and early redemption
+19. Boundaries and open questions
+
+The outline is an index, not a duplicate documentation system. Each entry
+should link to its book chapter when one exists and to the relevant working
+document while the chapter is being prepared.
+
+### Chapter standard
+
+Each reader-facing chapter should contain only material that helps a reader
+understand the concept:
+
+- public definition in plain language;
+- why the concept exists;
+- one small synthetic example;
+- calculation, diagram or scenario where useful;
+- relationship to nearby concepts;
+- clearly labelled example assumptions and scope limits;
+- a short open-questions note only where uncertainty matters to the reader.
+
+Internal implementation debates, rejected alternatives, source-reading notes
+and detailed architecture decisions stay in the working documents.
+
+### Publishing approach
+
+- Reuse the existing Vue/Vite GitHub Pages deployment.
+- Render `docs/book/` as reader-facing routes under `/spire/book/`.
+- Add a book index, previous/next chapter navigation and links back to the
+  interactive builder.
+- Keep the book statically generated; do not add a server or CMS.
+- Preserve stable links to the repository's working documents where useful.
+
+### Build order
+
+1. Create `docs/book-outline.md` with chapter statuses and source links.
+2. Write two stable pilot chapters: the introduction and wrapper.
+3. Decide the smallest Markdown-to-page rendering approach that fits the
+   current Vue build; avoid introducing a second hosting or site system.
+4. Add the book index and chapter routes to the application.
+5. Add reader-facing styling, navigation and links to the interactive example.
+6. Build locally and verify direct navigation, refreshes and GitHub Pages base
+   paths under `/spire/book/`.
+7. Add further chapters only as concepts become stable enough to teach.
+
+### Done when
+
+- `docs/book-outline.md` exists and clearly distinguishes book chapters from
+  working documents.
+- At least two reader-facing chapters render from `docs/book/`.
+- The book is reachable from the published SPIRe site and links back to the
+  interactive builder.
+- The existing application, tests and GitHub Pages deployment still build.
+- No internal roadmap language or unresolved implementation debate is exposed
+  as reader-facing explanation.
+
+### Not part of this milestone
+
+- Converting every existing document into a chapter.
+- A guided course, quizzes, accounts, search or a CMS.
+- Treating the book as a regulatory, investment or product-documentation guide.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.
