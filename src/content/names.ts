@@ -22,6 +22,7 @@ export function marketingNames(note: Product): MarketingName[] {
   const cap = upsideOf(note)?.cap
   const buffer = downsideOf(note)?.buffer
   const barrier = downsideOf(note)?.barrier
+  const upsideBarrier = upsideOf(note)?.barrier
   const hasProtection = protection !== undefined && Number.isFinite(protection) && protection > 0
   const hasCap = cap !== undefined && Number.isFinite(cap) && cap > 0
   const names: MarketingName[] = []
@@ -62,10 +63,10 @@ export function marketingNames(note: Product): MarketingName[] {
     })
   }
 
-  // Without protection, a buffer, a barrier or a cap. A value that is present but invalid is not absent, so a draft with one gets no name here.
+  // Without protection, a buffer, a barrier (on either direction) or a cap. A value that is present but invalid is not absent, so a draft with one gets no name here.
   // These names describe notes, so a deposit gets none of them.
   const unprotected = protection === undefined || protection === 0
-  if (note.wrapper === 'note' && unprotected && buffer === undefined && barrier === undefined && cap === undefined && isRate(upside) && (downside === undefined || isRate(downside))) {
+  if (note.wrapper === 'note' && unprotected && buffer === undefined && barrier === undefined && upsideBarrier === undefined && cap === undefined && isRate(upside) && (downside === undefined || isRate(downside))) {
     if (downside === 1 && upside === 1) {
       names.push({ name: 'Tracker', vocabulary: 'SSPA', reason: 'The payment follows the underlier one for one, up and down.', concepts: ['upside', 'downside'] })
     } else if (downside === 1 && upside > 1) {

@@ -5,7 +5,7 @@ import type { ConceptId } from './concepts'
 const nestedConcepts: Partial<Record<ConceptId, readonly ConceptId[]>> = {
   payoff: ['protection', 'minimum-return', 'upside', 'downside'],
   downside: ['buffer', 'barrier', 'absolute-return'],
-  upside: ['cap'],
+  upside: ['barrier', 'cap'],
   underlier: ['asset', 'determination'],
   determination: ['initial-level', 'final-level', 'basket-return'],
 }

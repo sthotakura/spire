@@ -69,3 +69,12 @@ describe('selection of absolute return', () => {
     expect(isHighlighted('absolute-return', 'downside')).toBe(false)
   })
 })
+
+describe('selection of a barrier on upside participation', () => {
+  it('selects the barrier with upside participation, and with downside participation, not the other way round', () => {
+    expect(isHighlighted('upside', 'barrier')).toBe(true)
+    expect(isHighlighted('downside', 'barrier')).toBe(true)
+    expect(isHighlighted('barrier', 'upside')).toBe(false)
+    expect(isHighlighted('payoff', 'barrier')).toBe(true)
+  })
+})

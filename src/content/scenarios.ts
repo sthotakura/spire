@@ -1,4 +1,4 @@
-import { downsideOf, paymentBreakdown, type PaymentBreakdown, type Product } from '../domain/note'
+import { barrierLevelAt, downsideOf, paymentBreakdown, upsideOf, type PaymentBreakdown, type Product } from '../domain/note'
 
 // Underlier returns the scenario table shows, from a fall to a strong rise.
 export const scenarioReturns = [-0.4, 0, 0.1, 0.3]
@@ -6,7 +6,8 @@ export const scenarioReturns = [-0.4, 0, 0.1, 0.3]
 export interface ScenarioRow {
   returnValue: number
   finalLevel: number
-  // True for the row a barrier adds at its own level, the lowest final level that still repays principal.
+  // True for the row a barrier adds at its own level: for a barrier on downside participation the lowest final level that still
+  // repays principal, and for one on upside participation the lowest final level that cancels it.
   atBarrier: boolean
   // True for the row absolute return adds at the buffer level, the lowest final level that still pays a fall as a gain.
   atBuffer: boolean
@@ -26,6 +27,8 @@ export function scenarioRows(note: Product, initialLevel: number, returns: numbe
   }
   const { barrier, buffer, absoluteReturn } = downsideOf(note) ?? {}
   if (barrier !== undefined) added(barrier.level * initialLevel, barrier.level - 1, { atBarrier: true, atBuffer: false })
+  const upsideBarrier = upsideOf(note)?.barrier
+  if (upsideBarrier !== undefined) added(barrierLevelAt(upsideBarrier.level, initialLevel), upsideBarrier.level - 1, { atBarrier: true, atBuffer: false })
   if (absoluteReturn !== undefined && buffer !== undefined) added(initialLevel * (1 - buffer), -buffer, { atBarrier: false, atBuffer: true })
   return points.map((point) => ({ ...point, breakdown: paymentBreakdown(note, { initial: initialLevel, final: point.finalLevel }) }))
 }

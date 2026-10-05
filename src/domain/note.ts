@@ -28,8 +28,18 @@ export interface Barrier {
   observation: 'final'
 }
 
+// A level above the initial level, as a fraction of it. Upside participation applies only while the final level is below it.
+// At or above it, participation is cancelled (a knock-out) and the optional rebate is paid instead: a return on principal.
+// It is observed on the final observation date only, as the barrier on downside participation is (docs/upside-barrier.md).
+export interface UpsideBarrier {
+  level: number
+  observation: 'final'
+  rebate?: number
+}
+
 export interface UpsideParticipation {
   direction: 'upside'
+  barrier?: UpsideBarrier
   rate: number
   // The most the note can pay above principal, as a fraction of principal. Absent means the payment has no ceiling.
   cap?: number
@@ -144,13 +154,17 @@ export type SingleProduct = Product & { underlier: SingleUnderlier }
 export const downsideOf = (note: Product) => note.payoff.participations.find((participation): participation is DownsideParticipation => participation.direction === 'downside')
 export const upsideOf = (note: Product) => note.payoff.participations.find((participation): participation is UpsideParticipation => participation.direction === 'upside')
 
-// Puts a buffer, barrier or absolute return on downside participation and a cap on upside participation. Each is dropped when its direction is absent.
-export const withSubFeatures = (participations: Participation[], { buffer, barrier, absoluteReturn, cap }: { buffer?: number; barrier?: Barrier; absoluteReturn?: AbsoluteReturn; cap?: number }): Participation[] =>
+// Puts a buffer, barrier or absolute return on downside participation and a barrier or cap on upside participation. Each is dropped when its direction is absent.
+export const withSubFeatures = (participations: Participation[], { buffer, barrier, absoluteReturn, upsideBarrier, cap }: { buffer?: number; barrier?: Barrier; absoluteReturn?: AbsoluteReturn; upsideBarrier?: UpsideBarrier; cap?: number }): Participation[] =>
   participations.map((participation) => participation.direction === 'downside'
     ? { direction: 'downside', buffer, barrier, absoluteReturn, rate: participation.rate }
-    : { direction: 'upside', rate: participation.rate, cap })
+    : { direction: 'upside', barrier: upsideBarrier, rate: participation.rate, cap })
 
-export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn'
+export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upperBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn'
+
+// A barrier as an underlier level: its fraction of the level the return is measured from. Rounded to nine decimals, because
+// 1.1 × 100 is 110.00000000000001 in floating point, which would stop a final level of 110 from reaching a barrier at 110%.
+export const barrierLevelAt = (fraction: number, initialLevel: number) => Math.round(fraction * initialLevel * 1e9) / 1e9
 
 // Real notes can average over many more dates, such as monthly over several years, and a lookback period often observes
 // every trading day for weeks. This reference keeps the count small enough for each observed level to be set by hand.
@@ -246,6 +260,14 @@ export function productIssues(note: Product): ProductIssue[] {
   if (protection !== undefined && (!Number.isFinite(protection) || protection < 0 || protection > 1)) issues.push({ field: 'principalProtection', message: 'Principal protection must be between 0% and 100%.' })
   const cap = upsideOf(note)?.cap
   if (cap !== undefined && (!Number.isFinite(cap) || cap <= 0)) issues.push({ field: 'cap', message: 'Cap must be greater than zero.' })
+  const upsideBarrier = upsideOf(note)?.barrier
+  if (upsideBarrier !== undefined) {
+    // 200% is the edge of the chart's horizontal axis, a rise of 100%.
+    if (!Number.isFinite(upsideBarrier.level) || upsideBarrier.level <= 1 || upsideBarrier.level > 2) issues.push({ field: 'upperBarrier', message: 'Barrier on upside participation must be greater than 100% and at most 200% of the initial level.' })
+    if (upsideBarrier.rebate !== undefined && (!Number.isFinite(upsideBarrier.rebate) || upsideBarrier.rebate <= 0)) issues.push({ field: 'upperBarrier', message: 'Rebate must be greater than zero.' })
+    // No public note combining the two was verified, so they are not combined.
+    if (cap !== undefined) issues.push({ field: 'upperBarrier', message: 'A barrier and a cap cannot both apply to upside participation.' })
+  }
   // A deposit is repaid in full, so nothing may take the payment below principal, and principal needs no protection term.
   if (note.wrapper === 'deposit' && downsideOf(note)) issues.push({ field: 'participations', message: 'A deposit repays principal in full, so it cannot have downside participation.' })
   if (note.wrapper === 'deposit' && protection !== undefined) issues.push({ field: 'principalProtection', message: 'A deposit repays principal in full, so it has no principal protection term.' })
@@ -338,6 +360,10 @@ export interface PaymentBreakdown {
   // Undefined when the note has no barrier. Otherwise the barrier as an underlier level, and whether the final level is below it.
   barrierLevel?: number
   belowBarrier?: boolean
+  // Undefined when upside participation has no barrier. Otherwise that barrier as an underlier level, and whether the final
+  // level is at or above it, which cancels upside participation and pays the rebate, if there is one.
+  upsideBarrierLevel?: number
+  upsideBarrierReached?: boolean
   // Undefined when the note has no absolute return. Otherwise whether the fall is paid as a gain: within the buffer, or ending
   // at or above the barrier.
   absoluteReturnApplies?: boolean
@@ -382,8 +408,14 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
   const absoluteReturn = downsideOf(note)?.absoluteReturn
   const absoluteReturnApplies = absoluteReturn === undefined ? undefined
     : direction === 'downside' && (buffer !== undefined ? levels.final >= levels.initial * (1 - buffer) : belowBarrier === false)
+  // The upper barrier is above the initial level, so reaching it means a rise: the downside features above cannot also apply.
+  const upsideBarrier = upsideOf(note)?.barrier
+  const upsideBarrierLevel = upsideBarrier === undefined ? undefined : barrierLevelAt(upsideBarrier.level, levels.initial)
+  const upsideBarrierReached = upsideBarrierLevel === undefined ? undefined : levels.final >= upsideBarrierLevel
   const participatedReturn = absoluteReturnApplies ? absoluteReturn!.rate * -underlierReturn
-    : barrierHolds ? 0 : (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0))
+    : barrierHolds ? 0
+    : upsideBarrierReached ? upsideBarrier!.rebate ?? 0
+    : (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0))
   const uncappedPayment = note.principalAmount * (1 + participatedReturn)
   // The cap limits upside participation only, so a fall paid as a gain is not capped. A cap is above any floor: protection
   // cannot exceed principal, and a minimum return must be below the cap. The order of the two cannot change the result.
@@ -400,6 +432,8 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
     bufferAbsorbs,
     barrierLevel,
     belowBarrier,
+    upsideBarrierLevel,
+    upsideBarrierReached,
     absoluteReturnApplies,
     participationRate,
     participatedReturn,

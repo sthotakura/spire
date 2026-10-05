@@ -21,6 +21,7 @@ export function paymentFormula(note: Product): FormulaLine[] {
   const cap = upsideOf(note)?.cap
   const buffer = downsideOf(note)?.buffer
   const barrier = downsideOf(note)?.barrier
+  const upsideBarrier = upsideOf(note)?.barrier
   const absoluteReturn = downsideOf(note)?.absoluteReturn
 
   const terms: FormulaSegment[] = []
@@ -48,6 +49,10 @@ export function paymentFormula(note: Product): FormulaLine[] {
   lines.push({ lead: 'Payment', segments: payment })
   // The barrier decides whether the downside term counts at all, so it qualifies the payment rather than changing the term.
   const barrierTest = basket ? 'Basket level < Barrier × 100' : `Final level < Barrier × ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level`
+  // The same test on upside participation switches it off at or above the barrier, where the rebate, if there is one, is paid.
+  if (upsideBarrier !== undefined) {
+    lines.push({ segments: [{ text: 'upside only when ' }, { text: barrierTest, concept: 'barrier' }, ...(upsideBarrier.rebate !== undefined ? [{ text: ', otherwise ' }, { text: 'Principal × (1 + Rebate)', concept: 'barrier' as const }] : [])] })
+  }
   if (barrier !== undefined) lines.push({ segments: [{ text: 'downside only when ' }, { text: barrierTest, concept: 'barrier' }] })
   // Absolute return replaces the payment for a fall downside participation does not reach, so it qualifies the payment as the
   // barrier does: a fall within the buffer, or one that ends at or above the barrier.
@@ -83,6 +88,7 @@ export function paymentInWords(note: Product): string {
   const cap = upside?.cap
   const buffer = downside?.buffer
   const barrier = downside?.barrier
+  const upsideBarrier = upside?.barrier
   const absoluteReturn = downside?.absoluteReturn
   const from = note.underlier.determination.initial.kind === 'lookback' ? 'lookback' : 'initial'
 
@@ -93,7 +99,8 @@ export function paymentInWords(note: Product): string {
       : `The payment is always principal plus the minimum return, ${amount(principal * (1 + minimum))}, whatever ${name} does.`
   }
 
-  const rise = upside && `each 1% rise in ${name} adds ${perPoint(upside.rate)} of principal`
+  const riseOnlyBelow = upsideBarrier === undefined ? '' : `, but only if ${name} ends below ${percent(upsideBarrier.level)} of its ${from} level`
+  const rise = upside && `each 1% rise in ${name} adds ${perPoint(upside.rate)} of principal${riseOnlyBelow}`
   const beyond = buffer === undefined ? '' : ` beyond the first ${percent(buffer)}`
   const fall = downside && (upside ? `each 1% fall${beyond} takes ${perPoint(downside.rate)} away` : `each 1% fall in ${name}${beyond} takes ${perPoint(downside.rate)} of principal away`)
   const onlyBelow = barrier === undefined ? '' : `, but only if ${name} ends below ${percent(barrier.level)} of its ${from} level`
@@ -106,6 +113,9 @@ export function paymentInWords(note: Product): string {
   const larger = !gain ? '' : buffer !== undefined
     ? ` A larger fall pays no gain, and each 1% beyond the first ${percent(buffer)} takes ${perPoint(downside!.rate)} of principal away.`
     : ` A larger fall pays no gain, and each 1% of the whole fall takes ${perPoint(downside!.rate)} of principal away.`
+  // At or above the upper barrier a rise adds the rebate in place of the participation.
+  const atUpperBarrier = upsideBarrier === undefined ? ''
+    : ` At or above that level, a rise adds ${upsideBarrier.rebate === undefined ? 'nothing' : `only a fixed ${percent(upsideBarrier.rebate)} of principal`}.`
   // With a minimum return a fall pays the minimum, which the limits below state.
   const unchanged = !upside ? ' A rise leaves principal unchanged.' : !downside && minimum === undefined ? ' A fall leaves principal unchanged.' : ''
 
@@ -117,5 +127,5 @@ export function paymentInWords(note: Product): string {
     : ceiling ? ` The payment never goes above ${ceiling}.`
       : floor ? ` The payment never goes below ${floor}.` : ''
 
-  return `${moves[0].toUpperCase()}${moves.slice(1)}.${larger}${unchanged}${limits}`
+  return `${moves[0].toUpperCase()}${moves.slice(1)}.${larger}${atUpperBarrier}${unchanged}${limits}`
 }

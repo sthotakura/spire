@@ -169,3 +169,22 @@ describe('summary with absolute return above a barrier', () => {
     expect(sentence(trigger)).toContain('with a barrier at 70% of the initial level, 50% absolute return on a fall that ends at or above it and 90% principal protection.')
   })
 })
+
+describe('note summary with an upper barrier', () => {
+  const upsideOnly = [{ direction: 'upside' as const, rate: 0.8 }]
+  const finned = (rebate?: number): SingleProduct => ({ ...note, payoff: { ...note.payoff, participations: withSubFeatures(upsideOnly, { upsideBarrier: { level: 1.3, observation: 'final' as const, rebate } }) } })
+
+  it('names the upper barrier, what it ends and the rebate it pays', () => {
+    expect(sentence(finned(0.02))).toContain('point-to-point from 100, with 90% principal protection and an upper barrier at 130% of the initial level that ends the upside and pays a 2% rebate.')
+    expect(conceptOf(finned(0.02), 'an upper barrier at 130% of the initial level that ends the upside and pays a 2% rebate')).toBe('barrier')
+  })
+
+  it('says only that the upside ends when there is no rebate', () => {
+    expect(sentence(finned())).toContain('an upper barrier at 130% of the initial level that ends the upside.')
+  })
+
+  it('measures the upper barrier from the lookback level', () => {
+    const lookback = { ...finned(), underlier: { ...note.underlier, determination: { initial: { kind: 'lookback' as const, observationCount: 3 }, final: { kind: 'final-date' as const } } } }
+    expect(sentence(lookback)).toContain('an upper barrier at 130% of the lookback level')
+  })
+})

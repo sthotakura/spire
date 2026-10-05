@@ -104,3 +104,14 @@ describe('structure JSON with absolute return', () => {
     expect(structureLines(dualDirectional).filter(({ concept }) => concept === 'absolute-return').map(({ text }) => text.trim())).toEqual(['"absoluteReturn": {', '"rate": 1', '},'])
   })
 })
+
+describe('structure lines with an upper barrier', () => {
+  const finned: SingleProduct = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { upsideBarrier: { level: 1.3, observation: 'final' as const, rebate: 0.02 } }) } }
+
+  it('tags the barrier and its terms with the barrier concept, before the rate', () => {
+    expect(asText(finned)).toBe(JSON.stringify(finned, null, 2))
+    expect(linesOf(finned, 'barrier')).toEqual(['"barrier": {', '"level": 1.3,', '"observation": "final",', '"rebate": 0.02', '},'])
+    const lines = structureLines(finned).map(({ text }) => text.trim())
+    expect(lines.indexOf('"barrier": {')).toBeLessThan(lines.lastIndexOf('"rate": 1.5'))
+  })
+})

@@ -98,3 +98,28 @@ describe('scenario rows with absolute return', () => {
     expect(scenarioRows(buffered, 100).some(({ atBuffer }) => atBuffer)).toBe(false)
   })
 })
+
+describe('scenario rows with an upper barrier', () => {
+  const finned = (level: number) => withFeatures([{ direction: 'upside', barrier: { level, observation: 'final', rebate: 0.02 }, rate: 0.8 }], 1)
+
+  it('replace the fixed row at the barrier level, and mark it', () => {
+    const rows = scenarioRows(finned(1.3), 100)
+    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 110, 130])
+    expect(rows.map(({ atBarrier }) => atBarrier)).toEqual([false, false, false, true])
+    expect(rows[3].breakdown).toMatchObject({ upsideBarrierReached: true, payment: 1020 })
+    expect(rows[2].breakdown.upsideBarrierReached).toBe(false)
+  })
+
+  it('add a row in order when the barrier is above every fixed row', () => {
+    const rows = scenarioRows(finned(1.5), 100)
+    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 110, 130, 150])
+    expect(rows.map(({ atBarrier }) => atBarrier)).toEqual([false, false, false, false, true])
+    expect(rows[4].breakdown.payment).toBe(1020)
+  })
+
+  it('measure the barrier row from the initial level it is given, such as a lookback level', () => {
+    const rows = scenarioRows(finned(1.3), 80)
+    expect(rows[3].finalLevel).toBe(rows[3].breakdown.upsideBarrierLevel)
+    expect(rows[3].breakdown.upsideBarrierReached).toBe(true)
+  })
+})

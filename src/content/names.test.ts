@@ -117,3 +117,15 @@ describe('marketing names', () => {
     expect(namesOf({ participations: [up(Number.NaN)] })).toEqual([])
   })
 })
+
+describe('marketing names with an upper barrier', () => {
+  const finned = (principalProtection?: number) => marketingNames({ ...noteWith({ principalProtection }), payoff: { participations: withSubFeatures([up(0.8)], { upsideBarrier: { level: 1.3, observation: 'final' as const, rebate: 0.02 } }), principalProtection } }).map(({ name }) => name)
+
+  it('gives an unprotected note with an upper barrier no participation name, since the barrier changes the payment', () => {
+    expect(finned()).toEqual([])
+  })
+
+  it('still calls full protection a principal-protected note', () => {
+    expect(finned(1)).toEqual(['Principal-protected note'])
+  })
+})

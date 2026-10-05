@@ -125,3 +125,27 @@ describe('outcome with absolute return above a barrier', () => {
     expect(explain(trigger, 60)).toBe('The underlier fell 40%. It ended below the 70 barrier, so it pays no absolute return, and downside participation of 100% deducts the whole 40% from principal. There is no principal protection, so the contractual payment is 600, 400 less than principal.')
   })
 })
+
+describe('outcome with an upper barrier', () => {
+  // The worked example in docs/upside-barrier.md: 80% upside, a 130% barrier, a 2% rebate, 100% protection.
+  const upsideOnly = [{ direction: 'upside' as const, rate: 0.8 }]
+  const finned = (rebate?: number): SingleProduct => ({ ...noteWith(upsideOnly, 1), payoff: { participations: withSubFeatures(upsideOnly, { upsideBarrier: { level: 1.3, observation: 'final' as const, rebate } }), principalProtection: 1 } })
+
+  it('says the rebate replaces upside participation at or above the barrier', () => {
+    expect(explain(finned(0.02), 140)).toBe('The underlier rose 40%. It ended at or above the 130 upper barrier, so upside participation ends and a rebate of 2% is added to principal. The 1,000 floor does not apply, so the contractual payment is 1,020, 20 more than principal.')
+    expect(explain(finned(0.02), 130)).toContain('It ended at or above the 130 upper barrier')
+  })
+
+  it('says principal is unchanged at or above the barrier when there is no rebate', () => {
+    expect(explain(finned(), 140)).toContain('so upside participation ends and principal is unchanged.')
+  })
+
+  it('says the underlier ended below the barrier, so participation applies', () => {
+    expect(explain(finned(0.02), 120)).toBe('The underlier rose 20%. It ended below the 130 upper barrier, so upside participation of 80% adds 16% to principal. The 1,000 floor does not apply, so the contractual payment is 1,160, 160 more than principal.')
+  })
+
+  it('leaves a flat return and a fall to the usual sentences', () => {
+    expect(explain(finned(0.02), 100)).toContain('A flat return leaves principal unchanged.')
+    expect(explain(finned(0.02), 80)).toContain('No downside participation is selected, so principal is unchanged.')
+  })
+})

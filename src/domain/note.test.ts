@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { annualisedReturn, basketBreakdown, equalWeights, finalLevelFrom, initialLevelFrom, maturityPayment, productIssues, paymentBreakdown, validateProduct, type BasketUnderlier, type DownsideParticipation, type Product, type SingleProduct, type UpsideParticipation } from './note'
+import { annualisedReturn, barrierLevelAt, basketBreakdown, equalWeights, finalLevelFrom, initialLevelFrom, maturityPayment, productIssues, paymentBreakdown, validateProduct, withSubFeatures, type BasketUnderlier, type DownsideParticipation, type Product, type SingleProduct, type UpsideParticipation } from './note'
 
 const note: SingleProduct = {
   wrapper: 'note',
@@ -429,6 +429,84 @@ describe('barrier', () => {
   })
 })
 
+describe('barrier on upside participation', () => {
+  // The worked example in docs/upside-barrier.md: 80% upside, a 130% barrier, a 2% rebate, 100% protection, no downside participation.
+  const finned = withUpside({ ...note, payoff: { ...note.payoff, participations: [{ direction: 'upside', rate: 1.5 }] } }, { rate: 0.8, barrier: { level: 1.3, observation: 'final', rebate: 0.02 } })
+  const withBarrier = (terms: Partial<NonNullable<UpsideParticipation['barrier']>>) => withUpside(finned, { barrier: { level: 1.3, observation: 'final', ...terms } })
+
+  it.each([
+    [150, 1020],
+    [130, 1020],
+    [129, 1232],
+    [120, 1160],
+    [100, 1000],
+    [80, 1000],
+  ])('pays %s final level as %s units', (finalLevel, expected) => {
+    expect(maturityPayment(finned, { initial: 100, final: finalLevel })).toBeCloseTo(expected, 8)
+  })
+
+  it('pays the most just below the barrier, then drops to the rebate at it', () => {
+    expect(maturityPayment(finned, { initial: 100, final: 129.99 })).toBeCloseTo(1239.92, 8)
+    expect(maturityPayment(finned, { initial: 100, final: 130 })).toBe(1020)
+  })
+
+  it('pays principal at and above the barrier when there is no rebate', () => {
+    const noRebate = withBarrier({ rebate: undefined })
+    expect(maturityPayment(noRebate, { initial: 100, final: 130 })).toBe(1000)
+    expect(maturityPayment(noRebate, { initial: 100, final: 129 })).toBeCloseTo(1232, 8)
+  })
+
+  it('is measured from the determined initial level, such as a lookback level', () => {
+    // Lookback level 80, so the barrier is 104: a final level of 100 is +25% and below it, 104 is at it.
+    expect(maturityPayment(finned, { initial: 80, final: 100 })).toBeCloseTo(1200, 8)
+    expect(maturityPayment(finned, { initial: 80, final: 104 })).toBe(1020)
+  })
+
+  it('leaves the downside as it was', () => {
+    const both = { ...finned, payoff: { ...finned.payoff, principalProtection: 0.9, participations: [{ direction: 'downside' as const, rate: 1 }, ...finned.payoff.participations] } }
+    expect(maturityPayment(both, { initial: 100, final: 80 })).toBe(900)
+    expect(maturityPayment(both, { initial: 100, final: 140 })).toBe(1020)
+  })
+
+  it('does not pay a rebate below the protection floor or a minimum return', () => {
+    const deposit: SingleProduct = { ...finned, wrapper: 'deposit', payoff: { ...finned.payoff, principalProtection: undefined, minimumReturn: 0.05 } }
+    expect(validateProduct(deposit)).toEqual([])
+    // The rebate of 2% is under the 5% minimum, so the minimum is what the deposit pays at the barrier.
+    expect(maturityPayment(deposit, { initial: 100, final: 130 })).toBe(1050)
+    expect(maturityPayment(deposit, { initial: 100, final: 129 })).toBeCloseTo(1232, 8)
+  })
+
+  it('reports the barrier level and whether the final level has reached it', () => {
+    expect(paymentBreakdown(finned, { initial: 100, final: 140 })).toMatchObject({ upsideBarrierLevel: 130, upsideBarrierReached: true, participatedReturn: 0.02 })
+    expect(paymentBreakdown(finned, { initial: 100, final: 120 })).toMatchObject({ upsideBarrierLevel: 130, upsideBarrierReached: false })
+    expect(paymentBreakdown(finned, { initial: 100, final: 120 }).participatedReturn).toBeCloseTo(0.16, 8)
+    expect(paymentBreakdown(note, { initial: 100, final: 140 }).upsideBarrierLevel).toBeUndefined()
+  })
+
+  it.each([1, 0.9, 2.01, 0, Number.NaN])('rejects a barrier level of %s', (level) => {
+    expect(productIssues(withBarrier({ level }))).toEqual([{ field: 'upperBarrier', message: 'Barrier on upside participation must be greater than 100% and at most 200% of the initial level.' }])
+  })
+
+  // 1.1 × 100 is 110.00000000000001 in floating point, which must not keep a final level of 110 from reaching a 110% barrier.
+  it('reaches a barrier at a level that floating point cannot state exactly', () => {
+    expect(barrierLevelAt(1.1, 100)).toBe(110)
+    expect(paymentBreakdown(withBarrier({ level: 1.1 }), { initial: 100, final: 110 }).upsideBarrierReached).toBe(true)
+    expect(paymentBreakdown(withBarrier({ level: 1.07 }), { initial: 100, final: 107 }).upsideBarrierReached).toBe(true)
+  })
+
+  it('allows a barrier at 200% of the initial level', () => {
+    expect(productIssues(withBarrier({ level: 2 }))).toEqual([])
+  })
+
+  it.each([0, -0.01, Number.NaN])('rejects a rebate of %s', (rebate) => {
+    expect(productIssues(withBarrier({ rebate }))).toEqual([{ field: 'upperBarrier', message: 'Rebate must be greater than zero.' }])
+  })
+
+  it('is not combined with a cap', () => {
+    expect(productIssues(withUpside(finned, { cap: 0.2 }))).toEqual([{ field: 'upperBarrier', message: 'A barrier and a cap cannot both apply to upside participation.' }])
+  })
+})
+
 describe('absolute return', () => {
   // The worked example in docs/absolute-return.md: 120% upside with a 40% cap, a 15% buffer, 100% absolute return, 100% downside, no protection.
   const dualDirectional = withUpside(withDownside({ ...note, payoff: { ...note.payoff, principalProtection: undefined } }, { buffer: 0.15, absoluteReturn: { rate: 1 } }), { rate: 1.2, cap: 0.4 })
@@ -836,5 +914,15 @@ describe('annualised return', () => {
   it('raises the growth to the power of 12 ÷ term months, including part years', () => {
     expect(annualisedReturn(1100, 1000, 18)).toBeCloseTo(1.1 ** (12 / 18) - 1, 12)
     expect(annualisedReturn(1000, 1000, 36)).toBe(0)
+  })
+})
+
+describe('withSubFeatures with an upside barrier', () => {
+  it('puts the barrier on upside participation before its rate, and drops it when there is no upside', () => {
+    const upsideBarrier = { level: 1.3, observation: 'final' as const, rebate: 0.02 }
+    const [upside] = withSubFeatures([{ direction: 'upside', rate: 0.8 }], { upsideBarrier })
+    expect(upside).toEqual({ direction: 'upside', barrier: upsideBarrier, rate: 0.8, cap: undefined })
+    expect(Object.keys(upside)).toEqual(['direction', 'barrier', 'rate', 'cap'])
+    expect(withSubFeatures([{ direction: 'downside', rate: 1 }], { upsideBarrier })).toEqual([{ direction: 'downside', rate: 1 }])
   })
 })
