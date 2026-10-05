@@ -151,7 +151,9 @@ export function calculationSteps(note: Product, breakdown: PaymentBreakdown, obs
   steps.push(
     participationStep(note, b, 'downside'),
     participationStep(note, b, 'upside'),
-    { title: withCap ? 'Payment before cap' : deposit ? 'Payment before minimum' : 'Payment before protection', how: `${formatAmount(principal)} × (1 ${b.participatedReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(b.participatedReturn))})`, value: formatAmount(b.uncappedPayment) },
+    // With nothing selected the step only restates principal, so it is muted like the steps above it. Without a cap or protection there is no
+    // limit for it to come before, so it is named for what it adds up.
+    { title: withCap ? 'Payment before cap' : deposit ? 'Payment before minimum' : withProtection ? 'Payment before protection' : 'Payment from participation', how: `${formatAmount(principal)} × (1 ${b.participatedReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(b.participatedReturn))})`, value: formatAmount(b.uncappedPayment), muted: upsideOf(note) === undefined && !hasDownside },
   )
   if (withCap) steps.push({ title: 'Cap', how: `${formatAmount(principal)} × (1 + ${formatPercent(cap)}) · ${b.capApplies ? 'applies here' : absoluteReturn !== undefined && b.direction === 'downside' ? 'limits a rise only' : 'not binding here'}`, value: formatAmount(b.capAmount ?? 0), muted: !b.capApplies, concept: 'cap' })
   if (deposit) {

@@ -211,3 +211,24 @@ describe('calculation steps with an upside barrier', () => {
     expect(step(finned(), 130, 'Payment at maturity')?.value).toBe('1,000')
   })
 })
+
+describe('the payment step after the participation steps', () => {
+  it('is muted and named for what it adds up when nothing is selected', () => {
+    const principalOnly = noteWith([])
+    expect(step(principalOnly, 110, 'Payment from participation')).toMatchObject({ how: '1,000 × (1 + 0%)', value: '1,000', muted: true })
+    expect(steps(principalOnly, 110).map(({ title }) => title)).not.toContain('Payment before protection')
+  })
+
+  it('is not muted once a participation is selected, and is still not called before protection without protection', () => {
+    const upsideOnly = noteWith([{ direction: 'upside', rate: 1 }])
+    expect(step(upsideOnly, 110, 'Payment from participation')).toMatchObject({ value: '1,100' })
+    expect(step(upsideOnly, 110, 'Payment from participation')?.muted).toBeFalsy()
+  })
+
+  it('keeps its name before a protection floor or a cap', () => {
+    expect(step(noteWith(both, 0.9), 110, 'Payment before protection')?.muted).toBeFalsy()
+    expect(step(noteWith(both, undefined, 0.2), 110, 'Payment before cap')?.muted).toBeFalsy()
+    // A protection floor with no participation still names the step, which is muted because it only restates principal.
+    expect(step(noteWith([], 0.9), 110, 'Payment before protection')).toMatchObject({ value: '1,000', muted: true })
+  })
+})
