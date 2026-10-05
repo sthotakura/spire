@@ -9,7 +9,9 @@ const perPoint = (rate: number) => Number.isFinite(rate) ? `${rate.toLocaleStrin
 // What the chart says beside each piece of the payoff line, keyed by the concept that sets the payment there, so the chart
 // explains itself without a colour key. Each says what the piece does, in the product's own terms. `lowest` labels the
 // payment at a fall to zero when nothing floors it above zero.
-export type PayoffLabelKey = ConceptId | 'lowest'
+// `upper-barrier` labels the piece an upper barrier sets. It is the barrier concept, but a note can also have a barrier on
+// downside participation, and each piece needs its own label.
+export type PayoffLabelKey = ConceptId | 'lowest' | 'upper-barrier'
 
 export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, string>> {
   const labels: Partial<Record<PayoffLabelKey, string>> = {}
@@ -20,7 +22,12 @@ export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, s
 
   labels.payoff = `Repays principal ${amount(principal)}`
   if (upside) {
-    labels.upside = `Each 1% rise adds ${perPoint(upside.rate)}`
+    const barrier = upside.barrier
+    labels.upside = `Each 1% rise${barrier === undefined ? '' : ` up to +${percent(barrier.level - 1)}`} adds ${perPoint(upside.rate)}`
+    // The rebate, or nothing added, from the barrier level on.
+    if (barrier !== undefined) {
+      labels['upper-barrier'] = barrier.rebate === undefined ? `From +${percent(barrier.level - 1)} a rise adds nothing` : `From +${percent(barrier.level - 1)} it pays a fixed ${amount(principal * (1 + barrier.rebate))}`
+    }
     // The horizontal axis ends at +100%. A cap reached beyond it is said where it is reached.
     if (upside.cap !== undefined) {
       const reachedAt = upside.cap / upside.rate

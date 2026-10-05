@@ -28,4 +28,4 @@ export const firstObservationCount = 5
 export const firstLookbackMoves = [-0.03, -0.08, -0.05]
 
 // Rates in percent, used the first time each payoff feature is added.
-export const firstFeatureValues = { upside: 100, downside: 100, protection: 90, cap: 20, buffer: 10, barrier: 70, absoluteReturn: 100, minimum: 5 }
+export const firstFeatureValues = { upside: 100, downside: 100, protection: 90, cap: 20, buffer: 10, barrier: 70, upperBarrier: 130, rebate: 2, absoluteReturn: 100, minimum: 5 }

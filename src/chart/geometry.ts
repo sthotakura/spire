@@ -3,7 +3,7 @@
 // initial level sits at the centre. The vertical axis starts at zero and is fitted to the payoff. The page holds it still while the reader drags, so the line
 // does not move under the pointer, and refits it when the drag ends.
 
-import { downsideOf, type PaymentBreakdown, type Product } from '../domain/note'
+import { barrierLevelAt, downsideOf, upsideOf, type PaymentBreakdown, type Product } from '../domain/note'
 
 export interface Plot {
   left: number
@@ -50,6 +50,8 @@ export const upsideRateRange = { min: 5, max: 200 }
 export const capRange = { min: 1, max: 100 }
 export const bufferRange = { min: 1, max: 100 }
 export const barrierRange = { min: 1, max: 99 }
+// An upper barrier is above the initial level, up to the edge of the axis (a rise of 100%).
+export const upperBarrierRange = { min: 101, max: 200 }
 export const minimumReturnRange = { min: 1, max: 100 }
 
 export const clampProtection = (percent: number) => clamp(Math.round(percent), protectionRange.min, protectionRange.max)
@@ -57,6 +59,7 @@ export const clampUpsideRate = (percent: number) => clamp(Math.round(percent), u
 export const clampCap = (percent: number) => clamp(Math.round(percent), capRange.min, capRange.max)
 export const clampBuffer = (percent: number) => clamp(Math.round(percent), bufferRange.min, bufferRange.max)
 export const clampBarrier = (percent: number) => clamp(Math.round(percent), barrierRange.min, barrierRange.max)
+export const clampUpperBarrier = (percent: number) => clamp(Math.round(percent), upperBarrierRange.min, upperBarrierRange.max)
 export const clampMinimumReturn = (percent: number) => clamp(Math.round(percent), minimumReturnRange.min, minimumReturnRange.max)
 export const clampFinalLevel = (level: number, initialLevel: number) => clamp(Math.round(level), 0, Math.floor(initialLevel * levelAxisFactor))
 
@@ -64,17 +67,19 @@ export const clampFinalLevel = (level: number, initialLevel: number) => clamp(Ma
 export const protectionFromY = (y: number, principal: number, top: number, plot: Plot) => clampProtection(dragAmount(y, top, plot) / principal * 100)
 
 // The slope handle sits at this underlier return. A cap would pin it to the cap line, so it stays below half the cap, which
-// keeps it on the sloped part of the line for any rate up to the top of the range.
-export const slopeReturn = (cap?: number) => Math.min(slopeLevelFactor - 1, cap === undefined ? Infinity : cap / 2)
-export const slopeLevel = (initialLevel: number, cap?: number) => initialLevel * (1 + slopeReturn(cap))
+// keeps it on the sloped part of the line for any rate up to the top of the range. An upper barrier ends the slope in the
+// same way, so the handle also stays below half the rise to the barrier (the barrier as a fraction of the initial level).
+export const slopeReturn = (cap?: number, upperBarrier?: number) =>
+  Math.min(slopeLevelFactor - 1, cap === undefined ? Infinity : cap / 2, upperBarrier === undefined ? Infinity : (upperBarrier - 1) / 2)
+export const slopeLevel = (initialLevel: number, cap?: number, upperBarrier?: number) => initialLevel * (1 + slopeReturn(cap, upperBarrier))
 
 // The level at which the payment first reaches the cap, given the upside participation rate. Undefined when there is
 // no upside participation, since the payment can then never reach a cap.
 export const capBindLevel = (initialLevel: number, cap: number, upsideRate?: number) => (upsideRate ? initialLevel * (1 + cap / upsideRate) : undefined)
 
 // Dragging the slope handle sets the upside rate, snapped to 5%.
-export const upsideRateFromY = (y: number, principal: number, top: number, plot: Plot, cap?: number) => {
-  const rate = (dragAmount(y, top, plot) / principal - 1) / slopeReturn(cap) * 100
+export const upsideRateFromY = (y: number, principal: number, top: number, plot: Plot, cap?: number, upperBarrier?: number) => {
+  const rate = (dragAmount(y, top, plot) / principal - 1) / slopeReturn(cap, upperBarrier) * 100
   return clampUpsideRate(Math.round(rate / 5) * 5)
 }
 
@@ -93,6 +98,9 @@ export const bufferFromX = (x: number, initialLevel: number, plot: Plot, measure
 // Dragging the barrier handle sideways sets the barrier as a percentage of the level the return is measured from, snapped to 1%.
 export const barrierFromX = (x: number, initialLevel: number, plot: Plot, measuredFrom: number) => clampBarrier(xToLevel(x, initialLevel, plot) / measuredFrom * 100)
 
+// Dragging the upper barrier handle sideways sets it as a percentage of the level the return is measured from, snapped to 1%.
+export const upperBarrierFromX = (x: number, initialLevel: number, plot: Plot, measuredFrom: number) => clampUpperBarrier(xToLevel(x, initialLevel, plot) / measuredFrom * 100)
+
 // Dragging the final-level handle sets the level, snapped to 1 unit.
 export const finalLevelFromX = (x: number, initialLevel: number, plot: Plot) => clampFinalLevel(xToLevel(x, initialLevel, plot), initialLevel)
 
@@ -103,22 +111,27 @@ export const keyDelta = (key: string, shift: boolean, step: number): number | nu
 }
 
 // The rule that sets the payment at a final level. The line is drawn in one colour per rule, so the reader can see which one binds where.
-export type Regime = 'principal' | 'buffer' | 'barrier' | 'absolute' | 'downside' | 'upside' | 'floor' | 'cap'
+export type Regime = 'principal' | 'buffer' | 'barrier' | 'upper-barrier' | 'absolute' | 'downside' | 'upside' | 'floor' | 'cap'
 
 // A fall the buffer absorbs in full leaves principal unchanged, but it is the buffer, not the absence of participation, that holds the payment there.
 // A fall that ends at or above a barrier is held at principal by the barrier in the same way. A fall within the buffer that
-// absolute return pays as a gain is absolute return's.
+// absolute return pays as a gain is absolute return's. A rise that reaches an upper barrier is paid the rebate, or principal,
+// by that barrier, which is the same concept as the barrier on downside participation but a different piece of the line.
 export const regimeOf = (b: PaymentBreakdown): Regime => b.floorApplies ? 'floor' : b.capApplies ? 'cap' : b.absoluteReturnApplies ? 'absolute' : b.participationRate === undefined ? 'principal'
   : b.direction === 'downside' && b.belowBarrier === false ? 'barrier'
-    : b.direction === 'downside' && b.bufferAbsorbs && b.participatedReturn === 0 ? 'buffer' : b.direction
+    : b.direction === 'upside' && b.upsideBarrierReached ? 'upper-barrier'
+      : b.direction === 'downside' && b.bufferAbsorbs && b.participatedReturn === 0 ? 'buffer' : b.direction
 
-// The final level where the payment jumps, if it does: at a barrier, or at the buffer level when absolute return stops
-// paying there. Each is computed as the payment computes it, so the samples either side of it fall on the right sides.
-export const jumpLevelOf = (product: Product, initialLevel: number): number | undefined => {
+// The final levels where the payment jumps, lowest first: at a barrier, at the buffer level when absolute return stops
+// paying there, and at an upper barrier. Each is computed as the payment computes it, so the samples either side of it fall on the right sides.
+export const jumpLevelsOf = (product: Product, initialLevel: number): number[] => {
   const downside = downsideOf(product)
-  if (downside?.barrier !== undefined) return downside.barrier.level * initialLevel
-  if (downside?.absoluteReturn !== undefined && downside.buffer !== undefined) return bufferLevel(initialLevel, downside.buffer)
-  return undefined
+  const levels: number[] = []
+  if (downside?.barrier !== undefined) levels.push(downside.barrier.level * initialLevel)
+  else if (downside?.absoluteReturn !== undefined && downside.buffer !== undefined) levels.push(bufferLevel(initialLevel, downside.buffer))
+  const upperBarrier = upsideOf(product)?.barrier
+  if (upperBarrier !== undefined) levels.push(barrierLevelAt(upperBarrier.level, initialLevel))
+  return levels
 }
 
 // A sampled point on the payoff line. A jump marks where the payment changes at once, such as at a barrier: the line breaks

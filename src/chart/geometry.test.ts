@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, minimumReturnFromY, clampProtection, clampUpsideRate, finalLevelFromX, jumpLevelOf, keyDelta, leaderStart, levelToX, placeLabels, regimeRuns, returnTicks, wrapWords, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideRateFromY, xToLevel, yToAmount } from './geometry'
+import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, minimumReturnFromY, clampProtection, clampUpperBarrier, clampUpsideRate, finalLevelFromX, jumpLevelsOf, keyDelta, leaderStart, levelToX, placeLabels, regimeRuns, returnTicks, wrapWords, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upperBarrierFromX, upsideRateFromY, xToLevel, yToAmount } from './geometry'
 import { paymentBreakdown, withSubFeatures, type Product } from '../domain/note'
 import { startingProduct } from '../domain/starting-note'
 
@@ -217,14 +217,61 @@ describe('payoff regimes', () => {
     const barriered: Product = { ...startingProduct, payoff: { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }] } }
     const dualDirectional: Product = { ...startingProduct, payoff: { participations: [{ direction: 'downside', buffer: 0.15, absoluteReturn: { rate: 1 }, rate: 1 }] } }
     const buffered: Product = { ...startingProduct, payoff: { participations: [{ direction: 'downside', buffer: 0.15, rate: 1 }] } }
-    expect(jumpLevelOf(barriered, 100)).toBe(70)
-    expect(jumpLevelOf(dualDirectional, 80)).toBe(68)
-    expect(jumpLevelOf(buffered, 100)).toBeUndefined()
-    expect(jumpLevelOf(startingProduct, 100)).toBeUndefined()
+    expect(jumpLevelsOf(barriered, 100)).toEqual([70])
+    expect(jumpLevelsOf(dualDirectional, 80)).toEqual([68])
+    expect(jumpLevelsOf(buffered, 100)).toEqual([])
+    expect(jumpLevelsOf(startingProduct, 100)).toEqual([])
     // The level is where the payment computes the edge, so it pays the gain and the level just below does not.
-    const edge = jumpLevelOf(dualDirectional, 100)!
+    const [edge] = jumpLevelsOf(dualDirectional, 100)
     expect(paymentBreakdown(dualDirectional, { initial: 100, final: edge }).absoluteReturnApplies).toBe(true)
     expect(paymentBreakdown(dualDirectional, { initial: 100, final: edge * (1 - 1e-9) }).absoluteReturnApplies).toBe(false)
+  })
+
+  describe('with an upper barrier', () => {
+    const finned: Product = { ...startingProduct, payoff: { participations: [{ direction: 'upside', barrier: { level: 1.3, observation: 'final', rebate: 0.02 }, rate: 0.8 }], principalProtection: 1 } }
+
+    it('names the upper barrier where it sets the rebate, and upside participation below it', () => {
+      expect(regimeAt(finned, 140)).toBe('upper-barrier')
+      expect(regimeAt(finned, 130)).toBe('upper-barrier')
+      expect(regimeAt(finned, 129)).toBe('upside')
+      expect(regimeAt(finned, 100)).toBe('upside')
+    })
+
+    it('leaves a fall to the floor or to principal', () => {
+      expect(regimeAt(finned, 80)).toBe('principal')
+    })
+
+    it('names the floor when a deposit’s minimum return sets the payment above the rebate', () => {
+      const deposit: Product = { ...finned, wrapper: 'deposit', payoff: { ...finned.payoff, principalProtection: undefined, minimumReturn: 0.05 } }
+      expect(regimeAt(deposit, 140)).toBe('floor')
+    })
+
+    it('finds the upper barrier as a jump level, along with a barrier on downside participation', () => {
+      expect(jumpLevelsOf(finned, 100)).toEqual([130])
+      expect(jumpLevelsOf(finned, 80)).toEqual([104])
+      const both: Product = { ...finned, payoff: { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }, ...finned.payoff.participations] } }
+      expect(jumpLevelsOf(both, 100)).toEqual([70, 130])
+      // The level is where the payment computes it, so a barrier at 110% is reached at 110 and not just below it.
+      const [edge] = jumpLevelsOf({ ...finned, payoff: { participations: [{ direction: 'upside', barrier: { level: 1.1, observation: 'final' }, rate: 1 }] } }, 100)
+      expect(edge).toBe(110)
+    })
+
+    it('sets the barrier from the position as a percentage of the level the return is measured from, limited to 101% to 200%', () => {
+      expect(upperBarrierFromX(levelToX(130, 100, plot), 100, plot, 100)).toBe(130)
+      expect(upperBarrierFromX(levelToX(104, 100, plot), 100, plot, 80)).toBe(130) // a lookback level of 80
+      expect(upperBarrierFromX(plot.left - 30, 100, plot, 100)).toBe(101)
+      expect(upperBarrierFromX(plot.right + 30, 100, plot, 100)).toBe(200)
+      expect(clampUpperBarrier(100)).toBe(101)
+      expect(clampUpperBarrier(250)).toBe(200)
+    })
+
+    it('keeps the slope handle below half the rise to the barrier, so the barrier does not pin it', () => {
+      expect(slopeLevel(100, undefined, 1.3)).toBeCloseTo(115, 8)
+      expect(slopeLevel(100, undefined, 2)).toBe(150)
+      expect(slopeLevel(100, 0.1, 1.3)).toBeCloseTo(105, 8)
+      // At a 15% return, a 200% rate reaches 1,300, which is the 130% barrier's payment.
+      expect(upsideRateFromY(amountToY(1150, 2000, plot), 1000, 2000, plot, undefined, 1.3)).toBe(100)
+    })
   })
 
   it('splits points into runs that share their joins', () => {
