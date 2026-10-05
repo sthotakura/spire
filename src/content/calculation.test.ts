@@ -15,6 +15,14 @@ const steps = (note: SingleProduct, finalLevel: number) => calculationSteps(note
 const step = (note: SingleProduct, finalLevel: number, title: string) => steps(note, finalLevel).find((candidate) => candidate.title === title)
 
 describe('calculation steps', () => {
+  it('mutes the cap and the protection floor when they do not bind, and shows them when they do', () => {
+    const note = noteWith(both, 0.9, 0.2)
+    expect(step(note, 80, 'Cap')).toMatchObject({ value: '1,200', muted: true })
+    expect(step(note, 80, 'Protection floor')).toMatchObject({ value: '900', muted: true })
+    expect(step(note, 130, 'Cap')?.muted).toBe(false)
+    expect(step(noteWith([{ direction: 'downside', rate: 1 }], 0.9), 60, 'Protection floor')?.muted).toBe(false)
+  })
+
   it('shows each participation direction as its own step, in the order of the outline', () => {
     expect(steps(noteWith(both, 0.9, 0.2), 110).map(({ n, title }) => `${n} ${title}`)).toEqual([
       '1 Synthetic Index return', '2 Downside participation', '3 Upside participation', '4 Payment before cap', '5 Cap', '6 Protection floor', '7 Payment at maturity', '8 Annualised return',

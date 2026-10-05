@@ -130,14 +130,14 @@ export function calculationSteps(note: Product, breakdown: PaymentBreakdown, obs
     participationStep(note, b, 'upside'),
     { title: withCap ? 'Payment before cap' : deposit ? 'Payment before minimum' : 'Payment before protection', how: `${formatAmount(principal)} × (1 ${b.participatedReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(b.participatedReturn))})`, value: formatAmount(b.uncappedPayment) },
   )
-  if (withCap) steps.push({ title: 'Cap', how: `${formatAmount(principal)} × (1 + ${formatPercent(cap)}) · ${b.capApplies ? 'applies here' : absoluteReturn !== undefined && b.direction === 'downside' ? 'limits a rise only' : 'not binding here'}`, value: formatAmount(b.capAmount ?? 0), concept: 'cap' })
+  if (withCap) steps.push({ title: 'Cap', how: `${formatAmount(principal)} × (1 + ${formatPercent(cap)}) · ${b.capApplies ? 'applies here' : absoluteReturn !== undefined && b.direction === 'downside' ? 'limits a rise only' : 'not binding here'}`, value: formatAmount(b.capAmount ?? 0), muted: !b.capApplies, concept: 'cap' })
   if (deposit) {
     steps.push(minimum !== undefined
-      ? { title: 'Minimum return', how: `${formatAmount(principal)} × (1 + ${twoDecimalPercent(minimum)}) · ${b.floorApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.floor), concept: 'minimum-return' }
+      ? { title: 'Minimum return', how: `${formatAmount(principal)} × (1 + ${twoDecimalPercent(minimum)}) · ${b.floorApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.floor), muted: !b.floorApplies, concept: 'minimum-return' }
       : { title: 'Minimum return', how: 'Not added. A deposit repays principal in full, so the payment is never below it', value: 'Not added', muted: true, concept: 'minimum-return' })
   } else {
     steps.push(withProtection
-      ? { title: 'Protection floor', how: `${formatPercent(principalProtection)} × ${formatAmount(principal)} · ${b.floorApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.floor), concept: 'protection' }
+      ? { title: 'Protection floor', how: `${formatPercent(principalProtection)} × ${formatAmount(principal)} · ${b.floorApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.floor), muted: !b.floorApplies, concept: 'protection' }
       : { title: 'Protection floor', how: hasDownside ? 'Not added, so some or all of the principal can be lost' : 'Not added. Without downside participation, a fall does not reduce principal', value: 'Not added', muted: true, concept: 'protection' })
   }
   // The closing step names the amounts it combines, in the payment rule's words. Without a floor, a note's payment cannot fall
