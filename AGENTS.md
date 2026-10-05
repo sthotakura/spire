@@ -87,6 +87,13 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 Keep `README.md` as the public entry point and `PLAN.md` as the near-term work plan. As the project grows, record domain concepts, open questions, architecture decisions, and synthetic product examples under `docs/`. Distinguish established facts, example-specific assumptions, and open questions.
 
+### Keep the book current
+
+- Whenever introducing or materially changing a domain concept, create or update the corresponding reader-facing chapter in `docs/book/` and its entry in `docs/book-outline.md` in the same change. This is part of the definition of done.
+- Keep chapter definitions, synthetic examples, assumptions, calculations, and any JSON examples consistent with the implemented domain rules. Review affected chapters when a shared rule changes.
+- Keep internal discussion, implementation decisions, and unresolved research in the working documents under `docs/`. If a concept remains unresolved, mark it as planned in the outline rather than publishing an unsupported explanation.
+- Verify the book update as part of the change: check example calculations against the domain rules, confirm chapter links and outline status, and check rendering when adding a chapter or changing Markdown features. The book navigation discovers chapter files automatically; agents remain responsible for writing and verifying their content.
+
 ## User-facing copy
 
 - Keep option names and descriptions focused on the public financial concept they teach.
