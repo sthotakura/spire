@@ -37,6 +37,14 @@ payment under large falls are different properties.
 With 150% upside participation and a 20% upside cap, final level 130 pays
 1,200. The cap limits the 45% contribution to 20%.
 
+## Add an upper barrier
+
+With 80% upside participation, an upper barrier at 130% of the initial level,
+a 2% rebate, and 100% principal protection, final level 120 pays 1,160 and
+final level 129 pays 1,232. At final level 130 the barrier is reached, so
+participation ends and the payment drops to 1,020. The Barrier chapter
+has the full set of levels.
+
 ## Add absolute return
 
 With a 15% buffer, 100% absolute return, and 100% downside participation,

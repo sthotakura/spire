@@ -23,9 +23,12 @@ The downside buffer does not affect this positive-return case.
 
 ## Meaningful combinations
 
-A cap needs upside participation. A buffer or downside barrier needs downside
-participation. Absolute return needs a buffer or barrier to define its range.
-SPIRe does not combine a buffer and barrier on the same downside participation.
+A cap or an upper barrier needs upside participation. A buffer or downside
+barrier needs downside participation. A rebate needs an upper barrier.
+Absolute return needs a buffer or barrier to define its range. SPIRe does not
+combine a buffer and barrier on the same downside participation, or a cap and
+an upper barrier on the same upside participation. A barrier on each direction
+can appear on one product, because each switches a different rule.
 This is the supported model's boundary, not a statement that all contracts
 use these restrictions.
 

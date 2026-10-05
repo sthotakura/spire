@@ -63,7 +63,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 ## Deferred questions
 
 - Which payoff mechanics can be combined independently of wrappers? [docs/feature-map.md](docs/feature-map.md) sorts common note features into the concepts they belong to.
-- When should observation and valuation schedules become explicit model concepts? A proposal models only dates on which something is observed, each on the concept that observes: the pricing and lookback dates on the initial level, and the observation dates on the final level. Issue and maturity dates belong to issuance and are left out ([docs/observation-dates.md](docs/observation-dates.md)). Dates change no payment built so far.
+- When should observation and valuation schedules become explicit model concepts? A proposal models only dates on which something is observed, each on the concept that observes: the pricing and lookback dates on the initial level, and the observation dates on the final level. Issue and maturity dates belong to issuance and are left out ([docs/observation-dates.md](docs/observation-dates.md)). Dates change no payment built so far. **Daily close observation** is the first case that would: a barrier observed on every closing level in a period makes the payment depend on the path, not only the final level. A shark fin pays its rebate if the underlier ever reached the barrier, even if it later fell back. Tackling it means deciding how the period is stated (without a calendar), how a scenario states the path (for example the highest closing level), and how the chart draws a payoff that is no longer one line. Until then barriers are observed on the final date only (sections 16 and 25).
 - Which terms are product economics, and which belong only to issuance?
 - How should changes to authoritative terms invalidate derived results?
 - Would a capped, leveraged note also carry "Outperformance" in its name? The Swiss taxonomy describes that product without a cap, so the name is unverified and not shown.
@@ -318,6 +318,16 @@ and detailed architecture decisions stay in the working documents.
 - Converting every existing document into a chapter.
 - A guided course, quizzes, accounts, search or a CMS.
 - Treating the book as a regulatory, investment or product-documentation guide.
+
+## 25. Add a barrier on upside participation
+
+Add a barrier as a sub-feature of upside participation: when the final level is at or above a level above the initial level, upside participation is cancelled and an optional fixed rebate is paid instead. With principal protection it gives the payoff publicly called a shark fin. The proposal, sources and worked example are in [docs/upside-barrier.md](docs/upside-barrier.md).
+
+- **Final-date observation only**, as for the barrier on downside participation (section 16). The barrier reads the final level the determination produces, so the payment stays a function of the final level and the chart draws one line.
+- **A simplification.** Public shark fin descriptions observe the barrier on closing levels on every day of a period, and a rebate is paid even if the underlier later falls back. The final-date version does not reproduce that. It stays until daily close observation is modelled (see the deferred question on observation dates). Do not name the product a shark fin in the interface until then.
+- **Direction states the effect:** a barrier on upside participation knocks out, one on downside participation knocks in, so no `effect` term yet.
+- A cap and a barrier are not combined on upside participation. Keep the rest of the proposal's decisions unless a public note shows otherwise.
+- **Build order.** The domain (rule, validation, tests for each row of the worked example), then the content (summary, JSON, payment rule, calculation, outcome, scenarios), then the interface, then the book chapters the proposal lists.
 
 ## Later direction: a composable form
 

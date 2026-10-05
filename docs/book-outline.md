@@ -24,9 +24,9 @@ remain working research and design records. Reader-facing chapters belong in
 | 7. Payoff and payment | Draft | [Read chapter](book/07-payoff-and-payment.md) | [Participation and protection](participation-and-protection.md) |
 | 8. Participation | Draft | [Read chapter](book/08-participation.md) | [Participation and protection](participation-and-protection.md) |
 | 9. Principal protection | Draft | [Read chapter](book/09-principal-protection.md) | [Participation and protection](participation-and-protection.md) |
-| 10. Cap | Draft | [Read chapter](book/10-cap.md) | [Absolute return](absolute-return.md) |
+| 10. Cap | Draft | [Read chapter](book/10-cap.md) | [Absolute return](absolute-return.md), [Upside barrier](upside-barrier.md) |
 | 11. Buffer | Draft | [Read chapter](book/11-buffer.md) | [Buffer](buffer.md) |
-| 12. Barrier | Draft | [Read chapter](book/12-barrier.md) | [Barrier](barrier.md) |
+| 12. Barrier | Draft | [Read chapter](book/12-barrier.md) | [Barrier](barrier.md), [Upside barrier](upside-barrier.md) |
 | 13. Absolute return | Draft | [Read chapter](book/13-absolute-return.md) | [Absolute return](absolute-return.md) |
 | 14. Combining payoff features | Draft | [Read chapter](book/14-combining-features.md) | [Feature map](feature-map.md) |
 | 15. Worked synthetic examples | Draft | [Read chapter](book/15-worked-examples.md) | [Milestone 1](milestone-1.md) |
