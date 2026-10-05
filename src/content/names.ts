@@ -4,7 +4,7 @@ import type { ConceptId } from './concepts'
 export interface MarketingName {
   name: string
   // Where the label comes from: plain-language regulator wording, or the Swiss Structured Products Association's product types.
-  vocabulary: 'US descriptive' | 'SSPA'
+  vocabulary: 'US descriptive' | 'SSPA' | 'Market usage'
   reason: string
   // The parts of the note that make the name fit.
   concepts: ConceptId[]
@@ -81,6 +81,27 @@ export function marketingNames(note: Product): MarketingName[] {
         concepts: downside === undefined ? ['upside'] : ['upside', 'downside'],
       })
     }
+  }
+
+  // Upside participation up to an upside barrier, and a rebate or nothing from it on. Seller usage, not a regulator's or the
+  // SSPA's, and sellers observe the barrier daily, so the reason says how this version differs. With full protection it is a
+  // "Shark fin PP"; otherwise a fall must leave principal unchanged, so there is no downside participation.
+  const sharkFinShape = note.wrapper === 'note' && isRate(upside) && upsideBarrier !== undefined && Number.isFinite(upsideBarrier.level) && upsideBarrier.level > 1
+  const sharkFinCaveat = 'The name comes from the shape of the payoff chart. Sellers usually observe the barrier on every trading day, so a rebate is paid if the underlier ever touched it; this version observes only the final level, so the contract differs.'
+  if (sharkFinShape && protection === 1) {
+    names.push({
+      name: 'Shark fin PP',
+      vocabulary: 'Market usage',
+      reason: `Principal is protected and the payment follows a rise up to the upside barrier. At or above it, participation ends and a fixed rebate, if there is one, is paid. PP stands for principal protected. ${sharkFinCaveat}`,
+      concepts: ['protection', 'upside', 'barrier'],
+    })
+  } else if (sharkFinShape && downside === undefined) {
+    names.push({
+      name: 'Shark fin note',
+      vocabulary: 'Market usage',
+      reason: `The payment follows a rise up to the upside barrier. At or above it, participation ends and a fixed rebate, if there is one, is paid. A fall leaves principal unchanged, since there is no downside participation. ${sharkFinCaveat}`,
+      concepts: ['upside', 'barrier'],
+    })
   }
 
   if (hasCap && upside !== undefined) {

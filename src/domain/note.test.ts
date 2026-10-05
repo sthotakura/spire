@@ -420,12 +420,12 @@ describe('barrier', () => {
 
   it.each([0, -0.1, 1, 1.2, Number.NaN])('rejects a barrier level of %s', (level) => {
     const invalid = withDownside(note, { barrier: { level, observation: 'final' } })
-    expect(productIssues(invalid)).toEqual([{ field: 'barrier', message: 'Barrier must be greater than 0% and less than 100% of the initial level.' }])
+    expect(productIssues(invalid)).toEqual([{ field: 'barrier', message: 'Downside barrier must be greater than 0% and less than 100% of the initial level.' }])
   })
 
   it('is not combined with a buffer', () => {
     const both = withDownside(barriered, { buffer: 0.1 })
-    expect(productIssues(both)).toEqual([{ field: 'barrier', message: 'A barrier and a buffer cannot both apply to downside participation.' }])
+    expect(productIssues(both)).toEqual([{ field: 'barrier', message: 'A downside barrier and a buffer cannot both apply to downside participation.' }])
   })
 })
 
@@ -484,26 +484,26 @@ describe('barrier on upside participation', () => {
   })
 
   it.each([1, 0.9, 2.01, 0, Number.NaN])('rejects a barrier level of %s', (level) => {
-    expect(productIssues(withBarrier({ level }))).toEqual([{ field: 'upperBarrier', message: 'Barrier on upside participation must be greater than 100% and at most 200% of the initial level.' }])
+    expect(productIssues(withBarrier({ level }))).toEqual([{ field: 'upsideBarrier', message: 'Upside barrier must be greater than 100% and at most 200% of the initial level.' }])
   })
 
   // 1.1 × 100 is 110.00000000000001 in floating point, which must not keep a final level of 110 from reaching a 110% barrier.
-  it('reaches a barrier at a level that floating point cannot state exactly', () => {
+  it('reaches a downside barrier at a level that floating point cannot state exactly', () => {
     expect(barrierLevelAt(1.1, 100)).toBe(110)
     expect(paymentBreakdown(withBarrier({ level: 1.1 }), { initial: 100, final: 110 }).upsideBarrierReached).toBe(true)
     expect(paymentBreakdown(withBarrier({ level: 1.07 }), { initial: 100, final: 107 }).upsideBarrierReached).toBe(true)
   })
 
-  it('allows a barrier at 200% of the initial level', () => {
+  it('allows a downside barrier at 200% of the initial level', () => {
     expect(productIssues(withBarrier({ level: 2 }))).toEqual([])
   })
 
   it.each([0, -0.01, Number.NaN])('rejects a rebate of %s', (rebate) => {
-    expect(productIssues(withBarrier({ rebate }))).toEqual([{ field: 'upperBarrier', message: 'Rebate must be greater than zero.' }])
+    expect(productIssues(withBarrier({ rebate }))).toEqual([{ field: 'upsideBarrier', message: 'Rebate must be greater than zero.' }])
   })
 
   it('is not combined with a cap', () => {
-    expect(productIssues(withUpside(finned, { cap: 0.2 }))).toEqual([{ field: 'upperBarrier', message: 'A barrier and a cap cannot both apply to upside participation.' }])
+    expect(productIssues(withUpside(finned, { cap: 0.2 }))).toEqual([{ field: 'upsideBarrier', message: 'An upside barrier and a cap cannot both apply to upside participation.' }])
   })
 })
 
@@ -587,7 +587,7 @@ describe('absolute return', () => {
   })
 
   it('needs a buffer or a barrier', () => {
-    expect(productIssues(withDownside(dualDirectional, { buffer: undefined }))).toEqual([{ field: 'absoluteReturn', message: 'Absolute return needs a buffer or a barrier.' }])
+    expect(productIssues(withDownside(dualDirectional, { buffer: undefined }))).toEqual([{ field: 'absoluteReturn', message: 'Absolute return needs a buffer or a downside barrier.' }])
     expect(productIssues(withDownside(dualDirectional, { buffer: undefined, barrier: { level: 0.8, observation: 'final' } }))).toEqual([])
   })
 
@@ -606,7 +606,7 @@ describe('absolute return', () => {
       expect(maturityPayment(trigger, { initial: 100, final: finalLevel })).toBeCloseTo(expected, 8)
     })
 
-    it('pays the gain at or above the barrier and counts the whole fall below it', () => {
+    it('pays the gain at or above the downside barrier and counts the whole fall below it', () => {
       expect(paymentBreakdown(trigger, { initial: 100, final: 70 })).toMatchObject({ absoluteReturnApplies: true, belowBarrier: false })
       const below = paymentBreakdown(trigger, { initial: 100, final: 69 })
       expect(below).toMatchObject({ absoluteReturnApplies: false, belowBarrier: true })
@@ -784,7 +784,7 @@ describe('weighted basket', () => {
 
   it('passes the basket level to the payoff, so a barrier is measured on the basket', () => {
     const barrierNote: Product = { ...basketNote, payoff: { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }] } }
-    // Index A −50% and Co +20% leave the basket at 85, above a barrier at 70, so principal is repaid.
+    // Index A −50% and Co +20% leave the basket at 85, above a downside barrier at 70, so principal is repaid.
     expect(maturityPayment(barrierNote, basketBreakdown(basket, [[50], [48]]).levels)).toBeCloseTo(1000, 8)
   })
 

@@ -1,10 +1,14 @@
 # Barrier
 
-A barrier is a threshold that controls whether another rule applies. The
-downside barrier in this book switches downside participation on when the
-determined final level is strictly below the threshold. An upper barrier
-switches upside participation off when the determined final level reaches the
-threshold.
+A barrier is a threshold that controls whether another rule applies. This book
+names each barrier after the participation it controls. The downside barrier
+switches downside participation on when the determined final level is strictly
+below the threshold. An upside barrier switches upside participation off when
+the determined final level reaches the threshold.
+
+Practitioners call a barrier that switches a feature on a knock-in barrier and
+one that switches it off a knock-out barrier. The downside barrier here is a
+knock-in barrier, and the upside barrier is a knock-out barrier.
 
 ## A final-observation barrier
 
@@ -28,9 +32,9 @@ A 30% buffer would pay 990 at final level 69, because only the 1% fall beyond
 the buffer counts. The 70% barrier pays 690 because none of the fall is
 deducted once breached.
 
-## An upper barrier
+## An upside barrier
 
-A barrier can also end a feature. An upper barrier sits above the initial
+A barrier can also end a feature. An upside barrier sits above the initial
 level. Upside participation applies while the determined final level is below
 it. At or above it, participation ends and the holder receives a fixed amount
 instead: a rebate, stated as a return on principal. A note may have no rebate,
@@ -38,7 +42,7 @@ in which case principal is repaid. The rebate is paid once, at maturity. It is
 not a coupon, which would be a series of payments over the term.
 
 Assume principal of 1,000, initial level of 100, 80% upside participation, an
-upper barrier at 130% of the initial level, a 2% rebate, and 100% principal
+upside barrier at 130% of the initial level, a 2% rebate, and 100% principal
 protection. There is no downside participation.
 
 ```text
@@ -72,7 +76,7 @@ can depend on a breach earlier in the product's life even if the final level
 recovers. That requires a different observation rule and cannot be inferred
 from a final-level chart alone.
 
-For an upper barrier the difference is larger. With daily observation, a
+For an upside barrier the difference is larger. With daily observation, a
 single close at or above the barrier would end participation and earn the
 rebate, even if the underlier then fell back below the initial level. The
 final-observation version above pays the rebate only when the final level

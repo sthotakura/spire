@@ -143,10 +143,10 @@ describe('note summary', () => {
 describe('note summary with a barrier', () => {
   it('names the barrier as a fraction of the level the return is measured from', () => {
     const barriered = { ...note, payoff: { ...note.payoff, participations: withSubFeatures(note.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const } }) } }
-    expect(sentence(barriered)).toContain('point-to-point from 100, with a barrier at 70% of the initial level and 90% principal protection.')
-    expect(conceptOf(barriered, 'a barrier at 70% of the initial level')).toBe('barrier')
+    expect(sentence(barriered)).toContain('point-to-point from 100, with a downside barrier at 70% of the initial level and 90% principal protection.')
+    expect(conceptOf(barriered, 'a downside barrier at 70% of the initial level')).toBe('barrier')
     const lookback = { ...barriered, underlier: { ...barriered.underlier, determination: { initial: { kind: 'lookback' as const, observationCount: 3 }, final: { kind: 'final-date' as const } } } }
-    expect(sentence(lookback)).toContain('a barrier at 70% of the lookback level')
+    expect(sentence(lookback)).toContain('a downside barrier at 70% of the lookback level')
   })
 })
 
@@ -166,25 +166,25 @@ describe('summary with absolute return', () => {
 describe('summary with absolute return above a barrier', () => {
   it('names absolute return after the barrier it pays above', () => {
     const trigger = { ...note, payoff: { ...note.payoff, participations: withSubFeatures(note.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const }, absoluteReturn: { rate: 0.5 } }) } }
-    expect(sentence(trigger)).toContain('with a barrier at 70% of the initial level, 50% absolute return on a fall that ends at or above it and 90% principal protection.')
+    expect(sentence(trigger)).toContain('with a downside barrier at 70% of the initial level, 50% absolute return on a fall that ends at or above it and 90% principal protection.')
   })
 })
 
-describe('note summary with an upper barrier', () => {
+describe('note summary with an upside barrier', () => {
   const upsideOnly = [{ direction: 'upside' as const, rate: 0.8 }]
   const finned = (rebate?: number): SingleProduct => ({ ...note, payoff: { ...note.payoff, participations: withSubFeatures(upsideOnly, { upsideBarrier: { level: 1.3, observation: 'final' as const, rebate } }) } })
 
-  it('names the upper barrier, what it ends and the rebate it pays', () => {
-    expect(sentence(finned(0.02))).toContain('point-to-point from 100, with 90% principal protection and an upper barrier at 130% of the initial level that ends the upside and pays a 2% rebate.')
-    expect(conceptOf(finned(0.02), 'an upper barrier at 130% of the initial level that ends the upside and pays a 2% rebate')).toBe('barrier')
+  it('names the upside barrier, what it ends and the rebate it pays', () => {
+    expect(sentence(finned(0.02))).toContain('point-to-point from 100, with 90% principal protection and an upside barrier at 130% of the initial level that ends the upside and pays a 2% rebate.')
+    expect(conceptOf(finned(0.02), 'an upside barrier at 130% of the initial level that ends the upside and pays a 2% rebate')).toBe('barrier')
   })
 
   it('says only that the upside ends when there is no rebate', () => {
-    expect(sentence(finned())).toContain('an upper barrier at 130% of the initial level that ends the upside.')
+    expect(sentence(finned())).toContain('an upside barrier at 130% of the initial level that ends the upside.')
   })
 
-  it('measures the upper barrier from the lookback level', () => {
+  it('measures the upside barrier from the lookback level', () => {
     const lookback = { ...finned(), underlier: { ...note.underlier, determination: { initial: { kind: 'lookback' as const, observationCount: 3 }, final: { kind: 'final-date' as const } } } }
-    expect(sentence(lookback)).toContain('an upper barrier at 130% of the lookback level')
+    expect(sentence(lookback)).toContain('an upside barrier at 130% of the lookback level')
   })
 })

@@ -36,7 +36,7 @@ const breakdown = paymentBreakdown(note, measured.levels)
 
 describe('a basket in words', () => {
   it('names an equally weighted basket and its assets', () => {
-    expect(sentence(note)).toBe('A 3-year note that redeems at maturity and pays 100% of the upside and 100% of the downside of an equally weighted basket of Synthetic Index A and Synthetic Co, measured point-to-point from each asset’s initial level, with a barrier at 70% of the initial basket level.')
+    expect(sentence(note)).toBe('A 3-year note that redeems at maturity and pays 100% of the upside and 100% of the downside of an equally weighted basket of Synthetic Index A and Synthetic Co, measured point-to-point from each asset’s initial level, with a downside barrier at 70% of the initial basket level.')
     expect(summarize(note).find(({ text }) => text === 'equally weighted basket')?.concept).toBe('basket-return')
     expect(summarize(note).find(({ text }) => text === 'Synthetic Co')?.concept).toBe('asset')
   })
@@ -53,7 +53,7 @@ describe('a basket in words', () => {
       'Return = Sum of Weight × Asset return',
       'Basket level = 100 × (1 + Return)',
       'Payment = Principal × (1 + Upside × max(Return, 0) + Downside × min(Return, 0))',
-      'downside only when Basket level < Barrier × 100',
+      'downside only when Basket level < Downside barrier × 100',
       'floored at 0',
     ])
     expect(paymentInWords(note)).toBe('Each 1% rise in the basket adds 1% of principal, and each 1% fall takes 1% away, but only if the basket ends below 70% of its initial level. The payment never goes below zero.')
@@ -72,16 +72,16 @@ describe('a basket in the calculation', () => {
       ['Synthetic Co return', '36 ÷ 40 − 1', '−10%', 'determination'],
       ['Basket return', '50% × +30% + 50% × −10%', '+10%', 'basket-return'],
       ['Basket level', '100 × (1 + 10%)', '110', 'basket-return'],
-      ['Barrier', '70% × 100 · basket level 110 is not below it, so a fall does not reduce principal', '70', 'barrier'],
+      ['Downside barrier', '70% × 100 · basket level 110 is not below it, so a fall does not reduce principal', '70', 'barrier'],
     ])
     expect(steps.find(({ title }) => title === 'Payment at maturity')?.value).toBe('1,100')
   })
 
-  it('says the basket level, not a final level, is not below the barrier', () => {
-    // Index A −10% and Co −10% leave the basket at 90, above a barrier at 70.
+  it('says the basket level, not a final level, is not below the downside barrier', () => {
+    // Index A −10% and Co −10% leave the basket at 90, above a downside barrier at 70.
     const fall = basketBreakdown(basket, [[90], [36]])
     const steps = calculationSteps(note, paymentBreakdown(note, fall.levels), [], [], fall)
-    expect(steps.find(({ title }) => title === 'Downside participation')?.how).toBe('100% × min(−10%, 0) · the basket level is not below the barrier')
+    expect(steps.find(({ title }) => title === 'Downside participation')?.how).toBe('100% × min(−10%, 0) · the basket level is not below the downside barrier')
     expect(steps.find(({ title }) => title === 'Upside participation')?.how).toBe('100% × max(−10%, 0) · applies only when the return is positive')
   })
 

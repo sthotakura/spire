@@ -99,7 +99,7 @@ describe('scenario rows with absolute return', () => {
   })
 })
 
-describe('scenario rows with an upper barrier', () => {
+describe('scenario rows with an upside barrier', () => {
   const finned = (level: number) => withFeatures([{ direction: 'upside', barrier: { level, observation: 'final', rebate: 0.02 }, rate: 0.8 }], 1)
 
   it('replace the fixed row at the barrier level, and mark it', () => {

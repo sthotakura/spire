@@ -137,7 +137,7 @@ Open questions:
 
 - **One cap in several places.** A cap could limit more than one feature, or the whole payment, once something other than upside participation can raise it (a coupon or a digital amount). Nesting it under upside participation leaves that open; it does not need solving yet.
 - **A cap stated as an underlier level.** Some notes may state the cap as a level of the underlier rather than a maximum return. With a rate above 100% the two differ. Not yet verified in current public notes.
-- **One barrier gating several features.** Verified in one product supplement: a single upper-barrier event cancels upside participation and changes the downside rate beyond the buffer ([docs/barrier.md](docs/barrier.md)). How to model it is still open.
+- **One barrier gating several features.** Verified in one product supplement: a single upside-barrier event cancels upside participation and changes the downside rate beyond the buffer ([docs/barrier.md](docs/barrier.md)). How to model it is still open.
 
 ## 16. Add a barrier on downside participation
 
@@ -324,8 +324,8 @@ and detailed architecture decisions stay in the working documents.
 Add a barrier as a sub-feature of upside participation: when the final level is at or above a level above the initial level, upside participation is cancelled and an optional fixed rebate is paid instead. With principal protection it gives the payoff publicly called a shark fin. The proposal, sources and worked example are in [docs/upside-barrier.md](docs/upside-barrier.md).
 
 - **Final-date observation only**, as for the barrier on downside participation (section 16). The barrier reads the final level the determination produces, so the payment stays a function of the final level and the chart draws one line.
-- **A simplification.** Public shark fin descriptions observe the barrier on closing levels on every day of a period, and a rebate is paid even if the underlier later falls back. The final-date version does not reproduce that. It stays until daily close observation is modelled (see the deferred question on observation dates). Do not name the product a shark fin in the interface until then.
-- **Direction states the effect:** a barrier on upside participation knocks out, one on downside participation knocks in, so no `effect` term yet.
+- **A simplification.** Public shark fin descriptions observe the barrier on closing levels on every day of a period, and a rebate is paid even if the underlier later falls back. The final-date version does not reproduce that. It stays until daily close observation is modelled (see the deferred question on observation dates). The interface shows a "Shark fin note" chip for upside participation with an upside barrier (and no downside participation), and "Shark fin PP" with 100% protection; each reason says how this version differs. The caveat comes off when daily close observation exists.
+- **Direction states the effect:** a barrier on upside participation knocks out, one on downside participation knocks in, so no `effect` term yet. Barriers are named after the participation they control (downside barrier, upside barrier); the hints and the book introduce knock-in and knock-out.
 - A cap and a barrier are not combined on upside participation. Keep the rest of the proposal's decisions unless a public note shows otherwise.
 - **Build order.** The domain (rule, validation, tests for each row of the worked example), then the content (summary, JSON, payment rule, calculation, outcome, scenarios), then the interface, then the book chapters the proposal lists.
 

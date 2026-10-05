@@ -29,15 +29,15 @@ function participationStep(note: Product, breakdown: PaymentBreakdown, direction
     return { title, how, value: 'Not added', muted: true, concept: direction }
   }
   // A fall paid as a gain is absolute return's contribution, not downside participation's.
-  // At or above the upper barrier the rebate replaces upside participation, and its own step carries it.
+  // At or above the upside barrier the rebate replaces upside participation, and its own step carries it.
   const knockedOut = direction === 'upside' && breakdown.upsideBarrierReached === true
   const contribution = direction === breakdown.direction && !breakdown.absoluteReturnApplies && !knockedOut ? breakdown.participatedReturn : 0
   const buffer = direction === 'downside' ? downsideOf(note)?.buffer : undefined
   const how = `${formatPercent(rate)} × ${direction === 'upside' ? 'max' : 'min'}(${signedPercent(breakdown.underlierReturn)}${buffer === undefined ? '' : ` + ${formatPercent(buffer)}`}, 0)`
   // The buffer and the barrier belong to downside participation, so only its step gives them as the reason.
-  const reason = knockedOut ? 'the upper barrier is reached, so participation ends'
+  const reason = knockedOut ? 'the upside barrier is reached, so participation ends'
     : buffer !== undefined && breakdown.underlierReturn < 0 ? 'the buffer absorbs the whole fall'
-    : direction === 'downside' && breakdown.belowBarrier === false && breakdown.underlierReturn < 0 ? `the ${note.underlier.kind === 'basket' ? 'basket' : 'final'} level is not below the barrier`
+    : direction === 'downside' && breakdown.belowBarrier === false && breakdown.underlierReturn < 0 ? `the ${note.underlier.kind === 'basket' ? 'basket' : 'final'} level is not below the downside barrier`
       : `applies only when the return is ${direction === 'upside' ? 'positive' : 'negative'}`
   return contribution === 0
     ? { title, how: `${how} · ${reason}`, value: '0%', muted: true, concept: direction }
@@ -58,31 +58,31 @@ function absoluteReturnStep(rate: number, breakdown: PaymentBreakdown, withBarri
   const how = `${formatPercent(rate)} × |${signedPercent(breakdown.underlierReturn)}|`
   const title = 'Absolute return'
   if (breakdown.absoluteReturnApplies) return { title, how, value: signedPercent(breakdown.participatedReturn), concept: 'absolute-return' }
-  const past = withBarrier ? 'the level ends below the barrier' : 'the fall is beyond the buffer'
+  const past = withBarrier ? 'the level ends below the downside barrier' : 'the fall is beyond the buffer'
   if (breakdown.direction === 'downside') return { title, how: `${how} · ${past}, so it pays no gain`, value: '0%', muted: true, concept: 'absolute-return' }
   // On a rise there is no fall to pay, so the step states the feature, as the buffer step does.
-  return { title, how: `Pays ${formatPercent(rate)} of a fall ${withBarrier ? 'that ends at or above the barrier' : 'within the buffer'} as a gain · applies only when the return is negative`, value: '0%', muted: true, concept: 'absolute-return' }
+  return { title, how: `Pays ${formatPercent(rate)} of a fall ${withBarrier ? 'that ends at or above the downside barrier' : 'within the buffer'} as a gain · applies only when the return is negative`, value: '0%', muted: true, concept: 'absolute-return' }
 }
 
 // Whether the final level is below the barrier. Only then does downside participation apply, to the whole fall.
 function barrierStep(level: number, breakdown: PaymentBreakdown, finalName: string, finalLevel: number): Omit<CalculationStep, 'n'> {
   const barrierLevel = breakdown.barrierLevel ?? 0
   const how = `${formatPercent(level)} × ${formatAmount(breakdown.initialLevel)} · ${finalName} ${formatAmount(finalLevel)} is ${breakdown.belowBarrier ? 'below it, so downside participation applies' : 'not below it, so a fall does not reduce principal'}`
-  return { title: 'Barrier', how, value: formatAmount(barrierLevel), muted: !breakdown.belowBarrier, concept: 'barrier' }
+  return { title: 'Downside barrier', how, value: formatAmount(barrierLevel), muted: !breakdown.belowBarrier, concept: 'barrier' }
 }
 
-// Whether the final level has reached the upper barrier. At or above it, upside participation ends and the rebate, if there is one, is paid.
-function upperBarrierStep(level: number, breakdown: PaymentBreakdown, finalName: string, finalLevel: number): Omit<CalculationStep, 'n'> {
+// Whether the final level has reached the upside barrier. At or above it, upside participation ends and the rebate, if there is one, is paid.
+function upsideBarrierStep(level: number, breakdown: PaymentBreakdown, finalName: string, finalLevel: number): Omit<CalculationStep, 'n'> {
   const reached = breakdown.upsideBarrierReached === true
   const how = `${formatPercent(level)} × ${formatAmount(breakdown.initialLevel)} · ${finalName} ${formatAmount(finalLevel)} is ${reached ? 'at or above it, so upside participation ends' : 'below it, so upside participation applies'}`
-  return { title: 'Upper barrier', how, value: formatAmount(breakdown.upsideBarrierLevel ?? 0), muted: !reached, concept: 'barrier' }
+  return { title: 'Upside barrier', how, value: formatAmount(breakdown.upsideBarrierLevel ?? 0), muted: !reached, concept: 'barrier' }
 }
 
-// The fixed return paid in place of upside participation once the upper barrier is reached.
+// The fixed return paid in place of upside participation once the upside barrier is reached.
 function rebateStep(rebate: number, breakdown: PaymentBreakdown): Omit<CalculationStep, 'n'> {
   const title = 'Rebate'
   if (breakdown.upsideBarrierReached) return { title, how: 'Paid in place of upside participation', value: signedPercent(rebate), concept: 'barrier' }
-  return { title, how: `Pays ${formatPercent(rebate)} in place of upside participation · the upper barrier is not reached`, value: '0%', muted: true, concept: 'barrier' }
+  return { title, how: `Pays ${formatPercent(rebate)} in place of upside participation · the upside barrier is not reached`, value: '0%', muted: true, concept: 'barrier' }
 }
 
 // How a single asset's levels give its return: the lookback level and the averaged final level when the note has them, then the return.
@@ -139,9 +139,9 @@ export function calculationSteps(note: Product, breakdown: PaymentBreakdown, obs
   }
   // Absolute return comes after the buffer or barrier that decides whether it pays.
   if (absoluteReturn !== undefined) steps.push(absoluteReturnStep(absoluteReturn.rate, b, barrier !== undefined))
-  // The upper barrier decides whether upside participation applies, so it comes before the participation steps.
+  // The upside barrier decides whether upside participation applies, so it comes before the participation steps.
   if (upsideBarrier !== undefined) {
-    steps.push(basket ? upperBarrierStep(upsideBarrier.level, b, 'basket level', basket.levels.final) : upperBarrierStep(upsideBarrier.level, b, 'final level', finalLevelFrom(note.underlier.determination.final, observedLevels)))
+    steps.push(basket ? upsideBarrierStep(upsideBarrier.level, b, 'basket level', basket.levels.final) : upsideBarrierStep(upsideBarrier.level, b, 'final level', finalLevelFrom(note.underlier.determination.final, observedLevels)))
     if (upsideBarrier.rebate !== undefined) steps.push(rebateStep(upsideBarrier.rebate, b))
   }
   // A deposit's floor is its minimum return; a note's is its protection.

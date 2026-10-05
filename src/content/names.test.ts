@@ -118,14 +118,53 @@ describe('marketing names', () => {
   })
 })
 
-describe('marketing names with an upper barrier', () => {
+describe('marketing names with an upside barrier', () => {
   const finned = (principalProtection?: number) => marketingNames({ ...noteWith({ principalProtection }), payoff: { participations: withSubFeatures([up(0.8)], { upsideBarrier: { level: 1.3, observation: 'final' as const, rebate: 0.02 } }), principalProtection } }).map(({ name }) => name)
 
-  it('gives an unprotected note with an upper barrier no participation name, since the barrier changes the payment', () => {
-    expect(finned()).toEqual([])
+  const sharkFin = (principalProtection?: number, rebate?: number) => marketingNames({ ...noteWith({ principalProtection }), payoff: { participations: withSubFeatures([up(0.8)], { upsideBarrier: { level: 1.3, observation: 'final' as const, rebate } }), principalProtection } }).filter(({ name }) => name.startsWith('Shark fin'))
+
+  it('calls upside participation with an upside barrier a shark fin note, not a participation note', () => {
+    expect(finned()).toEqual(['Shark fin note'])
+    expect(finned(0)).toEqual(['Shark fin note'])
   })
 
-  it('still calls full protection a principal-protected note', () => {
-    expect(finned(1)).toEqual(['Principal-protected note'])
+  it('shows the shark fin name whether or not there is a rebate', () => {
+    expect(sharkFin(undefined, 0.02).map(({ name }) => name)).toEqual(['Shark fin note'])
+    expect(sharkFin(undefined, undefined).map(({ name }) => name)).toEqual(['Shark fin note'])
+  })
+
+  it('calls full protection a shark fin PP, in place of the plain name', () => {
+    expect(finned(1)).toEqual(['Principal-protected note', 'Shark fin PP'])
+  })
+
+  it('keeps the plain name with partial protection, beside the partial protection name', () => {
+    expect(finned(0.9)).toEqual(['Partially principal-protected note', 'Shark fin note'])
+  })
+
+  it('gives no shark fin name when a fall can reduce principal', () => {
+    const withDownside = marketingNames({ ...noteWith({}), payoff: { participations: withSubFeatures([down(1), up(0.8)], { upsideBarrier: { level: 1.3, observation: 'final' as const, rebate: 0.02 } }) } }).map(({ name }) => name)
+    expect(withDownside).toEqual([])
+    // With full protection the floor bounds the fall, so downside participation does not matter.
+    const protectedDownside = marketingNames({ ...noteWith({}), payoff: { participations: withSubFeatures([down(1), up(0.8)], { upsideBarrier: { level: 1.3, observation: 'final' as const } }), principalProtection: 1 } }).map(({ name }) => name)
+    expect(protectedDownside).toEqual(['Principal-protected note', 'Shark fin PP'])
+  })
+
+  it('says how the final-date version differs from the daily-observed contract, and what each name rests on', () => {
+    const [plain] = sharkFin()
+    const [pp] = sharkFin(1)
+    for (const shark of [plain, pp]) {
+      expect(shark.reason).toContain('every trading day')
+      expect(shark.reason).toContain('observes only the final level')
+      expect(shark.vocabulary).toBe('Market usage')
+    }
+    expect(plain.concepts).toEqual(['upside', 'barrier'])
+    expect(pp.concepts).toEqual(['protection', 'upside', 'barrier'])
+    expect(pp.reason).toContain('PP stands for principal protected')
+  })
+
+  it('needs an upside barrier and a note', () => {
+    expect(namesOf({ principalProtection: 1, participations: [up(0.8)] })).toEqual(['Principal-protected note'])
+    const deposit = marketingNames({ ...noteWith({}), wrapper: 'deposit', payoff: { participations: withSubFeatures([up(0.8)], { upsideBarrier: { level: 1.3, observation: 'final' as const } }) } }).map(({ name }) => name)
+    expect(deposit).toEqual(['Market-linked deposit'])
   })
 })

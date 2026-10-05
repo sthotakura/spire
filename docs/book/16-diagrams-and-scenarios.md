@@ -22,7 +22,7 @@ may be repaid at −30% return while the whole fall counts just below it.
 A filled point indicates the payment at the threshold; an open point marks
 an excluded endpoint of the neighbouring branch.
 
-An upper barrier jumps the other way. A line that rises with the underlier
+An upside barrier jumps the other way. A line that rises with the underlier
 drops at the barrier to the rebate level, or to principal when there is no
 rebate. The filled point is the payment at the barrier and the open point is
 the payment just below it.

@@ -85,18 +85,18 @@ describe('calculation steps', () => {
     const withBarrier = { ...barriered, payoff: { ...barriered.payoff, participations: withSubFeatures(barriered.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const } }) } }
 
     it('adds a barrier step before downside participation', () => {
-      expect(steps(withBarrier, 65).map(({ title }) => title).slice(0, 3)).toEqual(['Synthetic Index return', 'Barrier', 'Downside participation'])
+      expect(steps(withBarrier, 65).map(({ title }) => title).slice(0, 3)).toEqual(['Synthetic Index return', 'Downside barrier', 'Downside participation'])
     })
 
     it('applies downside participation to the whole fall below the barrier', () => {
-      expect(step(withBarrier, 65, 'Barrier')).toMatchObject({ how: '70% × 100 · final level 65 is below it, so downside participation applies', value: '70', concept: 'barrier' })
-      expect(step(withBarrier, 65, 'Barrier')?.muted).toBeFalsy()
+      expect(step(withBarrier, 65, 'Downside barrier')).toMatchObject({ how: '70% × 100 · final level 65 is below it, so downside participation applies', value: '70', concept: 'barrier' })
+      expect(step(withBarrier, 65, 'Downside barrier')?.muted).toBeFalsy()
       expect(step(withBarrier, 65, 'Downside participation')).toMatchObject({ value: '−35%' })
     })
 
     it('mutes the barrier and downside participation at or above it', () => {
-      expect(step(withBarrier, 80, 'Barrier')).toMatchObject({ how: '70% × 100 · final level 80 is not below it, so a fall does not reduce principal', muted: true })
-      expect(step(withBarrier, 80, 'Downside participation')).toMatchObject({ how: '100% × min(−20%, 0) · the final level is not below the barrier', value: '0%', muted: true })
+      expect(step(withBarrier, 80, 'Downside barrier')).toMatchObject({ how: '70% × 100 · final level 80 is not below it, so a fall does not reduce principal', muted: true })
+      expect(step(withBarrier, 80, 'Downside participation')).toMatchObject({ how: '100% × min(−20%, 0) · the final level is not below the downside barrier', value: '0%', muted: true })
       // The barrier belongs to downside participation. Upside participation adds nothing on a fall, barrier or not.
       expect(step(withBarrier, 80, 'Upside participation')).toMatchObject({ how: '100% × max(−20%, 0) · applies only when the return is positive', value: '0%', muted: true })
       expect(step(withBarrier, 80, 'Payment at maturity')?.value).toBe('1,000')
@@ -167,41 +167,41 @@ describe('calculation steps with absolute return above a barrier', () => {
   const trigger = { ...base, payoff: { participations: withSubFeatures(base.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const }, absoluteReturn: { rate: 0.5 } }) } }
 
   it('puts absolute return after the barrier and pays the gain above it', () => {
-    expect(steps(trigger, 95).map(({ title }) => title).slice(0, 4)).toEqual(['Synthetic Index return', 'Barrier', 'Absolute return', 'Downside participation'])
+    expect(steps(trigger, 95).map(({ title }) => title).slice(0, 4)).toEqual(['Synthetic Index return', 'Downside barrier', 'Absolute return', 'Downside participation'])
     expect(step(trigger, 95, 'Absolute return')).toMatchObject({ how: '50% × |−5%|', value: '+2.5%' })
     expect(step(trigger, 95, 'Payment at maturity')).toMatchObject({ value: '1,025' })
   })
 
   it('says the gain stops below the barrier', () => {
-    expect(step(trigger, 60, 'Absolute return')).toMatchObject({ how: '50% × |−40%| · the level ends below the barrier, so it pays no gain', muted: true })
-    expect(step(trigger, 110, 'Absolute return')?.how).toBe('Pays 50% of a fall that ends at or above the barrier as a gain · applies only when the return is negative')
+    expect(step(trigger, 60, 'Absolute return')).toMatchObject({ how: '50% × |−40%| · the level ends below the downside barrier, so it pays no gain', muted: true })
+    expect(step(trigger, 110, 'Absolute return')?.how).toBe('Pays 50% of a fall that ends at or above the downside barrier as a gain · applies only when the return is negative')
   })
 })
 
-describe('calculation steps with an upper barrier', () => {
+describe('calculation steps with an upside barrier', () => {
   // The worked example in docs/upside-barrier.md: 80% upside, a 130% barrier, a 2% rebate, 100% protection.
   const upsideOnly = [{ direction: 'upside' as const, rate: 0.8 }]
   const finned = (rebate?: number): SingleProduct => ({ ...noteWith(upsideOnly, 1), payoff: { participations: withSubFeatures(upsideOnly, { upsideBarrier: { level: 1.3, observation: 'final' as const, rebate } }), principalProtection: 1 } })
 
   it('puts the barrier and the rebate before the participation steps', () => {
     expect(steps(finned(0.02), 140).map(({ title }) => title)).toEqual([
-      'Synthetic Index return', 'Upper barrier', 'Rebate', 'Downside participation', 'Upside participation', 'Payment before protection', 'Protection floor', 'Payment at maturity', 'Annualised return',
+      'Synthetic Index return', 'Upside barrier', 'Rebate', 'Downside participation', 'Upside participation', 'Payment before protection', 'Protection floor', 'Payment at maturity', 'Annualised return',
     ])
     expect(steps(finned(), 140).map(({ title }) => title)).not.toContain('Rebate')
   })
 
-  it('replaces upside participation with the rebate at or above the barrier', () => {
-    expect(step(finned(0.02), 140, 'Upper barrier')).toMatchObject({ how: '130% × 100 · final level 140 is at or above it, so upside participation ends', value: '130', concept: 'barrier' })
-    expect(step(finned(0.02), 140, 'Upper barrier')?.muted).toBeFalsy()
+  it('replaces upside participation with the rebate at or above the downside barrier', () => {
+    expect(step(finned(0.02), 140, 'Upside barrier')).toMatchObject({ how: '130% × 100 · final level 140 is at or above it, so upside participation ends', value: '130', concept: 'barrier' })
+    expect(step(finned(0.02), 140, 'Upside barrier')?.muted).toBeFalsy()
     expect(step(finned(0.02), 140, 'Rebate')).toMatchObject({ how: 'Paid in place of upside participation', value: '+2%', concept: 'barrier' })
-    expect(step(finned(0.02), 140, 'Upside participation')).toMatchObject({ how: '80% × max(+40%, 0) · the upper barrier is reached, so participation ends', value: '0%', muted: true })
+    expect(step(finned(0.02), 140, 'Upside participation')).toMatchObject({ how: '80% × max(+40%, 0) · the upside barrier is reached, so participation ends', value: '0%', muted: true })
     expect(step(finned(0.02), 140, 'Payment before protection')?.value).toBe('1,020')
     expect(step(finned(0.02), 140, 'Payment at maturity')?.value).toBe('1,020')
   })
 
   it('mutes the barrier and the rebate below it, where upside participation applies', () => {
-    expect(step(finned(0.02), 120, 'Upper barrier')).toMatchObject({ how: '130% × 100 · final level 120 is below it, so upside participation applies', muted: true })
-    expect(step(finned(0.02), 120, 'Rebate')).toMatchObject({ how: 'Pays 2% in place of upside participation · the upper barrier is not reached', value: '0%', muted: true })
+    expect(step(finned(0.02), 120, 'Upside barrier')).toMatchObject({ how: '130% × 100 · final level 120 is below it, so upside participation applies', muted: true })
+    expect(step(finned(0.02), 120, 'Rebate')).toMatchObject({ how: 'Pays 2% in place of upside participation · the upside barrier is not reached', value: '0%', muted: true })
     expect(step(finned(0.02), 120, 'Upside participation')).toMatchObject({ value: '+16%' })
     expect(step(finned(0.02), 120, 'Payment at maturity')?.value).toBe('1,160')
   })

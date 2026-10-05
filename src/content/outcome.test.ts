@@ -78,8 +78,8 @@ describe('outcome explanation', () => {
 
   it('says whether the underlier ended below the barrier', () => {
     const barriered = { ...noteWith(both), payoff: { participations: withSubFeatures(both, { barrier: { level: 0.7, observation: 'final' as const } }) } }
-    expect(explain(barriered, 80)).toBe('The underlier fell 20%. It ended at or above the 70 barrier, so downside participation does not apply and principal is unchanged. The contractual payment is 1,000, the same as principal.')
-    expect(explain(barriered, 65)).toBe('The underlier fell 35%. It ended below the 70 barrier, so downside participation of 100% deducts the whole 35% from principal. There is no principal protection, so the contractual payment is 650, 350 less than principal.')
+    expect(explain(barriered, 80)).toBe('The underlier fell 20%. It ended at or above the 70 downside barrier, so downside participation does not apply and principal is unchanged. The contractual payment is 1,000, the same as principal.')
+    expect(explain(barriered, 65)).toBe('The underlier fell 35%. It ended below the 70 downside barrier, so downside participation of 100% deducts the whole 35% from principal. There is no principal protection, so the contractual payment is 650, 350 less than principal.')
   })
   it('says the move is an average when the note averages', () => {
     const averaged = { ...noteWith(both, 0.9), underlier: { ...noteWith(both).underlier, determination: { initial: { kind: 'given' as const, level: 100 }, final: { kind: 'averaging' as const, observationCount: 5 } } } }
@@ -117,31 +117,31 @@ describe('outcome with absolute return above a barrier', () => {
   const base = noteWith([{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1.25 }])
   const trigger = { ...base, payoff: { participations: withSubFeatures(base.payoff.participations, { barrier: { level: 0.7, observation: 'final' as const }, absoluteReturn: { rate: 0.5 } }) } }
 
-  it('pays a fall that ends at or above the barrier as a gain', () => {
-    expect(explain(trigger, 95)).toBe('The underlier fell 5%. It ended at or above the 70 barrier, so absolute return of 50% adds 2.5% to principal. The contractual payment is 1,025, 25 more than principal.')
+  it('pays a fall that ends at or above the downside barrier as a gain', () => {
+    expect(explain(trigger, 95)).toBe('The underlier fell 5%. It ended at or above the 70 downside barrier, so absolute return of 50% adds 2.5% to principal. The contractual payment is 1,025, 25 more than principal.')
   })
 
   it('counts the whole fall below the barrier, with no gain', () => {
-    expect(explain(trigger, 60)).toBe('The underlier fell 40%. It ended below the 70 barrier, so it pays no absolute return, and downside participation of 100% deducts the whole 40% from principal. There is no principal protection, so the contractual payment is 600, 400 less than principal.')
+    expect(explain(trigger, 60)).toBe('The underlier fell 40%. It ended below the 70 downside barrier, so it pays no absolute return, and downside participation of 100% deducts the whole 40% from principal. There is no principal protection, so the contractual payment is 600, 400 less than principal.')
   })
 })
 
-describe('outcome with an upper barrier', () => {
+describe('outcome with an upside barrier', () => {
   // The worked example in docs/upside-barrier.md: 80% upside, a 130% barrier, a 2% rebate, 100% protection.
   const upsideOnly = [{ direction: 'upside' as const, rate: 0.8 }]
   const finned = (rebate?: number): SingleProduct => ({ ...noteWith(upsideOnly, 1), payoff: { participations: withSubFeatures(upsideOnly, { upsideBarrier: { level: 1.3, observation: 'final' as const, rebate } }), principalProtection: 1 } })
 
-  it('says the rebate replaces upside participation at or above the barrier', () => {
-    expect(explain(finned(0.02), 140)).toBe('The underlier rose 40%. It ended at or above the 130 upper barrier, so upside participation ends and a rebate of 2% is added to principal. The 1,000 floor does not apply, so the contractual payment is 1,020, 20 more than principal.')
-    expect(explain(finned(0.02), 130)).toContain('It ended at or above the 130 upper barrier')
+  it('says the rebate replaces upside participation at or above the downside barrier', () => {
+    expect(explain(finned(0.02), 140)).toBe('The underlier rose 40%. It ended at or above the 130 upside barrier, so upside participation ends and a rebate of 2% is added to principal. The 1,000 floor does not apply, so the contractual payment is 1,020, 20 more than principal.')
+    expect(explain(finned(0.02), 130)).toContain('It ended at or above the 130 upside barrier')
   })
 
-  it('says principal is unchanged at or above the barrier when there is no rebate', () => {
+  it('says principal is unchanged at or above the downside barrier when there is no rebate', () => {
     expect(explain(finned(), 140)).toContain('so upside participation ends and principal is unchanged.')
   })
 
   it('says the underlier ended below the barrier, so participation applies', () => {
-    expect(explain(finned(0.02), 120)).toBe('The underlier rose 20%. It ended below the 130 upper barrier, so upside participation of 80% adds 16% to principal. The 1,000 floor does not apply, so the contractual payment is 1,160, 160 more than principal.')
+    expect(explain(finned(0.02), 120)).toBe('The underlier rose 20%. It ended below the 130 upside barrier, so upside participation of 80% adds 16% to principal. The 1,000 floor does not apply, so the contractual payment is 1,160, 160 more than principal.')
   })
 
   it('leaves a flat return and a fall to the usual sentences', () => {

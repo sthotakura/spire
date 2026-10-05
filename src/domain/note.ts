@@ -160,7 +160,7 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
     ? { direction: 'downside', buffer, barrier, absoluteReturn, rate: participation.rate }
     : { direction: 'upside', barrier: upsideBarrier, rate: participation.rate, cap })
 
-export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upperBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn'
+export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn'
 
 // A barrier as an underlier level: its fraction of the level the return is measured from. Rounded to nine decimals, because
 // 1.1 × 100 is 110.00000000000001 in floating point, which would stop a final level of 110 from reaching a barrier at 110%.
@@ -243,14 +243,14 @@ export function productIssues(note: Product): ProductIssue[] {
   if (buffer !== undefined && (!Number.isFinite(buffer) || buffer <= 0 || buffer > 1)) issues.push({ field: 'buffer', message: 'Buffer must be greater than 0% and at most 100%.' })
   const barrier = downsideOf(note)?.barrier
   // A barrier at 100% would switch downside participation on for any fall, which is downside participation without one.
-  if (barrier !== undefined && (!Number.isFinite(barrier.level) || barrier.level <= 0 || barrier.level >= 1)) issues.push({ field: 'barrier', message: 'Barrier must be greater than 0% and less than 100% of the initial level.' })
+  if (barrier !== undefined && (!Number.isFinite(barrier.level) || barrier.level <= 0 || barrier.level >= 1)) issues.push({ field: 'barrier', message: 'Downside barrier must be greater than 0% and less than 100% of the initial level.' })
   // No public note combining the two was verified, so they are not combined.
-  if (barrier !== undefined && buffer !== undefined) issues.push({ field: 'barrier', message: 'A barrier and a buffer cannot both apply to downside participation.' })
+  if (barrier !== undefined && buffer !== undefined) issues.push({ field: 'barrier', message: 'A downside barrier and a buffer cannot both apply to downside participation.' })
   const absoluteReturn = downsideOf(note)?.absoluteReturn
   if (absoluteReturn !== undefined) {
     if (!Number.isFinite(absoluteReturn.rate) || absoluteReturn.rate <= 0) issues.push({ field: 'absoluteReturn', message: 'Absolute return must be greater than zero.' })
     // Without a buffer or a barrier, downside participation reaches every fall, so no fall is left to pay as a gain.
-    if (buffer === undefined && barrier === undefined) issues.push({ field: 'absoluteReturn', message: 'Absolute return needs a buffer or a barrier.' })
+    if (buffer === undefined && barrier === undefined) issues.push({ field: 'absoluteReturn', message: 'Absolute return needs a buffer or a downside barrier.' })
   }
   for (const participation of note.payoff.participations) {
     if (!Number.isFinite(participation.rate) || participation.rate <= 0) issues.push({ field: 'participations', message: `${participation.direction === 'upside' ? 'Upside' : 'Downside'} participation must be greater than zero.` })
@@ -263,10 +263,10 @@ export function productIssues(note: Product): ProductIssue[] {
   const upsideBarrier = upsideOf(note)?.barrier
   if (upsideBarrier !== undefined) {
     // 200% is the edge of the chart's horizontal axis, a rise of 100%.
-    if (!Number.isFinite(upsideBarrier.level) || upsideBarrier.level <= 1 || upsideBarrier.level > 2) issues.push({ field: 'upperBarrier', message: 'Barrier on upside participation must be greater than 100% and at most 200% of the initial level.' })
-    if (upsideBarrier.rebate !== undefined && (!Number.isFinite(upsideBarrier.rebate) || upsideBarrier.rebate <= 0)) issues.push({ field: 'upperBarrier', message: 'Rebate must be greater than zero.' })
+    if (!Number.isFinite(upsideBarrier.level) || upsideBarrier.level <= 1 || upsideBarrier.level > 2) issues.push({ field: 'upsideBarrier', message: 'Upside barrier must be greater than 100% and at most 200% of the initial level.' })
+    if (upsideBarrier.rebate !== undefined && (!Number.isFinite(upsideBarrier.rebate) || upsideBarrier.rebate <= 0)) issues.push({ field: 'upsideBarrier', message: 'Rebate must be greater than zero.' })
     // No public note combining the two was verified, so they are not combined.
-    if (cap !== undefined) issues.push({ field: 'upperBarrier', message: 'A barrier and a cap cannot both apply to upside participation.' })
+    if (cap !== undefined) issues.push({ field: 'upsideBarrier', message: 'An upside barrier and a cap cannot both apply to upside participation.' })
   }
   // A deposit is repaid in full, so nothing may take the payment below principal, and principal needs no protection term.
   if (note.wrapper === 'deposit' && downsideOf(note)) issues.push({ field: 'participations', message: 'A deposit repays principal in full, so it cannot have downside participation.' })
@@ -408,7 +408,7 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
   const absoluteReturn = downsideOf(note)?.absoluteReturn
   const absoluteReturnApplies = absoluteReturn === undefined ? undefined
     : direction === 'downside' && (buffer !== undefined ? levels.final >= levels.initial * (1 - buffer) : belowBarrier === false)
-  // The upper barrier is above the initial level, so reaching it means a rise: the downside features above cannot also apply.
+  // The upside barrier is above the initial level, so reaching it means a rise: the downside features above cannot also apply.
   const upsideBarrier = upsideOf(note)?.barrier
   const upsideBarrierLevel = upsideBarrier === undefined ? undefined : barrierLevelAt(upsideBarrier.level, levels.initial)
   const upsideBarrierReached = upsideBarrierLevel === undefined ? undefined : levels.final >= upsideBarrierLevel

@@ -105,7 +105,7 @@ describe('structure JSON with absolute return', () => {
   })
 })
 
-describe('structure lines with an upper barrier', () => {
+describe('structure lines with an upside barrier', () => {
   const finned: SingleProduct = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { upsideBarrier: { level: 1.3, observation: 'final' as const, rebate: 0.02 } }) } }
 
   it('tags the barrier and its terms with the barrier concept, before the rate', () => {

@@ -48,10 +48,11 @@ export function paymentFormula(note: Product): FormulaLine[] {
   } else lines.push({ lead: 'Return', segments: [{ text: `Final level ÷ ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level − 1`, concept: 'determination' }] })
   lines.push({ lead: 'Payment', segments: payment })
   // The barrier decides whether the downside term counts at all, so it qualifies the payment rather than changing the term.
-  const barrierTest = basket ? 'Basket level < Barrier × 100' : `Final level < Barrier × ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level`
-  // The same test on upside participation switches it off at or above the barrier, where the rebate, if there is one, is paid.
+  const barrierTestFor = (name: string) => basket ? `Basket level < ${name} × 100` : `Final level < ${name} × ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level`
+  const barrierTest = barrierTestFor('Downside barrier')
+  // The same test on upside participation switches it off at or above the upside barrier, where the rebate, if there is one, is paid.
   if (upsideBarrier !== undefined) {
-    lines.push({ segments: [{ text: 'upside only when ' }, { text: barrierTest, concept: 'barrier' }, ...(upsideBarrier.rebate !== undefined ? [{ text: ', otherwise ' }, { text: 'Principal × (1 + Rebate)', concept: 'barrier' as const }] : [])] })
+    lines.push({ segments: [{ text: 'upside only when ' }, { text: barrierTestFor('Upside barrier'), concept: 'barrier' }, ...(upsideBarrier.rebate !== undefined ? [{ text: ', otherwise ' }, { text: 'Principal × (1 + Rebate)', concept: 'barrier' as const }] : [])] })
   }
   if (barrier !== undefined) lines.push({ segments: [{ text: 'downside only when ' }, { text: barrierTest, concept: 'barrier' }] })
   // Absolute return replaces the payment for a fall downside participation does not reach, so it qualifies the payment as the
@@ -113,9 +114,9 @@ export function paymentInWords(note: Product): string {
   const larger = !gain ? '' : buffer !== undefined
     ? ` A larger fall pays no gain, and each 1% beyond the first ${percent(buffer)} takes ${perPoint(downside!.rate)} of principal away.`
     : ` A larger fall pays no gain, and each 1% of the whole fall takes ${perPoint(downside!.rate)} of principal away.`
-  // At or above the upper barrier a rise adds the rebate in place of the participation.
-  const atUpperBarrier = upsideBarrier === undefined ? ''
-    : ` At or above that level, a rise adds ${upsideBarrier.rebate === undefined ? 'nothing' : `only a fixed ${percent(upsideBarrier.rebate)} of principal`}.`
+  // At or above the upside barrier a rise adds the rebate in place of the participation.
+  const atUpsideBarrier = upsideBarrier === undefined ? ''
+    : ` At or above ${percent(upsideBarrier.level)} of its ${from} level, a rise adds ${upsideBarrier.rebate === undefined ? 'nothing' : `only a fixed ${percent(upsideBarrier.rebate)} of principal`}.`
   // With a minimum return a fall pays the minimum, which the limits below state.
   const unchanged = !upside ? ' A rise leaves principal unchanged.' : !downside && minimum === undefined ? ' A fall leaves principal unchanged.' : ''
 
@@ -127,5 +128,5 @@ export function paymentInWords(note: Product): string {
     : ceiling ? ` The payment never goes above ${ceiling}.`
       : floor ? ` The payment never goes below ${floor}.` : ''
 
-  return `${moves[0].toUpperCase()}${moves.slice(1)}.${larger}${atUpperBarrier}${unchanged}${limits}`
+  return `${moves[0].toUpperCase()}${moves.slice(1)}.${larger}${atUpsideBarrier}${unchanged}${limits}`
 }

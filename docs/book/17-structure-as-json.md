@@ -38,7 +38,7 @@ The cap belongs to upside participation and the buffer to downside
 participation. Determination belongs to the underlier because it specifies
 how the return is measured.
 
-Other sub-features nest the same way. An upper barrier and its rebate belong
+Other sub-features nest the same way. An upside barrier and its rebate belong
 to upside participation, and the barrier is listed before the rate because the
 payment checks it first:
 

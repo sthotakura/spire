@@ -63,7 +63,7 @@ describe('payment formula', () => {
     expect(text(barriered)).toEqual([
       'Return = Final level ÷ Initial level − 1',
       'Payment = Principal × (1 + Upside × max(Return, 0) + Downside × min(Return, 0))',
-      'downside only when Final level < Barrier × Initial level',
+      'downside only when Final level < Downside barrier × Initial level',
       'floored at 0',
     ])
     expect(paymentFormula(barriered)[2].segments.find(({ concept }) => concept)?.concept).toBe('barrier')
@@ -133,10 +133,10 @@ describe('payment rule with absolute return', () => {
 describe('payment rule with absolute return above a barrier', () => {
   const trigger: Product = { ...startingProduct, payoff: { participations: withSubFeatures([down, { direction: 'upside', rate: 1.25 }], { barrier: { level: 0.7, observation: 'final' as const }, absoluteReturn: { rate: 0.5 } }) } }
 
-  it('pays a fall that ends at or above the barrier as a gain', () => {
+  it('pays a fall that ends at or above the downside barrier as a gain', () => {
     expect(text(trigger).slice(2)).toEqual([
-      'downside only when Final level < Barrier × Initial level',
-      'but Principal × (1 + Absolute × |Return|) when Final level ≥ Barrier × Initial level and Return < 0',
+      'downside only when Final level < Downside barrier × Initial level',
+      'but Principal × (1 + Absolute × |Return|) when Final level ≥ Downside barrier × Initial level and Return < 0',
       'floored at 0',
     ])
   })
@@ -146,24 +146,24 @@ describe('payment rule with absolute return above a barrier', () => {
   })
 })
 
-describe('payment rule with an upper barrier', () => {
+describe('payment rule with an upside barrier', () => {
   const finned = (rebate?: number): Product => ({ ...startingProduct, payoff: { participations: withSubFeatures([up], { upsideBarrier: { level: 1.3, observation: 'final' as const, rebate } }) } })
 
   it('says upside participation counts only below the barrier, and what is paid otherwise', () => {
     expect(text(finned(0.02))).toEqual([
       'Return = Final level ÷ Initial level − 1',
       'Payment = Principal × (1 + Upside × max(Return, 0))',
-      'upside only when Final level < Barrier × Initial level, otherwise Principal × (1 + Rebate)',
+      'upside only when Final level < Upside barrier × Initial level, otherwise Principal × (1 + Rebate)',
     ])
     expect(paymentFormula(finned(0.02))[2].segments.flatMap(({ concept }) => concept ?? [])).toEqual(['barrier', 'barrier'])
   })
 
   it('states no rebate when there is none', () => {
-    expect(text(finned()).slice(2)).toEqual(['upside only when Final level < Barrier × Initial level'])
+    expect(text(finned()).slice(2)).toEqual(['upside only when Final level < Upside barrier × Initial level'])
   })
 
   it('says it in words, with the rebate', () => {
-    expect(paymentInWords(finned(0.02))).toBe('Each 1% rise in Synthetic Index adds 1% of principal, but only if Synthetic Index ends below 130% of its initial level. At or above that level, a rise adds only a fixed 2% of principal. A fall leaves principal unchanged.')
-    expect(paymentInWords(finned())).toContain('At or above that level, a rise adds nothing.')
+    expect(paymentInWords(finned(0.02))).toBe('Each 1% rise in Synthetic Index adds 1% of principal, but only if Synthetic Index ends below 130% of its initial level. At or above 130% of its initial level, a rise adds only a fixed 2% of principal. A fall leaves principal unchanged.')
+    expect(paymentInWords(finned())).toContain('At or above 130% of its initial level, a rise adds nothing.')
   })
 })

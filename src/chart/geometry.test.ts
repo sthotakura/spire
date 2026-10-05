@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, minimumReturnFromY, clampProtection, clampUpperBarrier, clampUpsideRate, finalLevelFromX, jumpLevelsOf, keyDelta, leaderStart, levelToX, placeLabels, regimeRuns, returnTicks, wrapWords, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upperBarrierFromX, upsideRateFromY, xToLevel, yToAmount } from './geometry'
+import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, minimumReturnFromY, clampProtection, clampUpsideBarrier, clampUpsideRate, finalLevelFromX, jumpLevelsOf, keyDelta, leaderStart, levelToX, placeLabels, regimeRuns, returnTicks, wrapWords, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideBarrierFromX, upsideRateFromY, xToLevel, yToAmount } from './geometry'
 import { paymentBreakdown, withSubFeatures, type Product } from '../domain/note'
 import { startingProduct } from '../domain/starting-note'
 
@@ -227,12 +227,12 @@ describe('payoff regimes', () => {
     expect(paymentBreakdown(dualDirectional, { initial: 100, final: edge * (1 - 1e-9) }).absoluteReturnApplies).toBe(false)
   })
 
-  describe('with an upper barrier', () => {
+  describe('with an upside barrier', () => {
     const finned: Product = { ...startingProduct, payoff: { participations: [{ direction: 'upside', barrier: { level: 1.3, observation: 'final', rebate: 0.02 }, rate: 0.8 }], principalProtection: 1 } }
 
-    it('names the upper barrier where it sets the rebate, and upside participation below it', () => {
-      expect(regimeAt(finned, 140)).toBe('upper-barrier')
-      expect(regimeAt(finned, 130)).toBe('upper-barrier')
+    it('names the upside barrier where it sets the rebate, and upside participation below it', () => {
+      expect(regimeAt(finned, 140)).toBe('upside-barrier')
+      expect(regimeAt(finned, 130)).toBe('upside-barrier')
       expect(regimeAt(finned, 129)).toBe('upside')
       expect(regimeAt(finned, 100)).toBe('upside')
     })
@@ -246,23 +246,23 @@ describe('payoff regimes', () => {
       expect(regimeAt(deposit, 140)).toBe('floor')
     })
 
-    it('finds the upper barrier as a jump level, along with a barrier on downside participation', () => {
+    it('finds the upside barrier as a jump level, along with a barrier on downside participation', () => {
       expect(jumpLevelsOf(finned, 100)).toEqual([130])
       expect(jumpLevelsOf(finned, 80)).toEqual([104])
       const both: Product = { ...finned, payoff: { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }, ...finned.payoff.participations] } }
       expect(jumpLevelsOf(both, 100)).toEqual([70, 130])
-      // The level is where the payment computes it, so a barrier at 110% is reached at 110 and not just below it.
+      // The level is where the payment computes it, so a downside barrier at 110% is reached at 110 and not just below it.
       const [edge] = jumpLevelsOf({ ...finned, payoff: { participations: [{ direction: 'upside', barrier: { level: 1.1, observation: 'final' }, rate: 1 }] } }, 100)
       expect(edge).toBe(110)
     })
 
     it('sets the barrier from the position as a percentage of the level the return is measured from, limited to 101% to 200%', () => {
-      expect(upperBarrierFromX(levelToX(130, 100, plot), 100, plot, 100)).toBe(130)
-      expect(upperBarrierFromX(levelToX(104, 100, plot), 100, plot, 80)).toBe(130) // a lookback level of 80
-      expect(upperBarrierFromX(plot.left - 30, 100, plot, 100)).toBe(101)
-      expect(upperBarrierFromX(plot.right + 30, 100, plot, 100)).toBe(200)
-      expect(clampUpperBarrier(100)).toBe(101)
-      expect(clampUpperBarrier(250)).toBe(200)
+      expect(upsideBarrierFromX(levelToX(130, 100, plot), 100, plot, 100)).toBe(130)
+      expect(upsideBarrierFromX(levelToX(104, 100, plot), 100, plot, 80)).toBe(130) // a lookback level of 80
+      expect(upsideBarrierFromX(plot.left - 30, 100, plot, 100)).toBe(101)
+      expect(upsideBarrierFromX(plot.right + 30, 100, plot, 100)).toBe(200)
+      expect(clampUpsideBarrier(100)).toBe(101)
+      expect(clampUpsideBarrier(250)).toBe(200)
     })
 
     it('keeps the slope handle below half the rise to the barrier, so the barrier does not pin it', () => {

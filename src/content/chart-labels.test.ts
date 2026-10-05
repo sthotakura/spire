@@ -73,29 +73,29 @@ describe('payoff chart labels with absolute return above a barrier', () => {
   })
 })
 
-describe('payoff chart labels with an upper barrier', () => {
+describe('payoff chart labels with an upside barrier', () => {
   const finned = (rebate?: number): Product => ({ ...startingProduct, payoff: { participations: withSubFeatures([{ direction: 'upside', rate: 0.8 }], { upsideBarrier: { level: 1.3, observation: 'final' as const, rebate } }), principalProtection: 1 } })
 
   it('says where the slope ends and what is paid from the barrier on', () => {
     expect(payoffLabels(finned(0.02))).toMatchObject({
       upside: 'Each 1% rise up to +30% adds 0.8%',
-      'upper-barrier': 'From +30% it pays a fixed 1,020',
+      'upside-barrier': 'From +30% it pays a fixed 1,020',
       protection: 'Never below 1,000',
     })
   })
 
   it('says a rise adds nothing from the barrier on when there is no rebate', () => {
-    expect(payoffLabels(finned())['upper-barrier']).toBe('From +30% a rise adds nothing')
+    expect(payoffLabels(finned())['upside-barrier']).toBe('From +30% a rise adds nothing')
   })
 
-  it('gives no upper barrier label without one', () => {
-    expect(payoffLabels(startingProduct)['upper-barrier']).toBeUndefined()
+  it('gives no upside barrier label without one', () => {
+    expect(payoffLabels(startingProduct)['upside-barrier']).toBeUndefined()
   })
 
-  it('keeps the labels of a barrier on downside participation and an upper barrier apart', () => {
+  it('keeps the labels of a barrier on downside participation and an upside barrier apart', () => {
     const both: Product = { ...startingProduct, payoff: { participations: withSubFeatures([{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 0.8 }], { barrier: { level: 0.7, observation: 'final' as const }, upsideBarrier: { level: 1.3, observation: 'final' as const } }) } }
     const labels = payoffLabels(both)
     expect(labels.barrier).toBe('A fall of up to 30% repays principal')
-    expect(labels['upper-barrier']).toBe('From +30% a rise adds nothing')
+    expect(labels['upside-barrier']).toBe('From +30% a rise adds nothing')
   })
 })
