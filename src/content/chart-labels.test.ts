@@ -76,16 +76,16 @@ describe('payoff chart labels with absolute return above a barrier', () => {
 describe('payoff chart labels with an upside barrier', () => {
   const finned = (rebate?: number): Product => ({ ...startingProduct, payoff: { participations: withSubFeatures([{ direction: 'upside', rate: 0.8 }], { upsideBarrier: { level: 1.3, observation: 'final' as const, rebate } }), principalProtection: 1 } })
 
-  it('says where the slope ends and what is paid from the barrier on', () => {
+  it('says where the slope ends and what is paid above the barrier', () => {
     expect(payoffLabels(finned(0.02))).toMatchObject({
       upside: 'Each 1% rise up to +30% adds 0.8%',
-      'upside-barrier': 'From +30% it pays a fixed 1,020',
+      'upside-barrier': 'Above +30% it pays a fixed 1,020',
       protection: 'Never below 1,000',
     })
   })
 
-  it('says a rise adds nothing from the barrier on when there is no rebate', () => {
-    expect(payoffLabels(finned())['upside-barrier']).toBe('From +30% a rise adds nothing')
+  it('says a rise adds nothing above the barrier when there is no rebate', () => {
+    expect(payoffLabels(finned())['upside-barrier']).toBe('Above +30% a rise adds nothing')
   })
 
   it('gives no upside barrier label without one', () => {
@@ -96,7 +96,7 @@ describe('payoff chart labels with an upside barrier', () => {
     const both: Product = { ...startingProduct, payoff: { participations: withSubFeatures([{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 0.8 }], { barrier: { level: 0.7, observation: 'final' as const }, upsideBarrier: { level: 1.3, observation: 'final' as const } }) } }
     const labels = payoffLabels(both)
     expect(labels.barrier).toBe('A fall of up to 30% repays principal')
-    expect(labels['upside-barrier']).toBe('From +30% a rise adds nothing')
+    expect(labels['upside-barrier']).toBe('Above +30% a rise adds nothing')
   })
 })
 
@@ -109,8 +109,8 @@ describe('payoff chart labels with barriers observed on every close', () => {
 
   it('labels the other path of an upside barrier with the rebate, even after a fall', () => {
     const finned = (rebate?: number): Product => ({ ...startingProduct, payoff: { participations: withSubFeatures([{ direction: 'upside', rate: 0.8 }], { upsideBarrier: { level: 1.3, observation: 'daily-close' as const, rebate } }), principalProtection: 1 } })
-    expect(payoffLabels(finned(0.02)).breach).toBe('If a close reached +30%, it pays a fixed 1,020, even after a fall')
-    expect(payoffLabels(finned()).breach).toBe('If a close reached +30%, it adds nothing, even after a fall')
+    expect(payoffLabels(finned(0.02)).breach).toBe('If a close went above +30%, it pays a fixed 1,020, even after a fall')
+    expect(payoffLabels(finned()).breach).toBe('If a close went above +30%, it adds nothing, even after a fall')
   })
 
   it('adds no label for the other path to a barrier observed on the final date', () => {

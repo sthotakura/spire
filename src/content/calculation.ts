@@ -29,7 +29,7 @@ function participationStep(note: Product, breakdown: PaymentBreakdown, direction
     return { title, how, value: 'Not added', muted: true, concept: direction }
   }
   // A fall paid as a gain is absolute return's contribution, not downside participation's.
-  // At or above the upside barrier the rebate replaces upside participation, and its own step carries it.
+  // Above the upside barrier the rebate replaces upside participation, and its own step carries it.
   const knockedOut = direction === 'upside' && breakdown.upsideBarrierReached === true
   const contribution = direction === breakdown.direction && !breakdown.absoluteReturnApplies && !knockedOut ? breakdown.participatedReturn : 0
   const buffer = direction === 'downside' ? downsideOf(note)?.buffer : undefined
@@ -72,11 +72,11 @@ function barrierStep(level: number, breakdown: PaymentBreakdown, finalName: stri
   return { title: 'Downside barrier', how, value: formatAmount(barrierLevel), muted: !breakdown.barrierReached, concept: 'barrier' }
 }
 
-// Whether the final level, or for a barrier observed daily the highest close, has reached the upside barrier. At or above it, upside participation ends and the rebate, if there is one, is paid.
+// Whether the final level, or for a barrier observed daily the highest close, has gone above the upside barrier. Above it, upside participation ends and the rebate, if there is one, is paid. At the barrier it still applies.
 function upsideBarrierStep(level: number, breakdown: PaymentBreakdown, finalName: string, finalLevel: number): Omit<CalculationStep, 'n'> {
   const reached = breakdown.upsideBarrierReached === true
   const [observedName, observedLevel] = breakdown.highestClose === undefined ? [finalName, finalLevel] : ['highest close', breakdown.highestClose]
-  const how = `${formatPercent(level)} × ${formatAmount(breakdown.initialLevel)} · ${observedName} ${formatAmount(observedLevel)} is ${reached ? 'at or above it, so upside participation ends' : 'below it, so upside participation applies'}`
+  const how = `${formatPercent(level)} × ${formatAmount(breakdown.initialLevel)} · ${observedName} ${formatAmount(observedLevel)} is ${reached ? 'above it, so upside participation ends' : 'at or below it, so upside participation applies'}`
   return { title: 'Upside barrier', how, value: formatAmount(breakdown.upsideBarrierLevel ?? 0), muted: !reached, concept: 'barrier' }
 }
 

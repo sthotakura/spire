@@ -102,25 +102,38 @@ describe('scenario rows with absolute return', () => {
 describe('scenario rows with an upside barrier', () => {
   const finned = (level: number) => withFeatures([{ direction: 'upside', barrier: { level, observation: 'final', rebate: 0.02 }, rate: 0.8 }], 1)
 
-  it('replace the fixed row at the barrier level, and mark it', () => {
+  it('replace the fixed row at the barrier level, which still takes part in the rise, and add a row above it', () => {
     const rows = scenarioRows(finned(1.3), 100)
-    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 110, 130])
-    expect(rows.map(({ atBarrier }) => atBarrier)).toEqual([false, false, false, true])
-    expect(rows[3].breakdown).toMatchObject({ upsideBarrierReached: true, payment: 1020 })
+    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 110, 130, 135])
+    expect(rows.map(({ atBarrier }) => atBarrier)).toEqual([false, false, false, true, false])
+    expect(rows.map(({ aboveBarrier }) => aboveBarrier)).toEqual([false, false, false, false, true])
+    expect(rows[3].breakdown.upsideBarrierReached).toBe(false)
+    expect(rows[3].breakdown.payment).toBeCloseTo(1240, 8)
+    expect(rows[4].breakdown).toMatchObject({ upsideBarrierReached: true, payment: 1020 })
     expect(rows[2].breakdown.upsideBarrierReached).toBe(false)
   })
 
-  it('add a row in order when the barrier is above every fixed row', () => {
+  it('add the rows in order when the barrier is above every fixed row', () => {
     const rows = scenarioRows(finned(1.5), 100)
-    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 110, 130, 150])
-    expect(rows.map(({ atBarrier }) => atBarrier)).toEqual([false, false, false, false, true])
-    expect(rows[4].breakdown.payment).toBe(1020)
+    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 110, 130, 150, 155])
+    expect(rows.map(({ atBarrier }) => atBarrier)).toEqual([false, false, false, false, true, false])
+    expect(rows[4].breakdown.payment).toBeCloseTo(1400, 8)
+    expect(rows[5].breakdown.payment).toBe(1020)
   })
 
-  it('measure the barrier row from the initial level it is given, such as a lookback level', () => {
+  it('let the row above the barrier replace a fixed row at the same level', () => {
+    // A barrier at 105% puts the row above it at 110, where the fixed +10% row would be.
+    const rows = scenarioRows(finned(1.05), 100)
+    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 105, 110, 130])
+    expect(rows.map(({ aboveBarrier }) => aboveBarrier)).toEqual([false, false, false, true, false])
+  })
+
+  it('measure the barrier rows from the initial level it is given, such as a lookback level', () => {
     const rows = scenarioRows(finned(1.3), 80)
     expect(rows[3].finalLevel).toBe(rows[3].breakdown.upsideBarrierLevel)
-    expect(rows[3].breakdown.upsideBarrierReached).toBe(true)
+    expect(rows[3].breakdown.upsideBarrierReached).toBe(false)
+    expect(rows[4].finalLevel).toBeCloseTo(108, 8)
+    expect(rows[4].breakdown.upsideBarrierReached).toBe(true)
   })
 })
 
@@ -136,11 +149,11 @@ describe('scenario rows with barriers observed on every close', () => {
 
   it('add a row where an upside barrier was reached and the underlier then fell back', () => {
     const rows = scenarioRows(withFeatures([{ direction: 'upside', barrier: { level: 1.3, observation: 'daily-close', rebate: 0.02 }, rate: 0.8 }], 1), 100)
-    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 110, 115, 130])
-    expect(rows.map(({ afterBreach }) => afterBreach)).toEqual([false, false, false, true, false])
+    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 110, 115, 130, 135])
+    expect(rows.map(({ afterBreach }) => afterBreach)).toEqual([false, false, false, true, false, false])
     expect(rows[3].breakdown.highestClose).toBeCloseTo(135, 8)
-    expect(rows.map(({ breakdown }) => breakdown.upsideBarrierReached)).toEqual([false, false, false, true, true])
-    expect(rows.map(({ breakdown }) => Math.round(breakdown.payment))).toEqual([1000, 1000, 1080, 1020, 1020])
+    expect(rows.map(({ breakdown }) => breakdown.upsideBarrierReached)).toEqual([false, false, false, true, false, true])
+    expect(rows.map(({ breakdown }) => Math.round(breakdown.payment))).toEqual([1000, 1000, 1080, 1020, 1240, 1020])
   })
 
   it('add no such row for a barrier observed on the final date', () => {

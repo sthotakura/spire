@@ -49,11 +49,11 @@ export function paymentFormula(note: Product): FormulaLine[] {
   lines.push({ lead: 'Payment', segments: payment })
   // The barrier decides whether the downside term counts at all, so it qualifies the payment rather than changing the term.
   // A barrier observed on every close reads the lowest close (downside) or the highest (upside) instead of the final level.
-  const barrierTestFor = (name: string, observed = 'Final level') => basket ? `Basket level < ${name} × 100` : `${observed} < ${name} × ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level`
+  const barrierTestFor = (name: string, observed = 'Final level', operator = '<') => basket ? `Basket level ${operator} ${name} × 100` : `${observed} ${operator} ${name} × ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level`
   const barrierTest = barrierTestFor('Downside barrier', barrier?.observation === 'daily-close' ? 'Lowest close' : 'Final level')
-  // The same test on upside participation switches it off at or above the upside barrier, where the rebate, if there is one, is paid.
+  // The same test on upside participation, with the level at the barrier counted as not reaching it, switches it off above the upside barrier, where the rebate, if there is one, is paid.
   if (upsideBarrier !== undefined) {
-    lines.push({ segments: [{ text: 'upside only when ' }, { text: barrierTestFor('Upside barrier', upsideBarrier.observation === 'daily-close' ? 'Highest close' : 'Final level'), concept: 'barrier' }, ...(upsideBarrier.rebate !== undefined ? [{ text: ', otherwise ' }, { text: 'Principal × (1 + Rebate)', concept: 'barrier' as const }] : [])] })
+    lines.push({ segments: [{ text: 'upside only when ' }, { text: barrierTestFor('Upside barrier', upsideBarrier.observation === 'daily-close' ? 'Highest close' : 'Final level', '≤'), concept: 'barrier' }, ...(upsideBarrier.rebate !== undefined ? [{ text: ', otherwise ' }, { text: 'Principal × (1 + Rebate)', concept: 'barrier' as const }] : [])] })
   }
   if (barrier !== undefined) lines.push({ segments: [{ text: 'downside only when ' }, { text: barrierTest, concept: 'barrier' }] })
   // Absolute return replaces the payment for a fall downside participation does not reach, so it qualifies the payment as the
@@ -102,8 +102,8 @@ export function paymentInWords(note: Product): string {
   }
 
   const riseOnlyBelow = upsideBarrier === undefined ? ''
-    : upsideBarrier.observation === 'daily-close' ? `, but only if ${name} never closes at or above ${percent(upsideBarrier.level)} of its ${from} level`
-    : `, but only if ${name} ends below ${percent(upsideBarrier.level)} of its ${from} level`
+    : upsideBarrier.observation === 'daily-close' ? `, but only if ${name} never closes above ${percent(upsideBarrier.level)} of its ${from} level`
+    : `, but only if ${name} ends at or below ${percent(upsideBarrier.level)} of its ${from} level`
   const rise = upside && `each 1% rise in ${name} adds ${perPoint(upside.rate)} of principal${riseOnlyBelow}`
   const beyond = buffer === undefined ? '' : ` beyond the first ${percent(buffer)}`
   const fall = downside && (upside ? `each 1% fall${beyond} takes ${perPoint(downside.rate)} away` : `each 1% fall in ${name}${beyond} takes ${perPoint(downside.rate)} of principal away`)
@@ -119,11 +119,11 @@ export function paymentInWords(note: Product): string {
   const larger = !gain ? '' : buffer !== undefined
     ? ` A larger fall pays no gain, and each 1% beyond the first ${percent(buffer)} takes ${perPoint(downside!.rate)} of principal away.`
     : ` A larger fall pays no gain, and each 1% of the whole fall takes ${perPoint(downside!.rate)} of principal away.`
-  // At or above the upside barrier a rise adds the rebate in place of the participation.
+  // Above the upside barrier a rise adds the rebate in place of the participation.
   const rebateInWords = (rebate: number | undefined) => rebate === undefined ? 'nothing' : `only a fixed ${percent(rebate)} of principal`
   const atUpsideBarrier = upsideBarrier === undefined ? ''
-    : upsideBarrier.observation === 'daily-close' ? ` If ${name} closes at or above ${percent(upsideBarrier.level)} of its ${from} level on any day, upside participation ends and the payment adds ${rebateInWords(upsideBarrier.rebate)}, whatever the final level.`
-    : ` At or above ${percent(upsideBarrier.level)} of its ${from} level, a rise adds ${upsideBarrier.rebate === undefined ? 'nothing' : `only a fixed ${percent(upsideBarrier.rebate)} of principal`}.`
+    : upsideBarrier.observation === 'daily-close' ? ` If ${name} closes above ${percent(upsideBarrier.level)} of its ${from} level on any day, upside participation ends and the payment adds ${rebateInWords(upsideBarrier.rebate)}, whatever the final level.`
+    : ` Above ${percent(upsideBarrier.level)} of its ${from} level, a rise adds ${upsideBarrier.rebate === undefined ? 'nothing' : `only a fixed ${percent(upsideBarrier.rebate)} of principal`}.`
   // With a minimum return a fall pays the minimum, which the limits below state.
   const unchanged = !upside ? ' A rise leaves principal unchanged.' : !downside && minimum === undefined ? ' A fall leaves principal unchanged.' : ''
 

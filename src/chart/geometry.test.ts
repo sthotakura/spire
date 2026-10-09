@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, minimumReturnFromY, clampProtection, clampUpsideBarrier, clampUpsideRate, differingRuns, finalLevelFromX, jumpLevelsOf, keyDelta, leaderStart, levelToX, placeLabels, regimeRuns, returnTicks, wrapWords, protectionFromY, reachedPayment, regimeOf, slopeLevel, splitByRegime, type Plot, upsideBarrierFromX, upsideRateFromY, xToLevel, yToAmount } from './geometry'
+import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, minimumReturnFromY, clampProtection, clampUpsideBarrier, clampUpsideRate, differingRuns, finalLevelFromX, jumpLevelsOf, jumpsOf, keyDelta, leaderStart, levelToX, placeLabels, regimeRuns, returnTicks, wrapWords, protectionFromY, reachedPayment, regimeOf, slopeLevel, splitByRegime, type Plot, upsideBarrierFromX, upsideRateFromY, xToLevel, yToAmount } from './geometry'
 import { maturityPayment, paymentBreakdown, withSubFeatures, type Product } from '../domain/note'
 import { startingProduct } from '../domain/starting-note'
 
@@ -230,9 +230,10 @@ describe('payoff regimes', () => {
   describe('with an upside barrier', () => {
     const finned: Product = { ...startingProduct, payoff: { participations: [{ direction: 'upside', barrier: { level: 1.3, observation: 'final', rebate: 0.02 }, rate: 0.8 }], principalProtection: 1 } }
 
-    it('names the upside barrier where it sets the rebate, and upside participation below it', () => {
+    it('names the upside barrier where it sets the rebate, and upside participation up to and at it', () => {
       expect(regimeAt(finned, 140)).toBe('upside-barrier')
-      expect(regimeAt(finned, 130)).toBe('upside-barrier')
+      expect(regimeAt(finned, 130.01)).toBe('upside-barrier')
+      expect(regimeAt(finned, 130)).toBe('upside')
       expect(regimeAt(finned, 129)).toBe('upside')
       expect(regimeAt(finned, 100)).toBe('upside')
     })
@@ -251,9 +252,16 @@ describe('payoff regimes', () => {
       expect(jumpLevelsOf(finned, 80)).toEqual([104])
       const both: Product = { ...finned, payoff: { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }, ...finned.payoff.participations] } }
       expect(jumpLevelsOf(both, 100)).toEqual([70, 130])
+      // A downside barrier is reached only below its level, so its level pays like the samples above it. An upside barrier is
+      // reached only above its level, so its level pays like the samples below it.
+      expect(jumpsOf(both, 100)).toEqual([{ level: 70, paysAbove: true }, { level: 130, paysAbove: false }])
       // The level is where the payment computes it, so a downside barrier at 110% is reached at 110 and not just below it.
       const [edge] = jumpLevelsOf({ ...finned, payoff: { participations: [{ direction: 'upside', barrier: { level: 1.1, observation: 'final' }, rate: 1 }] } }, 100)
       expect(edge).toBe(110)
+      // The level pays the participation, and a level just above it pays the rebate.
+      expect(regimeAt(finned, 130 * (1 + 1e-9))).toBe('upside-barrier')
+      expect(maturityPayment(finned, { initial: 100, final: 130 })).toBeCloseTo(1240, 8)
+      expect(maturityPayment(finned, { initial: 100, final: 130 * (1 + 1e-9) })).toBe(1020)
     })
 
     it('sets the barrier from the position as a percentage of the level the return is measured from, limited to 101% to 200%', () => {
@@ -368,6 +376,7 @@ describe('barrier observed on every close', () => {
       expect(reachedPayment(finned('daily-close'), { initial: 100, final: 120 })).toBeCloseTo(1020, 8)
       expect(reachedPayment(finned('daily-close'), { initial: 100, final: 90 })).toBeCloseTo(1020, 8)
       expect(reachedPayment(finned('daily-close'), { initial: 100, final: 150 })).toBeCloseTo(1020, 8)
+      expect(reachedPayment(finned('daily-close'), { initial: 100, final: 130 })).toBeCloseTo(1020, 8)
     })
 
     it('is undefined without a barrier observed daily', () => {
@@ -404,7 +413,8 @@ describe('barrier observed on every close', () => {
       const levels = [0, 50, 100, 120, 129.99, 130, 150]
       const main = levels.map((final) => maturityPayment(note, { initial: 100, final }))
       const reached = levels.map((final) => reachedPayment(note, { initial: 100, final })!)
-      expect(differingRuns(main, reached, 1e-6)).toEqual([{ start: 0, end: 5 }])
+      // The paths differ up to the barrier level, where the line pays the participation, and meet just above it.
+      expect(differingRuns(main, reached, 1e-6)).toEqual([{ start: 0, end: 6 }])
     })
   })
 })

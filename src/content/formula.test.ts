@@ -149,22 +149,22 @@ describe('payment rule with absolute return above a barrier', () => {
 describe('payment rule with an upside barrier', () => {
   const finned = (rebate?: number): Product => ({ ...startingProduct, payoff: { participations: withSubFeatures([up], { upsideBarrier: { level: 1.3, observation: 'final' as const, rebate } }) } })
 
-  it('says upside participation counts only below the barrier, and what is paid otherwise', () => {
+  it('says upside participation counts up to and at the barrier, and what is paid above it', () => {
     expect(text(finned(0.02))).toEqual([
       'Return = Final level ÷ Initial level − 1',
       'Payment = Principal × (1 + Upside × max(Return, 0))',
-      'upside only when Final level < Upside barrier × Initial level, otherwise Principal × (1 + Rebate)',
+      'upside only when Final level ≤ Upside barrier × Initial level, otherwise Principal × (1 + Rebate)',
     ])
     expect(paymentFormula(finned(0.02))[2].segments.flatMap(({ concept }) => concept ?? [])).toEqual(['barrier', 'barrier'])
   })
 
   it('states no rebate when there is none', () => {
-    expect(text(finned()).slice(2)).toEqual(['upside only when Final level < Upside barrier × Initial level'])
+    expect(text(finned()).slice(2)).toEqual(['upside only when Final level ≤ Upside barrier × Initial level'])
   })
 
   it('says it in words, with the rebate', () => {
-    expect(paymentInWords(finned(0.02))).toBe('Each 1% rise in Synthetic Index adds 1% of principal, but only if Synthetic Index ends below 130% of its initial level. At or above 130% of its initial level, a rise adds only a fixed 2% of principal. A fall leaves principal unchanged.')
-    expect(paymentInWords(finned())).toContain('At or above 130% of its initial level, a rise adds nothing.')
+    expect(paymentInWords(finned(0.02))).toBe('Each 1% rise in Synthetic Index adds 1% of principal, but only if Synthetic Index ends at or below 130% of its initial level. Above 130% of its initial level, a rise adds only a fixed 2% of principal. A fall leaves principal unchanged.')
+    expect(paymentInWords(finned())).toContain('Above 130% of its initial level, a rise adds nothing.')
   })
 })
 
@@ -182,8 +182,8 @@ describe('payment rule with barriers observed on every close', () => {
 
   it('reads the highest close for an upside barrier, and says the rebate is paid whatever the final level', () => {
     const finned = (rebate?: number): Product => ({ ...startingProduct, payoff: { participations: withSubFeatures([up], { upsideBarrier: { level: 1.3, observation: 'daily-close' as const, rebate } }) } })
-    expect(text(finned(0.02)).slice(2)).toEqual(['upside only when Highest close < Upside barrier × Initial level, otherwise Principal × (1 + Rebate)'])
-    expect(paymentInWords(finned(0.02))).toBe('Each 1% rise in Synthetic Index adds 1% of principal, but only if Synthetic Index never closes at or above 130% of its initial level. If Synthetic Index closes at or above 130% of its initial level on any day, upside participation ends and the payment adds only a fixed 2% of principal, whatever the final level. A fall leaves principal unchanged.')
+    expect(text(finned(0.02)).slice(2)).toEqual(['upside only when Highest close ≤ Upside barrier × Initial level, otherwise Principal × (1 + Rebate)'])
+    expect(paymentInWords(finned(0.02))).toBe('Each 1% rise in Synthetic Index adds 1% of principal, but only if Synthetic Index never closes above 130% of its initial level. If Synthetic Index closes above 130% of its initial level on any day, upside participation ends and the payment adds only a fixed 2% of principal, whatever the final level. A fall leaves principal unchanged.')
     expect(paymentInWords(finned())).toContain('the payment adds nothing, whatever the final level.')
   })
 })

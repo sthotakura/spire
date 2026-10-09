@@ -89,20 +89,20 @@ export function marketingNames(note: Product): MarketingName[] {
   // otherwise a fall must leave principal unchanged, so there is no downside participation.
   const sharkFinShape = note.wrapper === 'note' && isRate(upside) && upsideBarrier !== undefined && Number.isFinite(upsideBarrier.level) && upsideBarrier.level > 1
   const sharkFinCaveat = upsideBarrier?.observation === 'daily-close'
-    ? 'The name comes from the shape of the payoff chart. The barrier is observed on every close, so a rebate is paid if the underlier ever touched it, even if it later fell back.'
-    : 'The name comes from the shape of the payoff chart. Sellers usually observe the barrier on every trading day, so a rebate is paid if the underlier ever touched it; this barrier is observed only on the final date, so the contract differs.'
+    ? 'The name comes from the shape of the payoff chart. The barrier is observed on every close, so a rebate is paid if the underlier ever closed above it, even if it later fell back.'
+    : 'The name comes from the shape of the payoff chart. Sellers usually observe the barrier on every trading day, so a rebate is paid if the underlier ever closed above it; this barrier is observed only on the final date, so the contract differs.'
   if (sharkFinShape && protection === 1) {
     names.push({
       name: 'Shark fin PP',
       vocabulary: 'Market usage',
-      reason: `Principal is protected and the payment follows a rise up to the upside barrier. At or above it, participation ends and a fixed rebate, if there is one, is paid. PP stands for principal protected. ${sharkFinCaveat}`,
+      reason: `Principal is protected and the payment follows a rise up to the upside barrier. Above it, participation ends and a fixed rebate, if there is one, is paid. PP stands for principal protected. ${sharkFinCaveat}`,
       concepts: ['protection', 'upside', 'barrier'],
     })
   } else if (sharkFinShape && downside === undefined) {
     names.push({
       name: 'Shark fin note',
       vocabulary: 'Market usage',
-      reason: `The payment follows a rise up to the upside barrier. At or above it, participation ends and a fixed rebate, if there is one, is paid. A fall leaves principal unchanged, since there is no downside participation. ${sharkFinCaveat}`,
+      reason: `The payment follows a rise up to the upside barrier. Above it, participation ends and a fixed rebate, if there is one, is paid. A fall leaves principal unchanged, since there is no downside participation. ${sharkFinCaveat}`,
       concepts: ['upside', 'barrier'],
     })
   }

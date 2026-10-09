@@ -321,7 +321,7 @@ and detailed architecture decisions stay in the working documents.
 
 ## 25. Add a barrier on upside participation
 
-Add a barrier as a sub-feature of upside participation: when the final level is at or above a level above the initial level, upside participation is cancelled and an optional fixed rebate is paid instead. With principal protection it gives the payoff publicly called a shark fin. The proposal, sources and worked example are in [docs/upside-barrier.md](docs/upside-barrier.md).
+Add a barrier as a sub-feature of upside participation: when the final level is above a level above the initial level, upside participation is cancelled and an optional fixed rebate is paid instead. With principal protection it gives the payoff publicly called a shark fin. The proposal, sources and worked example are in [docs/upside-barrier.md](docs/upside-barrier.md).
 
 - **Final-date observation only**, as for the barrier on downside participation (section 16). The barrier reads the final level the determination produces, so the payment stays a function of the final level and the chart draws one line.
 - **A simplification.** Public shark fin descriptions observe the barrier on closing levels on every day of a period, and a rebate is paid even if the underlier later falls back. The final-date version does not reproduce that; section 26 later added daily close observation, which does. The interface shows a "Shark fin note" chip for upside participation with an upside barrier (and no downside participation), and "Shark fin PP" with 100% protection. The final-date reason says how that contract differs; with daily observation the caveat is gone.
@@ -339,7 +339,17 @@ Add a second observation for both barriers: every closing level from pricing to 
 - **The payment breakdown** gains `lowestClose` and `highestClose`, and `belowBarrier` is renamed `barrierReached`. The calculation, outcome, scenario rows, summary, payment rule and shark fin names read it; the scenario table adds a row where the barrier was reached and the underlier moved back.
 - **The chart** draws a dashed line for the path where a close reached the barrier earlier, with its own label, beside the solid line for the path where none did. The final-level marker sits on whichever line the closes put it on.
 - **Interface:** the Observed choice enables Daily close, with the reason when it is unavailable, and a lowest or highest close field appears in the calculation.
-- **Still open:** the upside barrier test. The model reaches it at or above, but the one public filing cited (a two-sided barrier on closes with absolute return, a different product) says strictly greater than, so a decision is pending; lookback and basket; and whether the scenario's own path should be the solid line. Narrow screens, keyboard use and the scenario table were not checked in the running app.
+- **Still open:** a public shark fin term sheet for the upside barrier test, which section 27 settled as strictly above on the strength of one filing for a different product; lookback and basket; and whether the scenario's own path should be the solid line. Narrow screens, keyboard use and the scenario table were not checked in the running app.
+
+## 27. Reach the upside barrier strictly above its level
+
+The upside barrier was first reached at or above its level, an assumption from a shark fin term sheet that is not cited. One cited public filing, a two-sided barrier on closing levels with absolute return, tests its upper barrier as strictly greater than and its lower barrier as strictly less than ([docs/daily-observation.md](docs/daily-observation.md)). The model now reaches the upside barrier only strictly above its level, as the downside barrier is reached only strictly below. This is a change to a payment that could be written before: a level exactly at the barrier now pays the participation instead of the rebate.
+
+- **The payment** reads `final level > barrier level` (or, observed daily, `highest close >`). At the barrier the note pays its largest payment, and the rebate starts just above.
+- **The scenario table** keeps its row at the barrier, now the largest payment, and adds an "above barrier" row 5% of the initial level higher, so the drop stays visible.
+- **The chart** puts the filled mark of the drop on the lower end, at the barrier, and the open mark on the rebate level above it; the label says "Above +30%". The other path of a daily barrier is sampled just above the barrier.
+- **The wording** says "above" and "at or below" in the payment rule (`≤`), calculation, outcome, names and hints.
+- **Revisit** if a public shark fin term sheet states the test differently.
 
 ## Later direction: a composable form
 

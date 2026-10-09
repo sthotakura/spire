@@ -6,9 +6,13 @@ export const scenarioReturns = [-0.4, 0, 0.1, 0.3]
 export interface ScenarioRow {
   returnValue: number
   finalLevel: number
-  // True for the row a barrier adds at its own level: for a barrier on downside participation the lowest final level that still
-  // repays principal, and for one on upside participation the lowest final level that cancels it.
+  // True for the row a barrier adds at its own level. Neither barrier is reached at its level: for a barrier on downside
+  // participation it is the lowest final level that still repays principal, and for one on upside participation the highest that
+  // still takes part in the rise, so the largest payment.
   atBarrier: boolean
+  // True for the row an upside barrier adds just above its level, where participation has ended and the rebate, if there is one,
+  // is paid, so the table shows the drop that follows the largest payment.
+  aboveBarrier: boolean
   // True for the row absolute return adds at the buffer level, the lowest final level that still pays a fall as a gain.
   atBuffer: boolean
   // True for the row a barrier observed on every close adds to show a path: the barrier was reached on an earlier close and the
@@ -19,25 +23,31 @@ export interface ScenarioRow {
 
 // One row per scenario return, measured from the determined initial level. Every number comes from the payment breakdown,
 // so the table cannot disagree with the calculation.
-// A barrier adds a row at its level, so the table shows where a fall stops repaying principal wherever the barrier is.
+// A barrier adds a row at its level, so the table shows where a fall stops repaying principal wherever the barrier is, and an
+// upside barrier adds another just above its level, where the payment drops.
 // Absolute return adds one at the buffer level, where a fall stops paying a gain. Each row's level is computed as the
 // payment computes it, so rounding cannot move it to the other side, and a fixed row at the same level gives way to it.
 export function scenarioRows(note: Product, initialLevel: number, returns: number[] = scenarioReturns): ScenarioRow[] {
-  type Point = { returnValue: number; finalLevel: number; atBarrier: boolean; atBuffer: boolean; afterBreach: boolean; lowestClose?: number; highestClose?: number }
-  let points: Point[] = returns.map((returnValue) => ({ returnValue, finalLevel: initialLevel * (1 + returnValue), atBarrier: false, atBuffer: false, afterBreach: false }))
-  const added = (finalLevel: number, returnValue: number, marks: { atBarrier: boolean; atBuffer: boolean }) => {
-    points = [...points.filter((point) => Math.abs(point.finalLevel - finalLevel) > 1e-9 * initialLevel), { returnValue, finalLevel, afterBreach: false, ...marks }]
+  type Point = { returnValue: number; finalLevel: number; atBarrier: boolean; aboveBarrier: boolean; atBuffer: boolean; afterBreach: boolean; lowestClose?: number; highestClose?: number }
+  let points: Point[] = returns.map((returnValue) => ({ returnValue, finalLevel: initialLevel * (1 + returnValue), atBarrier: false, aboveBarrier: false, atBuffer: false, afterBreach: false }))
+  const added = (finalLevel: number, returnValue: number, marks: Partial<Pick<Point, 'atBarrier' | 'aboveBarrier' | 'atBuffer'>>) => {
+    points = [...points.filter((point) => Math.abs(point.finalLevel - finalLevel) > 1e-9 * initialLevel), { returnValue, finalLevel, atBarrier: false, aboveBarrier: false, atBuffer: false, afterBreach: false, ...marks }]
       .sort((a, b) => a.finalLevel - b.finalLevel)
   }
   const { barrier, buffer, absoluteReturn } = downsideOf(note) ?? {}
-  if (barrier !== undefined) added(barrier.level * initialLevel, barrier.level - 1, { atBarrier: true, atBuffer: false })
+  if (barrier !== undefined) added(barrier.level * initialLevel, barrier.level - 1, { atBarrier: true })
   const upsideBarrier = upsideOf(note)?.barrier
-  if (upsideBarrier !== undefined) added(barrierLevelAt(upsideBarrier.level, initialLevel), upsideBarrier.level - 1, { atBarrier: true, atBuffer: false })
-  if (absoluteReturn !== undefined && buffer !== undefined) added(initialLevel * (1 - buffer), -buffer, { atBarrier: false, atBuffer: true })
+  if (upsideBarrier !== undefined) {
+    const level = barrierLevelAt(upsideBarrier.level, initialLevel)
+    added(level, upsideBarrier.level - 1, { atBarrier: true })
+    // Five percent of the initial level above the barrier is the next level that is clearly past it.
+    added(level + 0.05 * initialLevel, upsideBarrier.level - 1 + 0.05, { aboveBarrier: true })
+  }
+  if (absoluteReturn !== undefined && buffer !== undefined) added(initialLevel * (1 - buffer), -buffer, { atBuffer: true })
   // A barrier observed daily also gets a row where it was reached and the underlier then moved back to halfway between the
   // barrier and the initial level. It stays beside the row at that final level that never reached the barrier.
   const afterBreach = (finalLevel: number, close: { lowestClose: number } | { highestClose: number }) => {
-    points = [...points, { returnValue: finalLevel / initialLevel - 1, finalLevel, atBarrier: false, atBuffer: false, afterBreach: true, ...close }].sort((a, b) => a.finalLevel - b.finalLevel)
+    points = [...points, { returnValue: finalLevel / initialLevel - 1, finalLevel, atBarrier: false, aboveBarrier: false, atBuffer: false, afterBreach: true, ...close }].sort((a, b) => a.finalLevel - b.finalLevel)
   }
   if (barrier?.observation === 'daily-close') afterBreach(initialLevel * (1 + barrier.level) / 2, { lowestClose: Math.max(0, initialLevel * (barrier.level - 0.05)) })
   if (upsideBarrier?.observation === 'daily-close') afterBreach(initialLevel * (1 + upsideBarrier.level) / 2, { highestClose: initialLevel * (upsideBarrier.level + 0.05) })

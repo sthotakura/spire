@@ -4,7 +4,7 @@ A barrier is a threshold that controls whether another rule applies. This book
 names each barrier after the participation it controls. The downside barrier
 switches downside participation on when the underlier is observed strictly
 below the threshold. An upside barrier switches upside participation off when
-the underlier is observed at or above it. A barrier can be observed on the
+the underlier is observed strictly above it. A barrier can be observed on the
 final observation date only, or on every close from pricing to that date. The
 first sections use the final level; the last section observes every close.
 
@@ -37,8 +37,8 @@ deducted once breached.
 ## An upside barrier
 
 A barrier can also end a feature. An upside barrier sits above the initial
-level. Upside participation applies while the determined final level is below
-it. At or above it, participation ends and the holder receives a fixed amount
+level. Upside participation applies while the determined final level is at or
+below it. Above it, participation ends and the holder receives a fixed amount
 instead: a rebate, stated as a return on principal. A note may have no rebate,
 in which case principal is repaid. The rebate is paid once, at maturity. It is
 not a coupon, which would be a series of payments over the term.
@@ -49,21 +49,22 @@ protection. There is no downside participation.
 
 ```text
 Final level 150 (+50%): barrier reached; payment = 1,000 × (1 + 2%) = 1,020
-Final level 130 (+30%): at the barrier, reached; payment = 1,020
+Final level 131 (+31%): barrier reached; payment = 1,020
+Final level 130 (+30%): at the barrier, not reached; 1,000 × (1 + 80% × 30%) = 1,240
 Final level 129 (+29%): not reached; 1,000 × (1 + 80% × 29%) = 1,232
 Final level 120 (+20%): not reached; 1,000 × (1 + 80% × 20%) = 1,160
 Final level 100 (0%): not reached; payment = 1,000
 Final level 80 (−20%): not reached; no downside participation, so 1,000
 ```
 
-The largest payment is just below the barrier: a final level of 129.99 pays
-1,239.92. At the barrier the payment drops to 1,020, so a higher final level
-can pay less. Without a rebate, the first two rows would pay 1,000.
+The largest payment is at the barrier: a final level of 130 pays 1,240. Just
+above it the payment drops to 1,020, so a higher final level can pay less.
+Without a rebate, the first two rows would pay 1,000.
 
-This example treats a final level exactly at 130 as reaching the barrier,
-which differs from the downside barrier above, where a level exactly at the
-threshold does not breach it. Each product states its own rule, so check the
-equality in the contract.
+This example treats a final level exactly at 130 as not reaching the barrier,
+as the downside barrier above treats a level exactly at its threshold. One
+public note tests its upper barrier the same way, as strictly greater than.
+Each product states its own rule, so check the equality in the contract.
 
 Public educational material describes notes with this shape, often called
 shark fin notes ([Hubbis](https://www.hubbis.com/article/swimming-with-sharks-capital-protected-structured-solutions-for-uncertain-times);
@@ -117,7 +118,7 @@ but there is no fall left to count, so nothing is deducted.
 
 Now take the upside barrier above: 80% upside participation, a barrier at 130%,
 a 2% rebate, and 100% principal protection. The barrier is reached by any close
-at or above 130.
+above 130.
 
 ```text
 Final  Highest  Barrier   Payment         Payment observed
@@ -132,7 +133,7 @@ In the second row a single close at 135 ended participation, so the rebate
 replaces the 16% gain although the final level is below the barrier. In the
 last row the rebate is paid although the underlier fell back below the initial
 level. This is the behaviour public descriptions give for a shark fin note: the
-rebate is paid once the barrier is touched, whatever the final level.
+rebate is paid once the barrier is reached, whatever the final level.
 
 Assumptions and limits of this version:
 
@@ -149,6 +150,6 @@ Assumptions and limits of this version:
   were reached before a fall, a rebate and a downside loss could both apply, and
   no public note was found that does both.
 - The test is the same as above: a downside barrier is reached strictly below
-  the threshold and an upside barrier at or above it. Each contract states its
-  own equality rule: the two-sided note above tests its upper barrier as strictly
-  greater than.
+  the threshold and an upside barrier strictly above it, as the two-sided note
+  above tests its upper barrier. A close exactly at either barrier does not
+  reach it. Each contract states its own equality rule.

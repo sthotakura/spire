@@ -33,8 +33,8 @@ export interface Barrier {
   observation: BarrierObservation
 }
 
-// A level above the initial level, as a fraction of it. Upside participation applies only while the final level is below it.
-// At or above it, participation is cancelled (a knock-out) and the optional rebate is paid instead: a return on principal.
+// A level above the initial level, as a fraction of it. Upside participation applies while the observed level is at or below it.
+// Above it, participation is cancelled (a knock-out) and the optional rebate is paid instead: a return on principal.
 // Observed on the final date it reads the final level; observed daily, the highest close (docs/upside-barrier.md).
 export interface UpsideBarrier {
   level: number
@@ -172,7 +172,7 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
 export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn'
 
 // A barrier as an underlier level: its fraction of the level the return is measured from. Rounded to nine decimals, because
-// 1.1 × 100 is 110.00000000000001 in floating point, which would stop a final level of 110 from reaching a barrier at 110%.
+// 1.1 × 100 is 110.00000000000001 in floating point, which would put a final level of 110 on the wrong side of a barrier at 110%.
 export const barrierLevelAt = (fraction: number, initialLevel: number) => Math.round(fraction * initialLevel * 1e9) / 1e9
 
 // Real notes can average over many more dates, such as monthly over several years, and a lookback period often observes
@@ -383,8 +383,8 @@ export interface PaymentBreakdown {
   barrierLevel?: number
   barrierReached?: boolean
   // Undefined when upside participation has no barrier. Otherwise that barrier as an underlier level, and whether the final
-  // level (or for a barrier observed daily, the highest close) is at or above it, which cancels upside participation and
-  // pays the rebate, if there is one.
+  // level (or for a barrier observed daily, the highest close) is above it, which cancels upside participation and pays the
+  // rebate, if there is one. A level exactly at the barrier does not reach it, as for the downside barrier.
   upsideBarrierLevel?: number
   upsideBarrierReached?: boolean
   // The closes a barrier observed daily reads. Undefined unless the barrier of that direction is observed daily.
@@ -445,7 +445,7 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
   // Observed daily it can be reached before a fall, which is why only a note with no downside participation may observe it so.
   const upsideBarrier = upsideOf(note)?.barrier
   const upsideBarrierLevel = upsideBarrier === undefined ? undefined : barrierLevelAt(upsideBarrier.level, levels.initial)
-  const upsideBarrierReached = upsideBarrierLevel === undefined ? undefined : (upsideBarrier!.observation === 'daily-close' ? highestClose : levels.final) >= upsideBarrierLevel
+  const upsideBarrierReached = upsideBarrierLevel === undefined ? undefined : (upsideBarrier!.observation === 'daily-close' ? highestClose : levels.final) > upsideBarrierLevel
   const participatedReturn = absoluteReturnApplies ? absoluteReturn!.rate * -underlierReturn
     : barrierHolds ? 0
     : upsideBarrierReached ? upsideBarrier!.rebate ?? 0

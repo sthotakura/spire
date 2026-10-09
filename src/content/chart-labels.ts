@@ -29,8 +29,8 @@ export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, s
     // Observed on every close, the barrier is reached by any close at the level, so the dashed line is the payment after one did.
     if (barrier !== undefined) {
       const fixed = barrier.rebate === undefined ? 'adds nothing' : `pays a fixed ${amount(principal * (1 + barrier.rebate))}`
-      labels['upside-barrier'] = barrier.rebate === undefined ? `From +${percent(barrier.level - 1)} a rise adds nothing` : `From +${percent(barrier.level - 1)} it pays a fixed ${amount(principal * (1 + barrier.rebate))}`
-      if (barrier.observation === 'daily-close') labels.breach = `If a close reached +${percent(barrier.level - 1)}, it ${fixed}, even after a fall`
+      labels['upside-barrier'] = barrier.rebate === undefined ? `Above +${percent(barrier.level - 1)} a rise adds nothing` : `Above +${percent(barrier.level - 1)} it pays a fixed ${amount(principal * (1 + barrier.rebate))}`
+      if (barrier.observation === 'daily-close') labels.breach = `If a close went above +${percent(barrier.level - 1)}, it ${fixed}, even after a fall`
     }
     // The horizontal axis ends at +100%. A cap reached beyond it is said where it is reached.
     if (upside.cap !== undefined) {

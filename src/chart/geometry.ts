@@ -122,26 +122,37 @@ export const regimeOf = (b: PaymentBreakdown): Regime => b.floorApplies ? 'floor
     : b.direction === 'upside' && b.upsideBarrierReached ? 'upside-barrier'
       : b.direction === 'downside' && b.bufferAbsorbs && b.participatedReturn === 0 ? 'buffer' : b.direction
 
+// A final level where the payment jumps, and which side of it the level itself pays like. A downside barrier is reached only
+// below its level, and the buffer level is the last level that pays a gain, so those levels pay like the samples above them.
+// An upside barrier is reached only above its level, so its level pays like the samples below it.
+export interface Jump {
+  level: number
+  paysAbove: boolean
+}
+
 // The final levels where the payment jumps, lowest first: at a barrier, at the buffer level when absolute return stops
 // paying there, and at an upside barrier. Each is computed as the payment computes it, so the samples either side of it fall on the right sides.
-export const jumpLevelsOf = (product: Product, initialLevel: number): number[] => {
+export const jumpsOf = (product: Product, initialLevel: number): Jump[] => {
   const downside = downsideOf(product)
-  const levels: number[] = []
-  if (downside?.barrier !== undefined) levels.push(downside.barrier.level * initialLevel)
-  else if (downside?.absoluteReturn !== undefined && downside.buffer !== undefined) levels.push(bufferLevel(initialLevel, downside.buffer))
+  const jumps: Jump[] = []
+  if (downside?.barrier !== undefined) jumps.push({ level: downside.barrier.level * initialLevel, paysAbove: true })
+  else if (downside?.absoluteReturn !== undefined && downside.buffer !== undefined) jumps.push({ level: bufferLevel(initialLevel, downside.buffer), paysAbove: true })
   const upsideBarrier = upsideOf(product)?.barrier
-  if (upsideBarrier !== undefined) levels.push(barrierLevelAt(upsideBarrier.level, initialLevel))
-  return levels
+  if (upsideBarrier !== undefined) jumps.push({ level: barrierLevelAt(upsideBarrier.level, initialLevel), paysAbove: false })
+  return jumps
 }
+
+export const jumpLevelsOf = (product: Product, initialLevel: number): number[] => jumpsOf(product, initialLevel).map(({ level }) => level)
 
 // The payment at a final level had a barrier observed on every close been reached on an earlier close. The chart draws the line
 // for a barrier that was not reached, and this is the other path. Undefined when no barrier is observed daily. For a downside
-// barrier it is the lowest close at zero, and for an upside barrier the highest close at the barrier level or above the final level.
+// barrier it is the lowest close at zero, and for an upside barrier the highest close just above the barrier level, or above the
+// initial and final levels if they are higher.
 export function reachedPayment(product: Product, levels: DeterminedLevels): number | undefined {
   if (downsideOf(product)?.barrier?.observation === 'daily-close') return maturityPayment(product, { ...levels, lowestClose: 0 })
   const upsideBarrier = upsideOf(product)?.barrier
   if (upsideBarrier?.observation !== 'daily-close') return undefined
-  return maturityPayment(product, { ...levels, highestClose: Math.max(levels.initial, levels.final, barrierLevelAt(upsideBarrier.level, levels.initial)) })
+  return maturityPayment(product, { ...levels, highestClose: Math.max(levels.initial, levels.final, barrierLevelAt(upsideBarrier.level, levels.initial) * (1 + 1e-9)) })
 }
 
 // The stretches of sampled points where two lines differ by more than the tolerance, by index. Each stretch also includes the

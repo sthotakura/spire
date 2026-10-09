@@ -41,9 +41,9 @@ With 150% upside participation and a 20% upside cap, final level 130 pays
 
 With 80% upside participation, an upside barrier at 130% of the initial level,
 a 2% rebate, and 100% principal protection, final level 120 pays 1,160 and
-final level 129 pays 1,232. At final level 130 the barrier is reached, so
-participation ends and the payment drops to 1,020. The Barrier chapter
-has the full set of levels.
+final level 129 pays 1,232. Final level 130, exactly at the barrier, pays 1,240.
+Just above 130 the barrier is reached, so participation ends and the payment
+drops to 1,020. The Barrier chapter has the full set of levels.
 
 ## Observe a barrier on every close
 

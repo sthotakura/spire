@@ -436,7 +436,8 @@ describe('barrier on upside participation', () => {
 
   it.each([
     [150, 1020],
-    [130, 1020],
+    [131, 1020],
+    [130, 1240],
     [129, 1232],
     [120, 1160],
     [100, 1000],
@@ -445,21 +446,24 @@ describe('barrier on upside participation', () => {
     expect(maturityPayment(finned, { initial: 100, final: finalLevel })).toBeCloseTo(expected, 8)
   })
 
-  it('pays the most just below the barrier, then drops to the rebate at it', () => {
+  it('pays the most at the barrier, then drops to the rebate just above it', () => {
     expect(maturityPayment(finned, { initial: 100, final: 129.99 })).toBeCloseTo(1239.92, 8)
-    expect(maturityPayment(finned, { initial: 100, final: 130 })).toBe(1020)
+    expect(maturityPayment(finned, { initial: 100, final: 130 })).toBeCloseTo(1240, 8)
+    expect(maturityPayment(finned, { initial: 100, final: 130.01 })).toBe(1020)
   })
 
-  it('pays principal at and above the barrier when there is no rebate', () => {
+  it('pays principal above the barrier when there is no rebate', () => {
     const noRebate = withBarrier({ rebate: undefined })
-    expect(maturityPayment(noRebate, { initial: 100, final: 130 })).toBe(1000)
+    expect(maturityPayment(noRebate, { initial: 100, final: 130.01 })).toBe(1000)
+    expect(maturityPayment(noRebate, { initial: 100, final: 130 })).toBeCloseTo(1240, 8)
     expect(maturityPayment(noRebate, { initial: 100, final: 129 })).toBeCloseTo(1232, 8)
   })
 
   it('is measured from the determined initial level, such as a lookback level', () => {
-    // Lookback level 80, so the barrier is 104: a final level of 100 is +25% and below it, 104 is at it.
+    // Lookback level 80, so the barrier is 104: a final level of 100 is +25% and below it, 104 is at it and not above it.
     expect(maturityPayment(finned, { initial: 80, final: 100 })).toBeCloseTo(1200, 8)
-    expect(maturityPayment(finned, { initial: 80, final: 104 })).toBe(1020)
+    expect(maturityPayment(finned, { initial: 80, final: 104 })).toBeCloseTo(1240, 8)
+    expect(maturityPayment(finned, { initial: 80, final: 104.01 })).toBe(1020)
   })
 
   it('leaves the downside as it was', () => {
@@ -471,8 +475,8 @@ describe('barrier on upside participation', () => {
   it('does not pay a rebate below the protection floor or a minimum return', () => {
     const deposit: SingleProduct = { ...finned, wrapper: 'deposit', payoff: { ...finned.payoff, principalProtection: undefined, minimumReturn: 0.05 } }
     expect(validateProduct(deposit)).toEqual([])
-    // The rebate of 2% is under the 5% minimum, so the minimum is what the deposit pays at the barrier.
-    expect(maturityPayment(deposit, { initial: 100, final: 130 })).toBe(1050)
+    // The rebate of 2% is under the 5% minimum, so the minimum is what the deposit pays above the barrier.
+    expect(maturityPayment(deposit, { initial: 100, final: 131 })).toBe(1050)
     expect(maturityPayment(deposit, { initial: 100, final: 129 })).toBeCloseTo(1232, 8)
   })
 
@@ -487,11 +491,13 @@ describe('barrier on upside participation', () => {
     expect(productIssues(withBarrier({ level }))).toEqual([{ field: 'upsideBarrier', message: 'Upside barrier must be greater than 100% and at most 200% of the initial level.' }])
   })
 
-  // 1.1 × 100 is 110.00000000000001 in floating point, which must not keep a final level of 110 from reaching a 110% barrier.
-  it('reaches a downside barrier at a level that floating point cannot state exactly', () => {
+  // 1.1 × 100 is 110.00000000000001 in floating point. The barrier is rounded to 110, so a final level of 110 is at it, not above it.
+  it('puts a level on the right side of an upside barrier that floating point cannot state exactly', () => {
     expect(barrierLevelAt(1.1, 100)).toBe(110)
-    expect(paymentBreakdown(withBarrier({ level: 1.1 }), { initial: 100, final: 110 }).upsideBarrierReached).toBe(true)
-    expect(paymentBreakdown(withBarrier({ level: 1.07 }), { initial: 100, final: 107 }).upsideBarrierReached).toBe(true)
+    expect(paymentBreakdown(withBarrier({ level: 1.1 }), { initial: 100, final: 110 }).upsideBarrierReached).toBe(false)
+    expect(paymentBreakdown(withBarrier({ level: 1.1 }), { initial: 100, final: 110.01 }).upsideBarrierReached).toBe(true)
+    expect(paymentBreakdown(withBarrier({ level: 1.07 }), { initial: 100, final: 107 }).upsideBarrierReached).toBe(false)
+    expect(paymentBreakdown(withBarrier({ level: 1.07 }), { initial: 100, final: 107.01 }).upsideBarrierReached).toBe(true)
   })
 
   it('allows a downside barrier at 200% of the initial level', () => {
@@ -994,9 +1000,9 @@ describe('daily close observation', () => {
       expect(maturityPayment(finalUpside, { initial: 100, final, highestClose })).toBeCloseTo(onFinalDate, 8)
     })
 
-    it('reaches the barrier by closing at it', () => {
-      expect(maturityPayment(dailyUpside, { initial: 100, final: 120, highestClose: 130 })).toBe(1020)
-      expect(maturityPayment(dailyUpside, { initial: 100, final: 120, highestClose: 129.99 })).toBeCloseTo(1160, 8)
+    it('does not reach the barrier by closing at it', () => {
+      expect(maturityPayment(dailyUpside, { initial: 100, final: 120, highestClose: 130 })).toBeCloseTo(1160, 8)
+      expect(maturityPayment(dailyUpside, { initial: 100, final: 120, highestClose: 130.01 })).toBe(1020)
     })
 
     it('counts no close beyond the initial and final levels when none is given', () => {
@@ -1009,8 +1015,10 @@ describe('daily close observation', () => {
       expect(maturityPayment(noRebate, { initial: 100, final: 120, highestClose: 135 })).toBe(1000)
     })
 
-    it('reaches a barrier at a level that floating point cannot state exactly', () => {
-      expect(paymentBreakdown(withUpside(dailyUpside, { barrier: { level: 1.1, observation: 'daily-close' } }), { initial: 100, final: 105, highestClose: 110 }).upsideBarrierReached).toBe(true)
+    it('puts a close on the right side of a barrier that floating point cannot state exactly', () => {
+      const at = (highestClose: number) => paymentBreakdown(withUpside(dailyUpside, { barrier: { level: 1.1, observation: 'daily-close' } }), { initial: 100, final: 105, highestClose }).upsideBarrierReached
+      expect(at(110)).toBe(false)
+      expect(at(110.01)).toBe(true)
     })
   })
 

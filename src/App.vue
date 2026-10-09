@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { amountToY, barrierFromX, bufferFromX, fitAmountAxis, bufferLevel, capBindLevel, capFromY, clamp, clampBarrier, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, clampProtection, clampUpsideBarrier, clampUpsideRate, differingRuns, finalLevelFromX, jumpLevelsOf, keyDelta, leaderStart, levelAxisFactor, levelToX, minimumReturnFromY, placeLabels, protectionFromY, reachedPayment, regimeOf, regimeRuns, returnTicks, slopeLevel, splitAtJumps, splitByRegime, upsideBarrierFromX, upsideRateFromY, wrapWords, type Box, type RegimeRun, type Sample, type AmountAxis, type Plot, type Regime } from './chart/geometry'
+import { amountToY, barrierFromX, bufferFromX, fitAmountAxis, bufferLevel, capBindLevel, capFromY, clamp, clampBarrier, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, clampProtection, clampUpsideBarrier, clampUpsideRate, differingRuns, finalLevelFromX, jumpsOf, keyDelta, leaderStart, levelAxisFactor, levelToX, minimumReturnFromY, placeLabels, protectionFromY, reachedPayment, regimeOf, regimeRuns, returnTicks, slopeLevel, splitAtJumps, splitByRegime, upsideBarrierFromX, upsideRateFromY, wrapWords, type Box, type Jump, type RegimeRun, type Sample, type AmountAxis, type Plot, type Regime } from './chart/geometry'
 import { payoffLabels, type PayoffLabelKey } from './content/chart-labels'
 import HintToggle from './components/HintToggle.vue'
 import NumberInput from './components/NumberInput.vue'
@@ -36,9 +36,9 @@ const hints = {
   downside: 'The share of a negative underlier return, beyond any buffer, deducted from principal before the protection floor applies.',
   buffer: 'The fall the holder does not bear, as a percentage of the initial level. A fall within it leaves principal unchanged, unless absolute return pays it as a gain. A larger fall reduces principal by the amount beyond it, at the downside participation rate.',
   barrier: 'A level of the underlier below the initial level, as a percentage of it. A knock-in barrier: once the level is below it, downside participation switches on and applies to the whole fall; otherwise a fall leaves principal unchanged, unless absolute return pays it as a gain. Observed on the final date, it reads the final level. Observed daily, it reads every closing level from pricing to the final date, so one close below it is enough, even if the underlier later recovers.',
-  'upside-barrier': 'A level of the underlier above the initial level, as a percentage of it. A knock-out barrier: while the level stays below it, upside participation applies as usual; once it is reached, upside participation ends and the rebate, if there is one, is paid instead. Observed on the final date, it reads the final level. Observed daily, it reads every closing level from pricing to the final date, so one close at or above it is enough, even if the underlier later falls back.',
+  'upside-barrier': 'A level of the underlier above the initial level, as a percentage of it. A knock-out barrier: while the level stays at or below it, upside participation applies as usual; once it goes above it, upside participation ends and the rebate, if there is one, is paid instead. Observed on the final date, it reads the final level. Observed daily, it reads every closing level from pricing to the final date, so one close at or above it is enough, even if the underlier later falls back.',
   'lowest-close': 'A hypothetical lowest closing level of the underlier from pricing to the final date, for this scenario. A daily downside barrier is reached if it is below the barrier. It cannot be above the initial level or any level observed on the final date or the averaging dates. Changing it does not change the product’s terms.',
-  'highest-close': 'A hypothetical highest closing level of the underlier from pricing to the final date, for this scenario. A daily upside barrier is reached if it is at or above the barrier. It cannot be below the initial level or any level observed on the final date or the averaging dates. Changing it does not change the product’s terms.',
+  'highest-close': 'A hypothetical highest closing level of the underlier from pricing to the final date, for this scenario. A daily upside barrier is reached if it is above the barrier. It cannot be below the initial level or any level observed on the final date or the averaging dates. Changing it does not change the product’s terms.',
   rebate: 'A fixed return on principal, paid in place of upside participation once the upside barrier is reached. It does not depend on how far the underlier rose.',
   'absolute-return': 'Pays as a gain a fall that downside participation does not reach, within the buffer or ending at or above the downside barrier: each 1% fall adds the absolute return rate, as a percentage of principal. A larger fall pays no gain and reduces principal as the buffer or barrier sets out, so the payment drops there.',
   upside: 'The share of a positive underlier return added to principal.',
@@ -464,10 +464,11 @@ const buildTimestamp = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
 }).format(new Date(buildTimestampIso))
 
-const scenarios = computed(() => !initialValid.value ? [] : scenarioRows(note.value, determinedInitialLevel.value).map(({ returnValue, finalLevel, atBarrier, atBuffer, afterBreach, breakdown }) => ({
+const scenarios = computed(() => !initialValid.value ? [] : scenarioRows(note.value, determinedInitialLevel.value).map(({ returnValue, finalLevel, atBarrier, aboveBarrier, atBuffer, afterBreach, breakdown }) => ({
   final: finalLevel,
   returnValue,
   atBarrier,
+  aboveBarrier,
   atBuffer,
   // The row where a barrier observed daily was reached on an earlier close, with the close that reached it.
   closeNote: !afterBreach ? null : breakdown.lowestClose !== undefined ? `lowest close ${formatAmount(breakdown.lowestClose)}` : `highest close ${formatAmount(breakdown.highestClose ?? 0)}`,
@@ -619,11 +620,12 @@ const chart = computed(() => {
   const scale = axisScale.value
   const end = scale * levelAxisFactor
   const axisLevels = Array.from({ length: 257 }, (_, i) => end * i / 256)
-  // The final levels to sample for a note. A jump, at a barrier or where absolute return stops, adds one level just below it
-  // and one at it, so the line can break there. A note can have two, a barrier on each direction.
-  const levelsFor = (jumpLevels: number[] = []) => {
-    const jumpsInView = jumpLevels.filter((jump) => jump > 0 && jump < end)
-    return [...axisLevels.filter((level) => !jumpsInView.includes(level)), ...jumpsInView.flatMap((jump) => [jump * (1 - 1e-9), jump])].sort((a, b) => a - b)
+  // The final levels to sample for a note. A jump, at a barrier or where absolute return stops, adds the level itself and one
+  // just to the side it does not pay like: just below it for a downside barrier or buffer, just above it for an upside barrier,
+  // which is reached only above its level. The line can then break there. A note can have two, a barrier on each direction.
+  const levelsFor = (jumpList: Jump[] = []) => {
+    const jumpsInView = jumpList.filter(({ level }) => level > 0 && level < end)
+    return [...axisLevels.filter((level) => !jumpsInView.some((jump) => jump.level === level)), ...jumpsInView.flatMap(({ level, paysAbove }) => paysAbove ? [level * (1 - 1e-9), level] : [level, level * (1 + 1e-9)])].sort((a, b) => a - b)
   }
   // A jump is where the payment changes at once between two neighbouring samples at the same place.
   const jumpsIn = (levels: number[], values: number[]) => levels.map((level, i) => i > 0 && level - levels[i - 1] < end * 1e-6 && Math.abs(values[i] - values[i - 1]) > principalAmount * 1e-9)
@@ -631,7 +633,8 @@ const chart = computed(() => {
   const at = (level: number) => ({ initial, final: level })
   const barrierAt = barrierSelected.value ? initial * barrierPercent.value / 100 : undefined
   const upsideBarrierAt = upsideBarrierSelected.value ? barrierLevelAt(fractionFrom(upsideBarrierPercent.value), initial) : undefined
-  const levels = levelsFor(jumpLevelsOf(note.value, initial))
+  const jumpList = jumpsOf(note.value, initial)
+  const levels = levelsFor(jumpList)
   const breakdowns = levels.map((level) => paymentBreakdown(note.value, at(level)))
   const values = breakdowns.map((b) => b.payment)
   const jumps = jumpsIn(levels, values)
@@ -672,7 +675,7 @@ const chart = computed(() => {
   const ghostDrawable = ghost !== null && ghost.underlier.kind === underlierKind.value && productIssues(ghost).length === 0 && ghostObservations.every((level) => Number.isFinite(level) && level > 0)
   const ghostInitial = !ghostDrawable ? Number.NaN : ghost.underlier.kind === 'basket' ? basketStartingLevel : initialLevelFrom(ghost.underlier.determination.initial, ghostObservations)
   const ghostOnAxis = ghostDrawable && ghostInitial === initial
-  const ghostLevels = levelsFor(ghostOnAxis ? jumpLevelsOf(ghost, ghostInitial) : [])
+  const ghostLevels = levelsFor(ghostOnAxis ? jumpsOf(ghost, ghostInitial) : [])
   const ghostValues = ghostOnAxis ? ghostLevels.map((level) => maturityPayment(ghost, { initial: ghostInitial, final: level })) : []
   const ghostJumps = jumpsIn(ghostLevels, ghostValues)
   const ghostPieces = ghostOnAxis ? splitAtJumps(ghostLevels.map((level, i) => ({ point: point(level, ghostValues[i]), jump: ghostJumps[i] }))) : []
@@ -766,8 +769,14 @@ const chart = computed(() => {
     underlierPoints: `${x(0)},${underlierY(0)} ${x(end)},${underlierY(end)}`,
     ghostPieces: ghostPieces.join('|') !== pieces.join('|') ? ghostPieces : [],
     // Each jump has a mark at both ends, in the colour of the piece it ends: filled at the payment the jump level pays, open at
-    // the payment just below it, which the level itself does not pay. A small jump stays visible this way.
-    jumpMarks: jumps.flatMap((jump, i) => jump ? [{ x: x(levels[i]), closedY: y(values[i]), openY: y(values[i - 1]), closed: regimeConcept.value[samples[i].regime], open: regimeConcept.value[samples[i - 1].regime] }] : []),
+    // the payment on the other side, which the level itself does not pay. That is the higher end for a downside barrier or buffer
+    // and the lower end for an upside barrier. A small jump stays visible this way.
+    jumpMarks: jumps.flatMap((jump, i) => {
+      if (!jump) return []
+      const closedFirst = jumpList.some(({ level, paysAbove }) => !paysAbove && levels[i - 1] === level)
+      const [closed, open] = closedFirst ? [i - 1, i] : [i, i - 1]
+      return [{ x: x(levels[i]), closedY: y(values[closed]), openY: y(values[open]), closed: regimeConcept.value[samples[closed].regime], open: regimeConcept.value[samples[open].regime] }]
+    }),
     principalY: y(principalAmount),
     principalBelow,
     // Compact labels (such as 1.5K) keep large principals inside the left margin.
@@ -1068,7 +1077,7 @@ const chart = computed(() => {
               <template v-if="chart">
                 <h3>Example scenarios</h3>
                 <p class="table-scroll-hint">Scroll horizontally to see every scenario column.</p>
-                <div class="table-wrap"><table><thead><tr><th>{{ isBasket ? 'Basket level' : 'Final level' }}</th><th>Underlier change</th><th v-if="absoluteSelected">Absolute return</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected || minimumSelected">Payment before {{ minimumSelected ? 'minimum' : 'protection' }}</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="`${row.returnValue}-${row.closeNote}`"><td>{{ formatAmount(row.final) }}<span v-if="row.atBarrier" class="floor-note">at barrier</span><span v-if="row.atBuffer" class="floor-note">at buffer</span><span v-if="row.closeNote" class="floor-note">{{ row.closeNote }}</span></td><td>{{ formatPercent(row.returnValue) }}</td><td v-if="absoluteSelected">{{ row.absolute ?? '—' }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected || minimumSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="(protectionSelected || minimumSelected) && row.floorApplied" class="floor-note">{{ minimumSelected ? 'minimum applied' : 'floor applied' }}</span></td></tr></tbody></table></div>
+                <div class="table-wrap"><table><thead><tr><th>{{ isBasket ? 'Basket level' : 'Final level' }}</th><th>Underlier change</th><th v-if="absoluteSelected">Absolute return</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected || minimumSelected">Payment before {{ minimumSelected ? 'minimum' : 'protection' }}</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="`${row.returnValue}-${row.closeNote}`"><td>{{ formatAmount(row.final) }}<span v-if="row.atBarrier" class="floor-note">at barrier</span><span v-if="row.aboveBarrier" class="floor-note">above barrier</span><span v-if="row.atBuffer" class="floor-note">at buffer</span><span v-if="row.closeNote" class="floor-note">{{ row.closeNote }}</span></td><td>{{ formatPercent(row.returnValue) }}</td><td v-if="absoluteSelected">{{ row.absolute ?? '—' }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected || minimumSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="(protectionSelected || minimumSelected) && row.floorApplied" class="floor-note">{{ minimumSelected ? 'minimum applied' : 'floor applied' }}</span></td></tr></tbody></table></div>
                 <p class="scenario-formula"><template v-if="lookingBack">Each change is measured from the lookback level, {{ formatAmount(determinedInitialLevel) }}. </template><template v-if="averaging">Each final level is the average of the observed levels. </template><strong>Selected participation:</strong> {{ participationSummary }}. A move in a direction without participation leaves principal unchanged before any floor applies.<template v-if="bufferSelected"> The buffer absorbs the first {{ bufferSummary }} of a fall.</template><template v-if="absoluteSelected"> A fall {{ barrierSelected ? 'that ends at or above the downside barrier' : 'within the buffer' }} pays {{ absoluteSummary }} of the fall as a gain.</template><template v-if="upsideBarrierSelected"> At or above the upside barrier, upside participation ends{{ rebateSelected ? ` and the rebate pays ${formatPercent(rebatePercent / 100)} of principal instead` : '' }}.</template> The payment cannot fall below {{ floorSummary }}.<template v-if="capSelected"> It cannot exceed {{ capSummary }}.</template></p>
               </template>
               <p v-else class="help">Enter valid terms to see the scenarios.</p>

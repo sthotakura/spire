@@ -131,17 +131,21 @@ describe('outcome with an upside barrier', () => {
   const upsideOnly = [{ direction: 'upside' as const, rate: 0.8 }]
   const finned = (rebate?: number): SingleProduct => ({ ...noteWith(upsideOnly, 1), payoff: { participations: withSubFeatures(upsideOnly, { upsideBarrier: { level: 1.3, observation: 'final' as const, rebate } }), principalProtection: 1 } })
 
-  it('says the rebate replaces upside participation at or above the downside barrier', () => {
-    expect(explain(finned(0.02), 140)).toBe('The underlier rose 40%. It ended at or above the 130 upside barrier, so upside participation ends and a rebate of 2% is added to principal. The 1,000 floor does not apply, so the contractual payment is 1,020, 20 more than principal.')
-    expect(explain(finned(0.02), 130)).toContain('It ended at or above the 130 upside barrier')
+  it('says the rebate replaces upside participation above the upside barrier', () => {
+    expect(explain(finned(0.02), 140)).toBe('The underlier rose 40%. It ended above the 130 upside barrier, so upside participation ends and a rebate of 2% is added to principal. The 1,000 floor does not apply, so the contractual payment is 1,020, 20 more than principal.')
+    expect(explain(finned(0.02), 130.01)).toContain('It ended above the 130 upside barrier')
   })
 
-  it('says principal is unchanged at or above the downside barrier when there is no rebate', () => {
+  it('says participation still applies at the barrier, where the payment is largest', () => {
+    expect(explain(finned(0.02), 130)).toBe('The underlier rose 30%. It ended at or below the 130 upside barrier, so upside participation of 80% adds 24% to principal. The 1,000 floor does not apply, so the contractual payment is 1,240, 240 more than principal.')
+  })
+
+  it('says principal is unchanged above the upside barrier when there is no rebate', () => {
     expect(explain(finned(), 140)).toContain('so upside participation ends and principal is unchanged.')
   })
 
-  it('says the underlier ended below the barrier, so participation applies', () => {
-    expect(explain(finned(0.02), 120)).toBe('The underlier rose 20%. It ended below the 130 upside barrier, so upside participation of 80% adds 16% to principal. The 1,000 floor does not apply, so the contractual payment is 1,160, 160 more than principal.')
+  it('says the underlier ended at or below the barrier, so participation applies', () => {
+    expect(explain(finned(0.02), 120)).toBe('The underlier rose 20%. It ended at or below the 130 upside barrier, so upside participation of 80% adds 16% to principal. The 1,000 floor does not apply, so the contractual payment is 1,160, 160 more than principal.')
   })
 
   it('leaves a flat return and a fall to the usual sentences', () => {
@@ -170,11 +174,11 @@ describe('outcome with barriers observed on every close', () => {
     const finned: SingleProduct = { ...noteWith(upsideOnly, 1), payoff: { participations: withSubFeatures(upsideOnly, { upsideBarrier: { level: 1.3, observation: 'daily-close' as const, rebate: 0.02 } }), principalProtection: 1 } }
 
     it('pays the rebate whatever the final level once a close reached the barrier', () => {
-      expect(explainWith(finned, 90, { highestClose: 135 })).toBe('The underlier fell 10%. The highest close, 135, was at or above the 130 upside barrier, so upside participation ends and a rebate of 2% is added to principal, whatever the final level. The 1,000 floor does not apply, so the contractual payment is 1,020, 20 more than principal.')
+      expect(explainWith(finned, 90, { highestClose: 135 })).toBe('The underlier fell 10%. The highest close, 135, was above the 130 upside barrier, so upside participation ends and a rebate of 2% is added to principal, whatever the final level. The 1,000 floor does not apply, so the contractual payment is 1,020, 20 more than principal.')
     })
 
     it('applies upside participation when no close reached the barrier', () => {
-      expect(explainWith(finned, 120, {})).toBe('The underlier rose 20%. No close reached the 130 upside barrier (the highest was 120), so upside participation of 80% adds 16% to principal. The 1,000 floor does not apply, so the contractual payment is 1,160, 160 more than principal.')
+      expect(explainWith(finned, 120, {})).toBe('The underlier rose 20%. No close was above the 130 upside barrier (the highest was 120), so upside participation of 80% adds 16% to principal. The 1,000 floor does not apply, so the contractual payment is 1,160, 160 more than principal.')
     })
   })
 })

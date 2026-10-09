@@ -190,8 +190,8 @@ describe('calculation steps with an upside barrier', () => {
     expect(steps(finned(), 140).map(({ title }) => title)).not.toContain('Rebate')
   })
 
-  it('replaces upside participation with the rebate at or above the downside barrier', () => {
-    expect(step(finned(0.02), 140, 'Upside barrier')).toMatchObject({ how: '130% × 100 · final level 140 is at or above it, so upside participation ends', value: '130', concept: 'barrier' })
+  it('replaces upside participation with the rebate above the upside barrier', () => {
+    expect(step(finned(0.02), 140, 'Upside barrier')).toMatchObject({ how: '130% × 100 · final level 140 is above it, so upside participation ends', value: '130', concept: 'barrier' })
     expect(step(finned(0.02), 140, 'Upside barrier')?.muted).toBeFalsy()
     expect(step(finned(0.02), 140, 'Rebate')).toMatchObject({ how: 'Paid in place of upside participation', value: '+2%', concept: 'barrier' })
     expect(step(finned(0.02), 140, 'Upside participation')).toMatchObject({ how: '80% × max(+40%, 0) · the upside barrier is reached, so participation ends', value: '0%', muted: true })
@@ -199,16 +199,23 @@ describe('calculation steps with an upside barrier', () => {
     expect(step(finned(0.02), 140, 'Payment at maturity')?.value).toBe('1,020')
   })
 
-  it('mutes the barrier and the rebate below it, where upside participation applies', () => {
-    expect(step(finned(0.02), 120, 'Upside barrier')).toMatchObject({ how: '130% × 100 · final level 120 is below it, so upside participation applies', muted: true })
+  it('mutes the barrier and the rebate up to it, where upside participation applies', () => {
+    expect(step(finned(0.02), 120, 'Upside barrier')).toMatchObject({ how: '130% × 100 · final level 120 is at or below it, so upside participation applies', muted: true })
     expect(step(finned(0.02), 120, 'Rebate')).toMatchObject({ how: 'Pays 2% in place of upside participation · the upside barrier is not reached', value: '0%', muted: true })
     expect(step(finned(0.02), 120, 'Upside participation')).toMatchObject({ value: '+16%' })
     expect(step(finned(0.02), 120, 'Payment at maturity')?.value).toBe('1,160')
   })
 
-  it('pays principal at the barrier when there is no rebate', () => {
-    expect(step(finned(), 130, 'Upside participation')).toMatchObject({ value: '0%', muted: true })
-    expect(step(finned(), 130, 'Payment at maturity')?.value).toBe('1,000')
+  it('still applies upside participation at the barrier, and pays the rebate just above it', () => {
+    expect(step(finned(0.02), 130, 'Upside barrier')).toMatchObject({ how: '130% × 100 · final level 130 is at or below it, so upside participation applies', muted: true })
+    expect(step(finned(0.02), 130, 'Upside participation')).toMatchObject({ value: '+24%' })
+    expect(step(finned(0.02), 130, 'Payment at maturity')?.value).toBe('1,240')
+    expect(step(finned(0.02), 131, 'Payment at maturity')?.value).toBe('1,020')
+  })
+
+  it('pays principal above the barrier when there is no rebate', () => {
+    expect(step(finned(), 131, 'Upside participation')).toMatchObject({ value: '0%', muted: true })
+    expect(step(finned(), 131, 'Payment at maturity')?.value).toBe('1,000')
   })
 })
 
@@ -264,14 +271,14 @@ describe('calculation steps with barriers observed on every close', () => {
 
     it('pays the rebate when the highest close reached the barrier, although the final level fell', () => {
       const list = stepsWith(finned, 90, { highestClose: 135 })
-      expect(stepOf(list, 'Upside barrier')).toMatchObject({ how: '130% × 100 · highest close 135 is at or above it, so upside participation ends', value: '130', concept: 'barrier' })
+      expect(stepOf(list, 'Upside barrier')).toMatchObject({ how: '130% × 100 · highest close 135 is above it, so upside participation ends', value: '130', concept: 'barrier' })
       expect(stepOf(list, 'Rebate')).toMatchObject({ value: '+2%' })
       expect(stepOf(list, 'Payment at maturity')?.value).toBe('1,020')
     })
 
     it('mutes the barrier when no close reached it', () => {
       const list = stepsWith(finned, 120, {})
-      expect(stepOf(list, 'Upside barrier')).toMatchObject({ how: '130% × 100 · highest close 120 is below it, so upside participation applies', muted: true })
+      expect(stepOf(list, 'Upside barrier')).toMatchObject({ how: '130% × 100 · highest close 120 is at or below it, so upside participation applies', muted: true })
       expect(stepOf(list, 'Payment at maturity')?.value).toBe('1,160')
     })
   })

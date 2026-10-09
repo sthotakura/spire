@@ -8,7 +8,7 @@ Built, as proposed below except for the departures listed under *As built*. It a
 - A second public note observes **both** an upper and a lower barrier on closing levels: "A Barrier Event occurs if, on any day during the Observation Period, the closing level of the Underlying is greater than the Upper Barrier or less than the Lower Barrier", with the Observation Period running "from but excluding the Trade Date to and including the Final Valuation Date" ([SEC 424B2, Barrier Absolute Return Market Linked Notes](https://www.sec.gov/Archives/edgar/data/19617/000161577418007603/s111907_424b2.htm)). Once a Barrier Event occurs the payment is "$1,000 + ($1,000 × Conditional Return)", with a Conditional Return of 2.00%, which does not depend on the Underlying Return, so the fixed amount is paid after a fall back, as for a rebate. This confirms closing-level observation on any day, both directions, and a fixed amount that does not depend on the final level. It does not confirm a downside barrier that switches downside participation on: here a lower-barrier event replaces the payment with the fixed amount, and principal is protected. Without a Barrier Event the note pays principal plus the absolute value of the underlier's return, on a rise as well as a fall. SPIRe models absolute return only on a fall and a barrier only on one direction, so this note cannot yet be expressed (see [barrier.md](barrier.md), one barrier switching several features). Its Initial Value is the close on the day before the Trade Date, so the observation period starts after the initial level is set; the closes in between are not observed.
 - Once reached, the event stays reached. A knock-in on downside participation applies downside participation to the whole fall even if the underlier later recovers. A knock-out on upside participation ends the participation even if the underlier later falls back.
 - Public descriptions of shark fin notes observe the upside barrier this way, and pay the rebate "whatever the final level is" once it is reached ([upside-barrier.md](upside-barrier.md)). Daily observation is what the final-date version of that note simplified.
-- **Equality.** The note above tests the upper barrier as strictly greater than and the lower barrier as strictly less than. SPIRe's upside barrier is reached at or above its level, an assumption taken from a shark fin term sheet that was read but is not cited. The two disagree for the upper barrier, and the cited filing is a different product (absolute return, not a shark fin). Open question 1 records the conflict.
+- **Equality.** The note above tests the upper barrier as strictly greater than and the lower barrier as strictly less than. SPIRe first reached an upside barrier at or above its level, an assumption taken from a shark fin term sheet that was read but is not cited. It now reaches it strictly above its level, following the cited filing, although that filing is a different product (absolute return, not a shark fin). Open question 1 records the basis.
 - **Not yet verified:** the comparison for an upside barrier in a public shark fin term sheet. The period in the filing above starts after the trade date, not at pricing; SPIRe starts it at pricing, which changes nothing because the initial level is never past either barrier. The assumptions below stand until a source settles them.
 
 ## Proposal
@@ -25,16 +25,16 @@ Built, as proposed below except for the departures listed under *As built*. It a
 **A scenario states one extra number, the extreme close.** Whether any close crossed a barrier is the same as whether the extreme close did:
 
 - a downside barrier is reached if the **lowest** close is below the barrier level;
-- an upside barrier is reached if the **highest** close is at or above the barrier level.
+- an upside barrier is reached if the **highest** close is above the barrier level.
 
 ```text
 downside barrier reached = lowest close < barrier level × initial level
-upside barrier reached   = highest close ≥ barrier level × initial level
+upside barrier reached   = highest close > barrier level × initial level
 ```
 
 Everything after that is unchanged. A reached downside barrier applies downside participation to the whole fall; a reached upside barrier ends upside participation and pays the rebate, if any. The payment is then a function of the final level and the extreme close.
 
-**Defaults and consistency.** The extreme defaults to "not reached": the lowest close is the smaller of the initial and final levels, the highest the larger. Moving the final level keeps the extreme consistent with it (the lowest close is never above the final level, nor the highest below it), so a final level below a downside barrier has necessarily reached it, and a final level at or above an upside barrier has too. The extreme is edited in the calculation, as averaging levels are.
+**Defaults and consistency.** The extreme defaults to "not reached": the lowest close is the smaller of the initial and final levels, the highest the larger. Moving the final level keeps the extreme consistent with it (the lowest close is never above the final level, nor the highest below it), so a final level below a downside barrier has necessarily reached it, and a final level above an upside barrier has too. The extreme is edited in the calculation, as averaging levels are.
 
 **Rejected alternatives:**
 
@@ -93,7 +93,7 @@ The last row pays the rebate although the final level fell: the barrier was reac
 1. Daily close is added beside Final date, not instead of it.
 2. First version: single underlier, given initial level, either final method. Unavailable with lookback, a basket and absolute return.
 3. An upside barrier observed daily needs a note with no downside participation. Revisit if a public note shows otherwise.
-4. The downside barrier is reached strictly below its level and the upside barrier at or above. To be confirmed against public sources.
+4. The downside barrier is reached strictly below its level and the upside barrier strictly above it. The upside rule was first at or above and changed to strictly above after a public filing was cited (open question 1).
 5. "Shark fin" names show for either observation, because the name follows the payoff diagram.
 6. The period starts at pricing. Whether it starts on the pricing date or the issue date is a minor detail for this project and is not modelled.
 
@@ -115,11 +115,12 @@ All five steps are done. The model, the worked examples (each row is a domain te
 - **The rename.** `belowBarrier` in the payment breakdown became `barrierReached`, since it no longer means only the final level. The breakdown also reports `lowestClose` or `highestClose` for a barrier observed daily.
 - **The extra scenario row** (`afterBreach`) puts the final level halfway between the barrier and the initial level, with a close 5% of the initial level past the barrier. It stays beside the row at that final level that never reached the barrier.
 - **Unavailable combinations** are blocked in both directions in the interface, with the reason in the option label, and rejected by validation.
+- **Strictly above.** With the upside barrier reached only strictly above its level, the level itself pays the participation, so the barrier row of the scenario table pays the largest payment, a second row just above it ("above barrier") shows the rebate, the chart's filled mark is the lower end of the drop, and a highest close exactly at the barrier does not reach it.
 - **Not yet checked in the running app:** narrow screens, keyboard use, the scenario table, averaging, deposits, and dragging the final-level handle with a close set.
 
 ## Open questions
 
-1. **The upside barrier test.** At or above, or strictly above. The only public source cited ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/19617/000161577418007603/s111907_424b2.htm)) says strictly greater than for its upper barrier, against the at-or-above assumption in the model. Decision pending: change the upside barrier to strictly above, or keep at or above until a shark fin term sheet is found.
+1. **The upside barrier test.** Decided: strictly above. The only public source cited ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/19617/000161577418007603/s111907_424b2.htm)) says strictly greater than for its upper barrier. A public shark fin term sheet may differ; revisit if one is found.
 2. **Closing levels.** Both cited notes compare closing levels on any day in the period, not intraday levels. Other notes may monitor differently (one product supplement allows intraday or weekly monitoring, per [barrier.md](barrier.md)).
 3. **Rebate with a fall and a downside feature.** Not modelled; the first version excludes the combination.
 4. **Lookback and basket.** Whether the period and the extreme apply to a lookback level or a basket level, and how.
