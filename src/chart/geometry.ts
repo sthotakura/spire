@@ -3,7 +3,7 @@
 // initial level sits at the centre. The vertical axis starts at zero and is fitted to the payoff. The page holds it still while the reader drags, so the line
 // does not move under the pointer, and refits it when the drag ends.
 
-import { barrierLevelAt, downsideOf, upsideOf, type PaymentBreakdown, type Product } from '../domain/note'
+import { barrierLevelAt, downsideOf, maturityPayment, upsideOf, type DeterminedLevels, type PaymentBreakdown, type Product } from '../domain/note'
 
 export interface Plot {
   left: number
@@ -132,6 +132,29 @@ export const jumpLevelsOf = (product: Product, initialLevel: number): number[] =
   const upsideBarrier = upsideOf(product)?.barrier
   if (upsideBarrier !== undefined) levels.push(barrierLevelAt(upsideBarrier.level, initialLevel))
   return levels
+}
+
+// The payment at a final level had a barrier observed on every close been reached on an earlier close. The chart draws the line
+// for a barrier that was not reached, and this is the other path. Undefined when no barrier is observed daily. For a downside
+// barrier it is the lowest close at zero, and for an upside barrier the highest close at the barrier level or above the final level.
+export function reachedPayment(product: Product, levels: DeterminedLevels): number | undefined {
+  if (downsideOf(product)?.barrier?.observation === 'daily-close') return maturityPayment(product, { ...levels, lowestClose: 0 })
+  const upsideBarrier = upsideOf(product)?.barrier
+  if (upsideBarrier?.observation !== 'daily-close') return undefined
+  return maturityPayment(product, { ...levels, highestClose: Math.max(levels.initial, levels.final, barrierLevelAt(upsideBarrier.level, levels.initial)) })
+}
+
+// The stretches of sampled points where two lines differ by more than the tolerance, by index. Each stretch also includes the
+// sample either side of it, where the lines meet, so a line drawn over it joins the other.
+export function differingRuns(main: ReadonlyArray<number>, other: ReadonlyArray<number>, tolerance: number): { start: number; end: number }[] {
+  const runs: { start: number; end: number }[] = []
+  main.forEach((value, i) => {
+    if (Math.abs(value - other[i]) <= tolerance) return
+    const last = runs[runs.length - 1]
+    if (last && last.end === i - 1) last.end = i
+    else runs.push({ start: i, end: i })
+  })
+  return runs.map(({ start, end }) => ({ start: Math.max(0, start - 1), end: Math.min(main.length - 1, end + 1) }))
 }
 
 // A sampled point on the payoff line. A jump marks where the payment changes at once, such as at a barrier: the line breaks

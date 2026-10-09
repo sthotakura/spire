@@ -99,3 +99,21 @@ describe('payoff chart labels with an upside barrier', () => {
     expect(labels['upside-barrier']).toBe('From +30% a rise adds nothing')
   })
 })
+
+describe('payoff chart labels with barriers observed on every close', () => {
+  it('says a downside barrier repays principal only if no close went past it, and labels the other path', () => {
+    const labels = payoffLabels({ ...startingProduct, payoff: { participations: withSubFeatures([down()], { barrier: { level: 0.7, observation: 'daily-close' } }) } })
+    expect(labels.barrier).toBe('A fall of up to 30% repays principal if no close went past it')
+    expect(labels.breach).toBe('If a close fell past 30%, every 1% fall loses 1%')
+  })
+
+  it('labels the other path of an upside barrier with the rebate, even after a fall', () => {
+    const finned = (rebate?: number): Product => ({ ...startingProduct, payoff: { participations: withSubFeatures([{ direction: 'upside', rate: 0.8 }], { upsideBarrier: { level: 1.3, observation: 'daily-close' as const, rebate } }), principalProtection: 1 } })
+    expect(payoffLabels(finned(0.02)).breach).toBe('If a close reached +30%, it pays a fixed 1,020, even after a fall')
+    expect(payoffLabels(finned()).breach).toBe('If a close reached +30%, it adds nothing, even after a fall')
+  })
+
+  it('adds no label for the other path to a barrier observed on the final date', () => {
+    expect(payoffLabels(productWith([down()], { barrier: 0.7 })).breach).toBeUndefined()
+  })
+})

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { amountToY, barrierFromX, bufferFromX, fitAmountAxis, bufferLevel, capBindLevel, capFromY, clamp, clampBarrier, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, clampProtection, clampUpsideBarrier, clampUpsideRate, finalLevelFromX, jumpLevelsOf, keyDelta, leaderStart, levelAxisFactor, levelToX, minimumReturnFromY, placeLabels, protectionFromY, regimeOf, regimeRuns, returnTicks, slopeLevel, splitAtJumps, splitByRegime, upsideBarrierFromX, upsideRateFromY, wrapWords, type Box, type RegimeRun, type Sample, type AmountAxis, type Plot, type Regime } from './chart/geometry'
+import { amountToY, barrierFromX, bufferFromX, fitAmountAxis, bufferLevel, capBindLevel, capFromY, clamp, clampBarrier, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, clampProtection, clampUpsideBarrier, clampUpsideRate, differingRuns, finalLevelFromX, jumpLevelsOf, keyDelta, leaderStart, levelAxisFactor, levelToX, minimumReturnFromY, placeLabels, protectionFromY, reachedPayment, regimeOf, regimeRuns, returnTicks, slopeLevel, splitAtJumps, splitByRegime, upsideBarrierFromX, upsideRateFromY, wrapWords, type Box, type RegimeRun, type Sample, type AmountAxis, type Plot, type Regime } from './chart/geometry'
 import { payoffLabels, type PayoffLabelKey } from './content/chart-labels'
 import HintToggle from './components/HintToggle.vue'
 import NumberInput from './components/NumberInput.vue'
@@ -582,7 +582,7 @@ const featureSelected = computed(() => selected.value !== 'payoff')
 // Each regime is drawn in its concept's colour and labelled with what that concept does.
 const regimeConcept = computed<Record<Regime, ConceptId>>(() => ({ principal: 'payoff', buffer: 'buffer', barrier: 'barrier', 'upside-barrier': 'barrier', absolute: 'absolute-return', downside: 'downside', upside: 'upside', floor: floorConcept.value, cap: 'cap' }))
 // The order labels claim space in, after the selected feature's: the features that bend the line first, principal last.
-const labelPriority: ReadonlyArray<PayoffLabelKey> = ['cap', 'absolute-return', 'buffer', 'barrier', 'upside-barrier', 'protection', 'minimum-return', 'downside', 'upside', 'lowest', 'payoff']
+const labelPriority: ReadonlyArray<PayoffLabelKey> = ['cap', 'absolute-return', 'buffer', 'barrier', 'upside-barrier', 'breach', 'protection', 'minimum-return', 'downside', 'upside', 'lowest', 'payoff']
 // A change of the underlier, as the axis and the bubble show it: +30%, −5%, 0%.
 const changeText = (change: number) => Math.abs(change) < 5e-4 ? '0%' : signedPercent(change)
 const chart = computed(() => {
@@ -608,18 +608,23 @@ const chart = computed(() => {
   const breakdowns = levels.map((level) => paymentBreakdown(note.value, at(level)))
   const values = breakdowns.map((b) => b.payment)
   const jumps = jumpsIn(levels, values)
+  // A barrier observed on every close adds a dashed line: the payment had the barrier been reached on an earlier close. It is
+  // drawn only where it differs from the line, which is the payment when the barrier was not reached.
+  const branchValues = levels.map((level) => reachedPayment(note.value, at(level)) ?? Number.NaN)
+  const branchRuns = Number.isNaN(branchValues[0]) ? [] : differingRuns(values, branchValues, principalAmount * 1e-6)
   const { minimumReturn } = note.value.payoff
   const floorAmount = principalAmount * (minimumReturn !== undefined ? 1 + minimumReturn : note.value.payoff.principalProtection ?? 0)
   const hasFloor = protectionSelected.value || minimumSelected.value
   const capAmount = principalAmount * (1 + (upsideOf(note.value)?.cap ?? 0))
   // The cap stays in view even where the payoff does not reach it.
-  const axis = frozenAxis.value ?? fitAmountAxis(Math.max(...values, capSelected.value ? capAmount : 0), principalAmount)
+  const axis = frozenAxis.value ?? fitAmountAxis(Math.max(...values, ...branchValues.filter((value) => !Number.isNaN(value)), capSelected.value ? capAmount : 0), principalAmount)
   const x = (level: number) => levelToX(level, scale, plot)
   const y = (amount: number) => amountToY(amount, axis.top, plot)
   const pinnedY = (amount: number) => clamp(y(amount), plot.top, plot.bottom)
   const point = (level: number, value: number) => `${x(level)},${y(value)}`
   const samples: Sample[] = levels.map((level, i) => ({ point: point(level, values[i]), regime: regimeOf(breakdowns[i]), jump: jumps[i] }))
   const pieces = splitAtJumps(samples)
+  const branchPieces = branchRuns.map(({ start, end: last }) => levels.slice(start, last + 1).map((level, i) => point(level, branchValues[start + i])).join(' '))
   const segments = splitByRegime(samples)
   const runs = regimeRuns(samples.map(({ regime }) => regime), jumps)
   // The note is read against a payment that moves 1:1 with the underlier: zero at −100%, twice principal at +100%.
@@ -697,12 +702,15 @@ const chart = computed(() => {
   // The lowest payment is at a fall to zero, the first sample. A cap reached only beyond the axis is labelled at the last.
   if (texts.lowest && runs[0] && regimeConcept.value[runs[0].regime] !== floorConcept.value) anchors.set('lowest', [0])
   if (texts.cap && !anchors.has('cap')) anchors.set('cap', [levels.length - 1])
+  // The dashed line is labelled by the middle of its longest stretch, like the pieces of the line.
+  const longestBranch = branchRuns.reduce<RegimeRun | null>((best, run) => !best || run.end - run.start > best.end - best.start ? { regime: 'principal', ...run } : best, null)
+  if (texts.breach && longestBranch) anchors.set('breach', along(longestBranch))
   const lineHeight = 13 * labelScale.value
   const first = selected.value as PayoffLabelKey
   const order = [...(featureSelected.value && anchors.has(first) ? [first] : []), ...labelPriority.filter((key) => !(featureSelected.value && key === first))]
   const requests = order.filter((key) => anchors.has(key)).map((key) => {
     const lines = wrapWords(texts[key] as string, 26)
-    return { id: key, lines, anchors: (anchors.get(key) as number[]).map((i) => ({ x: x(levels[i]), y: y(values[i]) })), width: Math.max(...lines.map((line) => line.length)) * 6.2 * labelScale.value + 6, height: lines.length * lineHeight + 4 }
+    return { id: key, lines, anchors: (anchors.get(key) as number[]).map((i) => ({ x: x(levels[i]), y: y(key === 'breach' ? branchValues[i] : values[i]) })), width: Math.max(...lines.map((line) => line.length)) * 6.2 * labelScale.value + 6, height: lines.length * lineHeight + 4 }
   })
   const obstacles: Box[] = [
     { x: plot.left + 4, y: y(principalAmount) + (principalBelow ? 2 : -18 * labelScale.value), width: 20 + labelWidth(`Principal ${formatAmount(principalAmount)}`), height: 16 * labelScale.value },
@@ -710,17 +718,19 @@ const chart = computed(() => {
     ...(finalHandle ? [{ x: finalHandle.x - ring, y: finalHandle.y - ring, width: ring * 2, height: ring * 2 }] : []),
     // Labels keep off the note's line and the 1:1 line, so the text never sits on a line it describes.
     ...levels.filter((_, i) => i % 2 === 0).flatMap((level, i) => [{ x: x(level), y: y(values[i * 2]), width: 0, height: 0 }, { x: x(level), y: underlierY(level), width: 0, height: 0 }]),
+    ...branchRuns.flatMap(({ start, end: last }) => levels.slice(start, last + 1).filter((_, i) => i % 2 === 0).map((level, i) => ({ x: x(level), y: y(branchValues[start + i * 2]), width: 0, height: 0 }))),
   ]
   const labels = placeLabels(requests, obstacles, plot).map((label) => ({
     ...label,
     lines: requests.find(({ id }) => id === label.id)?.lines ?? [],
     from: leaderStart(label),
     // The lowest payment is where downside participation ends, so it belongs to it.
-    concept: (label.id === 'lowest' ? 'downside' : label.id === 'upside-barrier' ? 'barrier' : label.id) as ConceptId,
+    concept: (label.id === 'lowest' ? 'downside' : label.id === 'upside-barrier' || label.id === 'breach' ? 'barrier' : label.id) as ConceptId,
   }))
   return {
     axis,
     pieces,
+    branchPieces,
     segments,
     shades,
     drops,
@@ -970,6 +980,7 @@ const chart = computed(() => {
                 <polyline v-for="(piece, index) in chart.ghostPieces" :key="`ghost-${index}`" :points="piece" class="ghost-line"/>
                 <polyline v-for="(piece, index) in chart.pieces" :key="`casing-${index}`" :points="piece" class="payoff-casing"/>
                 <polyline v-for="(segment, index) in chart.segments" :key="index" :points="segment.points" class="payoff-line" :style="conceptStyle(regimeConcept[segment.regime])"/>
+                <polyline v-for="(piece, index) in chart.branchPieces" :key="`branch-${index}`" :points="piece" class="branch-line" :style="conceptStyle('barrier')"/>
                 <g v-for="(mark, index) in chart.jumpMarks" :key="`jump-${index}`" aria-hidden="true"><circle :cx="mark.x" :cy="mark.openY" r="5" class="jump-open" :style="conceptStyle(mark.open)"/><circle :cx="mark.x" :cy="mark.closedY" r="5" class="jump-closed" :style="conceptStyle(mark.closed)"/></g>
               </g>
               <line v-if="chart.finalHandle && chartHighlight.final" :x1="chart.finalHandle.x" :y1="chart.finalHandle.y" :x2="chart.finalHandle.x" :y2="plot.bottom" class="highlight-line" :style="conceptStyle('final-level')"/>

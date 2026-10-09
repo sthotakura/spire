@@ -11,7 +11,8 @@ const perPoint = (rate: number) => Number.isFinite(rate) ? `${rate.toLocaleStrin
 // payment at a fall to zero when nothing floors it above zero.
 // `upside-barrier` labels the piece an upside barrier sets. It is the barrier concept, but a note can also have a barrier on
 // downside participation, and each piece needs its own label.
-export type PayoffLabelKey = ConceptId | 'lowest' | 'upside-barrier'
+// `breach` labels the dashed line a barrier observed on every close adds: the payment had the barrier been reached on an earlier close.
+export type PayoffLabelKey = ConceptId | 'lowest' | 'upside-barrier' | 'breach'
 
 export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, string>> {
   const labels: Partial<Record<PayoffLabelKey, string>> = {}
@@ -25,8 +26,11 @@ export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, s
     const barrier = upside.barrier
     labels.upside = `Each 1% rise${barrier === undefined ? '' : ` up to +${percent(barrier.level - 1)}`} adds ${perPoint(upside.rate)}`
     // The rebate, or nothing added, from the barrier level on.
+    // Observed on every close, the barrier is reached by any close at the level, so the dashed line is the payment after one did.
     if (barrier !== undefined) {
+      const fixed = barrier.rebate === undefined ? 'adds nothing' : `pays a fixed ${amount(principal * (1 + barrier.rebate))}`
       labels['upside-barrier'] = barrier.rebate === undefined ? `From +${percent(barrier.level - 1)} a rise adds nothing` : `From +${percent(barrier.level - 1)} it pays a fixed ${amount(principal * (1 + barrier.rebate))}`
+      if (barrier.observation === 'daily-close') labels.breach = `If a close reached +${percent(barrier.level - 1)}, it ${fixed}, even after a fall`
     }
     // The horizontal axis ends at +100%. A cap reached beyond it is said where it is reached.
     if (upside.cap !== undefined) {
@@ -40,8 +44,9 @@ export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, s
       labels.buffer = `A fall of up to ${percent(buffer)} repays principal`
       labels.downside = `A fall past ${percent(buffer)} loses ${perPoint(rate)} per 1% beyond it`
     } else if (barrier !== undefined) {
-      labels.barrier = `A fall of up to ${percent(1 - barrier.level)} repays principal`
+      labels.barrier = barrier.observation === 'daily-close' ? `A fall of up to ${percent(1 - barrier.level)} repays principal if no close went past it` : `A fall of up to ${percent(1 - barrier.level)} repays principal`
       labels.downside = `A fall past ${percent(1 - barrier.level)} loses ${perPoint(rate)} per 1% of the whole fall`
+      if (barrier.observation === 'daily-close') labels.breach = `If a close fell past ${percent(1 - barrier.level)}, every 1% fall loses ${perPoint(rate)}`
     } else labels.downside = `Each 1% fall loses ${perPoint(rate)}`
     // Absolute return pays the falls downside participation does not reach: up to the buffer, or down to the barrier.
     const reach = buffer ?? (barrier !== undefined ? 1 - barrier.level : undefined)

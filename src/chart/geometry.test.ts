@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, minimumReturnFromY, clampProtection, clampUpsideBarrier, clampUpsideRate, finalLevelFromX, jumpLevelsOf, keyDelta, leaderStart, levelToX, placeLabels, regimeRuns, returnTicks, wrapWords, protectionFromY, regimeOf, slopeLevel, splitByRegime, type Plot, upsideBarrierFromX, upsideRateFromY, xToLevel, yToAmount } from './geometry'
-import { paymentBreakdown, withSubFeatures, type Product } from '../domain/note'
+import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, minimumReturnFromY, clampProtection, clampUpsideBarrier, clampUpsideRate, differingRuns, finalLevelFromX, jumpLevelsOf, keyDelta, leaderStart, levelToX, placeLabels, regimeRuns, returnTicks, wrapWords, protectionFromY, reachedPayment, regimeOf, slopeLevel, splitByRegime, type Plot, upsideBarrierFromX, upsideRateFromY, xToLevel, yToAmount } from './geometry'
+import { maturityPayment, paymentBreakdown, withSubFeatures, type Product } from '../domain/note'
 import { startingProduct } from '../domain/starting-note'
 
 const plot: Plot = { left: 50, right: 590, top: 35, bottom: 230 }
@@ -349,5 +349,62 @@ describe('payoff chart labels', () => {
     expect(placed.map(({ id }) => id)).toEqual(['first', 'second'])
     const full = placeLabels([label('first', 10, 45), label('second', 10, 45), label('third', 10, 45)], [], crowded)
     expect(full.map(({ id }) => id)).toEqual(['first', 'second'])
+  })
+})
+
+describe('barrier observed on every close', () => {
+  // The worked examples in docs/daily-observation.md.
+  const downsideNote = (observation: 'final' | 'daily-close'): Product => ({ ...startingProduct, payoff: { participations: withSubFeatures([{ direction: 'downside', rate: 1 }], { barrier: { level: 0.7, observation } }) } })
+  const finned = (observation: 'final' | 'daily-close'): Product => ({ ...startingProduct, payoff: { participations: withSubFeatures([{ direction: 'upside', rate: 0.8 }], { upsideBarrier: { level: 1.3, observation, rebate: 0.02 } }), principalProtection: 1 } })
+
+  describe('the payment had the barrier been reached', () => {
+    it('counts the whole fall for a downside barrier, whatever the final level', () => {
+      expect(reachedPayment(downsideNote('daily-close'), { initial: 100, final: 80 })).toBeCloseTo(800, 8)
+      expect(reachedPayment(downsideNote('daily-close'), { initial: 100, final: 100 })).toBe(1000)
+      expect(reachedPayment(downsideNote('daily-close'), { initial: 100, final: 50 })).toBeCloseTo(500, 8)
+    })
+
+    it('pays the rebate for an upside barrier, below the barrier too', () => {
+      expect(reachedPayment(finned('daily-close'), { initial: 100, final: 120 })).toBeCloseTo(1020, 8)
+      expect(reachedPayment(finned('daily-close'), { initial: 100, final: 90 })).toBeCloseTo(1020, 8)
+      expect(reachedPayment(finned('daily-close'), { initial: 100, final: 150 })).toBeCloseTo(1020, 8)
+    })
+
+    it('is undefined without a barrier observed daily', () => {
+      expect(reachedPayment(downsideNote('final'), { initial: 100, final: 80 })).toBeUndefined()
+      expect(reachedPayment(finned('final'), { initial: 100, final: 120 })).toBeUndefined()
+      expect(reachedPayment(startingProduct, { initial: 100, final: 80 })).toBeUndefined()
+    })
+  })
+
+  describe('where the two paths differ', () => {
+    it('finds the stretches, with the sample either side where the lines meet', () => {
+      expect(differingRuns([1, 1, 2, 2, 1, 1, 3, 1], [1, 1, 1, 1, 1, 1, 1, 1], 0)).toEqual([{ start: 1, end: 4 }, { start: 5, end: 7 }])
+    })
+
+    it('stays inside the samples', () => {
+      expect(differingRuns([2, 2, 1], [1, 1, 1], 0)).toEqual([{ start: 0, end: 2 }])
+      expect(differingRuns([1, 1, 1], [1, 1, 1], 0)).toEqual([])
+    })
+
+    it('ignores differences within the tolerance', () => {
+      expect(differingRuns([1, 1.0000001, 1], [1, 1, 1], 1e-6)).toEqual([])
+    })
+
+    it('finds a downside barrier differing between the barrier and the initial level only', () => {
+      const note = downsideNote('daily-close')
+      const levels = [0, 50, 69.99, 70, 85, 100, 120]
+      const main = levels.map((final) => maturityPayment(note, { initial: 100, final }))
+      const reached = levels.map((final) => reachedPayment(note, { initial: 100, final })!)
+      expect(differingRuns(main, reached, 1e-6)).toEqual([{ start: 2, end: 5 }])
+    })
+
+    it('finds an upside barrier differing below the barrier', () => {
+      const note = finned('daily-close')
+      const levels = [0, 50, 100, 120, 129.99, 130, 150]
+      const main = levels.map((final) => maturityPayment(note, { initial: 100, final }))
+      const reached = levels.map((final) => reachedPayment(note, { initial: 100, final })!)
+      expect(differingRuns(main, reached, 1e-6)).toEqual([{ start: 0, end: 5 }])
+    })
   })
 })
