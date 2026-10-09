@@ -5,7 +5,7 @@ const units = (value: number) => Math.abs(value).toLocaleString('en-US', { maxim
 
 // Explains a contractual maturity payment in words, from the note and its payment breakdown.
 export function explainOutcome(note: Product, breakdown: PaymentBreakdown): string {
-  const { initialLevel, underlierReturn, direction, bufferAbsorbs, barrierLevel, belowBarrier, upsideBarrierLevel, upsideBarrierReached, absoluteReturnApplies, participationRate, participatedReturn, capAmount, capApplies, unflooredPayment, floor, floorApplies, payment } = breakdown
+  const { initialLevel, underlierReturn, direction, bufferAbsorbs, barrierLevel, barrierReached, upsideBarrierLevel, upsideBarrierReached, absoluteReturnApplies, participationRate, participatedReturn, capAmount, capApplies, unflooredPayment, floor, floorApplies, payment } = breakdown
   const hasProtection = note.payoff.principalProtection !== undefined
   const hasMinimum = note.payoff.minimumReturn !== undefined
   // A deposit's floor is its minimum return; a note's is its protection.
@@ -32,8 +32,8 @@ export function explainOutcome(note: Product, breakdown: PaymentBreakdown): stri
     const within = barrierLevel !== undefined ? `It ended at or above the ${units(barrierLevel)} downside barrier` : `The fall is within the ${percent(downsideOf(note)?.buffer ?? 0)} buffer`
     participation = `${within}, so absolute return of ${percent(downsideOf(note)?.absoluteReturn?.rate ?? 0)} adds ${percent(participatedReturn)} to principal.`
   }
-  else if (direction === 'downside' && belowBarrier === false) participation = `It ended at or above the ${units(barrierLevel ?? 0)} downside barrier, so downside participation does not apply and principal is unchanged.`
-  else if (direction === 'downside' && belowBarrier) participation = `It ended below the ${units(barrierLevel ?? 0)} downside barrier, so ${absoluteReturnApplies === false ? 'it pays no absolute return, and ' : ''}downside participation of ${percent(participationRate)} deducts the whole ${percent(participatedReturn)} from principal.`
+  else if (direction === 'downside' && barrierReached === false) participation = `It ended at or above the ${units(barrierLevel ?? 0)} downside barrier, so downside participation does not apply and principal is unchanged.`
+  else if (direction === 'downside' && barrierReached) participation = `It ended below the ${units(barrierLevel ?? 0)} downside barrier, so ${absoluteReturnApplies === false ? 'it pays no absolute return, and ' : ''}downside participation of ${percent(participationRate)} deducts the whole ${percent(participatedReturn)} from principal.`
   else if (direction === 'upside' && upsideBarrierReached) {
     const rebate = upsideOf(note)?.barrier?.rebate
     participation = `It ended at or above the ${units(upsideBarrierLevel ?? 0)} upside barrier, so upside participation ends and ${rebate === undefined ? 'principal is unchanged' : `a rebate of ${percent(rebate)} is added to principal`}.`

@@ -37,7 +37,7 @@ function participationStep(note: Product, breakdown: PaymentBreakdown, direction
   // The buffer and the barrier belong to downside participation, so only its step gives them as the reason.
   const reason = knockedOut ? 'the upside barrier is reached, so participation ends'
     : buffer !== undefined && breakdown.underlierReturn < 0 ? 'the buffer absorbs the whole fall'
-    : direction === 'downside' && breakdown.belowBarrier === false && breakdown.underlierReturn < 0 ? `the ${note.underlier.kind === 'basket' ? 'basket' : 'final'} level is not below the downside barrier`
+    : direction === 'downside' && breakdown.barrierReached === false && breakdown.underlierReturn < 0 ? `the ${note.underlier.kind === 'basket' ? 'basket' : 'final'} level is not below the downside barrier`
       : `applies only when the return is ${direction === 'upside' ? 'positive' : 'negative'}`
   return contribution === 0
     ? { title, how: `${how} · ${reason}`, value: '0%', muted: true, concept: direction }
@@ -67,8 +67,8 @@ function absoluteReturnStep(rate: number, breakdown: PaymentBreakdown, withBarri
 // Whether the final level is below the barrier. Only then does downside participation apply, to the whole fall.
 function barrierStep(level: number, breakdown: PaymentBreakdown, finalName: string, finalLevel: number): Omit<CalculationStep, 'n'> {
   const barrierLevel = breakdown.barrierLevel ?? 0
-  const how = `${formatPercent(level)} × ${formatAmount(breakdown.initialLevel)} · ${finalName} ${formatAmount(finalLevel)} is ${breakdown.belowBarrier ? 'below it, so downside participation applies' : 'not below it, so a fall does not reduce principal'}`
-  return { title: 'Downside barrier', how, value: formatAmount(barrierLevel), muted: !breakdown.belowBarrier, concept: 'barrier' }
+  const how = `${formatPercent(level)} × ${formatAmount(breakdown.initialLevel)} · ${finalName} ${formatAmount(finalLevel)} is ${breakdown.barrierReached ? 'below it, so downside participation applies' : 'not below it, so a fall does not reduce principal'}`
+  return { title: 'Downside barrier', how, value: formatAmount(barrierLevel), muted: !breakdown.barrierReached, concept: 'barrier' }
 }
 
 // Whether the final level has reached the upside barrier. At or above it, upside participation ends and the rebate, if there is one, is paid.

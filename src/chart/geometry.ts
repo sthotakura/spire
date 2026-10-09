@@ -118,7 +118,7 @@ export type Regime = 'principal' | 'buffer' | 'barrier' | 'upside-barrier' | 'ab
 // absolute return pays as a gain is absolute return's. A rise that reaches an upside barrier is paid the rebate, or principal,
 // by that barrier, which is the same concept as the barrier on downside participation but a different piece of the line.
 export const regimeOf = (b: PaymentBreakdown): Regime => b.floorApplies ? 'floor' : b.capApplies ? 'cap' : b.absoluteReturnApplies ? 'absolute' : b.participationRate === undefined ? 'principal'
-  : b.direction === 'downside' && b.belowBarrier === false ? 'barrier'
+  : b.direction === 'downside' && b.barrierReached === false ? 'barrier'
     : b.direction === 'upside' && b.upsideBarrierReached ? 'upside-barrier'
       : b.direction === 'downside' && b.bufferAbsorbs && b.participatedReturn === 0 ? 'buffer' : b.direction
 

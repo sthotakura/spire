@@ -449,7 +449,7 @@ const scenarios = computed(() => !initialValid.value ? [] : scenarioRows(note.va
     direction,
     // At or above the upside barrier the rebate, if there is one, replaces upside participation.
     direction === 'upside' && breakdown.upsideBarrierReached ? (rebateSelected.value ? `rebate ${formatPercent(breakdown.participatedReturn)}` : 'barrier reached')
-    : returnValue !== 0 && direction === breakdown.direction && breakdown.participationRate !== undefined && !(direction === 'downside' && breakdown.belowBarrier === false) && !breakdown.absoluteReturnApplies
+    : returnValue !== 0 && direction === breakdown.direction && breakdown.participationRate !== undefined && !(direction === 'downside' && breakdown.barrierReached === false) && !breakdown.absoluteReturnApplies
       ? `${formatPercent(breakdown.participationRate)} × ${direction === 'downside' && bufferSelected.value ? `min(${formatPercent(returnValue)} + ${bufferSummary.value}, 0)` : formatPercent(returnValue)} = ${formatPercent(breakdown.participatedReturn)}`
       : null,
   ])) as Record<ParticipationDirection, string | null>,

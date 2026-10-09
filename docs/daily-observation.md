@@ -45,7 +45,7 @@ Everything after that is unchanged. A reached downside barrier applies downside 
 
 The simplest version first; the rest waits for a verified public note.
 
-- **Allowed with:** a single underlier, a given initial level, and either final method. With averaging, the extreme close may not be above the lowest averaged level, nor below the highest, in the direction that would contradict it.
+- **Allowed with:** a single underlier, a given initial level, and either final method. With averaging, the payment checks the closes against the final level (the average); keeping the lowest close at or below every averaged level, and the highest at or above, is the interface's job when it edits the scenario.
 - **Unavailable with:** lookback, a basket, and absolute return. Lookback and basket have no verified public daily note. The public trigger note that supports absolute return reads its barrier on the final date.
 - **Upside barrier needs no downside participation.** If the highest close reached the barrier and the final level then fell, the rebate and a downside fall could both apply, which no public note was found to do. Daily observation on an upside barrier is unavailable while the note has downside participation. This can be relaxed later.
 - **Both observations coexist.** Final date remains available for either barrier, so existing notes and tests are unchanged.

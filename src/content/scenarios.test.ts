@@ -55,14 +55,14 @@ describe('scenario rows with a barrier', () => {
     expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 70, 100, 110, 130])
     expect(rows.map(({ atBarrier }) => atBarrier)).toEqual([false, true, false, false, false])
     expect(rows[1].returnValue).toBeCloseTo(-0.3, 12)
-    expect(rows[1].breakdown.belowBarrier).toBe(false)
+    expect(rows[1].breakdown.barrierReached).toBe(false)
     expect(rows.map(({ breakdown }) => Math.round(breakdown.payment))).toEqual([600, 1000, 1000, 1000, 1000])
   })
 
   it('measure the barrier row from the initial level it is given, such as a lookback level', () => {
     const rows = scenarioRows(barriered(0.7), 92)
     expect(rows[1].finalLevel).toBe(rows[1].breakdown.barrierLevel)
-    expect(rows[1].breakdown.belowBarrier).toBe(false)
+    expect(rows[1].breakdown.barrierReached).toBe(false)
   })
 
   it('show only the protected range when the barrier is below every fixed row', () => {

@@ -21,19 +21,24 @@ export interface AbsoluteReturn {
   rate: number
 }
 
-// A level, as a fraction of the initial level. Downside participation applies, to the whole fall, only when the final
-// level is below it. It is observed on the final observation date only: it reads the final level the determination produces.
+// When a barrier is observed. Final reads the final level the determination produces. Daily close reads every closing level
+// from pricing to the final observation date, through the lowest or highest of them (docs/daily-observation.md).
+export type BarrierObservation = 'final' | 'daily-close'
+
+// A level, as a fraction of the initial level. Downside participation applies, to the whole fall, only when the barrier is
+// reached: when the observed level is below it. Observed on the final date, that is the final level; observed daily, it is
+// the lowest close.
 export interface Barrier {
   level: number
-  observation: 'final'
+  observation: BarrierObservation
 }
 
 // A level above the initial level, as a fraction of it. Upside participation applies only while the final level is below it.
 // At or above it, participation is cancelled (a knock-out) and the optional rebate is paid instead: a return on principal.
-// It is observed on the final observation date only, as the barrier on downside participation is (docs/upside-barrier.md).
+// Observed on the final date it reads the final level; observed daily, the highest close (docs/upside-barrier.md).
 export interface UpsideBarrier {
   level: number
-  observation: 'final'
+  observation: BarrierObservation
   rebate?: number
 }
 
@@ -76,6 +81,10 @@ export interface Determination {
 export interface DeterminedLevels {
   initial: number
   final: number
+  // The lowest and highest closing level from pricing to the final observation date, which a barrier observed daily reads.
+  // Absent means no close went beyond the initial and final levels, so no close in between reached a barrier.
+  lowestClose?: number
+  highestClose?: number
 }
 
 // The underlier produces the one return the payoff reads: which assets, where each starts, and how its change is measured.
@@ -234,6 +243,9 @@ function finalIssues(final: FinalDetermination): ProductIssue[] {
   return []
 }
 
+// Daily observation reads closes of the underlier from pricing. Lookback and a basket have no verified public note that settles how.
+const dailyCloseAllowedOn = (underlier: Underlier) => underlier.kind === 'single' && underlier.determination.initial.kind === 'given'
+
 export function productIssues(note: Product): ProductIssue[] {
   const issues: ProductIssue[] = underlierIssues(note.underlier)
   if (!Number.isFinite(note.principalAmount) || note.principalAmount <= 0) issues.push({ field: 'principalAmount', message: 'Principal must be greater than zero.' })
@@ -246,6 +258,10 @@ export function productIssues(note: Product): ProductIssue[] {
   if (barrier !== undefined && (!Number.isFinite(barrier.level) || barrier.level <= 0 || barrier.level >= 1)) issues.push({ field: 'barrier', message: 'Downside barrier must be greater than 0% and less than 100% of the initial level.' })
   // No public note combining the two was verified, so they are not combined.
   if (barrier !== undefined && buffer !== undefined) issues.push({ field: 'barrier', message: 'A downside barrier and a buffer cannot both apply to downside participation.' })
+  if (barrier?.observation === 'daily-close') {
+    if (!dailyCloseAllowedOn(note.underlier)) issues.push({ field: 'barrier', message: 'A downside barrier cannot be observed daily with lookback or a basket.' })
+    if (downsideOf(note)?.absoluteReturn !== undefined) issues.push({ field: 'barrier', message: 'Absolute return reads a downside barrier on the final date only.' })
+  }
   const absoluteReturn = downsideOf(note)?.absoluteReturn
   if (absoluteReturn !== undefined) {
     if (!Number.isFinite(absoluteReturn.rate) || absoluteReturn.rate <= 0) issues.push({ field: 'absoluteReturn', message: 'Absolute return must be greater than zero.' })
@@ -267,6 +283,11 @@ export function productIssues(note: Product): ProductIssue[] {
     if (upsideBarrier.rebate !== undefined && (!Number.isFinite(upsideBarrier.rebate) || upsideBarrier.rebate <= 0)) issues.push({ field: 'upsideBarrier', message: 'Rebate must be greater than zero.' })
     // No public note combining the two was verified, so they are not combined.
     if (cap !== undefined) issues.push({ field: 'upsideBarrier', message: 'An upside barrier and a cap cannot both apply to upside participation.' })
+    if (upsideBarrier.observation === 'daily-close') {
+      if (!dailyCloseAllowedOn(note.underlier)) issues.push({ field: 'upsideBarrier', message: 'An upside barrier cannot be observed daily with lookback or a basket.' })
+      // Reached before a fall, the rebate could be paid beside a downside fall, and no public note was found that does both.
+      if (downsideOf(note) !== undefined) issues.push({ field: 'upsideBarrier', message: 'An upside barrier observed daily needs a note with no downside participation.' })
+    }
   }
   // A deposit is repaid in full, so nothing may take the payment below principal, and principal needs no protection term.
   if (note.wrapper === 'deposit' && downsideOf(note)) issues.push({ field: 'participations', message: 'A deposit repays principal in full, so it cannot have downside participation.' })
@@ -357,13 +378,18 @@ export interface PaymentBreakdown {
   direction: ParticipationDirection
   // Undefined when the note has no buffer. Otherwise the part of a fall the buffer absorbs, as a positive fraction: zero on a rise.
   bufferAbsorbs?: number
-  // Undefined when the note has no barrier. Otherwise the barrier as an underlier level, and whether the final level is below it.
+  // Undefined when the note has no barrier. Otherwise the barrier as an underlier level, and whether it is reached: the final
+  // level below it, or for a barrier observed daily the lowest close below it.
   barrierLevel?: number
-  belowBarrier?: boolean
+  barrierReached?: boolean
   // Undefined when upside participation has no barrier. Otherwise that barrier as an underlier level, and whether the final
-  // level is at or above it, which cancels upside participation and pays the rebate, if there is one.
+  // level (or for a barrier observed daily, the highest close) is at or above it, which cancels upside participation and
+  // pays the rebate, if there is one.
   upsideBarrierLevel?: number
   upsideBarrierReached?: boolean
+  // The closes a barrier observed daily reads. Undefined unless the barrier of that direction is observed daily.
+  lowestClose?: number
+  highestClose?: number
   // Undefined when the note has no absolute return. Otherwise whether the fall is paid as a gain: within the buffer, or ending
   // at or above the barrier.
   absoluteReturnApplies?: boolean
@@ -392,6 +418,13 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
   if (!Number.isFinite(levels.initial) || levels.initial <= 0) throw new Error('Initial level must be greater than zero.')
   if (!Number.isFinite(levels.final) || levels.final < 0) throw new Error('Final level must be zero or greater.')
 
+  // The initial level is the closing level on the pricing date, so no close in the period is below the lowest of it and the
+  // final level, or above the highest.
+  const lowestClose = levels.lowestClose ?? Math.min(levels.initial, levels.final)
+  const highestClose = levels.highestClose ?? Math.max(levels.initial, levels.final)
+  if (!Number.isFinite(lowestClose) || lowestClose < 0 || lowestClose > Math.min(levels.initial, levels.final)) throw new Error('Lowest close must be zero or greater and no higher than the initial and final levels.')
+  if (!Number.isFinite(highestClose) || highestClose < Math.max(levels.initial, levels.final)) throw new Error('Highest close must be no lower than the initial and final levels.')
+
   const underlierReturn = levels.final / levels.initial - 1
   const direction: ParticipationDirection = underlierReturn < 0 ? 'downside' : 'upside'
   const participationRate = note.payoff.participations.find((candidate) => candidate.direction === direction)?.rate
@@ -399,19 +432,20 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
   const bufferAbsorbs = buffer === undefined ? undefined : Math.min(buffer, Math.max(0, -underlierReturn))
   const barrier = downsideOf(note)?.barrier
   const barrierLevel = barrier === undefined ? undefined : barrier.level * levels.initial
-  const belowBarrier = barrierLevel === undefined ? undefined : levels.final < barrierLevel
+  const barrierReached = barrierLevel === undefined ? undefined : (barrier!.observation === 'daily-close' ? lowestClose : levels.final) < barrierLevel
   // At or above the barrier, downside participation does not apply, so a fall leaves principal unchanged.
-  const barrierHolds = direction === 'downside' && belowBarrier === false
+  const barrierHolds = direction === 'downside' && barrierReached === false
   // A fall downside participation does not reach is paid as a gain: one the buffer absorbs whole, or one that ends at or above
   // the barrier. Public notes compare the final level with the buffer level, and a final level at it is within the buffer.
   // Comparing levels also keeps 85 ÷ 100 − 1 from falling just outside a 15% buffer.
   const absoluteReturn = downsideOf(note)?.absoluteReturn
   const absoluteReturnApplies = absoluteReturn === undefined ? undefined
-    : direction === 'downside' && (buffer !== undefined ? levels.final >= levels.initial * (1 - buffer) : belowBarrier === false)
-  // The upside barrier is above the initial level, so reaching it means a rise: the downside features above cannot also apply.
+    : direction === 'downside' && (buffer !== undefined ? levels.final >= levels.initial * (1 - buffer) : barrierReached === false)
+  // Observed on the final date, reaching the upside barrier means a rise, so the downside features above cannot also apply.
+  // Observed daily it can be reached before a fall, which is why only a note with no downside participation may observe it so.
   const upsideBarrier = upsideOf(note)?.barrier
   const upsideBarrierLevel = upsideBarrier === undefined ? undefined : barrierLevelAt(upsideBarrier.level, levels.initial)
-  const upsideBarrierReached = upsideBarrierLevel === undefined ? undefined : levels.final >= upsideBarrierLevel
+  const upsideBarrierReached = upsideBarrierLevel === undefined ? undefined : (upsideBarrier!.observation === 'daily-close' ? highestClose : levels.final) >= upsideBarrierLevel
   const participatedReturn = absoluteReturnApplies ? absoluteReturn!.rate * -underlierReturn
     : barrierHolds ? 0
     : upsideBarrierReached ? upsideBarrier!.rebate ?? 0
@@ -431,9 +465,11 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
     direction,
     bufferAbsorbs,
     barrierLevel,
-    belowBarrier,
+    barrierReached,
     upsideBarrierLevel,
     upsideBarrierReached,
+    lowestClose: barrier?.observation === 'daily-close' ? lowestClose : undefined,
+    highestClose: upsideBarrier?.observation === 'daily-close' ? highestClose : undefined,
     absoluteReturnApplies,
     participationRate,
     participatedReturn,

@@ -413,8 +413,8 @@ describe('barrier', () => {
   })
 
   it('reports the barrier level and whether the final level is below it', () => {
-    expect(paymentBreakdown(barriered, { initial: 100, final: 65 })).toMatchObject({ barrierLevel: 70, belowBarrier: true, participatedReturn: -0.35 })
-    expect(paymentBreakdown(barriered, { initial: 100, final: 75 })).toMatchObject({ barrierLevel: 70, belowBarrier: false, participatedReturn: 0 })
+    expect(paymentBreakdown(barriered, { initial: 100, final: 65 })).toMatchObject({ barrierLevel: 70, barrierReached: true, participatedReturn: -0.35 })
+    expect(paymentBreakdown(barriered, { initial: 100, final: 75 })).toMatchObject({ barrierLevel: 70, barrierReached: false, participatedReturn: 0 })
     expect(paymentBreakdown(note, { initial: 100, final: 75 }).barrierLevel).toBeUndefined()
   })
 
@@ -607,9 +607,9 @@ describe('absolute return', () => {
     })
 
     it('pays the gain at or above the downside barrier and counts the whole fall below it', () => {
-      expect(paymentBreakdown(trigger, { initial: 100, final: 70 })).toMatchObject({ absoluteReturnApplies: true, belowBarrier: false })
+      expect(paymentBreakdown(trigger, { initial: 100, final: 70 })).toMatchObject({ absoluteReturnApplies: true, barrierReached: false })
       const below = paymentBreakdown(trigger, { initial: 100, final: 69 })
-      expect(below).toMatchObject({ absoluteReturnApplies: false, belowBarrier: true })
+      expect(below).toMatchObject({ absoluteReturnApplies: false, barrierReached: true })
       expect(below.participatedReturn).toBeCloseTo(-0.31, 8)
     })
 
@@ -924,5 +924,148 @@ describe('withSubFeatures with an upside barrier', () => {
     expect(upside).toEqual({ direction: 'upside', barrier: upsideBarrier, rate: 0.8, cap: undefined })
     expect(Object.keys(upside)).toEqual(['direction', 'barrier', 'rate', 'cap'])
     expect(withSubFeatures([{ direction: 'downside', rate: 1 }], { upsideBarrier })).toEqual([{ direction: 'downside', rate: 1 }])
+  })
+})
+
+describe('daily close observation', () => {
+  // The worked examples in docs/daily-observation.md. The downside note has a 70% barrier, 100% downside and no protection.
+  const noProtection = { ...note, payoff: { ...note.payoff, principalProtection: undefined } }
+  const downsideAt = (observation: 'final' | 'daily-close') => withDownside(noProtection, { barrier: { level: 0.7, observation } })
+  const dailyDownside = downsideAt('daily-close')
+  const finalDownside = downsideAt('final')
+  // 80% upside, a 130% barrier, a 2% rebate, 100% protection, no downside participation.
+  const finnedAt = (observation: 'final' | 'daily-close') => withUpside({ ...note, payoff: { ...note.payoff, participations: [{ direction: 'upside', rate: 1.5 }] } }, { rate: 0.8, barrier: { level: 1.3, observation, rebate: 0.02 } })
+  const dailyUpside = finnedAt('daily-close')
+  const finalUpside = finnedAt('final')
+
+  describe('downside barrier', () => {
+    it.each([
+      [100, 65, 1000, 1000],
+      [80, 80, 1000, 1000],
+      [80, 65, 800, 1000],
+      [65, 65, 650, 650],
+    ])('pays final level %s after a lowest close of %s as %s, against %s observed on the final date', (final, lowestClose, daily, onFinalDate) => {
+      expect(maturityPayment(dailyDownside, { initial: 100, final, lowestClose })).toBeCloseTo(daily, 8)
+      expect(maturityPayment(finalDownside, { initial: 100, final, lowestClose })).toBeCloseTo(onFinalDate, 8)
+    })
+
+    it('does not reach the barrier by closing at it', () => {
+      expect(maturityPayment(dailyDownside, { initial: 100, final: 80, lowestClose: 70 })).toBe(1000)
+      expect(maturityPayment(dailyDownside, { initial: 100, final: 80, lowestClose: 69.99 })).toBeCloseTo(800, 8)
+    })
+
+    it('counts no close beyond the initial and final levels when none is given', () => {
+      expect(paymentBreakdown(dailyDownside, { initial: 100, final: 80 })).toMatchObject({ barrierReached: false, lowestClose: 80, participatedReturn: 0 })
+      expect(paymentBreakdown(dailyDownside, { initial: 100, final: 65 })).toMatchObject({ barrierReached: true, lowestClose: 65, participatedReturn: -0.35 })
+    })
+
+    it('leaves a rise to upside participation, whatever the closes did', () => {
+      expect(maturityPayment(dailyDownside, { initial: 100, final: 120, lowestClose: 50 })).toBeCloseTo(1300, 8)
+    })
+
+    it('reports the lowest close only when the barrier is observed daily', () => {
+      expect(paymentBreakdown(dailyDownside, { initial: 100, final: 80, lowestClose: 65 })).toMatchObject({ barrierLevel: 70, barrierReached: true, lowestClose: 65 })
+      expect(paymentBreakdown(finalDownside, { initial: 100, final: 80, lowestClose: 65 })).toMatchObject({ barrierReached: false, lowestClose: undefined })
+    })
+
+    it('never pays more than the same barrier observed on the final date', () => {
+      for (let final = 0; final <= 150; final += 5) {
+        for (let lowestClose = 0; lowestClose <= Math.min(100, final); lowestClose += 5) {
+          expect(maturityPayment(dailyDownside, { initial: 100, final, lowestClose })).toBeLessThanOrEqual(maturityPayment(finalDownside, { initial: 100, final }) + 1e-9)
+        }
+      }
+    })
+
+    it('is measured from the determined initial level', () => {
+      // Initial level 80, so the barrier is 56: a lowest close of 60 does not reach it, 50 does.
+      expect(maturityPayment(dailyDownside, { initial: 80, final: 70, lowestClose: 60 })).toBe(1000)
+      expect(maturityPayment(dailyDownside, { initial: 80, final: 70, lowestClose: 50 })).toBeCloseTo(875, 8)
+    })
+  })
+
+  describe('upside barrier', () => {
+    it.each([
+      [120, 125, 1160, 1160],
+      [120, 135, 1020, 1160],
+      [150, 150, 1020, 1020],
+      [90, 135, 1020, 1000],
+    ])('pays final level %s after a highest close of %s as %s, against %s observed on the final date', (final, highestClose, daily, onFinalDate) => {
+      expect(maturityPayment(dailyUpside, { initial: 100, final, highestClose })).toBeCloseTo(daily, 8)
+      expect(maturityPayment(finalUpside, { initial: 100, final, highestClose })).toBeCloseTo(onFinalDate, 8)
+    })
+
+    it('reaches the barrier by closing at it', () => {
+      expect(maturityPayment(dailyUpside, { initial: 100, final: 120, highestClose: 130 })).toBe(1020)
+      expect(maturityPayment(dailyUpside, { initial: 100, final: 120, highestClose: 129.99 })).toBeCloseTo(1160, 8)
+    })
+
+    it('counts no close beyond the initial and final levels when none is given', () => {
+      expect(paymentBreakdown(dailyUpside, { initial: 100, final: 120 })).toMatchObject({ upsideBarrierReached: false, highestClose: 120 })
+      expect(paymentBreakdown(dailyUpside, { initial: 100, final: 140 })).toMatchObject({ upsideBarrierReached: true, highestClose: 140, participatedReturn: 0.02 })
+    })
+
+    it('pays principal after a reached barrier with no rebate, even if the underlier falls back', () => {
+      const noRebate = withUpside(dailyUpside, { barrier: { level: 1.3, observation: 'daily-close' } })
+      expect(maturityPayment(noRebate, { initial: 100, final: 120, highestClose: 135 })).toBe(1000)
+    })
+
+    it('reaches a barrier at a level that floating point cannot state exactly', () => {
+      expect(paymentBreakdown(withUpside(dailyUpside, { barrier: { level: 1.1, observation: 'daily-close' } }), { initial: 100, final: 105, highestClose: 110 }).upsideBarrierReached).toBe(true)
+    })
+  })
+
+  describe('closes', () => {
+    it.each([
+      [{ lowestClose: 95 }, 'Lowest close must be zero or greater and no higher than the initial and final levels.'],
+      [{ lowestClose: -1 }, 'Lowest close must be zero or greater and no higher than the initial and final levels.'],
+      [{ lowestClose: Number.NaN }, 'Lowest close must be zero or greater and no higher than the initial and final levels.'],
+      [{ highestClose: 95 }, 'Highest close must be no lower than the initial and final levels.'],
+    ])('rejects closes %j that contradict the initial and final levels', (closes, message) => {
+      expect(() => paymentBreakdown(dailyDownside, { initial: 100, final: 90, ...closes })).toThrow(message)
+    })
+  })
+
+  describe('validation', () => {
+    it('allows either barrier on a single underlier with a given initial level', () => {
+      expect(productIssues(dailyDownside)).toEqual([])
+      expect(productIssues(dailyUpside)).toEqual([])
+    })
+
+    it('allows averaging', () => {
+      const averaged = (product: SingleProduct): SingleProduct => ({ ...product, underlier: { ...product.underlier, determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'averaging', observationCount: 4 } } } })
+      expect(productIssues(averaged(dailyDownside))).toEqual([])
+      expect(productIssues(averaged(dailyUpside))).toEqual([])
+    })
+
+    it('does not allow lookback', () => {
+      const lookback = (product: SingleProduct): SingleProduct => ({ ...product, underlier: { ...product.underlier, determination: { initial: { kind: 'lookback', observationCount: 3 }, final: { kind: 'final-date' } } } })
+      expect(productIssues(lookback(dailyDownside))).toEqual([{ field: 'barrier', message: 'A downside barrier cannot be observed daily with lookback or a basket.' }])
+      expect(productIssues(lookback(dailyUpside))).toEqual([{ field: 'upsideBarrier', message: 'An upside barrier cannot be observed daily with lookback or a basket.' }])
+      expect(productIssues(lookback(finalDownside))).toEqual([])
+    })
+
+    it('does not allow a basket', () => {
+      const basket = (product: SingleProduct): Product => ({
+        ...product,
+        underlier: {
+          kind: 'basket',
+          components: [{ asset: { kind: 'equity-index', name: 'Index A' }, weight: 0.5 }, { asset: { kind: 'equity-index', name: 'Index B' }, weight: 0.5 }],
+          determination: { initial: { kind: 'given', levels: [{ asset: 'Index A', level: 100 }, { asset: 'Index B', level: 100 }] }, final: { kind: 'final-date' }, basketReturn: { kind: 'weighted' } },
+        },
+      })
+      expect(productIssues(basket(dailyDownside))).toEqual([{ field: 'barrier', message: 'A downside barrier cannot be observed daily with lookback or a basket.' }])
+      expect(productIssues(basket(dailyUpside))).toEqual([{ field: 'upsideBarrier', message: 'An upside barrier cannot be observed daily with lookback or a basket.' }])
+    })
+
+    it('does not allow a downside barrier with absolute return', () => {
+      expect(productIssues(withDownside(dailyDownside, { absoluteReturn: { rate: 0.5 } }))).toEqual([{ field: 'barrier', message: 'Absolute return reads a downside barrier on the final date only.' }])
+      expect(productIssues(withDownside(finalDownside, { absoluteReturn: { rate: 0.5 } }))).toEqual([])
+    })
+
+    it('does not allow an upside barrier with downside participation', () => {
+      const both = (observation: 'final' | 'daily-close') => ({ ...note, payoff: { ...note.payoff, participations: [{ direction: 'downside' as const, rate: 1 }, ...finnedAt(observation).payoff.participations] } })
+      expect(productIssues(both('daily-close'))).toEqual([{ field: 'upsideBarrier', message: 'An upside barrier observed daily needs a note with no downside participation.' }])
+      expect(productIssues(both('final'))).toEqual([])
+    })
   })
 })
