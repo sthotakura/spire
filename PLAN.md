@@ -362,6 +362,15 @@ Open questions:
 - **Incomplete trees.** A tree is often unfinished while it is being built. The draft state and per-field issues carry over, but a dropped concept with no terms yet needs its own clear state.
 - **Keyboard access.** Every drag needs a keyboard equivalent, as the Add feature palette and the chart handles have now.
 
+## Later direction: break Payoff into sections
+
+Payoff may eventually stop being one list of features and become several sections, for example with barriers and their observation moved out to a section of their own that payoff features refer to. This is a direction, not a plan: nothing is scheduled, and the current model stays as it is until a concrete need settles it.
+
+- **Why it may be needed.** A barrier is nested under one participation direction today, so it can govern only that direction's feature, and a note with a barrier on each side needs two. Several restrictions come from that nesting rather than from the contracts they describe, such as a daily upside barrier needing a note with no downside participation. Barrier.md already records the alternatives: a barrier event that several features refer to, and a list of barriers.
+- **A test case.** A public note observes an upper and a lower barrier on closing levels as one event that replaces absolute return, on both a rise and a fall, with a fixed return ([docs/daily-observation.md](docs/daily-observation.md)). It can be read as two barriers joined by "either", with observation stated once. It cannot be written in the current model.
+- **What would carry over.** The `observation` term, the lowest and highest close as scenario inputs, the dashed other path on the chart, and the equality rules (a barrier is reached strictly beyond its level) do not depend on where the barrier lives.
+- **Open questions.** Where observation belongs (its own section, on each barrier, or in Payoff), how a feature refers to a barrier or an event, and how the outline and Structure JSON keep the same shape when features no longer nest under a direction. The composable form above would need the same answers.
+
 ## Not planned
 
 Market pricing, implied volatility, Greeks, live data, contingent and floating coupons, calls, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.
