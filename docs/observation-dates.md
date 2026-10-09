@@ -20,7 +20,7 @@ Public pricing supplements state a small set of dates. One lookback note, for ex
 Nothing in the payment. Every payoff built so far reads the determined initial and final levels, and a date changes neither. Averaging and lookback already state how many levels they read; the dates would say when. Dates start to change payments with:
 
 - coupons and calls, whose conditions are observed on stated dates,
-- a barrier observed daily, which reads the levels between dates.
+- a barrier observed daily, which reads the levels between dates, in principle. A barrier alone does not need them: SPIRe reads it through the lowest or highest close a scenario states, without dates ([daily-observation.md](daily-observation.md)). Coupons and calls need levels on stated dates, which that extreme close cannot give.
 
 A barrier observed only on the final observation date reads the final level, as the buffer does, and needs no dates.
 
@@ -66,4 +66,4 @@ A barrier observed only on the final observation date reads the final level, as 
 1. **Build now, or record only?** Dates change no payment built so far (see *What dates change today*).
 2. **Co-located dates or one schedule?** The proposal co-locates them; alternative 1 is the other reasonable model.
 3. **Lookback as a period or a list?** Real notes state a period of trading days. A list keeps hand entry possible but departs from how term sheets phrase it.
-4. **Which barrier first?** A barrier observed on the final observation date fits the current model without dates; a daily barrier needs a path of levels as a new scenario input.
+4. **Which barrier first?** Answered: the final-date barrier first, then the daily barrier, which needed only one extreme close as a scenario input, not a path or dates ([daily-observation.md](daily-observation.md)).

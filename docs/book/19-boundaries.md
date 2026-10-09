@@ -21,8 +21,10 @@ market data. Observation counts stand in for schedules; actual calendar
 dates and business-day conventions are not calculated.
 
 The products illustrated pay once at scheduled maturity. Coupon schedules,
-autocalls, issuer calls, and daily monitored barriers need additional terms
-and observations before their payments can be calculated.
+autocalls, and issuer calls need additional terms and observations before their
+payments can be calculated. A barrier can be observed on every close, but only
+through the one lowest or highest close a scenario states. Conditions observed
+on stated dates would need dated observations, which are not modelled.
 
 ## Reading other contracts
 

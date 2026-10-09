@@ -47,7 +47,10 @@ payment checks it first:
 ```
 
 The level is a fraction of the starting level, so `1.3` is 130%. The rebate is
-a return on principal, so `0.02` is 2%.
+a return on principal, so `0.02` is 2%. The `observation` is `"final"` when the
+barrier reads the final level, or `"daily-close"` when it reads every close from
+pricing to the final date. The lowest or highest close that a daily barrier
+reads is a scenario input and, like the final level, is not stored here.
 
 The hypothetical final level is not stored in this structure. It is a
 scenario input, supplied when calculating a payment. Likewise, lookback and

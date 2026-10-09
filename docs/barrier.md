@@ -1,6 +1,6 @@
 # Barrier
 
-This increment adds a barrier as a sub-feature of downside participation, observed on the final observation date. It does not add daily observation, knock-out barriers, barriers on upside participation, coupons, digital amounts, or pricing. The work follows section 15 of [PLAN.md](../PLAN.md), which nested the buffer and cap under their directions.
+This increment adds a barrier as a sub-feature of downside participation, observed on the final observation date. It does not add daily observation (added later: [daily-observation.md](daily-observation.md)), knock-out barriers, barriers on upside participation, coupons, digital amounts, or pricing. The work follows section 15 of [PLAN.md](../PLAN.md), which nested the buffer and cap under their directions.
 
 ## Established concepts
 
@@ -46,14 +46,14 @@ downside participated return =
 Everything after that is unchanged: the upside, the cap and the protection floor apply as before.
 
 - **Level.** A fraction of the initial level, as term sheets state it (70% of the initial level), not a fall like the buffer (a 30% buffer). Greater than 0% and less than 100%. A barrier at 100% would switch downside participation on for any fall, which is downside participation without a barrier.
-- **Observation.** `"final"` only: the barrier reads the final level the determination produces. It is stated in the JSON because it is a contractual term and because daily observation, the other public form, reads a path of levels instead. Daily observation waits for observation dates.
+- **Observation.** `"final"`: the barrier reads the final level the determination produces. It is stated in the JSON because it is a contractual term and because daily observation, the other public form, reads the levels between dates instead. `"daily-close"` was added later and reads the lowest close from pricing to the final date, without dates ([daily-observation.md](daily-observation.md)).
 - **Effect.** A barrier on downside participation is a knock-in. The effect is not stated separately yet. It becomes a term when a second effect (a knock-out, or a barrier on upside participation) is modelled.
 - **Initial level.** The barrier is a fraction of the level the return is measured from: the initial level, or the lookback level when the note has lookback ([lookback.md](lookback.md)). The note above has lookback, so its barrier is "70.00% of the Lookback Value". The buffer is measured the same way.
 - **Order.** The barrier is checked before the rate applies, so its key comes before `rate`, as the buffer's does.
 
 ## Consequences
 
-- **Outline.** Barrier nests under Downside participation, beside where a buffer would sit, with an "Observed" choice of Final date (Daily is shown as unavailable). The Add feature menu marks it "Needs downside participation" until that exists, as for the buffer, and marks a barrier and a buffer "Not with a buffer" and "Not with a barrier".
+- **Outline.** Barrier nests under Downside participation, beside where a buffer would sit, with an "Observed" choice of Final date or Daily close (Daily close is unavailable with lookback, a basket or absolute return). The Add feature menu marks it "Needs downside participation" until that exists, as for the buffer, and marks a barrier and a buffer "Not with a buffer" and "Not with a barrier".
 - **Summary, payment rule and outcome.** The summary adds "with a barrier at 70% of the initial level" (or "of the lookback level"). The payment rule adds a line, "downside only when Final level < Barrier × Initial level", and the words say each fall counts "only if" the underlier ends below the barrier. The outcome sentence says whether the final level is below the barrier and, if it is, that the whole fall counts.
 - **Calculation.** A barrier step before downside participation, e.g. `Barrier 70 (70% of 100) · final level 65 is below it, so downside participation applies`, muted when the final level is at or above it.
 - **Chart.** A vertical guide at the barrier level, in its own colour, with a sideways handle as the buffer has. The payoff line jumps at the barrier: principal at and just above it, the full loss just below. It is drawn as two pieces with no connecting segment, since a steep line would show payments the note never makes. The colour, violet #9775fa, passes the dataviz palette checks against every colour it can touch: downside, protection, upside, principal, cap and buffer.
@@ -81,7 +81,7 @@ With a 90% protection floor added, the last two rows pay 900: the floor still bo
 1. **A barrier and a buffer on the same downside participation are not allowed together**: downside participation has one or the other, not both. The combination could be expressed, but it makes little sense as a product, so it is restricted for now. No public note combining them was verified; the "Contingent Buffer" notes found are a buffer with a steeper loss rate, not a barrier ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/9631/000183988226020010/bns_424b2-12863.htm)). The Add feature menu marks whichever is second as unavailable, with a short reason. A note with a barrier on a digital return and a buffer on the downside (above) is a different case: each belongs to a different feature, which the model allows by its shape.
 2. **Below the barrier, the downside rate applies to the whole fall.** Public barrier notes found use 1% per 1%, which is a 100% rate. Other rates are allowed, as they are for downside participation without a barrier.
 3. **A barrier with a protection floor is allowed.** The floor bounds the payment as it does today. A floor at or above the breached payment makes the barrier irrelevant, as 100% protection does for downside participation.
-4. **Observation on the final date only** until observation dates are modelled.
+4. **Observation on the final date first.** Daily close observation was added later, without dates ([daily-observation.md](daily-observation.md)).
 5. **One scenario row at the barrier.** It shows where protection ends, wherever the barrier is dragged. A second row just below the barrier was considered and not added: any step below it is arbitrary, and the chart already draws the jump.
 
 ## Open questions

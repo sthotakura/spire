@@ -1,6 +1,6 @@
 # Daily close observation
 
-This is a proposal, not yet built. It adds a second way to observe a barrier: on every closing level from pricing to the final observation date, instead of on the final observation date only. It applies to the barrier on downside participation ([barrier.md](barrier.md)) and the barrier on upside participation ([upside-barrier.md](upside-barrier.md)). It does not add dates, a calendar, coupons, calls, or daily observation for a buffer.
+Built, as proposed below except for the departures listed under *As built*. It adds a second way to observe a barrier: on every closing level from pricing to the final observation date, instead of on the final observation date only. It applies to the barrier on downside participation ([barrier.md](barrier.md)) and the barrier on upside participation ([upside-barrier.md](upside-barrier.md)). It does not add dates, a calendar, coupons, calls, or daily observation for a buffer.
 
 ## Established concepts
 
@@ -102,6 +102,18 @@ The last row pays the rebate although the final level fell: the barrier was reac
 3. Chart: the dashed branch and its labels.
 4. Interface: the Observed choice and the extreme-close field.
 5. Documentation: the book chapters, book outline, marketing names, [upside-barrier.md](upside-barrier.md), [observation-dates.md](observation-dates.md) and [PLAN.md](../PLAN.md).
+
+## As built
+
+All five steps are done. The model, the worked examples (each row is a domain test), the scope and the decisions above stand, with these departures and details:
+
+- **The solid line is always the path where no close reached the barrier.** The proposal drew the scenario's own path solid. Doing that means splitting the coloured line into pieces, so the dashed line is always the other path, and the final-level marker sits on whichever line the scenario's closes put it on, which may be the dashed one. Drawing the scenario's path solid is a possible refinement.
+- **The averaging check is the interface's job.** The payment checks the closes against the final level only. The interface moves the reader's lowest close down, or highest close up, so it stays within the initial level and every observed level, and with no input uses the lowest or highest of those levels.
+- **The domain rejects contradictory closes.** A lowest close above the initial or final level, below zero, or not a number, and a highest close below either level, throw.
+- **The rename.** `belowBarrier` in the payment breakdown became `barrierReached`, since it no longer means only the final level. The breakdown also reports `lowestClose` or `highestClose` for a barrier observed daily.
+- **The extra scenario row** (`afterBreach`) puts the final level halfway between the barrier and the initial level, with a close 5% of the initial level past the barrier. It stays beside the row at that final level that never reached the barrier.
+- **Unavailable combinations** are blocked in both directions in the interface, with the reason in the option label, and rejected by validation.
+- **Not yet checked in the running app:** narrow screens, keyboard use, the scenario table, averaging, deposits, and dragging the final-level handle with a close set.
 
 ## Open questions
 

@@ -28,7 +28,10 @@ barrier needs downside participation. A rebate needs an upside barrier.
 Absolute return needs a buffer or barrier to define its range. SPIRe does not
 combine a buffer and barrier on the same downside participation, or a cap and
 an upside barrier on the same upside participation. A barrier on each direction
-can appear on one product, because each switches a different rule.
+can appear on one product, because each switches a different rule. A barrier
+observed on every close is available on a single underlier with a fixed initial
+level. A daily downside barrier cannot be combined with absolute return, and a
+daily upside barrier needs a note with no downside participation.
 This is the supported model's boundary, not a statement that all contracts
 use these restrictions.
 

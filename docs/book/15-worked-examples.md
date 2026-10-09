@@ -45,6 +45,16 @@ final level 129 pays 1,232. At final level 130 the barrier is reached, so
 participation ends and the payment drops to 1,020. The Barrier chapter
 has the full set of levels.
 
+## Observe a barrier on every close
+
+Return to the 70% downside barrier with 100% downside participation, and
+final level 80. If no close was below 70, the payment is 1,000. If the
+underlier closed at 65 earlier and then recovered to 80, the barrier was
+reached and the whole 20% fall counts: the payment is 800. The same 80 final
+level pays 1,000 when the barrier is observed only on the final date. The
+Barrier chapter has the upside case, where one close at the barrier earns the
+rebate whatever the final level.
+
 ## Add absolute return
 
 With a 15% buffer, 100% absolute return, and 100% downside participation,

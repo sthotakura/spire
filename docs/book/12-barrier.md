@@ -2,9 +2,11 @@
 
 A barrier is a threshold that controls whether another rule applies. This book
 names each barrier after the participation it controls. The downside barrier
-switches downside participation on when the determined final level is strictly
+switches downside participation on when the underlier is observed strictly
 below the threshold. An upside barrier switches upside participation off when
-the determined final level reaches the threshold.
+the underlier is observed at or above it. A barrier can be observed on the
+final observation date only, or on every close from pricing to that date. The
+first sections use the final level; the last section observes every close.
 
 Practitioners call a barrier that switches a feature on a knock-in barrier and
 one that switches it off a knock-out barrier. The downside barrier here is a
@@ -66,18 +68,79 @@ equality in the contract.
 Public educational material describes notes with this shape, often called
 shark fin notes ([Hubbis](https://www.hubbis.com/article/swimming-with-sharks-capital-protected-structured-solutions-for-uncertain-times);
 [my-structured-products.com](https://www.my-structured-products.com/index.php/know-how/capital-guarantee/36-shark-notes)).
-Those descriptions observe the barrier on every trading day, which is not what
-this example does.
+Those descriptions observe the barrier on every trading day. This example reads
+only the final level, so it describes a different contract; the next section
+observes every close.
 
-## Observation matters
+## Observing a barrier on every close
 
-These examples test only the determined final level. A daily monitored barrier
-can depend on a breach earlier in the product's life even if the final level
-recovers. That requires a different observation rule and cannot be inferred
-from a final-level chart alone.
+Many public notes observe a barrier on every trading day, using closing levels,
+from the pricing date to the final observation date. The barrier is then
+reached if any close crosses it, and it stays reached even if the underlier
+later recovers. One daily-monitored note has a knock-in event "if the closing
+level of either Index on any eligible trading day during the observation period
+is less than its threshold level"
+([SEC 424B2](https://www.sec.gov/Archives/edgar/data/72971/000138713119008969/wfcr1924-424b2_112119.htm)).
 
-For an upside barrier the difference is larger. With daily observation, a
-single close at or above the barrier would end participation and earn the
-rebate, even if the underlier then fell back below the initial level. The
-final-observation version above pays the rebate only when the final level
-itself is at or above the barrier, so it describes a different contract.
+SPIRe states this as the barrier's observation, `daily-close`. A scenario then
+needs one more number than the final level: the lowest close for a downside
+barrier, or the highest close for an upside barrier. Whether any close crossed
+the threshold is the same as whether that extreme close did, so no list of
+daily levels is needed. This reference assumes the initial level is the close
+on the pricing date, which is never past either kind of barrier, so the start
+of the period changes nothing.
+
+Take the downside barrier above: principal of 1,000, initial level of 100, a
+barrier at 70%, 100% downside participation, and no protection. The barrier is
+reached only by a close strictly below 70.
+
+```text
+Final  Lowest  Barrier   Payment         Payment observed
+level  close   reached?  observed daily  on the final date
+100    65      yes       1,000           1,000
+80     80      no        1,000           1,000
+80     65      yes         800           1,000
+65     65      yes         650             650
+```
+
+The third row is what daily observation adds. The underlier recovered to 80,
+but it closed at 65 earlier, so the whole 20% fall counts. Observed on the
+final date, the same note pays 1,000. In the first row the barrier was reached
+but there is no fall left to count, so nothing is deducted.
+
+Now take the upside barrier above: 80% upside participation, a barrier at 130%,
+a 2% rebate, and 100% principal protection. The barrier is reached by any close
+at or above 130.
+
+```text
+Final  Highest  Barrier   Payment         Payment observed
+level  close    reached?  observed daily  on the final date
+120    125      no        1,160           1,160
+120    135      yes       1,020           1,160
+150    150      yes       1,020           1,020
+90     135      yes       1,020           1,000
+```
+
+In the second row a single close at 135 ended participation, so the rebate
+replaces the 16% gain although the final level is below the barrier. In the
+last row the rebate is paid although the underlier fell back below the initial
+level. This is the behaviour public descriptions give for a shark fin note: the
+rebate is paid once the barrier is touched, whatever the final level.
+
+Assumptions and limits of this version:
+
+- Only closing levels count. Intraday levels, and monitoring on other schedules
+  such as weekly, are not modelled.
+- The lowest and highest close are hypothetical scenario inputs, not terms of
+  the product. A close cannot be below the lowest of the initial level and the
+  levels the final level is read from, or above the highest of them.
+- A daily barrier is available on a single underlier with a fixed initial level.
+  It is not combined with lookback or a basket, whose public notes were not
+  verified, or with absolute return, which the public trigger note reads on the
+  final date.
+- A daily upside barrier needs a note with no downside participation. If it
+  were reached before a fall, a rebate and a downside loss could both apply, and
+  no public note was found that does both.
+- The test is the same as above: a downside barrier is reached strictly below
+  the threshold and an upside barrier at or above it. Each contract states its
+  own equality rule.

@@ -30,6 +30,17 @@ the payment just below it.
 There is no line connecting the branches. Such a line would imply intermediate
 payments that the rule does not produce.
 
+## Two paths for a barrier observed on every close
+
+When a barrier is observed on every close, the payment depends on more than the
+final level. The solid line is the payment when no close reached the barrier.
+A dashed line, in the barrier's colour, is the payment had a close reached it
+earlier. For a downside barrier it runs between the barrier and the initial
+level, where a recovered underlier still pays the whole fall. For an upside
+barrier it runs below the barrier, where an earlier close has already earned the
+rebate. The final-level marker sits on whichever line the scenario's lowest or
+highest close puts it on, so it can sit on the dashed line.
+
 ## Choosing scenarios
 
 Include a rise, no change, a modest fall, and a large fall. At a threshold,
@@ -38,4 +49,7 @@ one basket return can result from many different component performances.
 
 With averaging or lookback, the chart uses the determined levels for the
 assumed observations. A final-return diagram alone cannot show every possible
-observation path or a daily barrier event.
+observation path. For a barrier observed on every close, the dashed line and the
+scenario's lowest or highest close stand in for the path, and the scenario table
+adds a row where the barrier was reached and the underlier then moved back
+towards the initial level, labelled with the close that reached it.
