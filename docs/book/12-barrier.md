@@ -81,6 +81,13 @@ later recovers. One daily-monitored note has a knock-in event "if the closing
 level of either Index on any eligible trading day during the observation period
 is less than its threshold level"
 ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/72971/000138713119008969/wfcr1924-424b2_112119.htm)).
+Another note watches both sides: its event occurs if, on any day in the period,
+the closing level "is greater than the Upper Barrier or less than the Lower
+Barrier", and the holder then receives a fixed return on principal whatever the
+final level
+([SEC 424B2](https://www.sec.gov/Archives/edgar/data/19617/000161577418007603/s111907_424b2.htm)).
+That note pays the absolute value of the underlier's return on a rise as well
+as a fall until the event, which this reference does not model.
 
 SPIRe states this as the barrier's observation, `daily-close`. A scenario then
 needs one more number than the final level: the lowest close for a downside
@@ -143,4 +150,5 @@ Assumptions and limits of this version:
   no public note was found that does both.
 - The test is the same as above: a downside barrier is reached strictly below
   the threshold and an upside barrier at or above it. Each contract states its
-  own equality rule.
+  own equality rule: the two-sided note above tests its upper barrier as strictly
+  greater than.

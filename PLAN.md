@@ -137,7 +137,7 @@ Open questions:
 
 - **One cap in several places.** A cap could limit more than one feature, or the whole payment, once something other than upside participation can raise it (a coupon or a digital amount). Nesting it under upside participation leaves that open; it does not need solving yet.
 - **A cap stated as an underlier level.** Some notes may state the cap as a level of the underlier rather than a maximum return. With a rate above 100% the two differ. Not yet verified in current public notes.
-- **One barrier gating several features.** Verified in one product supplement: a single upside-barrier event cancels upside participation and changes the downside rate beyond the buffer ([docs/barrier.md](docs/barrier.md)). How to model it is still open.
+- **One barrier gating several features.** Verified in one product supplement: a single upside-barrier event cancels upside participation and changes the downside rate beyond the buffer ([docs/barrier.md](docs/barrier.md)). A second public note has one event, reached through an upper or a lower barrier on closing levels, that replaces absolute return on both a rise and a fall with a fixed return. How to model it is still open.
 
 ## 16. Add a barrier on downside participation
 
@@ -339,7 +339,7 @@ Add a second observation for both barriers: every closing level from pricing to 
 - **The payment breakdown** gains `lowestClose` and `highestClose`, and `belowBarrier` is renamed `barrierReached`. The calculation, outcome, scenario rows, summary, payment rule and shark fin names read it; the scenario table adds a row where the barrier was reached and the underlier moved back.
 - **The chart** draws a dashed line for the path where a close reached the barrier earlier, with its own label, beside the solid line for the path where none did. The final-level marker sits on whichever line the closes put it on.
 - **Interface:** the Observed choice enables Daily close, with the reason when it is unavailable, and a lowest or highest close field appears in the calculation.
-- **Still open:** the upside barrier test (at or above) and closing levels against a public shark fin term sheet; lookback and basket; and whether the scenario's own path should be the solid line. Narrow screens, keyboard use and the scenario table were not checked in the running app.
+- **Still open:** the upside barrier test. The model reaches it at or above, but the one public filing cited (a two-sided barrier on closes with absolute return, a different product) says strictly greater than, so a decision is pending; lookback and basket; and whether the scenario's own path should be the solid line. Narrow screens, keyboard use and the scenario table were not checked in the running app.
 
 ## Later direction: a composable form
 
