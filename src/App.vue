@@ -14,7 +14,7 @@ import { scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
-import { barrierLevelAt, basketBreakdown, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
+import { barrierLevelAt, basketBreakdown, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
@@ -35,8 +35,10 @@ const hints = {
   'final-level': 'The level the underlier’s return is measured to. Final date uses the level on the one final observation date; moves before it do not count. Averaging takes the average of the levels observed on several dates before maturity, so a sharp move on the last date counts for less.',
   downside: 'The share of a negative underlier return, beyond any buffer, deducted from principal before the protection floor applies.',
   buffer: 'The fall the holder does not bear, as a percentage of the initial level. A fall within it leaves principal unchanged, unless absolute return pays it as a gain. A larger fall reduces principal by the amount beyond it, at the downside participation rate.',
-  barrier: 'A level of the underlier below the initial level, as a percentage of it. A knock-in barrier: if the final level ends below it, downside participation switches on and applies to the whole fall; at or above it, a fall leaves principal unchanged, unless absolute return pays it as a gain. It is observed on the final observation date.',
-  'upside-barrier': 'A level of the underlier above the initial level, as a percentage of it. A knock-out barrier: if the final level ends below it, upside participation applies as usual; at or above it, upside participation ends and the rebate, if there is one, is paid instead. It is observed on the final observation date.',
+  barrier: 'A level of the underlier below the initial level, as a percentage of it. A knock-in barrier: once the level is below it, downside participation switches on and applies to the whole fall; otherwise a fall leaves principal unchanged, unless absolute return pays it as a gain. Observed on the final date, it reads the final level. Observed daily, it reads every closing level from pricing to the final date, so one close below it is enough, even if the underlier later recovers.',
+  'upside-barrier': 'A level of the underlier above the initial level, as a percentage of it. A knock-out barrier: while the level stays below it, upside participation applies as usual; once it is reached, upside participation ends and the rebate, if there is one, is paid instead. Observed on the final date, it reads the final level. Observed daily, it reads every closing level from pricing to the final date, so one close at or above it is enough, even if the underlier later falls back.',
+  'lowest-close': 'A hypothetical lowest closing level of the underlier from pricing to the final date, for this scenario. A daily downside barrier is reached if it is below the barrier. It cannot be above the initial level or any level observed on the final date or the averaging dates. Changing it does not change the product’s terms.',
+  'highest-close': 'A hypothetical highest closing level of the underlier from pricing to the final date, for this scenario. A daily upside barrier is reached if it is at or above the barrier. It cannot be below the initial level or any level observed on the final date or the averaging dates. Changing it does not change the product’s terms.',
   rebate: 'A fixed return on principal, paid in place of upside participation once the upside barrier is reached. It does not depend on how far the underlier rose.',
   'absolute-return': 'Pays as a gain a fall that downside participation does not reach, within the buffer or ending at or above the downside barrier: each 1% fall adds the absolute return rate, as a percentage of principal. A larger fall pays no gain and reduces principal as the buffer or barrier sets out, so the payment drops there.',
   upside: 'The share of a positive underlier return added to principal.',
@@ -199,6 +201,23 @@ const rebateSelected = ref(false)
 const rebatePercent = ref(firstFeatureValues.rebate)
 const absoluteSelected = ref(false)
 const absolutePercent = ref(firstFeatureValues.absoluteReturn)
+// When each barrier is observed. Daily close reads the lowest or highest closing level from pricing to the final date.
+const barrierObservation = ref<BarrierObservation>('final')
+const upsideBarrierObservation = ref<BarrierObservation>('final')
+// Hypothetical lowest and highest closes, as last edited: scenario inputs, not note terms. Left unset, no close goes beyond the
+// levels the scenario already states.
+const lowestCloseInput = ref<number>()
+const highestCloseInput = ref<number>()
+const dailyDownside = computed(() => barrierSelected.value && barrierObservation.value === 'daily-close')
+const dailyUpside = computed(() => upsideBarrierSelected.value && upsideBarrierObservation.value === 'daily-close')
+const dailySelected = computed(() => dailyDownside.value || dailyUpside.value)
+// Why a barrier cannot be observed daily, or null when it can: the same rules productIssues enforces.
+const dailyBlockedReason = (direction: ParticipationDirection) => {
+  if (lookingBack.value || isBasket.value) return 'Not with lookback or a basket'
+  if (direction === 'downside' && absoluteSelected.value) return 'Not with absolute return'
+  if (direction === 'upside' && selectedParticipation.downside) return 'Not with downside participation'
+  return null
+}
 const minimumSelected = ref(false)
 const minimumPercent = ref(firstFeatureValues.minimum)
 const selectedDirections = computed(() => (['downside', 'upside'] as ParticipationDirection[]).filter((direction) => selectedParticipation[direction]))
@@ -219,6 +238,8 @@ const blockedReason = (id: FeatureId) => {
   if (id === 'cap' && upsideBarrierSelected.value) return 'Not with an upside barrier'
   if (id === 'rebate' && !upsideBarrierSelected.value) return 'Needs an upside barrier'
   if (id === 'absolute-return' && !bufferSelected.value && !barrierSelected.value) return 'Needs a buffer or downside barrier'
+  if (id === 'absolute-return' && dailyDownside.value) return 'Not with a daily downside barrier'
+  if (id === 'downside' && dailyUpside.value) return 'Not with a daily upside barrier'
   return null
 }
 // Why a wrapper cannot be chosen, or null when it can. Switching never removes the reader's terms, so a wrapper is
@@ -336,8 +357,8 @@ const note = computed<Product>(() => ({
   payoff: {
     participations: withSubFeatures(selectedDirections.value.map((direction) => ({ direction, rate: participationPercent[direction] / 100 })), {
       buffer: bufferSelected.value ? bufferPercent.value / 100 : undefined,
-      barrier: barrierSelected.value ? { level: barrierPercent.value / 100, observation: 'final' } : undefined,
-      upsideBarrier: upsideBarrierSelected.value ? { level: fractionFrom(upsideBarrierPercent.value), observation: 'final', rebate: rebateSelected.value ? fractionFrom(rebatePercent.value) : undefined } : undefined,
+      barrier: barrierSelected.value ? { level: barrierPercent.value / 100, observation: barrierObservation.value } : undefined,
+      upsideBarrier: upsideBarrierSelected.value ? { level: fractionFrom(upsideBarrierPercent.value), observation: upsideBarrierObservation.value, rebate: rebateSelected.value ? fractionFrom(rebatePercent.value) : undefined } : undefined,
       absoluteReturn: absoluteSelected.value ? { rate: absolutePercent.value / 100 } : undefined,
       cap: capSelected.value ? capPercent.value / 100 : undefined,
     }),
@@ -410,7 +431,11 @@ const determinedInitialLevel = computed(() => !initialValid.value ? Number.NaN :
 // Marks the observed level, or tied levels, that set the lookback level.
 const isLowest = (level: number) => Number.isFinite(determinedInitialLevel.value) && level === determinedInitialLevel.value
 const finalLevel = computed(() => !valid.value ? Number.NaN : basketMeasure.value ? basketMeasure.value.levels.final : finalLevelFrom(determination.value.final, observations.value))
-const breakdown = computed(() => valid.value ? paymentBreakdown(note.value, { initial: determinedInitialLevel.value, final: finalLevel.value }) : null)
+// The closes a barrier observed daily reads. A close is a level on a date in the period, so none can be beyond the initial level
+// or any level observed on the final or averaging dates; the reader's level is moved in to stay within them.
+const lowestClose = computed(() => dailyDownside.value && initialValid.value ? Math.min(Number.isFinite(lowestCloseInput.value) ? Math.max(0, lowestCloseInput.value as number) : Infinity, determinedInitialLevel.value, ...observations.value) : undefined)
+const highestClose = computed(() => dailyUpside.value && initialValid.value ? Math.max(Number.isFinite(highestCloseInput.value) ? highestCloseInput.value as number : -Infinity, determinedInitialLevel.value, ...observations.value) : undefined)
+const breakdown = computed(() => valid.value ? paymentBreakdown(note.value, { initial: determinedInitialLevel.value, final: finalLevel.value, lowestClose: lowestClose.value, highestClose: highestClose.value }) : null)
 const payment = computed(() => breakdown.value?.payment ?? null)
 const outcomeSentence = computed(() => breakdown.value ? explainOutcome(note.value, breakdown.value) : '')
 const formatAmount = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 })
@@ -430,7 +455,7 @@ const chartDescription = computed(() => {
     ? `${absoluteSelected.value ? `rises with falls ${barrierSelected.value ? 'that end at or above the downside barrier, then drops by the whole fall below it' : 'within the buffer, then drops at the buffer level'} and falls` : bufferSelected.value ? `stays at principal for falls within the buffer, then falls` : barrierSelected.value ? 'stays at principal for falls that end at or above the barrier, then drops by the whole fall below it and falls' : 'falls'} with negative underlier returns${protectionSelected.value ? ' until the protection floor applies' : ', but not below zero'}`
     : 'stays at principal for negative underlier returns'
   const rise = selectedParticipation.upside ? `rises with positive underlier returns${capSelected.value ? ' until the cap applies' : upsideBarrierSelected.value ? `, until the upside barrier is reached, then drops to ${rebateSelected.value ? 'principal plus the rebate' : 'principal'}` : ''}` :'stays at principal for flat or positive underlier returns'
-  return `Contractual maturity payment ${fall}. It ${rise}.${minimumSelected.value ? ' It never falls below principal plus the minimum return.' : ''}`
+  return `Contractual maturity payment ${fall}. It ${rise}.${minimumSelected.value ? ' It never falls below principal plus the minimum return.' : ''}${dailySelected.value ? ' A dashed line shows the payment if the barrier had been reached on an earlier close.' : ''}`
 })
 const buildTimestampIso = __BUILD_TIMESTAMP__
 const buildTimestamp = new Intl.DateTimeFormat('en-GB', {
@@ -439,11 +464,13 @@ const buildTimestamp = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
 }).format(new Date(buildTimestampIso))
 
-const scenarios = computed(() => !initialValid.value ? [] : scenarioRows(note.value, determinedInitialLevel.value).map(({ returnValue, finalLevel, atBarrier, atBuffer, breakdown }) => ({
+const scenarios = computed(() => !initialValid.value ? [] : scenarioRows(note.value, determinedInitialLevel.value).map(({ returnValue, finalLevel, atBarrier, atBuffer, afterBreach, breakdown }) => ({
   final: finalLevel,
   returnValue,
   atBarrier,
   atBuffer,
+  // The row where a barrier observed daily was reached on an earlier close, with the close that reached it.
+  closeNote: !afterBreach ? null : breakdown.lowestClose !== undefined ? `lowest close ${formatAmount(breakdown.lowestClose)}` : `highest close ${formatAmount(breakdown.highestClose ?? 0)}`,
   absolute: breakdown.absoluteReturnApplies ? `${absoluteSummary.value} × |${formatPercent(returnValue)}| = ${formatPercent(breakdown.participatedReturn)}` : null,
   calculations: Object.fromEntries(selectedDirections.value.map((direction) => [
     direction,
@@ -802,7 +829,7 @@ const chart = computed(() => {
                 <li :class="['node', { sel: highlighted('underlier') }]" :style="conceptStyle('underlier')">
                   <div class="nrow" @click="select('underlier')" @focusin="focusRow('underlier')">
                     <span class="nlabel">Underlier<HintToggle id="underlier" about="underlier" :text="hints.underlier" :active="activeHint === 'underlier'" @toggle="toggleHint('underlier')" /></span>
-                    <span class="ctrl pick"><select aria-label="Underlier" :value="underlierKind" @change="setUnderlierKind(($event.target as HTMLSelectElement).value as Underlier['kind'])"><option v-for="option in underlierOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
+                    <span class="ctrl pick"><select aria-label="Underlier" :value="underlierKind" @change="setUnderlierKind(($event.target as HTMLSelectElement).value as Underlier['kind'])"><option v-for="option in underlierOptions" :key="option.id" :value="option.id" :disabled="!option.available || (option.id === 'basket' && dailySelected)">{{ option.label }}{{ option.available ? (option.id === 'basket' && dailySelected ? ' (not with a daily barrier)' : '') : ' (unavailable)' }}</option></select></span>
                   </div>
                   <ul>
                     <li v-if="!isBasket" :class="['node', { sel: highlighted('asset') }]" :style="conceptStyle('asset')">
@@ -834,7 +861,7 @@ const chart = computed(() => {
                         <li :class="['node', { sel: highlighted('initial-level') }]" :style="conceptStyle('initial-level')">
                           <div class="nrow" @click="select('initial-level')" @focusin="focusRow('initial-level')">
                             <span class="nlabel">Initial level<HintToggle id="initial-level" about="initial level" :text="hints['initial-level']" :active="activeHint === 'initial-level'" @toggle="toggleHint('initial-level')" /></span>
-                            <span class="ctrl pick"><select id="initial-determination" v-model="initialKind" aria-label="Initial level"><option v-for="option in initialDeterminationOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="isBasket && option.id === 'lookback'">{{ option.label }}{{ isBasket && option.id === 'lookback' ? ' (single asset only)' : '' }}</option></select></span>
+                            <span class="ctrl pick"><select id="initial-determination" v-model="initialKind" aria-label="Initial level"><option v-for="option in initialDeterminationOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="option.id === 'lookback' && (isBasket || dailySelected)">{{ option.label }}{{ option.id === 'lookback' ? (isBasket ? ' (single asset only)' : dailySelected ? ' (not with a daily barrier)' : '') : '' }}</option></select></span>
                             <span v-if="lookingBack" class="ctrl block wraps"><label for="lookback-count">Observations after pricing</label><HintToggle id="lookback-count" about="observations after pricing" :text="hints['lookback-observations']" :active="activeHint === 'lookback-observations'" @toggle="toggleHint('lookback-observations')" /><NumberInput id="lookback-count" v-model="lookbackCount" class="num count" /></span>
                             <span v-if="lookingBack" class="ctrl block wraps"><span class="flabel">Observed levels</span><span class="unit">Hypothetical, set in the calculation</span></span>
                             <template v-else-if="isBasket"><span v-for="(asset, index) in basketAssets" :key="index" class="ctrl block"><label :for="`initial-level-${index}`">{{ asset.name.trim() || `Asset ${index + 1}` }}</label><NumberInput :id="`initial-level-${index}`" v-model="asset.initialLevel" class="num" /></span></template>
@@ -884,7 +911,7 @@ const chart = computed(() => {
                           <div class="nrow" @click="select('barrier')" @focusin="focusRow('barrier')">
                             <span class="nlabel">Downside barrier<HintToggle id="barrier" about="downside barrier" :text="hints.barrier" :active="activeHint === 'barrier'" @toggle="toggleHint('barrier')" /></span>
                             <span class="ctrl"><NumberInput id="rate-barrier" v-model="barrierPercent" class="num rate" :aria-label="`Downside barrier: level (% of the ${lookingBack ? 'lookback' : 'initial'} level)`" /><span class="unit">%</span><button type="button" class="xbtn" aria-label="Remove downside barrier" @click.stop="removeFeature('barrier')">×</button></span>
-                            <span class="ctrl block"><label for="barrier-observation">Observed</label><select id="barrier-observation" value="final"><option value="final">Final date</option><option value="daily" disabled>Daily (unavailable)</option></select></span>
+                            <span class="ctrl block"><label for="barrier-observation">Observed</label><select id="barrier-observation" v-model="barrierObservation"><option value="final">Final date</option><option value="daily-close" :disabled="dailyBlockedReason('downside') !== null">Daily close{{ dailyBlockedReason('downside') ? ` (${dailyBlockedReason('downside')!.toLowerCase()})` : '' }}</option></select></span>
                           </div>
                           <ul v-if="issuesFor('barrier').length" class="errors" role="alert"><li v-for="message in issuesFor('barrier')" :key="message">{{ message }}</li></ul>
                         </li>
@@ -914,7 +941,7 @@ const chart = computed(() => {
                           <div class="nrow" @click="select('barrier')" @focusin="focusRow('barrier')">
                             <span class="nlabel">Upside barrier<HintToggle id="upside-barrier" about="upside barrier" :text="hints['upside-barrier']" :active="activeHint === 'upside-barrier'" @toggle="toggleHint('upside-barrier')" /></span>
                             <span class="ctrl"><NumberInput id="rate-upside-barrier" v-model="upsideBarrierPercent" class="num rate" :aria-label="`Upside barrier: level (% of the ${lookingBack ? 'lookback' : 'initial'} level)`" /><span class="unit">%</span><button type="button" class="xbtn" aria-label="Remove upside barrier" @click.stop="removeFeature('upside-barrier')">×</button></span>
-                            <span class="ctrl block"><label for="upside-barrier-observation">Observed</label><select id="upside-barrier-observation" value="final"><option value="final">Final date</option><option value="daily" disabled>Daily (unavailable)</option></select></span>
+                            <span class="ctrl block"><label for="upside-barrier-observation">Observed</label><select id="upside-barrier-observation" v-model="upsideBarrierObservation"><option value="final">Final date</option><option value="daily-close" :disabled="dailyBlockedReason('upside') !== null">Daily close{{ dailyBlockedReason('upside') ? ` (${dailyBlockedReason('upside')!.toLowerCase()})` : '' }}</option></select></span>
                           </div>
                           <ul v-if="issuesFor('upsideBarrier').length" class="errors" role="alert"><li v-for="message in issuesFor('upsideBarrier')" :key="message">{{ message }}</li></ul>
                           <ul v-if="rebateSelected">
@@ -1031,6 +1058,8 @@ const chart = computed(() => {
               <div v-else-if="averaging" class="hint-field"><div class="field-heading"><span id="observed-levels-label" class="observed-heading">Final level: hypothetical levels of {{ underlierLabel }} on the averaging dates</span><button type="button" class="hint-button" aria-label="About the averaged final level" aria-controls="observed-levels-hint" :aria-expanded="activeHint === 'observed-levels'" @click="toggleHint('observed-levels')">ⓘ</button><p v-if="activeHint === 'observed-levels'" id="observed-levels-hint" class="hint-text" role="tooltip">Hypothetical levels on each averaging date, earliest first. Their average is the final level. Changing them does not change the {{ wrapper }}'s terms.</p></div><div class="observed-levels" role="group" aria-labelledby="observed-levels-label" :style="conceptStyle('final-level')"><template v-for="(level, index) in observations" :key="index"><span v-if="index > 0" class="observed-op" aria-hidden="true">+</span><span class="observed-cell"><label :for="`observation-${index}`" class="observed-name">Obs {{ index + 1 }}<template v-if="index === observations.length - 1"> · final date</template></label><NumberInput :id="`observation-${index}`" :model-value="level" class="observed-input" @update:model-value="setObservation(index, $event)" /></span></template><span class="observed-op" aria-hidden="true">÷ {{ observations.length }} =</span><span class="observed-cell"><span class="observed-name">Final level</span><output class="observed-result" aria-live="polite">{{ Number.isFinite(finalLevel) ? formatAmount(finalLevel) : '—' }}</output></span></div></div>
               <div v-else class="hint-field"><div class="field-heading"><label for="final-level">Final level: hypothetical level of {{ underlierLabel }} on the final date</label><button type="button" class="hint-button" aria-label="About the final level" aria-controls="final-level-hint" :aria-expanded="activeHint === 'final-level'" @click="toggleHint('final-level')">ⓘ</button><p v-if="activeHint === 'final-level'" id="final-level-hint" class="hint-text" role="tooltip">A hypothetical level for this scenario. Changing it does not change the {{ wrapper }}'s terms.</p></div><NumberInput id="final-level" :model-value="observations[0]" class="final-input" @update:model-value="setObservation(0, $event)" /></div>
               <p v-if="finalError" class="errors" role="alert">{{ finalError }}</p>
+              <div v-if="dailyDownside && lowestClose !== undefined" class="hint-field"><div class="field-heading"><label for="lowest-close">Lowest close: hypothetical lowest close of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About the lowest close" aria-controls="lowest-close-hint" :aria-expanded="activeHint === 'lowest-close'" @click="toggleHint('lowest-close')">ⓘ</button><p v-if="activeHint === 'lowest-close'" id="lowest-close-hint" class="hint-text" role="tooltip">{{ hints['lowest-close'] }}</p></div><NumberInput id="lowest-close" :model-value="lowestClose" class="final-input" @update:model-value="lowestCloseInput = $event" /></div>
+              <div v-if="dailyUpside && highestClose !== undefined" class="hint-field"><div class="field-heading"><label for="highest-close">Highest close: hypothetical highest close of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About the highest close" aria-controls="highest-close-hint" :aria-expanded="activeHint === 'highest-close'" @click="toggleHint('highest-close')">ⓘ</button><p v-if="activeHint === 'highest-close'" id="highest-close-hint" class="hint-text" role="tooltip">{{ hints['highest-close'] }}</p></div><NumberInput id="highest-close" :model-value="highestClose" class="final-input" @update:model-value="highestCloseInput = $event" /></div>
               <div class="formula" role="group" aria-label="Payment rule"><div v-for="(line, index) in formula" :key="index" :class="['fline', { limit: !line.lead }]"><span class="flead">{{ line.lead }}</span><span class="feq">{{ line.lead ? '=' : '' }}</span><span class="fexpr"><template v-for="(segment, part) in line.segments" :key="part"><span v-if="segment.concept" :class="['fterm', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)">{{ segment.text }}</span><template v-else>{{ segment.text }}</template></template></span></div><p class="fwords"><b>In words:</b> {{ formulaWords }}</p></div>
               <ol class="calc-steps" aria-live="polite"><li v-for="step in calculation" :key="step.n" :class="{ hl: step.concept && highlighted(step.concept), muted: step.muted, result: step.result }"><span class="calc-n">{{ step.n }}</span><b>{{ step.title }}</b><span class="calc-value">{{ step.value }}</span><span class="calc-how">{{ step.how }}</span></li></ol>
               <p v-if="outcomeSentence" class="outcome" aria-live="polite">{{ outcomeSentence }}</p>
@@ -1039,7 +1068,7 @@ const chart = computed(() => {
               <template v-if="chart">
                 <h3>Example scenarios</h3>
                 <p class="table-scroll-hint">Scroll horizontally to see every scenario column.</p>
-                <div class="table-wrap"><table><thead><tr><th>{{ isBasket ? 'Basket level' : 'Final level' }}</th><th>Underlier change</th><th v-if="absoluteSelected">Absolute return</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected || minimumSelected">Payment before {{ minimumSelected ? 'minimum' : 'protection' }}</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="row.returnValue"><td>{{ formatAmount(row.final) }}<span v-if="row.atBarrier" class="floor-note">at barrier</span><span v-if="row.atBuffer" class="floor-note">at buffer</span></td><td>{{ formatPercent(row.returnValue) }}</td><td v-if="absoluteSelected">{{ row.absolute ?? '—' }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected || minimumSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="(protectionSelected || minimumSelected) && row.floorApplied" class="floor-note">{{ minimumSelected ? 'minimum applied' : 'floor applied' }}</span></td></tr></tbody></table></div>
+                <div class="table-wrap"><table><thead><tr><th>{{ isBasket ? 'Basket level' : 'Final level' }}</th><th>Underlier change</th><th v-if="absoluteSelected">Absolute return</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected || minimumSelected">Payment before {{ minimumSelected ? 'minimum' : 'protection' }}</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="`${row.returnValue}-${row.closeNote}`"><td>{{ formatAmount(row.final) }}<span v-if="row.atBarrier" class="floor-note">at barrier</span><span v-if="row.atBuffer" class="floor-note">at buffer</span><span v-if="row.closeNote" class="floor-note">{{ row.closeNote }}</span></td><td>{{ formatPercent(row.returnValue) }}</td><td v-if="absoluteSelected">{{ row.absolute ?? '—' }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected || minimumSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="(protectionSelected || minimumSelected) && row.floorApplied" class="floor-note">{{ minimumSelected ? 'minimum applied' : 'floor applied' }}</span></td></tr></tbody></table></div>
                 <p class="scenario-formula"><template v-if="lookingBack">Each change is measured from the lookback level, {{ formatAmount(determinedInitialLevel) }}. </template><template v-if="averaging">Each final level is the average of the observed levels. </template><strong>Selected participation:</strong> {{ participationSummary }}. A move in a direction without participation leaves principal unchanged before any floor applies.<template v-if="bufferSelected"> The buffer absorbs the first {{ bufferSummary }} of a fall.</template><template v-if="absoluteSelected"> A fall {{ barrierSelected ? 'that ends at or above the downside barrier' : 'within the buffer' }} pays {{ absoluteSummary }} of the fall as a gain.</template><template v-if="upsideBarrierSelected"> At or above the upside barrier, upside participation ends{{ rebateSelected ? ` and the rebate pays ${formatPercent(rebatePercent / 100)} of principal instead` : '' }}.</template> The payment cannot fall below {{ floorSummary }}.<template v-if="capSelected"> It cannot exceed {{ capSummary }}.</template></p>
               </template>
               <p v-else class="help">Enter valid terms to see the scenarios.</p>
