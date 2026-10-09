@@ -74,12 +74,14 @@ export function summarize(note: Product): SummarySegment[] {
   // The barrier is a fraction of the level the return is measured from: the lookback level with lookback, and the basket's
   // starting level for a basket.
   const barrierFrom = initial.kind === 'lookback' ? 'lookback level' : basket ? 'initial basket level' : 'initial level'
-  if (barrier !== undefined) clauses.push({ text: `a downside barrier at ${percent(barrier.level)} of the ${barrierFrom}`, concept: 'barrier' })
+  // A barrier is read on the final observation date unless it says it is observed on every close.
+  const everyClose = (observation: 'final' | 'daily-close') => observation === 'daily-close' ? ', observed on every close,' : ''
+  if (barrier !== undefined) clauses.push({ text: `a downside barrier at ${percent(barrier.level)} of the ${barrierFrom}${barrier.observation === 'daily-close' ? ', observed on every close' : ''}`, concept: 'barrier' })
   // Absolute return follows the buffer or barrier it depends on, which "it" names.
   if (absoluteReturn !== undefined) clauses.push({ text: `${percent(absoluteReturn.rate)} absolute return on a fall ${barrier !== undefined ? 'that ends at or above it' : 'within it'}`, concept: 'absolute-return' })
   if (protection !== undefined) clauses.push({ text: `${percent(protection)} principal protection`, concept: 'protection' })
   // An upside barrier ends upside participation, and a rebate, when there is one, is paid in its place. It is not combined with a cap.
-  if (upsideBarrier !== undefined) clauses.push({ text: `an upside barrier at ${percent(upsideBarrier.level)} of the ${barrierFrom} that ends the upside${upsideBarrier.rebate !== undefined ? ` and pays a ${percent(upsideBarrier.rebate)} rebate` : ''}`, concept: 'barrier' })
+  if (upsideBarrier !== undefined) clauses.push({ text: `an upside barrier at ${percent(upsideBarrier.level)} of the ${barrierFrom}${everyClose(upsideBarrier.observation)} that ends the upside${upsideBarrier.rebate !== undefined ? ` and pays a ${percent(upsideBarrier.rebate)} rebate` : ''}`, concept: 'barrier' })
   // The cap limits a rise only. With absolute return a fall can pay more, so the clause says which return it limits.
   if (cap !== undefined) clauses.push({ text: `a maximum return of ${percent(cap)}${absoluteReturn !== undefined ? ' on a rise' : ''}`, concept: 'cap' })
   const minimum = note.payoff.minimumReturn

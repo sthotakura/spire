@@ -154,7 +154,7 @@ describe('marketing names with an upside barrier', () => {
     const [pp] = sharkFin(1)
     for (const shark of [plain, pp]) {
       expect(shark.reason).toContain('every trading day')
-      expect(shark.reason).toContain('observes only the final level')
+      expect(shark.reason).toContain('observed only on the final date')
       expect(shark.vocabulary).toBe('Market usage')
     }
     expect(plain.concepts).toEqual(['upside', 'barrier'])
@@ -166,5 +166,20 @@ describe('marketing names with an upside barrier', () => {
     expect(namesOf({ principalProtection: 1, participations: [up(0.8)] })).toEqual(['Principal-protected note'])
     const deposit = marketingNames({ ...noteWith({}), wrapper: 'deposit', payoff: { participations: withSubFeatures([up(0.8)], { upsideBarrier: { level: 1.3, observation: 'final' as const } }) } }).map(({ name }) => name)
     expect(deposit).toEqual(['Market-linked deposit'])
+  })
+})
+
+describe('marketing names with an upside barrier observed on every close', () => {
+  const daily = (principalProtection?: number) => marketingNames({ ...noteWith({ principalProtection }), payoff: { participations: withSubFeatures([up(0.8)], { upsideBarrier: { level: 1.3, observation: 'daily-close' as const, rebate: 0.02 } }), principalProtection } })
+
+  it('shows the same names as for a barrier on the final date, since the name follows the payoff diagram', () => {
+    expect(daily().map(({ name }) => name)).toEqual(['Shark fin note'])
+    expect(daily(1).map(({ name }) => name)).toEqual(['Principal-protected note', 'Shark fin PP'])
+  })
+
+  it('drops the caveat about the final date', () => {
+    const [plain] = daily()
+    expect(plain.reason).toContain('observed on every close')
+    expect(plain.reason).not.toContain('observed only on the final date')
   })
 })

@@ -167,3 +167,23 @@ describe('payment rule with an upside barrier', () => {
     expect(paymentInWords(finned())).toContain('At or above 130% of its initial level, a rise adds nothing.')
   })
 })
+
+describe('payment rule with barriers observed on every close', () => {
+  it('reads the lowest close for a downside barrier', () => {
+    const barriered: Product = { ...noteWith([down, up]), payoff: { participations: withSubFeatures([down, up], { barrier: { level: 0.7, observation: 'daily-close' as const } }) } }
+    expect(text(barriered)).toEqual([
+      'Return = Final level ÷ Initial level − 1',
+      'Payment = Principal × (1 + Upside × max(Return, 0) + Downside × min(Return, 0))',
+      'downside only when Lowest close < Downside barrier × Initial level',
+      'floored at 0',
+    ])
+    expect(paymentInWords(barriered)).toBe('Each 1% rise in Synthetic Index adds 1% of principal, and each 1% fall takes 1% away, but only if Synthetic Index closes below 70% of its initial level on some day. The payment never goes below zero.')
+  })
+
+  it('reads the highest close for an upside barrier, and says the rebate is paid whatever the final level', () => {
+    const finned = (rebate?: number): Product => ({ ...startingProduct, payoff: { participations: withSubFeatures([up], { upsideBarrier: { level: 1.3, observation: 'daily-close' as const, rebate } }) } })
+    expect(text(finned(0.02)).slice(2)).toEqual(['upside only when Highest close < Upside barrier × Initial level, otherwise Principal × (1 + Rebate)'])
+    expect(paymentInWords(finned(0.02))).toBe('Each 1% rise in Synthetic Index adds 1% of principal, but only if Synthetic Index never closes at or above 130% of its initial level. If Synthetic Index closes at or above 130% of its initial level on any day, upside participation ends and the payment adds only a fixed 2% of principal, whatever the final level. A fall leaves principal unchanged.')
+    expect(paymentInWords(finned())).toContain('the payment adds nothing, whatever the final level.')
+  })
+})

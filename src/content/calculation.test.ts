@@ -232,3 +232,47 @@ describe('the payment step after the participation steps', () => {
     expect(step(noteWith([], 0.9), 110, 'Payment before protection')).toMatchObject({ value: '1,000', muted: true })
   })
 })
+
+describe('calculation steps with barriers observed on every close', () => {
+  const stepsWith = (note: SingleProduct, finalLevel: number, closes: { lowestClose?: number; highestClose?: number }) =>
+    calculationSteps(note, paymentBreakdown(note, { initial: 100, final: finalLevel, ...closes }), [finalLevel], [])
+  const stepOf = (list: ReturnType<typeof stepsWith>, title: string) => list.find((candidate) => candidate.title === title)
+
+  describe('downside barrier', () => {
+    const barriered = noteWith([{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }])
+    const daily = { ...barriered, payoff: { ...barriered.payoff, participations: withSubFeatures(barriered.payoff.participations, { barrier: { level: 0.7, observation: 'daily-close' as const } }) } }
+
+    it('applies downside participation when the lowest close was below the barrier, although the final level recovered', () => {
+      const list = stepsWith(daily, 80, { lowestClose: 65 })
+      expect(stepOf(list, 'Downside barrier')).toMatchObject({ how: '70% × 100 · lowest close 65 is below it, so downside participation applies', value: '70', concept: 'barrier' })
+      expect(stepOf(list, 'Downside barrier')?.muted).toBeFalsy()
+      expect(stepOf(list, 'Downside participation')).toMatchObject({ value: '−20%' })
+      expect(stepOf(list, 'Payment at maturity')?.value).toBe('800')
+    })
+
+    it('mutes the barrier when no close was below it', () => {
+      const list = stepsWith(daily, 80, {})
+      expect(stepOf(list, 'Downside barrier')).toMatchObject({ how: '70% × 100 · lowest close 80 is not below it, so a fall does not reduce principal', muted: true })
+      expect(stepOf(list, 'Downside participation')).toMatchObject({ how: '100% × min(−20%, 0) · the lowest close is not below the downside barrier', value: '0%', muted: true })
+      expect(stepOf(list, 'Payment at maturity')?.value).toBe('1,000')
+    })
+  })
+
+  describe('upside barrier', () => {
+    const upsideOnly = [{ direction: 'upside' as const, rate: 0.8 }]
+    const finned: SingleProduct = { ...noteWith(upsideOnly, 1), payoff: { participations: withSubFeatures(upsideOnly, { upsideBarrier: { level: 1.3, observation: 'daily-close' as const, rebate: 0.02 } }), principalProtection: 1 } }
+
+    it('pays the rebate when the highest close reached the barrier, although the final level fell', () => {
+      const list = stepsWith(finned, 90, { highestClose: 135 })
+      expect(stepOf(list, 'Upside barrier')).toMatchObject({ how: '130% × 100 · highest close 135 is at or above it, so upside participation ends', value: '130', concept: 'barrier' })
+      expect(stepOf(list, 'Rebate')).toMatchObject({ value: '+2%' })
+      expect(stepOf(list, 'Payment at maturity')?.value).toBe('1,020')
+    })
+
+    it('mutes the barrier when no close reached it', () => {
+      const list = stepsWith(finned, 120, {})
+      expect(stepOf(list, 'Upside barrier')).toMatchObject({ how: '130% × 100 · highest close 120 is below it, so upside participation applies', muted: true })
+      expect(stepOf(list, 'Payment at maturity')?.value).toBe('1,160')
+    })
+  })
+})

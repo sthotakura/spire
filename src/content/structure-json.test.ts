@@ -115,3 +115,11 @@ describe('structure lines with an upside barrier', () => {
     expect(lines.indexOf('"barrier": {')).toBeLessThan(lines.lastIndexOf('"rate": 1.5'))
   })
 })
+
+describe('structure lines with a barrier observed on every close', () => {
+  it('writes the observation as a term of the barrier', () => {
+    const daily: SingleProduct = { ...fullNote, payoff: { ...fullNote.payoff, participations: withSubFeatures(fullNote.payoff.participations, { barrier: { level: 0.7, observation: 'daily-close' as const } }) } }
+    expect(asText(daily)).toBe(JSON.stringify(daily, null, 2))
+    expect(linesOf(daily, 'barrier')).toEqual(['"barrier": {', '"level": 0.7,', '"observation": "daily-close"', '},'])
+  })
+})

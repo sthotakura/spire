@@ -84,10 +84,13 @@ export function marketingNames(note: Product): MarketingName[] {
   }
 
   // Upside participation up to an upside barrier, and a rebate or nothing from it on. Seller usage, not a regulator's or the
-  // SSPA's, and sellers observe the barrier daily, so the reason says how this version differs. With full protection it is a
-  // "Shark fin PP"; otherwise a fall must leave principal unchanged, so there is no downside participation.
+  // SSPA's. The name follows the shape of the payoff chart, so it fits either observation; sellers observe the barrier on every
+  // close, so the reason says how a barrier read on the final date differs. With full protection it is a "Shark fin PP";
+  // otherwise a fall must leave principal unchanged, so there is no downside participation.
   const sharkFinShape = note.wrapper === 'note' && isRate(upside) && upsideBarrier !== undefined && Number.isFinite(upsideBarrier.level) && upsideBarrier.level > 1
-  const sharkFinCaveat = 'The name comes from the shape of the payoff chart. Sellers usually observe the barrier on every trading day, so a rebate is paid if the underlier ever touched it; this version observes only the final level, so the contract differs.'
+  const sharkFinCaveat = upsideBarrier?.observation === 'daily-close'
+    ? 'The name comes from the shape of the payoff chart. The barrier is observed on every close, so a rebate is paid if the underlier ever touched it, even if it later fell back.'
+    : 'The name comes from the shape of the payoff chart. Sellers usually observe the barrier on every trading day, so a rebate is paid if the underlier ever touched it; this barrier is observed only on the final date, so the contract differs.'
   if (sharkFinShape && protection === 1) {
     names.push({
       name: 'Shark fin PP',

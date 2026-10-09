@@ -188,3 +188,18 @@ describe('note summary with an upside barrier', () => {
     expect(sentence(lookback)).toContain('an upside barrier at 130% of the lookback level')
   })
 })
+
+describe('note summary with a barrier observed on every close', () => {
+  const daily = { level: 0.7, observation: 'daily-close' as const }
+
+  it('says a downside barrier is observed on every close', () => {
+    const barriered = { ...note, payoff: { ...note.payoff, participations: withSubFeatures(note.payoff.participations, { barrier: daily }) } }
+    expect(sentence(barriered)).toContain('with a downside barrier at 70% of the initial level, observed on every close and 90% principal protection.')
+    expect(conceptOf(barriered, 'a downside barrier at 70% of the initial level, observed on every close')).toBe('barrier')
+  })
+
+  it('says an upside barrier is observed on every close', () => {
+    const finned: SingleProduct = { ...note, payoff: { ...note.payoff, participations: withSubFeatures([{ direction: 'upside' as const, rate: 0.8 }], { upsideBarrier: { level: 1.3, observation: 'daily-close' as const, rebate: 0.02 } }) } }
+    expect(sentence(finned)).toContain('with 90% principal protection and an upside barrier at 130% of the initial level, observed on every close, that ends the upside and pays a 2% rebate.')
+  })
+})

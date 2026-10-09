@@ -37,7 +37,7 @@ function participationStep(note: Product, breakdown: PaymentBreakdown, direction
   // The buffer and the barrier belong to downside participation, so only its step gives them as the reason.
   const reason = knockedOut ? 'the upside barrier is reached, so participation ends'
     : buffer !== undefined && breakdown.underlierReturn < 0 ? 'the buffer absorbs the whole fall'
-    : direction === 'downside' && breakdown.barrierReached === false && breakdown.underlierReturn < 0 ? `the ${note.underlier.kind === 'basket' ? 'basket' : 'final'} level is not below the downside barrier`
+    : direction === 'downside' && breakdown.barrierReached === false && breakdown.underlierReturn < 0 ? `the ${breakdown.lowestClose !== undefined ? 'lowest close' : note.underlier.kind === 'basket' ? 'basket level' : 'final level'} is not below the downside barrier`
       : `applies only when the return is ${direction === 'upside' ? 'positive' : 'negative'}`
   return contribution === 0
     ? { title, how: `${how} · ${reason}`, value: '0%', muted: true, concept: direction }
@@ -64,17 +64,19 @@ function absoluteReturnStep(rate: number, breakdown: PaymentBreakdown, withBarri
   return { title, how: `Pays ${formatPercent(rate)} of a fall ${withBarrier ? 'that ends at or above the downside barrier' : 'within the buffer'} as a gain · applies only when the return is negative`, value: '0%', muted: true, concept: 'absolute-return' }
 }
 
-// Whether the final level is below the barrier. Only then does downside participation apply, to the whole fall.
+// Whether the final level, or for a barrier observed daily the lowest close, is below the barrier. Only then does downside participation apply, to the whole fall.
 function barrierStep(level: number, breakdown: PaymentBreakdown, finalName: string, finalLevel: number): Omit<CalculationStep, 'n'> {
   const barrierLevel = breakdown.barrierLevel ?? 0
-  const how = `${formatPercent(level)} × ${formatAmount(breakdown.initialLevel)} · ${finalName} ${formatAmount(finalLevel)} is ${breakdown.barrierReached ? 'below it, so downside participation applies' : 'not below it, so a fall does not reduce principal'}`
+  const [observedName, observedLevel] = breakdown.lowestClose === undefined ? [finalName, finalLevel] : ['lowest close', breakdown.lowestClose]
+  const how = `${formatPercent(level)} × ${formatAmount(breakdown.initialLevel)} · ${observedName} ${formatAmount(observedLevel)} is ${breakdown.barrierReached ? 'below it, so downside participation applies' : 'not below it, so a fall does not reduce principal'}`
   return { title: 'Downside barrier', how, value: formatAmount(barrierLevel), muted: !breakdown.barrierReached, concept: 'barrier' }
 }
 
-// Whether the final level has reached the upside barrier. At or above it, upside participation ends and the rebate, if there is one, is paid.
+// Whether the final level, or for a barrier observed daily the highest close, has reached the upside barrier. At or above it, upside participation ends and the rebate, if there is one, is paid.
 function upsideBarrierStep(level: number, breakdown: PaymentBreakdown, finalName: string, finalLevel: number): Omit<CalculationStep, 'n'> {
   const reached = breakdown.upsideBarrierReached === true
-  const how = `${formatPercent(level)} × ${formatAmount(breakdown.initialLevel)} · ${finalName} ${formatAmount(finalLevel)} is ${reached ? 'at or above it, so upside participation ends' : 'below it, so upside participation applies'}`
+  const [observedName, observedLevel] = breakdown.highestClose === undefined ? [finalName, finalLevel] : ['highest close', breakdown.highestClose]
+  const how = `${formatPercent(level)} × ${formatAmount(breakdown.initialLevel)} · ${observedName} ${formatAmount(observedLevel)} is ${reached ? 'at or above it, so upside participation ends' : 'below it, so upside participation applies'}`
   return { title: 'Upside barrier', how, value: formatAmount(breakdown.upsideBarrierLevel ?? 0), muted: !reached, concept: 'barrier' }
 }
 

@@ -123,3 +123,35 @@ describe('scenario rows with an upside barrier', () => {
     expect(rows[3].breakdown.upsideBarrierReached).toBe(true)
   })
 })
+
+describe('scenario rows with barriers observed on every close', () => {
+  it('add a row where a downside barrier was reached and the underlier then recovered', () => {
+    const rows = scenarioRows(withFeatures([{ direction: 'downside', barrier: { level: 0.7, observation: 'daily-close' }, rate: 1 }]), 100)
+    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 70, 85, 100, 110, 130])
+    expect(rows.map(({ afterBreach }) => afterBreach)).toEqual([false, false, true, false, false, false])
+    expect(rows[2].breakdown.lowestClose).toBeCloseTo(65, 8)
+    expect(rows.map(({ breakdown }) => breakdown.barrierReached)).toEqual([true, false, true, false, false, false])
+    expect(rows.map(({ breakdown }) => Math.round(breakdown.payment))).toEqual([600, 1000, 850, 1000, 1000, 1000])
+  })
+
+  it('add a row where an upside barrier was reached and the underlier then fell back', () => {
+    const rows = scenarioRows(withFeatures([{ direction: 'upside', barrier: { level: 1.3, observation: 'daily-close', rebate: 0.02 }, rate: 0.8 }], 1), 100)
+    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 110, 115, 130])
+    expect(rows.map(({ afterBreach }) => afterBreach)).toEqual([false, false, false, true, false])
+    expect(rows[3].breakdown.highestClose).toBeCloseTo(135, 8)
+    expect(rows.map(({ breakdown }) => breakdown.upsideBarrierReached)).toEqual([false, false, false, true, true])
+    expect(rows.map(({ breakdown }) => Math.round(breakdown.payment))).toEqual([1000, 1000, 1080, 1020, 1020])
+  })
+
+  it('add no such row for a barrier observed on the final date', () => {
+    const rows = scenarioRows(withFeatures([{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }]), 100)
+    expect(rows.some(({ afterBreach }) => afterBreach)).toBe(false)
+  })
+
+  it('keep the payment of every row equal to the maturity payment for the closes it states', () => {
+    const note = withFeatures([{ direction: 'downside', barrier: { level: 0.7, observation: 'daily-close' }, rate: 1 }])
+    for (const row of scenarioRows(note, 100)) {
+      expect(row.breakdown.payment).toBe(maturityPayment(note, { initial: 100, final: row.finalLevel, lowestClose: row.breakdown.lowestClose }))
+    }
+  })
+})

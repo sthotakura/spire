@@ -11,6 +11,9 @@ export interface ScenarioRow {
   atBarrier: boolean
   // True for the row absolute return adds at the buffer level, the lowest final level that still pays a fall as a gain.
   atBuffer: boolean
+  // True for the row a barrier observed on every close adds to show a path: the barrier was reached on an earlier close and the
+  // underlier then moved back, so the final level alone would not have shown it.
+  afterBreach: boolean
   breakdown: PaymentBreakdown
 }
 
@@ -20,9 +23,10 @@ export interface ScenarioRow {
 // Absolute return adds one at the buffer level, where a fall stops paying a gain. Each row's level is computed as the
 // payment computes it, so rounding cannot move it to the other side, and a fixed row at the same level gives way to it.
 export function scenarioRows(note: Product, initialLevel: number, returns: number[] = scenarioReturns): ScenarioRow[] {
-  let points = returns.map((returnValue) => ({ returnValue, finalLevel: initialLevel * (1 + returnValue), atBarrier: false, atBuffer: false }))
+  type Point = { returnValue: number; finalLevel: number; atBarrier: boolean; atBuffer: boolean; afterBreach: boolean; lowestClose?: number; highestClose?: number }
+  let points: Point[] = returns.map((returnValue) => ({ returnValue, finalLevel: initialLevel * (1 + returnValue), atBarrier: false, atBuffer: false, afterBreach: false }))
   const added = (finalLevel: number, returnValue: number, marks: { atBarrier: boolean; atBuffer: boolean }) => {
-    points = [...points.filter((point) => Math.abs(point.finalLevel - finalLevel) > 1e-9 * initialLevel), { returnValue, finalLevel, ...marks }]
+    points = [...points.filter((point) => Math.abs(point.finalLevel - finalLevel) > 1e-9 * initialLevel), { returnValue, finalLevel, afterBreach: false, ...marks }]
       .sort((a, b) => a.finalLevel - b.finalLevel)
   }
   const { barrier, buffer, absoluteReturn } = downsideOf(note) ?? {}
@@ -30,5 +34,12 @@ export function scenarioRows(note: Product, initialLevel: number, returns: numbe
   const upsideBarrier = upsideOf(note)?.barrier
   if (upsideBarrier !== undefined) added(barrierLevelAt(upsideBarrier.level, initialLevel), upsideBarrier.level - 1, { atBarrier: true, atBuffer: false })
   if (absoluteReturn !== undefined && buffer !== undefined) added(initialLevel * (1 - buffer), -buffer, { atBarrier: false, atBuffer: true })
-  return points.map((point) => ({ ...point, breakdown: paymentBreakdown(note, { initial: initialLevel, final: point.finalLevel }) }))
+  // A barrier observed daily also gets a row where it was reached and the underlier then moved back to halfway between the
+  // barrier and the initial level. It stays beside the row at that final level that never reached the barrier.
+  const afterBreach = (finalLevel: number, close: { lowestClose: number } | { highestClose: number }) => {
+    points = [...points, { returnValue: finalLevel / initialLevel - 1, finalLevel, atBarrier: false, atBuffer: false, afterBreach: true, ...close }].sort((a, b) => a.finalLevel - b.finalLevel)
+  }
+  if (barrier?.observation === 'daily-close') afterBreach(initialLevel * (1 + barrier.level) / 2, { lowestClose: Math.max(0, initialLevel * (barrier.level - 0.05)) })
+  if (upsideBarrier?.observation === 'daily-close') afterBreach(initialLevel * (1 + upsideBarrier.level) / 2, { highestClose: initialLevel * (upsideBarrier.level + 0.05) })
+  return points.map(({ lowestClose, highestClose, ...point }) => ({ ...point, breakdown: paymentBreakdown(note, { initial: initialLevel, final: point.finalLevel, lowestClose, highestClose }) }))
 }
