@@ -93,6 +93,7 @@ Keep `README.md` as the public entry point and `PLAN.md` as the near-term work p
 - Keep chapter definitions, synthetic examples, assumptions, calculations, and any JSON examples consistent with the implemented domain rules. Review affected chapters when a shared rule changes.
 - Keep internal discussion, implementation decisions, and unresolved research in the working documents under `docs/`. If a concept remains unresolved, mark it as planned in the outline rather than publishing an unsupported explanation.
 - The payoff charts in `docs/book/charts/` are drawn from the running app by `scripts/book-charts.ts`. Run `npm run book-charts` and commit the result whenever the chart code changes, or a chapter's chart example changes. Add a chart by adding an entry to that script and embedding it with `![caption](charts/name.svg)`.
+- Concept diagrams that are not drawn from the app, such as the redemption timelines, are written by hand in `docs/book/diagrams/` and embedded with `![caption](diagrams/name.svg)`. Nothing regenerates them, so review them when the concept they show changes.
 - Verify the book update as part of the change: check example calculations against the domain rules, confirm chapter links and outline status, and check rendering when adding a chapter or changing Markdown features. The book navigation discovers chapter files automatically; agents remain responsible for writing and verifying their content.
 
 ### Keep the schema current

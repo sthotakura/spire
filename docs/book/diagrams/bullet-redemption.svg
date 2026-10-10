@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 200" width="620" height="200" role="img" aria-label="Timeline of a bullet note: the starting level is set, the final level is observed, and one payment is made at scheduled maturity" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" fill="#17243a">
+  <rect width="620" height="200" fill="#ffffff"/>
+  <!-- the term -->
+  <line x1="60" y1="52" x2="560" y2="52" stroke="#8a97ab" stroke-width="1.5"/>
+  <line x1="60" y1="46" x2="60" y2="58" stroke="#8a97ab" stroke-width="1.5"/>
+  <line x1="560" y1="46" x2="560" y2="58" stroke="#8a97ab" stroke-width="1.5"/>
+  <text x="310" y="40" text-anchor="middle" fill="#42536d">Term, for example 36 months</text>
+  <!-- the product's life -->
+  <line x1="60" y1="120" x2="560" y2="120" stroke="#42536d" stroke-width="4" stroke-linecap="round"/>
+  <!-- starting level -->
+  <circle cx="60" cy="120" r="8" fill="#ffffff" stroke="#2369bd" stroke-width="3.5"/>
+  <text x="60" y="154" text-anchor="start" font-weight="600">Start</text>
+  <text x="60" y="172" fill="#42536d">Initial level</text>
+  <text x="60" y="188" fill="#42536d">determined</text>
+  <!-- final observation -->
+  <circle cx="470" cy="120" r="8" fill="#ffffff" stroke="#2369bd" stroke-width="3.5"/>
+  <text x="470" y="154" text-anchor="middle" font-weight="600">Final observation</text>
+  <text x="470" y="172" text-anchor="middle" fill="#42536d">Final level read,</text>
+  <text x="470" y="188" text-anchor="middle" fill="#42536d">amount calculated</text>
+  <!-- payment -->
+  <circle cx="560" cy="120" r="9" fill="#2369bd"/>
+  <text x="560" y="102" text-anchor="end" font-weight="600">One payment at maturity</text>
+  <!-- nothing in between -->
+  <text x="265" y="154" text-anchor="middle" fill="#66758b">No coupons and no early call:</text>
+  <text x="265" y="172" text-anchor="middle" fill="#66758b">nothing is paid in between</text>
+</svg>

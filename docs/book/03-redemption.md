@@ -15,12 +15,16 @@ participation pays 1,200 at maturity if its measured underlier return is +20%.
 The participation explains the extra 200. Bullet redemption explains when the
 1,200 is due.
 
+![A bullet note: the starting level is set, the final level is observed shortly before maturity, and one payment is made at scheduled maturity](diagrams/bullet-redemption.svg)
+
 ## Early redemption
 
 Some notes can end before scheduled maturity. An autocall is triggered
 automatically by a condition in the terms; an issuer call gives the issuer a
 right to redeem under stated terms. These are distinct from bullet redemption.
 Their payment amounts and observation conditions must be read from the contract.
+
+![A note that can redeem early: if the stated condition is met on an observation date the note ends and pays then, otherwise it continues to scheduled maturity](diagrams/early-redemption.svg)
 
 SPIRe's examples calculate only scheduled maturity payments. They do not assume
 that an early sale or withdrawal would receive the same amount.

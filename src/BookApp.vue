@@ -11,7 +11,7 @@ const chapters: Chapter[] = Object.entries(chapterSources)
     title: source.match(/^# (.+)/m)![1].trim(),
     source,
   }))
-const chartUrls = import.meta.glob<string>('../docs/book/charts/*.svg', { query: '?url', import: 'default', eager: true })
+const imageUrls = import.meta.glob<string>(['../docs/book/charts/*.svg', '../docs/book/diagrams/*.svg'], { query: '?url', import: 'default', eager: true })
 const appUrl = import.meta.env.BASE_URL
 
 const selectedSlug = ref(chapters[0].slug)
@@ -56,7 +56,7 @@ const renderMarkdown = (source: string) => {
     const image = line.trim().match(/^!\[([^\]]*)\]\(([^)]+)\)$/)
     if (!code && image) {
       flushParagraph(); flushList()
-      const url = chartUrls[`../docs/book/${image[2]}`]
+      const url = imageUrls[`../docs/book/${image[2]}`]
       if (url) output.push(`<figure class="book-figure"><img src="${url}" alt="${escapeHtml(image[1])}"><figcaption>${inlineMarkdown(image[1])}</figcaption></figure>`)
     } else if (/^```/.test(line.trim())) {
       flushParagraph(); flushList()
