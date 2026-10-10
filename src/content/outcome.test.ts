@@ -182,3 +182,39 @@ describe('outcome with barriers observed on every close', () => {
     })
   })
 })
+
+describe('outcome with barrier absolute return', () => {
+  const bothWays = (terms: Partial<NonNullable<SingleProduct['payoff']['barrierAbsoluteReturn']>> = {}): SingleProduct => ({
+    ...noteWith([]),
+    payoff: { participations: [], barrierAbsoluteReturn: { rate: 1, lowerBarrier: { level: 0.8, observation: 'daily-close' }, upperBarrier: { level: 1.25, observation: 'daily-close' }, conditionalReturn: 0.02, ...terms } },
+  })
+  const explainWith = (note: SingleProduct, finalLevel: number, closes: { lowestClose?: number; highestClose?: number } = {}) => explainOutcome(note, paymentBreakdown(note, { initial: 100, final: finalLevel, ...closes }))
+
+  it('pays the absolute value of a fall or a rise when no barrier was reached', () => {
+    expect(explainWith(bothWays(), 90)).toBe('The underlier fell 10%. No barrier was reached, so absolute return of 100% of the 10% fall adds 10% to principal. The contractual payment is 1,100, 100 more than principal.')
+    expect(explainWith(bothWays(), 110)).toBe('The underlier rose 10%. No barrier was reached, so absolute return of 100% of the 10% rise adds 10% to principal. The contractual payment is 1,100, 100 more than principal.')
+    expect(explainWith(bothWays(), 100)).toBe('The underlier ended unchanged. No barrier was reached and the return is flat, so absolute return adds nothing to principal. The contractual payment is 1,000, the same as principal.')
+  })
+
+  it('names the lowest close when it was below the lower barrier, although the final level recovered', () => {
+    expect(explainWith(bothWays(), 100, { lowestClose: 79 })).toBe('The underlier ended unchanged. The lowest close, 79, was below the 80 lower barrier, so the absolute return ends and a fixed 2% is added to principal, whatever the final level. The contractual payment is 1,020, 20 more than principal.')
+  })
+
+  it('names the highest close when it was above the upper barrier, although the final level fell back', () => {
+    expect(explainWith(bothWays(), 110, { highestClose: 130 })).toBe('The underlier rose 10%. The highest close, 130, was above the 125 upper barrier, so the absolute return ends and a fixed 2% is added to principal, whatever the final level. The contractual payment is 1,020, 20 more than principal.')
+  })
+
+  it('names both barriers when a close went beyond each', () => {
+    expect(explainWith(bothWays(), 110, { lowestClose: 79, highestClose: 130 })).toContain('The lowest close, 79, was below the 80 lower barrier and the highest close, 130, was above the 125 upper barrier, so the absolute return ends')
+  })
+
+  it('names the final level for a barrier observed on the final date', () => {
+    const onFinalDate = bothWays({ lowerBarrier: { level: 0.8, observation: 'final' }, upperBarrier: { level: 1.25, observation: 'final' } })
+    expect(explainWith(onFinalDate, 126)).toBe('The underlier rose 26%. It ended above the 125 upper barrier, so the absolute return ends and a fixed 2% is added to principal, whatever the final level. The contractual payment is 1,020, 20 more than principal.')
+    expect(explainWith(onFinalDate, 79)).toContain('It ended below the 80 lower barrier')
+  })
+
+  it('says principal is unchanged after a barrier when there is no conditional return', () => {
+    expect(explainWith(bothWays({ conditionalReturn: undefined }), 126)).toBe('The underlier rose 26%. The highest close, 126, was above the 125 upper barrier, so the absolute return ends and principal is unchanged, whatever the final level. The contractual payment is 1,000, the same as principal.')
+  })
+})

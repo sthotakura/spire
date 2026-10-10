@@ -1,4 +1,4 @@
-import { downsideOf, upsideOf, type Product } from '../domain/note'
+import { downsideOf, upsideOf, type BarrierAbsoluteReturn, type Product } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface FormulaSegment {
@@ -14,7 +14,28 @@ export interface FormulaLine {
 
 // The payment rule in words and symbols, built only from the features the note has. It reads in the order of the worked
 // calculation: the return, the participated payment, then the cap, then the floor.
+// Barrier absolute return reads each barrier on its own observation: the lowest close or the highest close, or the final level.
+function barrierAbsoluteFormula(note: Product, bothWays: BarrierAbsoluteReturn): FormulaLine[] {
+  const { principalProtection } = note.payoff
+  const lowerSeen = bothWays.lowerBarrier.observation === 'daily-close' ? 'Lowest close' : 'Final level'
+  const upperSeen = bothWays.upperBarrier.observation === 'daily-close' ? 'Highest close' : 'Final level'
+  const lines: FormulaLine[] = [
+    { lead: 'Return', segments: [{ text: 'Final level ÷ Initial level − 1', concept: 'determination' }] },
+    { lead: 'Payment', segments: [{ text: 'Principal × (1 + ' }, { text: 'Absolute × |Return|', concept: 'absolute-return' }, { text: ')' }] },
+    {
+      segments: [
+        { text: 'unless ' }, { text: `${lowerSeen} < Lower barrier × Initial level`, concept: 'barrier' }, { text: ' or ' }, { text: `${upperSeen} > Upper barrier × Initial level`, concept: 'barrier' },
+        ...(bothWays.conditionalReturn === undefined ? [{ text: ', then ' }, { text: 'Principal', concept: 'barrier' as const }] : [{ text: ', then ' }, { text: 'Principal × (1 + Conditional return)', concept: 'barrier' as const }]),
+      ],
+    },
+  ]
+  if (principalProtection !== undefined) lines.push({ segments: [{ text: 'floored at ' }, { text: 'Principal × Protection', concept: 'protection' }] })
+  return lines
+}
+
 export function paymentFormula(note: Product): FormulaLine[] {
+  const barrierAbsoluteReturn = note.payoff.barrierAbsoluteReturn
+  if (barrierAbsoluteReturn !== undefined) return barrierAbsoluteFormula(note, barrierAbsoluteReturn)
   const { principalProtection } = note.payoff
   const upside = upsideOf(note) !== undefined
   const downside = downsideOf(note) !== undefined
@@ -81,7 +102,22 @@ const percent = (fraction: number) => Number.isFinite(fraction) ? `${(fraction *
 
 // The same rule in words, with the note's own terms filled in: how a move in the underlier changes the payment, then the
 // limits on it. It says nothing about a particular final level; the worked calculation does that.
+// The same rule in words: the absolute return in both directions, then what reaching either barrier does.
+function barrierAbsoluteInWords(note: Product, bothWays: BarrierAbsoluteReturn): string {
+  const name = note.underlier.kind === 'basket' ? 'the basket' : note.underlier.components[0].asset.name.trim() || 'the underlier'
+  const { lowerBarrier, upperBarrier, conditionalReturn } = bothWays
+  const lower = `${lowerBarrier.observation === 'daily-close' ? 'closes' : 'ends'} below ${percent(lowerBarrier.level)} of its initial level`
+  const upper = `${upperBarrier.observation === 'daily-close' ? 'closes' : 'ends'} above ${percent(upperBarrier.level)} of its initial level`
+  const days = lowerBarrier.observation === 'daily-close' && upperBarrier.observation === 'daily-close' ? ' on any day' : ''
+  // When both are observed on every close the two conditions share the words "closes" and "on any day".
+  const either = days ? `closes below ${percent(lowerBarrier.level)} or above ${percent(upperBarrier.level)} of its initial level on any day` : `${lower} or ${upper}`
+  const instead = conditionalReturn !== undefined && conditionalReturn > 0 ? `principal plus a fixed ${percent(conditionalReturn)}` : 'principal only'
+  return `Each 1% move in ${name}, up or down, adds ${perPoint(bothWays.rate)} of principal. If ${name} ${either}, the payment is instead ${instead}, whatever the final level. The payment never goes below principal, ${amount(note.principalAmount)}.`
+}
+
 export function paymentInWords(note: Product): string {
+  const barrierAbsoluteReturn = note.payoff.barrierAbsoluteReturn
+  if (barrierAbsoluteReturn !== undefined) return barrierAbsoluteInWords(note, barrierAbsoluteReturn)
   const { principalProtection } = note.payoff
   const principal = note.principalAmount
   const name = note.underlier.kind === 'basket' ? 'the basket' : note.underlier.components[0].asset.name.trim() || 'the underlier'

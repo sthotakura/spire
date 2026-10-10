@@ -3,6 +3,22 @@ import { downsideOf, upsideOf, type PaymentBreakdown, type Product } from '../do
 const percent = (fraction: number) => `${(Math.abs(fraction) * 100).toFixed(1).replace(/\.0$/, '')}%`
 const units = (value: number) => Math.abs(value).toLocaleString('en-US', { maximumFractionDigits: 2 })
 
+// Barrier absolute return: which barrier was reached, by which level, and what that does; or that none was and the absolute return pays.
+function barrierAbsoluteSentence(note: Product, breakdown: PaymentBreakdown): string {
+  const bothWays = note.payoff.barrierAbsoluteReturn!
+  const ba = breakdown.barrierAbsolute!
+  if (!ba.reached) {
+    if (breakdown.underlierReturn === 0) return 'No barrier was reached and the return is flat, so absolute return adds nothing to principal.'
+    return `No barrier was reached, so absolute return of ${percent(bothWays.rate)} of the ${percent(breakdown.underlierReturn)} ${breakdown.underlierReturn > 0 ? 'rise' : 'fall'} adds ${percent(breakdown.participatedReturn)} to principal.`
+  }
+  const reasons: string[] = []
+  if (ba.lowerReached) reasons.push(bothWays.lowerBarrier.observation === 'daily-close' ? `the lowest close, ${units(breakdown.lowestClose ?? 0)}, was below the ${units(ba.lowerLevel)} lower barrier` : `it ended below the ${units(ba.lowerLevel)} lower barrier`)
+  if (ba.upperReached) reasons.push(bothWays.upperBarrier.observation === 'daily-close' ? `the highest close, ${units(breakdown.highestClose ?? 0)}, was above the ${units(ba.upperLevel)} upper barrier` : `it ended above the ${units(ba.upperLevel)} upper barrier`)
+  const joined = reasons.join(' and ')
+  const paid = ba.conditionalReturn > 0 ? `a fixed ${percent(ba.conditionalReturn)} is added to principal` : 'principal is unchanged'
+  return `${joined[0].toUpperCase()}${joined.slice(1)}, so the absolute return ends and ${paid}, whatever the final level.`
+}
+
 // Explains a contractual maturity payment in words, from the note and its payment breakdown.
 export function explainOutcome(note: Product, breakdown: PaymentBreakdown): string {
   const { initialLevel, underlierReturn, direction, bufferAbsorbs, barrierLevel, barrierReached, upsideBarrierLevel, upsideBarrierReached, absoluteReturnApplies, participationRate, participatedReturn, capAmount, capApplies, unflooredPayment, floor, floorApplies, payment } = breakdown
@@ -28,8 +44,10 @@ export function explainOutcome(note: Product, breakdown: PaymentBreakdown): stri
   const upsideRebate = upsideOf(note)?.barrier?.rebate
 
   let participation: string
+  // Barrier absolute return reads two barriers and says which was reached, so it comes first.
+  if (breakdown.barrierAbsolute !== undefined) participation = barrierAbsoluteSentence(note, breakdown)
   // Reached on an earlier close, the upside barrier ends participation and pays the rebate whatever the final level, so it comes first.
-  if (highestClose !== undefined && upsideBarrierReached) {
+  else if (highestClose !== undefined && upsideBarrierReached) {
     participation = `The highest close, ${units(highestClose)}, was above the ${units(upsideBarrierLevel ?? 0)} upside barrier, so upside participation ends and ${upsideRebate === undefined ? 'principal is unchanged' : `a rebate of ${percent(upsideRebate)} is added to principal`}, whatever the final level.`
   }
   else if (underlierReturn === 0) participation = 'A flat return leaves principal unchanged.'

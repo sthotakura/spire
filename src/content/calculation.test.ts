@@ -283,3 +283,58 @@ describe('calculation steps with barriers observed on every close', () => {
     })
   })
 })
+
+describe('calculation steps with barrier absolute return', () => {
+  const bothWays = (terms: Partial<NonNullable<SingleProduct['payoff']['barrierAbsoluteReturn']>> = {}): SingleProduct => ({
+    ...noteWith([]),
+    payoff: { participations: [], barrierAbsoluteReturn: { rate: 1, lowerBarrier: { level: 0.8, observation: 'daily-close' }, upperBarrier: { level: 1.25, observation: 'daily-close' }, conditionalReturn: 0.02, ...terms } },
+  })
+  const stepsWith = (note: SingleProduct, finalLevel: number, closes: { lowestClose?: number; highestClose?: number } = {}) =>
+    calculationSteps(note, paymentBreakdown(note, { initial: 100, final: finalLevel, ...closes }), [finalLevel], [])
+  const stepOf = (list: ReturnType<typeof stepsWith>, title: string) => list.find((candidate) => candidate.title === title)
+
+  it('puts the barriers before the absolute return and the conditional return, and has no participation steps', () => {
+    expect(stepsWith(bothWays(), 90).map(({ n, title }) => `${n} ${title}`)).toEqual([
+      '1 Synthetic Index return', '2 Lower barrier', '3 Upper barrier', '4 Absolute return', '5 Conditional return', '6 Payment from absolute return', '7 Protection floor', '8 Payment at maturity', '9 Annualised return',
+    ])
+    expect(stepsWith(bothWays({ conditionalReturn: undefined }), 90).map(({ title }) => title)).not.toContain('Conditional return')
+  })
+
+  it('pays the absolute return of a fall when no barrier is reached', () => {
+    const list = stepsWith(bothWays(), 90)
+    expect(stepOf(list, 'Lower barrier')).toMatchObject({ how: '80% × 100 · lowest close 90 is not below it, so the absolute return applies', value: '80', muted: true, concept: 'barrier' })
+    expect(stepOf(list, 'Upper barrier')).toMatchObject({ how: '125% × 100 · highest close 100 is not above it, so the absolute return applies', value: '125', muted: true })
+    expect(stepOf(list, 'Absolute return')).toMatchObject({ how: '100% × |−10%|', value: '+10%', concept: 'absolute-return' })
+    expect(stepOf(list, 'Absolute return')?.muted).toBeFalsy()
+    expect(stepOf(list, 'Conditional return')).toMatchObject({ how: 'Pays 2% in place of the absolute return · no barrier is reached', value: '0%', muted: true })
+    expect(stepOf(list, 'Payment from absolute return')).toMatchObject({ how: '1,000 × (1 + 10%)', value: '1,100' })
+    expect(stepOf(list, 'Payment at maturity')?.value).toBe('1,100')
+  })
+
+  it('pays the conditional return once the lowest close was below the lower barrier, although the final level recovered', () => {
+    const list = stepsWith(bothWays(), 100, { lowestClose: 79 })
+    expect(stepOf(list, 'Lower barrier')).toMatchObject({ how: '80% × 100 · lowest close 79 is below it, so the absolute return ends', value: '80' })
+    expect(stepOf(list, 'Lower barrier')?.muted).toBeFalsy()
+    expect(stepOf(list, 'Absolute return')).toMatchObject({ value: '0%', muted: true })
+    expect(stepOf(list, 'Conditional return')).toMatchObject({ how: 'Paid in place of the absolute return', value: '+2%' })
+    expect(stepOf(list, 'Payment at maturity')?.value).toBe('1,020')
+  })
+
+  it('pays the conditional return once the highest close was above the upper barrier, although the final level fell back', () => {
+    const list = stepsWith(bothWays(), 110, { highestClose: 130 })
+    expect(stepOf(list, 'Upper barrier')).toMatchObject({ how: '125% × 100 · highest close 130 is above it, so the absolute return ends', value: '125' })
+    expect(stepOf(list, 'Payment at maturity')?.value).toBe('1,020')
+  })
+
+  it('reads the final level for a barrier observed on the final date', () => {
+    const onFinalDate = bothWays({ lowerBarrier: { level: 0.8, observation: 'final' }, upperBarrier: { level: 1.25, observation: 'final' } })
+    expect(stepOf(stepsWith(onFinalDate, 126), 'Upper barrier')).toMatchObject({ how: '125% × 100 · final level 126 is above it, so the absolute return ends' })
+    expect(stepOf(stepsWith(onFinalDate, 126), 'Lower barrier')).toMatchObject({ how: '80% × 100 · final level 126 is not below it, so the absolute return applies', muted: true })
+  })
+
+  it('shows no conditional return step, and a zero value, when nothing is paid after a barrier', () => {
+    const none = bothWays({ conditionalReturn: 0 })
+    expect(stepOf(stepsWith(none, 126), 'Conditional return')).toMatchObject({ value: '0%' })
+    expect(stepOf(stepsWith(none, 126), 'Payment at maturity')?.value).toBe('1,000')
+  })
+})

@@ -24,6 +24,8 @@ export function structureLines(note: Product): StructureLine[] {
       return 'underlier'
     }
     if (top !== 'payoff') return null
+    // The note's barriers and conditional return belong to the barrier concept; the rest of the feature is its absolute return.
+    if (second === 'barrierAbsoluteReturn') return third === 'lowerBarrier' || third === 'upperBarrier' || third === 'conditionalReturn' ? 'barrier' : 'absolute-return'
     if (second === 'principalProtection') return 'protection'
     if (second === 'minimumReturn') return 'minimum-return'
     if (second === 'participations' && typeof third === 'number') return fourth === 'buffer' || fourth === 'barrier' || fourth === 'cap' ? fourth : fourth === 'absoluteReturn' ? 'absolute-return' : note.payoff.participations[third]?.direction ?? 'payoff'

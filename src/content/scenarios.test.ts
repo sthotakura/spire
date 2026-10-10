@@ -106,7 +106,7 @@ describe('scenario rows with an upside barrier', () => {
     const rows = scenarioRows(finned(1.3), 100)
     expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 110, 130, 135])
     expect(rows.map(({ atBarrier }) => atBarrier)).toEqual([false, false, false, true, false])
-    expect(rows.map(({ aboveBarrier }) => aboveBarrier)).toEqual([false, false, false, false, true])
+    expect(rows.map(({ pastBarrier }) => pastBarrier)).toEqual([null, null, null, null, 'above'])
     expect(rows[3].breakdown.upsideBarrierReached).toBe(false)
     expect(rows[3].breakdown.payment).toBeCloseTo(1240, 8)
     expect(rows[4].breakdown).toMatchObject({ upsideBarrierReached: true, payment: 1020 })
@@ -125,7 +125,7 @@ describe('scenario rows with an upside barrier', () => {
     // A barrier at 105% puts the row above it at 110, where the fixed +10% row would be.
     const rows = scenarioRows(finned(1.05), 100)
     expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 100, 105, 110, 130])
-    expect(rows.map(({ aboveBarrier }) => aboveBarrier)).toEqual([false, false, false, true, false])
+    expect(rows.map(({ pastBarrier }) => pastBarrier)).toEqual([null, null, null, 'above', null])
   })
 
   it('measure the barrier rows from the initial level it is given, such as a lookback level', () => {
@@ -166,5 +166,46 @@ describe('scenario rows with barriers observed on every close', () => {
     for (const row of scenarioRows(note, 100)) {
       expect(row.breakdown.payment).toBe(maturityPayment(note, { initial: 100, final: row.finalLevel, lowestClose: row.breakdown.lowestClose }))
     }
+  })
+})
+
+describe('scenario rows with barrier absolute return', () => {
+  const bothWays = (observation: 'final' | 'daily-close'): Product => ({
+    ...startingProduct,
+    payoff: { participations: [], barrierAbsoluteReturn: { rate: 1, lowerBarrier: { level: 0.8, observation }, upperBarrier: { level: 1.25, observation }, conditionalReturn: 0.02 } },
+  })
+
+  it('add a row at each barrier and one just past it, and a row for each barrier reached and recovered from', () => {
+    const rows = scenarioRows(bothWays('daily-close'), 100)
+    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 75, 80, 100, 100, 100, 110, 125, 130])
+    expect(rows.map(({ atBarrier }) => atBarrier)).toEqual([false, false, true, false, false, false, false, true, false])
+    expect(rows.map(({ pastBarrier }) => pastBarrier)).toEqual([null, 'below', null, null, null, null, null, null, 'above'])
+    expect(rows.map(({ afterBreach }) => afterBreach)).toEqual([false, false, false, false, true, true, false, false, false])
+  })
+
+  it('pay the absolute return up to and at a barrier, and the conditional return past it', () => {
+    const rows = scenarioRows(bothWays('daily-close'), 100)
+    expect(rows.map(({ breakdown }) => Math.round(breakdown.payment))).toEqual([1020, 1020, 1200, 1000, 1020, 1020, 1100, 1250, 1020])
+    expect(rows[4].breakdown.lowestClose).toBeCloseTo(75, 8)
+    expect(rows[5].breakdown.highestClose).toBeCloseTo(130, 8)
+  })
+
+  it('add no recovered rows when the barriers are read on the final date', () => {
+    const rows = scenarioRows(bothWays('final'), 100)
+    expect(rows.map(({ finalLevel }) => Math.round(finalLevel))).toEqual([60, 75, 80, 100, 110, 125, 130])
+    expect(rows.some(({ afterBreach }) => afterBreach)).toBe(false)
+  })
+
+  it('keep the payment of every row equal to the maturity payment for the closes it states', () => {
+    const note = bothWays('daily-close')
+    for (const row of scenarioRows(note, 100)) {
+      expect(row.breakdown.payment).toBe(maturityPayment(note, { initial: 100, final: row.finalLevel, lowestClose: row.breakdown.lowestClose, highestClose: row.breakdown.highestClose }))
+    }
+  })
+
+  it('measure the rows from the initial level it is given', () => {
+    const rows = scenarioRows(bothWays('final'), 80)
+    expect(rows.find(({ atBarrier, finalLevel }) => atBarrier && finalLevel < 80)?.finalLevel).toBeCloseTo(64, 8)
+    expect(rows.find(({ atBarrier, finalLevel }) => atBarrier && finalLevel > 80)?.finalLevel).toBeCloseTo(100, 8)
   })
 })

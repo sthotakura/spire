@@ -107,6 +107,17 @@ export function marketingNames(note: Product): MarketingName[] {
     })
   }
 
+  // Principal plus the absolute value of the return until a barrier on either side is reached. The name is the product title in
+  // public pricing supplements; it is seller usage, not a regulator's or the SSPA's name.
+  if (note.wrapper === 'note' && note.payoff.barrierAbsoluteReturn !== undefined) {
+    names.push({
+      name: 'Barrier absolute return note',
+      vocabulary: 'Market usage',
+      reason: 'The payment is principal plus the absolute value of the underlier’s return, a rise or a fall alike, until it goes beyond a barrier on either side. Then it is a fixed return. The name is the product title in public pricing supplements, not a regulator’s or the Swiss taxonomy’s.',
+      concepts: ['absolute-return', 'barrier'],
+    })
+  }
+
   if (hasCap && upside !== undefined) {
     names.push({ name: 'Capped participation', vocabulary: 'US descriptive', reason: 'Upside participation stops at a maximum return, so the payment cannot rise past the cap.', concepts: ['upside', 'cap'] })
   }

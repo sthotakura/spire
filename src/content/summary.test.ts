@@ -203,3 +203,31 @@ describe('note summary with a barrier observed on every close', () => {
     expect(sentence(finned)).toContain('with 90% principal protection and an upside barrier at 130% of the initial level, observed on every close, that ends the upside and pays a 2% rebate.')
   })
 })
+
+describe('note summary with barrier absolute return', () => {
+  const bothWays = (terms: Partial<NonNullable<SingleProduct['payoff']['barrierAbsoluteReturn']>> = {}): SingleProduct => ({
+    ...note,
+    payoff: { participations: [], barrierAbsoluteReturn: { rate: 1, lowerBarrier: { level: 0.8, observation: 'daily-close' }, upperBarrier: { level: 1.25, observation: 'daily-close' }, conditionalReturn: 0.02, ...terms } },
+  })
+
+  it('says the note pays the absolute return and what the two barriers end', () => {
+    expect(sentence(bothWays())).toBe('A 3-year note that redeems at maturity and pays 100% of the absolute return of Synthetic Index, measured point-to-point from 100, with a lower barrier at 80% and an upper barrier at 125% of the initial level, observed on every close, that end the absolute return and pay a fixed 2%.')
+    expect(conceptOf(bothWays(), '100% of the absolute return')).toBe('absolute-return')
+    expect(conceptOf(bothWays(), 'a lower barrier at 80% and an upper barrier at 125% of the initial level, observed on every close, that end the absolute return and pay a fixed 2%')).toBe('barrier')
+  })
+
+  it('says nothing about observation for barriers read on the final date', () => {
+    const onFinalDate = bothWays({ lowerBarrier: { level: 0.8, observation: 'final' }, upperBarrier: { level: 1.25, observation: 'final' } })
+    expect(sentence(onFinalDate)).toContain('with a lower barrier at 80% and an upper barrier at 125% of the initial level that end the absolute return and pay a fixed 2%.')
+  })
+
+  it('says how each barrier is observed when they differ', () => {
+    const mixed = bothWays({ upperBarrier: { level: 1.25, observation: 'final' } })
+    expect(sentence(mixed)).toContain('with a lower barrier at 80% of the initial level observed on every close and an upper barrier at 125% of the initial level observed on the final date that end the absolute return and pay a fixed 2%.')
+  })
+
+  it('says only principal is left when there is no conditional return, or it is zero', () => {
+    expect(sentence(bothWays({ conditionalReturn: undefined }))).toContain('that end the absolute return and leave only principal.')
+    expect(sentence(bothWays({ conditionalReturn: 0 }))).toContain('that end the absolute return and leave only principal.')
+  })
+})

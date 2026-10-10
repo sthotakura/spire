@@ -1,4 +1,4 @@
-import { annualisedReturn, downsideOf, finalLevelFrom, initialLevelFrom, upsideOf, type BasketBreakdown, type ParticipationDirection, type PaymentBreakdown, type Product, type SingleProduct } from '../domain/note'
+import { annualisedReturn, downsideOf, type BarrierAbsoluteReturn, finalLevelFrom, initialLevelFrom, upsideOf, type BasketBreakdown, type ParticipationDirection, type PaymentBreakdown, type Product, type SingleProduct } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface CalculationStep {
@@ -87,6 +87,37 @@ function rebateStep(rebate: number, breakdown: PaymentBreakdown): Omit<Calculati
   return { title, how: `Pays ${formatPercent(rebate)} in place of upside participation · the upside barrier is not reached`, value: '0%', muted: true, concept: 'barrier' }
 }
 
+// The two barriers of barrier absolute return, then the absolute return they end and the conditional return they pay. Each barrier
+// reads the lowest or highest close when it is observed daily, and the final level otherwise.
+function barrierAbsoluteSteps(bothWays: BarrierAbsoluteReturn, b: PaymentBreakdown, finalLevel: number): Array<Omit<CalculationStep, 'n'>> {
+  const ba = b.barrierAbsolute!
+  const percentOrZero = (value: number) => value === 0 ? '0%' : signedPercent(value)
+  const barrierStepFor = (title: string, level: number, barrierLevel: number, seen: [string, number], word: 'below' | 'above', reached: boolean): Omit<CalculationStep, 'n'> => ({
+    title,
+    how: `${formatPercent(level)} × ${formatAmount(b.initialLevel)} · ${seen[0]} ${formatAmount(seen[1])} is ${reached ? `${word} it, so the absolute return ends` : `not ${word} it, so the absolute return applies`}`,
+    value: formatAmount(barrierLevel),
+    muted: !reached,
+    concept: 'barrier',
+  })
+  const lowerSeen: [string, number] = bothWays.lowerBarrier.observation === 'daily-close' ? ['lowest close', b.lowestClose ?? finalLevel] : ['final level', finalLevel]
+  const upperSeen: [string, number] = bothWays.upperBarrier.observation === 'daily-close' ? ['highest close', b.highestClose ?? finalLevel] : ['final level', finalLevel]
+  const absolute = bothWays.rate * Math.abs(b.underlierReturn)
+  const how = `${formatPercent(bothWays.rate)} × |${signedPercent(b.underlierReturn)}|`
+  const steps: Array<Omit<CalculationStep, 'n'>> = [
+    barrierStepFor('Lower barrier', bothWays.lowerBarrier.level, ba.lowerLevel, lowerSeen, 'below', ba.lowerReached),
+    barrierStepFor('Upper barrier', bothWays.upperBarrier.level, ba.upperLevel, upperSeen, 'above', ba.upperReached),
+    ba.reached
+      ? { title: 'Absolute return', how: `${how} · a barrier is reached, so it ends`, value: '0%', muted: true, concept: 'absolute-return' }
+      : { title: 'Absolute return', how, value: percentOrZero(absolute), concept: 'absolute-return' },
+  ]
+  if (bothWays.conditionalReturn !== undefined) {
+    steps.push(ba.reached
+      ? { title: 'Conditional return', how: 'Paid in place of the absolute return', value: percentOrZero(bothWays.conditionalReturn), concept: 'barrier' }
+      : { title: 'Conditional return', how: `Pays ${formatPercent(bothWays.conditionalReturn)} in place of the absolute return · no barrier is reached`, value: '0%', muted: true, concept: 'barrier' })
+  }
+  return steps
+}
+
 // How a single asset's levels give its return: the lookback level and the averaged final level when the note has them, then the return.
 function singleSteps(note: SingleProduct, breakdown: PaymentBreakdown, observedLevels: number[], initialObservations: number[]): Array<Omit<CalculationStep, 'n'>> {
   const name = note.underlier.components[0].asset.name.trim()
@@ -135,6 +166,8 @@ export function calculationSteps(note: Product, breakdown: PaymentBreakdown, obs
   const withProtection = principalProtection !== undefined
   const hasDownside = downsideOf(note) !== undefined
   const steps = note.underlier.kind === 'basket' ? basketSteps(basket!) : singleSteps({ ...note, underlier: note.underlier }, b, observedLevels, initialObservations)
+  const bothWays = note.payoff.barrierAbsoluteReturn
+  if (bothWays !== undefined) steps.push(...barrierAbsoluteSteps(bothWays, b, finalLevelFrom(note.underlier.determination.final, observedLevels)))
   if (buffer !== undefined) steps.push(bufferStep(buffer, b))
   if (barrier !== undefined) {
     steps.push(basket ? barrierStep(barrier.level, b, 'basket level', basket.levels.final) : barrierStep(barrier.level, b, 'final level', finalLevelFrom(note.underlier.determination.final, observedLevels)))
@@ -151,11 +184,10 @@ export function calculationSteps(note: Product, breakdown: PaymentBreakdown, obs
   const minimum = note.payoff.minimumReturn
   const withFloor = deposit ? minimum !== undefined : withProtection
   steps.push(
-    participationStep(note, b, 'downside'),
-    participationStep(note, b, 'upside'),
+    ...(bothWays !== undefined ? [] : [participationStep(note, b, 'downside'), participationStep(note, b, 'upside')]),
     // With nothing selected the step only restates principal, so it is muted like the steps above it. Without a cap or protection there is no
     // limit for it to come before, so it is named for what it adds up.
-    { title: withCap ? 'Payment before cap' : deposit ? 'Payment before minimum' : withProtection ? 'Payment before protection' : 'Payment from participation', how: `${formatAmount(principal)} × (1 ${b.participatedReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(b.participatedReturn))})`, value: formatAmount(b.uncappedPayment), muted: upsideOf(note) === undefined && !hasDownside },
+    { title: withCap ? 'Payment before cap' : deposit ? 'Payment before minimum' : withProtection ? 'Payment before protection' : bothWays !== undefined ? 'Payment from absolute return' : 'Payment from participation', how: `${formatAmount(principal)} × (1 ${b.participatedReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(b.participatedReturn))})`, value: formatAmount(b.uncappedPayment), muted: bothWays === undefined && upsideOf(note) === undefined && !hasDownside },
   )
   if (withCap) steps.push({ title: 'Cap', how: `${formatAmount(principal)} × (1 + ${formatPercent(cap)}) · ${b.capApplies ? 'applies here' : absoluteReturn !== undefined && b.direction === 'downside' ? 'limits a rise only' : 'not binding here'}`, value: formatAmount(b.capAmount ?? 0), muted: !b.capApplies, concept: 'cap' })
   if (deposit) {

@@ -123,3 +123,19 @@ describe('structure lines with a barrier observed on every close', () => {
     expect(linesOf(daily, 'barrier')).toEqual(['"barrier": {', '"level": 0.7,', '"observation": "daily-close"', '},'])
   })
 })
+
+describe('structure lines with barrier absolute return', () => {
+  const bothWays: SingleProduct = {
+    ...startingProduct,
+    payoff: { participations: [], barrierAbsoluteReturn: { rate: 1, lowerBarrier: { level: 0.8, observation: 'daily-close' }, upperBarrier: { level: 1.25, observation: 'daily-close' }, conditionalReturn: 0.02 } },
+  }
+
+  it('writes the note as data, with the barriers nested in the feature', () => {
+    expect(asText(bothWays)).toBe(JSON.stringify(bothWays, null, 2))
+  })
+
+  it('tags the barriers and the conditional return with the barrier concept, and the rest with absolute return', () => {
+    expect(linesOf(bothWays, 'barrier')).toEqual(['"lowerBarrier": {', '"level": 0.8,', '"observation": "daily-close"', '},', '"upperBarrier": {', '"level": 1.25,', '"observation": "daily-close"', '},', '"conditionalReturn": 0.02'])
+    expect(linesOf(bothWays, 'absolute-return')).toEqual(['"barrierAbsoluteReturn": {', '"rate": 1,', '}'])
+  })
+})

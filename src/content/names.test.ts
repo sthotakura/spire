@@ -183,3 +183,27 @@ describe('marketing names with an upside barrier observed on every close', () =>
     expect(plain.reason).not.toContain('observed only on the final date')
   })
 })
+
+describe('marketing names with barrier absolute return', () => {
+  const bothWays = (principalProtection?: number, wrapper: 'note' | 'deposit' = 'note') => marketingNames({
+    ...noteWith({}),
+    wrapper,
+    payoff: { participations: [], barrierAbsoluteReturn: { rate: 1, lowerBarrier: { level: 0.8, observation: 'daily-close' }, upperBarrier: { level: 1.25, observation: 'daily-close' }, conditionalReturn: 0.02 }, principalProtection },
+  })
+
+  it('calls it a barrier absolute return note, as the public product is titled', () => {
+    expect(bothWays().map(({ name }) => name)).toEqual(['Barrier absolute return note'])
+    expect(bothWays(1).map(({ name }) => name)).toEqual(['Principal-protected note', 'Barrier absolute return note'])
+  })
+
+  it('says it is market usage, and rests on the absolute return and the barriers', () => {
+    const [name] = bothWays()
+    expect(name.vocabulary).toBe('Market usage')
+    expect(name.reason).toContain('not a regulator’s')
+    expect(name.concepts).toEqual(['absolute-return', 'barrier'])
+  })
+
+  it('gives a deposit no such name', () => {
+    expect(bothWays(undefined, 'deposit')).toEqual([])
+  })
+})

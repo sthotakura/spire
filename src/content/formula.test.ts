@@ -187,3 +187,36 @@ describe('payment rule with barriers observed on every close', () => {
     expect(paymentInWords(finned())).toContain('the payment adds nothing, whatever the final level.')
   })
 })
+
+describe('payment rule with barrier absolute return', () => {
+  const bothWays = (terms: Partial<NonNullable<Product['payoff']['barrierAbsoluteReturn']>> = {}, principalProtection?: number): Product => ({
+    ...startingProduct,
+    payoff: { participations: [], barrierAbsoluteReturn: { rate: 1, lowerBarrier: { level: 0.8, observation: 'daily-close' }, upperBarrier: { level: 1.25, observation: 'daily-close' }, conditionalReturn: 0.02, ...terms }, principalProtection },
+  })
+
+  it('reads the lowest and highest close for barriers observed on every close', () => {
+    expect(text(bothWays())).toEqual([
+      'Return = Final level ÷ Initial level − 1',
+      'Payment = Principal × (1 + Absolute × |Return|)',
+      'unless Lowest close < Lower barrier × Initial level or Highest close > Upper barrier × Initial level, then Principal × (1 + Conditional return)',
+    ])
+    expect(paymentFormula(bothWays())[2].segments.flatMap(({ concept }) => concept ?? [])).toEqual(['barrier', 'barrier', 'barrier'])
+  })
+
+  it('reads the final level for a barrier observed on the final date, each barrier on its own', () => {
+    expect(text(bothWays({ lowerBarrier: { level: 0.8, observation: 'final' }, upperBarrier: { level: 1.25, observation: 'final' } }))[2]).toBe('unless Final level < Lower barrier × Initial level or Final level > Upper barrier × Initial level, then Principal × (1 + Conditional return)')
+    expect(text(bothWays({ upperBarrier: { level: 1.25, observation: 'final' } }))[2]).toBe('unless Lowest close < Lower barrier × Initial level or Final level > Upper barrier × Initial level, then Principal × (1 + Conditional return)')
+  })
+
+  it('pays principal only after a barrier when there is no conditional return, and adds a floor line only with protection', () => {
+    expect(text(bothWays({ conditionalReturn: undefined }))[2]).toBe('unless Lowest close < Lower barrier × Initial level or Highest close > Upper barrier × Initial level, then Principal')
+    expect(text(bothWays({}, 1))).toHaveLength(4)
+    expect(text(bothWays({}, 1))[3]).toBe('floored at Principal × Protection')
+  })
+
+  it('says it in words', () => {
+    expect(paymentInWords(bothWays())).toBe('Each 1% move in Synthetic Index, up or down, adds 1% of principal. If Synthetic Index closes below 80% or above 125% of its initial level on any day, the payment is instead principal plus a fixed 2%, whatever the final level. The payment never goes below principal, 1,000.')
+    expect(paymentInWords(bothWays({ lowerBarrier: { level: 0.8, observation: 'final' }, upperBarrier: { level: 1.25, observation: 'final' }, conditionalReturn: undefined }))).toBe('Each 1% move in Synthetic Index, up or down, adds 1% of principal. If Synthetic Index ends below 80% of its initial level or ends above 125% of its initial level, the payment is instead principal only, whatever the final level. The payment never goes below principal, 1,000.')
+    expect(paymentInWords(bothWays({ upperBarrier: { level: 1.25, observation: 'final' } }))).toContain('closes below 80% of its initial level or ends above 125% of its initial level')
+  })
+})

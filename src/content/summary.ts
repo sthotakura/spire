@@ -50,6 +50,7 @@ export function summarize(note: Product): SummarySegment[] {
   const barrier = downsideOf(note)?.barrier
   const upsideBarrier = upsideOf(note)?.barrier
   const absoluteReturn = downsideOf(note)?.absoluteReturn
+  const bothWays = note.payoff.barrierAbsoluteReturn
   const { initial, final } = note.underlier.determination
   const count = (value: number) => Number.isFinite(value) ? value : '—'
   // Each level of the determination adds its own phrase. A fixed initial level and a final level on the final date is point-to-point.
@@ -59,7 +60,9 @@ export function summarize(note: Product): SummarySegment[] {
   if (final.kind === 'averaging') measured.push({ text: ' to ' }, { text: `the average of ${count(final.observationCount)} observed levels`, concept: 'final-level' })
 
   const payoff: SummarySegment[] = []
-  if (upside || downside) {
+  if (bothWays) {
+    payoff.push({ text: ' and pays ' }, { text: `${percent(bothWays.rate)} of the absolute return`, concept: 'absolute-return' }, { text: ' of ' }, ...underlier)
+  } else if (upside || downside) {
     payoff.push({ text: ' and pays ' })
     if (upside) payoff.push({ text: `${percent(upside.rate)} of the upside`, concept: 'upside' })
     if (upside && downside) payoff.push({ text: ' and ' })
@@ -86,6 +89,18 @@ export function summarize(note: Product): SummarySegment[] {
   if (cap !== undefined) clauses.push({ text: `a maximum return of ${percent(cap)}${absoluteReturn !== undefined ? ' on a rise' : ''}`, concept: 'cap' })
   const minimum = note.payoff.minimumReturn
   if (minimum !== undefined) clauses.push({ text: `a minimum return of ${weightPercent(minimum)}`, concept: 'minimum-return' })
+  // Two barriers, each with its own level and observation, either of which ends the absolute return. When both are observed the same
+  // way the sentence says so once; otherwise it says so for each.
+  if (bothWays) {
+    const { lowerBarrier, upperBarrier, conditionalReturn } = bothWays
+    const sameWay = lowerBarrier.observation === upperBarrier.observation
+    const observedBy = (observation: 'final' | 'daily-close') => observation === 'daily-close' ? 'on every close' : 'on the final date'
+    const levels = sameWay
+      ? `a lower barrier at ${percent(lowerBarrier.level)} and an upper barrier at ${percent(upperBarrier.level)} of the ${barrierFrom}${lowerBarrier.observation === 'daily-close' ? ', observed on every close,' : ''}`
+      : `a lower barrier at ${percent(lowerBarrier.level)} of the ${barrierFrom} observed ${observedBy(lowerBarrier.observation)} and an upper barrier at ${percent(upperBarrier.level)} of the ${barrierFrom} observed ${observedBy(upperBarrier.observation)}`
+    const after = conditionalReturn !== undefined && conditionalReturn > 0 ? ` and pay a fixed ${weightPercent(conditionalReturn)}` : ' and leave only principal'
+    clauses.push({ text: `${levels} that end the absolute return${after}`, concept: 'barrier' })
+  }
   const features: SummarySegment[] = clauses.flatMap((clause, index) => [{ text: index === 0 ? ', with ' : index === clauses.length - 1 ? ' and ' : ', ' }, clause])
 
   const term = termPhrase(note.term.months)
