@@ -1,6 +1,6 @@
 # Barrier absolute return
 
-This is a proposal, not scheduled. It adds a product shape that public notes use for barriers on both sides observed on closing levels: the note pays principal plus the absolute value of the underlier's return, for as long as no observed level has gone beyond either barrier. Once one has, the absolute return is replaced by a fixed return, whatever the final level. It does not add downside loss, a rebate beside a downside loss, coupons, a basket, lookback, averaging, or pricing. It builds on [daily-observation.md](daily-observation.md), [barrier.md](barrier.md) and [absolute-return.md](absolute-return.md).
+Built, as proposed below except for the departures listed under *As built*. It adds a product shape that public notes use for barriers on both sides observed on closing levels: the note pays principal plus the absolute value of the underlier's return, for as long as no observed level has gone beyond either barrier. Once one has, the absolute return is replaced by a fixed return, whatever the final level. It does not add downside loss, a rebate beside a downside loss, coupons, a basket, lookback, averaging, or pricing. It builds on [daily-observation.md](daily-observation.md), [barrier.md](barrier.md) and [absolute-return.md](absolute-return.md).
 
 ## Why this proposal exists
 
@@ -104,6 +104,18 @@ The largest payment with no event is 1,250, at the upper barrier, the larger of 
 5. **Combinations in the first version.** Unavailable with participations, a buffer, a cap, lookback, a basket, averaging and the existing absolute return. Averaging is left out because the average is not a close; a daily barrier beside it has no public example.
 6. **The GS minimum return.** The GS notes also use the fixed 5% as the least the note pays with no event, which is the minimum return floor the model has for deposits only, "until a note with one is verified". These notes verify one. Lifting that restriction, and letting the conditional return equal the minimum return, is a separate small change, left out here.
 7. **Equality.** Each barrier is reached strictly beyond its level, as in all five notes and as the other barriers are.
+
+## As built
+
+Every step is done: the domain, the content, the chart and the interface, with a book section in the Absolute return chapter. The model, the worked example (each row is a domain test), the scope and the decisions above stand, with these details:
+
+- **The JSON key is `barrierAbsoluteReturn`**, on the payoff beside `participations`, not `absoluteReturn`. The existing absolute return is a sub-feature of downside participation and keeps that key, so the two stay distinct in the code and the JSON. The interface and the book call the feature "Absolute return (both directions)".
+- **Decisions followed as recommended:** a feature that owns its barriers (1), "conditional return" (2), each barrier with its own observation in any mix (3), a rate term (4), the combinations left out (5), and strict equality (7). Decision 6, the GS minimum return, is not done: the minimum return stays for deposits only, and this payoff cannot be combined with it.
+- **Adding it** puts both barriers on the payoff at 80% and 125%, both observed on every close. The conditional return is added separately from the Add feature menu and is off at first. Participation, a minimum return, lookback, a basket and averaging are blocked in both directions, with the reason in the menu or option label.
+- **The payment breakdown** gains `barrierAbsolute` (each barrier's level and whether it is reached, whether either is, and the conditional return). `lowestClose` and `highestClose` are reported for whichever barrier is observed daily, so both can be reported at once.
+- **The chart** adds two regimes, the fixed return below the lower barrier and above the upper one, and a handle for each barrier. The dashed other path is the fixed return at every final level, drawn when either barrier is observed on every close.
+- **Scenario rows** mark a row just past a barrier on either side (`pastBarrier`, replacing the upside-only `aboveBarrier`), and add one recovered row per daily barrier, with the underlier back at the initial level. The label beside it names the lowest close for the lower barrier and the highest for the upper.
+- **Checked in the running app:** adding the feature, the conditional return, each observation, the mixed case, the validation message, the scenario table and a phone width. **Not checked:** keyboard use of the new handles, and deposits.
 
 ## Open questions
 

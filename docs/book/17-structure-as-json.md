@@ -52,6 +52,17 @@ barrier reads the final level, or `"daily-close"` when it reads every close from
 pricing to the final date. The lowest or highest close that a daily barrier
 reads is a scenario input and, like the final level, is not stored here.
 
+Absolute return in both directions is a payoff of its own, beside the
+participations, and the two barriers belong to it. Each barrier has its own
+level and observation, so the two sides can differ:
+
+```
+"barrierAbsoluteReturn": { "rate": 1, "lowerBarrier": { "level": 0.8, "observation": "daily-close" }, "upperBarrier": { "level": 1.25, "observation": "daily-close" }, "conditionalReturn": 0.02 }
+```
+
+The conditional return is optional; without it, reaching a barrier leaves only
+principal.
+
 The hypothetical final level is not stored in this structure. It is a
 scenario input, supplied when calculating a payment. Likewise, lookback and
 averaging observations are inputs rather than known future outcomes in the

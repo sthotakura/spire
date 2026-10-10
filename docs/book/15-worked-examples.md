@@ -55,6 +55,14 @@ level pays 1,000 when the barrier is observed only on the final date. The
 Barrier chapter has the upside case, where one close at the barrier earns the
 rebate whatever the final level.
 
+## Pay the absolute return in both directions
+
+With a 100% absolute return, a lower barrier at 80% and an upper barrier at 125%
+of the initial level, both observed on every close, and a 2% conditional return,
+final level 90 and final level 110 each pay 1,100: a fall pays like a rise. If a
+close was ever at 79, or above 125, the absolute return has ended, and any final
+level pays 1,020. The Absolute return chapter has the full set of levels.
+
 ## Add absolute return
 
 With a 15% buffer, 100% absolute return, and 100% downside participation,

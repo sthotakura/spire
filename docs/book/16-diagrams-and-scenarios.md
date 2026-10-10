@@ -42,6 +42,20 @@ barrier it runs below the barrier, where an earlier close has already earned the
 rebate. The final-level marker sits on whichever line the scenario's lowest or
 highest close puts it on, so it can sit on the dashed line.
 
+## A V between two barriers
+
+Absolute return in both directions draws a V. Between the barriers the payment
+falls as the underlier falls to the initial level, where it is principal, and
+rises again as it rises, since a fall and a rise of the same size pay the same.
+Beyond each barrier the line is flat at the fixed return, with a jump at the
+barrier. The filled point of each jump is the payment at the barrier level, which
+is the absolute return, and the open point is the fixed return just beyond it. If
+a barrier is observed on every close, a dashed flat line at the fixed return
+shows the payment had a close gone beyond a barrier earlier. The scenario table
+adds a row at each barrier, a row just past each, and a row for each barrier
+observed on every close where the underlier returned to the initial level after a
+close beyond it, labelled with that close.
+
 ## Choosing scenarios
 
 Include a rise, no change, a modest fall, and a large fall. At a threshold,

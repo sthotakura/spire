@@ -351,6 +351,17 @@ The upside barrier was first reached at or above its level, an assumption from a
 - **The wording** says "above" and "at or below" in the payment rule (`≤`), calculation, outcome, names and hints.
 - **Revisit** if a public shark fin term sheet states the test differently.
 
+## 28. Add barrier absolute return
+
+Five public notes ("Barrier Absolute Return … with daily barrier observation") put a barrier on each side, observe both on closing levels, and pay principal plus the absolute value of the return until either is reached, then a fixed return. None loses principal after a barrier. The proposal, the five sources and a worked example are in [docs/barrier-absolute-return.md](docs/barrier-absolute-return.md).
+
+- **A payoff feature that owns its barriers:** `barrierAbsoluteReturn` with a rate, a lower barrier and an upper barrier, each with its own level and observation, and an optional conditional return. It replaces participation, so it cannot be combined with participations, a minimum return, lookback, a basket or averaging.
+- **The payment:** the conditional return (principal only without one) once either barrier is reached, strictly beyond its level, and principal plus the rate times the absolute value of the return otherwise. It never pays less than principal.
+- **Domain, content, chart and interface** follow the daily-observation work: the lowest and highest close inputs are reused, the other path of the chart is the fixed return, and the scenario table gains rows at and just past each barrier. The row mark `aboveBarrier` became `pastBarrier`, either 'above' or 'below'.
+- **Name:** "Barrier absolute return note", market usage.
+- **Book:** a section in the Absolute return chapter, with notes in the Barrier, combining, worked examples, diagrams and JSON chapters.
+- **Not done:** the GS minimum return alongside it (the minimum return stays for deposits only), a barrier list shared by features (the Payoff direction above), and keyboard and deposit checks of the new interface.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.
@@ -367,7 +378,7 @@ Open questions:
 Payoff may eventually stop being one list of features and become several sections, for example with barriers and their observation moved out to a section of their own that payoff features refer to. This is a direction, not a plan: nothing is scheduled, and the current model stays as it is until a concrete need settles it.
 
 - **Why it may be needed.** A barrier is nested under one participation direction today, so it can govern only that direction's feature, and a note with a barrier on each side needs two. Several restrictions come from that nesting rather than from the contracts they describe, such as a daily upside barrier needing a note with no downside participation. Barrier.md already records the alternatives: a barrier event that several features refer to, and a list of barriers.
-- **A test case.** A public note observes an upper and a lower barrier on closing levels as one event that replaces absolute return, on both a rise and a fall, with a fixed return ([docs/daily-observation.md](docs/daily-observation.md)). It can be read as two barriers joined by "either", with observation stated once. It cannot be written in the current model.
+- **A test case.** A public note observes an upper and a lower barrier on closing levels as one event that replaces absolute return, on both a rise and a fall, with a fixed return ([docs/daily-observation.md](docs/daily-observation.md)). It can be read as two barriers joined by "either", with observation stated once. Section 28 built it in the current model as a payoff feature of its own that owns both barriers.
 - **What would carry over.** The `observation` term, the lowest and highest close as scenario inputs, the dashed other path on the chart, and the equality rules (a barrier is reached strictly beyond its level) do not depend on where the barrier lives.
 - **Open questions.** Where observation belongs (its own section, on each barrier, or in Payoff), how a feature refers to a barrier or an event, and how the outline and Structure JSON keep the same shape when features no longer nest under a direction. The composable form above would need the same answers.
 

@@ -88,7 +88,7 @@ Barrier", and the holder then receives a fixed return on principal whatever the
 final level
 ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/19617/000161577418007603/s111907_424b2.htm)).
 That note pays the absolute value of the underlier's return on a rise as well
-as a fall until the event, which this reference does not model.
+as a fall until the event, which the Absolute return chapter covers.
 
 SPIRe states this as the barrier's observation, `daily-close`. A scenario then
 needs one more number than the final level: the lowest close for a downside
