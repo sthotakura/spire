@@ -78,11 +78,15 @@ description and its numeric limits, such as a lower barrier between 0% and 100%
 of the initial level and a term of 1 to 120 whole months. It is generated from
 the same types the calculation uses, so it changes whenever a feature is added.
 
-A schema describes shape and ranges. It cannot say that a buffer and a barrier
-cannot both apply to one downside participation, or that barrier absolute
-return cannot sit beside participation. Those rules are checked by the
-validation that runs before a payment is calculated, and the schema's own
-description lists them.
+It also carries ten example products, one for each family of features, and each
+one passes both the schema and the validation.
+
+A schema describes shape and ranges. It states two rules that tie fields
+together: barrier absolute return replaces participation, and a deposit has no
+downside participation or principal protection. It leaves the others to the
+validation that runs before a payment is calculated, for example that a buffer
+and a barrier cannot both apply to one downside participation. The schema's own
+description lists which rules are in it and which are not.
 
 ## Scope
 

@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/sthotakura/spire/main/docs/schema/product.schema.json",
   "title": "SPIRe product",
-  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff. This schema describes shape, variants and ranges only. validateProduct enforces the rules that tie fields together: Each participation direction appears at most once. A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them. An upside barrier and a cap cannot both apply to an upside participation. A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall. Barrier absolute return replaces participation, so it cannot be combined with participations, a minimum return, lookback, a basket or averaging. A deposit has no downside participation and no principal protection, and a minimum return is for deposits only. A minimum return is less than any cap. A basket needs unique asset names, one initial level for each asset and no other, and weights that add up to 1.",
+  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A basket needs unique asset names, one initial level for each asset and no other, and weights that add up to 1.",
   "type": "object",
   "properties": {
     "wrapper": {
@@ -34,7 +35,11 @@
           "description": "Features are listed in the order the payment applies them: participation with its buffer and cap, then the floor."
         },
         "barrierAbsoluteReturn": {
-          "$ref": "#/definitions/BarrierAbsoluteReturn",
+          "allOf": [
+            {
+              "$ref": "#/definitions/BarrierAbsoluteReturn"
+            }
+          ],
           "description": "A payoff of its own: it cannot be combined with participations, which this note's two barriers replace."
         },
         "principalProtection": {
@@ -45,7 +50,7 @@
         },
         "minimumReturn": {
           "type": "number",
-          "description": "The lowest return the product pays on principal, whatever the underlier does: a floor of principal × (1 + minimum return), not an addition to the participated return. Deposits only, since no note with one was verified.",
+          "description": "The lowest return the product pays on principal, whatever the underlier does: a floor of principal × (1 + minimum return), not an addition to the participated return. This reference allows it on deposits only.",
           "exclusiveMinimum": 0
         }
       },
@@ -53,7 +58,22 @@
         "participations"
       ],
       "additionalProperties": false,
-      "description": "The rules that turn the underlier's change into the maturity payment. With no features the product repays principal."
+      "description": "The rules that turn the underlier's change into the maturity payment. With no features the product repays principal.",
+      "if": {
+        "required": [
+          "barrierAbsoluteReturn"
+        ]
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "participations": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "minimumReturn": false
+        }
+      }
     }
   },
   "required": [
@@ -65,6 +85,482 @@
     "payoff"
   ],
   "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "wrapper"
+        ],
+        "properties": {
+          "wrapper": {
+            "const": "deposit"
+          }
+        }
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "payoff": {
+            "type": "object",
+            "properties": {
+              "principalProtection": false,
+              "participations": {
+                "type": "array",
+                "items": {
+                  "not": {
+                    "type": "object",
+                    "required": [
+                      "direction"
+                    ],
+                    "properties": {
+                      "direction": {
+                        "const": "downside"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "type": "object",
+        "properties": {
+          "payoff": {
+            "type": "object",
+            "properties": {
+              "minimumReturn": false
+            }
+          }
+        }
+      }
+    }
+  ],
+  "examples": [
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Synthetic Index"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "level": 100
+          },
+          "final": {
+            "kind": "final-date"
+          }
+        }
+      },
+      "payoff": {
+        "participations": []
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Synthetic Index"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "level": 100
+          },
+          "final": {
+            "kind": "final-date"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "rate": 1
+          },
+          {
+            "direction": "upside",
+            "rate": 1.5
+          }
+        ],
+        "principalProtection": 0.9
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Synthetic Index"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "level": 100
+          },
+          "final": {
+            "kind": "final-date"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "buffer": 0.1,
+            "rate": 1
+          },
+          {
+            "direction": "upside",
+            "rate": 1,
+            "cap": 0.2
+          }
+        ]
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Synthetic Index"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "level": 100
+          },
+          "final": {
+            "kind": "final-date"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "barrier": {
+              "level": 0.7,
+              "observation": "daily-close"
+            },
+            "rate": 1
+          },
+          {
+            "direction": "upside",
+            "barrier": {
+              "level": 1.3,
+              "observation": "daily-close",
+              "rebate": 0.02
+            },
+            "rate": 0.8
+          }
+        ]
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Synthetic Index"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "level": 100
+          },
+          "final": {
+            "kind": "final-date"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "buffer": 0.15,
+            "absoluteReturn": {
+              "rate": 1
+            },
+            "rate": 1
+          },
+          {
+            "direction": "upside",
+            "rate": 1.25
+          }
+        ]
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Synthetic Index"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "level": 100
+          },
+          "final": {
+            "kind": "final-date"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [],
+        "barrierAbsoluteReturn": {
+          "rate": 1,
+          "lowerBarrier": {
+            "level": 0.8,
+            "observation": "daily-close"
+          },
+          "upperBarrier": {
+            "level": 1.25,
+            "observation": "daily-close"
+          },
+          "conditionalReturn": 0.02
+        }
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Synthetic Index"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "level": 100
+          },
+          "final": {
+            "kind": "final-date"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [],
+        "barrierAbsoluteReturn": {
+          "rate": 1,
+          "lowerBarrier": {
+            "level": 0.8,
+            "observation": "final"
+          },
+          "upperBarrier": {
+            "level": 1.25,
+            "observation": "final"
+          }
+        }
+      }
+    },
+    {
+      "wrapper": "deposit",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Synthetic Index"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "level": 100
+          },
+          "final": {
+            "kind": "final-date"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "upside",
+            "rate": 1
+          }
+        ],
+        "minimumReturn": 0.05
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Synthetic Index"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "lookback",
+            "observationCount": 3
+          },
+          "final": {
+            "kind": "averaging",
+            "observationCount": 4
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "upside",
+            "rate": 1
+          }
+        ]
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "basket",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Index A"
+            },
+            "weight": 0.5
+          },
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Index B"
+            },
+            "weight": 0.5
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "levels": [
+              {
+                "asset": "Index A",
+                "level": 100
+              },
+              {
+                "asset": "Index B",
+                "level": 100
+              }
+            ]
+          },
+          "final": {
+            "kind": "final-date"
+          },
+          "basketReturn": {
+            "kind": "weighted"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "upside",
+            "rate": 1
+          }
+        ]
+      }
+    }
+  ],
   "definitions": {
     "Wrapper": {
       "type": "string",
@@ -79,7 +575,7 @@
       "properties": {
         "months": {
           "type": "integer",
-          "description": "The length in whole months.",
+          "description": "The length in whole months. This reference accepts 1 to 120; it is a limit of this reference, not of the product type.",
           "minimum": 1,
           "maximum": 120
         }
@@ -91,7 +587,7 @@
       "description": "The product's length, as a duration. It is part of the structure; the dates that put it on a calendar belong to issuance."
     },
     "Underlier": {
-      "anyOf": [
+      "oneOf": [
         {
           "$ref": "#/definitions/SingleUnderlier"
         },
@@ -138,7 +634,8 @@
       "required": [
         "asset"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "One asset a single underlier tracks."
     },
     "Asset": {
       "type": "object",
@@ -164,7 +661,8 @@
       "enum": [
         "equity",
         "equity-index"
-      ]
+      ],
+      "description": "The kind of asset tracked: a single equity, or an equity index."
     },
     "Determination": {
       "type": "object",
@@ -184,8 +682,9 @@
       "description": "How the underlier's change is measured, one end at a time. Given at the start and final-date at the end is point-to-point."
     },
     "InitialDetermination": {
-      "anyOf": [
+      "oneOf": [
         {
+          "title": "Fixed initial level",
           "type": "object",
           "properties": {
             "kind": {
@@ -205,6 +704,7 @@
           "additionalProperties": false
         },
         {
+          "title": "Lookback initial level",
           "type": "object",
           "properties": {
             "kind": {
@@ -213,7 +713,7 @@
             },
             "observationCount": {
               "type": "integer",
-              "description": "The number of dates after pricing whose levels are observed.",
+              "description": "The number of dates after pricing whose levels are observed. This reference accepts 2 to 12, so each level can be set by hand; real notes can observe many more.",
               "minimum": 2,
               "maximum": 12
             }
@@ -228,8 +728,9 @@
       "description": "How the initial level is measured. Given states the level as a term of the note. Lookback states only how many dates after pricing are observed: the level on the pricing date is observed like the others, and the lowest of them is the initial level, so a fall soon after pricing lowers the starting point."
     },
     "FinalDetermination": {
-      "anyOf": [
+      "oneOf": [
         {
+          "title": "Final level on the final date",
           "type": "object",
           "properties": {
             "kind": {
@@ -243,6 +744,7 @@
           "additionalProperties": false
         },
         {
+          "title": "Averaged final level",
           "type": "object",
           "properties": {
             "kind": {
@@ -251,7 +753,7 @@
             },
             "observationCount": {
               "type": "integer",
-              "description": "The number of dates whose levels are averaged.",
+              "description": "The number of dates whose levels are averaged. This reference accepts 2 to 12, so each level can be set by hand; real notes can average over many more.",
               "minimum": 2,
               "maximum": 12
             }
@@ -347,7 +849,7 @@
         "basketReturn"
       ],
       "additionalProperties": false,
-      "description": "Each component of a basket is measured from its own fixed initial level, and every component's final level is measured the same way. The basket return then combines the component returns, so it needs both ends of every component and comes after them. Lookback is not modelled on a basket: the lowest basket level and each component's lowest level differ, and no public note settling which applies was verified (docs/basket.md)."
+      "description": "Each component of a basket is measured from its own fixed initial level, and every component's final level is measured the same way. The basket return then combines the component returns, so it needs both ends of every component and comes after them. This reference does not model lookback on a basket: the lowest basket level and each component's lowest level differ, and which of them applies is left open."
     },
     "ComponentLevel": {
       "type": "object",
@@ -384,7 +886,7 @@
       "description": "How a basket's component returns make its return. Weighted adds up each component's return times its weight."
     },
     "Participation": {
-      "anyOf": [
+      "oneOf": [
         {
           "$ref": "#/definitions/DownsideParticipation"
         },
@@ -408,11 +910,19 @@
           "maximum": 1
         },
         "barrier": {
-          "$ref": "#/definitions/Barrier",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Barrier"
+            }
+          ],
           "description": "Downside participation applies, to the whole fall, only once this barrier is reached."
         },
         "absoluteReturn": {
-          "$ref": "#/definitions/AbsoluteReturn",
+          "allOf": [
+            {
+              "$ref": "#/definitions/AbsoluteReturn"
+            }
+          ],
           "description": "Pays a fall that downside participation does not reach as a gain. Needs a buffer or a barrier."
         },
         "rate": {
@@ -454,7 +964,7 @@
         "final",
         "daily-close"
       ],
-      "description": "When a barrier is observed. Final reads the final level the determination produces. Daily close reads every closing level from pricing to the final observation date, through the lowest or highest of them (docs/daily-observation.md)."
+      "description": "When a barrier is observed. Final reads the final level the determination produces. Daily close reads every closing level from pricing to the final observation date, through the lowest or highest of them."
     },
     "AbsoluteReturn": {
       "type": "object",
@@ -469,7 +979,7 @@
         "rate"
       ],
       "additionalProperties": false,
-      "description": "A fall that downside participation does not reach pays its size, times the rate, as a gain: a fall within the buffer, or one that ends at or above the barrier. Past it the gain is gone and the holder bears the fall as the buffer or barrier sets out, so the payment drops there (docs/absolute-return.md)."
+      "description": "A fall that downside participation does not reach pays its size, times the rate, as a gain: a fall within the buffer, or one that ends at or above the barrier. Past it the gain is gone and the holder bears the fall as the buffer or barrier sets out, so the payment drops there."
     },
     "UpsideParticipation": {
       "type": "object",
@@ -479,7 +989,11 @@
           "const": "upside"
         },
         "barrier": {
-          "$ref": "#/definitions/UpsideBarrier",
+          "allOf": [
+            {
+              "$ref": "#/definitions/UpsideBarrier"
+            }
+          ],
           "description": "Upside participation applies while the observed level is at or below this barrier, and ends above it."
         },
         "rate": {
@@ -505,7 +1019,7 @@
       "properties": {
         "level": {
           "type": "number",
-          "description": "The level as a fraction of the initial level.",
+          "description": "The level as a fraction of the initial level. This reference accepts up to 2, a rise of 100%; that is a limit of this reference, not of the product type.",
           "exclusiveMinimum": 1,
           "maximum": 2
         },
@@ -523,7 +1037,7 @@
         "observation"
       ],
       "additionalProperties": false,
-      "description": "A level above the initial level, as a fraction of it. Upside participation applies while the observed level is at or below it. Above it, participation is cancelled (a knock-out) and the optional rebate is paid instead: a return on principal. Observed on the final date it reads the final level; observed daily, the highest close (docs/upside-barrier.md)."
+      "description": "A level above the initial level, as a fraction of it. Upside participation applies while the observed level is at or below it. Above it, participation is cancelled (a knock-out) and the optional rebate is paid instead: a return on principal. Observed on the final date it reads the final level; observed daily, the highest close."
     },
     "BarrierAbsoluteReturn": {
       "type": "object",
@@ -551,14 +1065,14 @@
         "upperBarrier"
       ],
       "additionalProperties": false,
-      "description": "Barrier absolute return: the payment is principal plus a share of the absolute value of the underlier's return, a rise or a fall alike, for as long as neither barrier has been reached. Once either has, the absolute return ends on both sides and the note pays the conditional return instead, whatever the final level (docs/barrier-absolute-return.md). Each barrier has its own level and observation. The conditional return is a return on principal; absent means principal only."
+      "description": "Barrier absolute return: the payment is principal plus a share of the absolute value of the underlier's return, a rise or a fall alike, for as long as neither barrier has been reached. Once either has, the absolute return ends on both sides and the note pays the conditional return instead, whatever the final level. Each barrier has its own level and observation. The conditional return is a return on principal; absent means principal only."
     },
     "UpperBarrier": {
       "type": "object",
       "properties": {
         "level": {
           "type": "number",
-          "description": "The level as a fraction of the initial level.",
+          "description": "The level as a fraction of the initial level. This reference accepts up to 2, a rise of 100%; that is a limit of this reference, not of the product type.",
           "exclusiveMinimum": 1,
           "maximum": 2
         },

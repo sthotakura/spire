@@ -1,24 +1,40 @@
 import { readFileSync } from 'node:fs'
 import Ajv, { type ValidateFunction } from 'ajv'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { productIssues, type BarrierAbsoluteReturn, type DownsideParticipation, type Product, type UpsideParticipation } from '../src/domain/note'
 import { startingProduct } from '../src/domain/starting-note'
-import { productSchemaText } from './product-schema'
+import { productExamples } from './product-examples'
+import { productSchemaText, schemaId } from './product-schema'
 
-// The schema is generated from the domain types. These tests keep it current, check it accepts the products the model supports, and
-// check its numeric limits agree with validateProduct, which states them a second time.
+// The schema is generated from the domain types. These tests keep it current, check it accepts the products the model supports, check
+// its numeric limits and its two conditions agree with validateProduct, which states them a second time, and keep it readable.
+type Json = Record<string, any>
 let generated = ''
+let schema: Json
 let validate: ValidateFunction
+let compileWarnings = 0
 
 beforeAll(() => {
   generated = productSchemaText()
-  validate = new Ajv().compile(JSON.parse(generated))
+  schema = JSON.parse(generated)
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  validate = new Ajv().compile(schema)
+  compileWarnings = warn.mock.calls.length
+  warn.mockRestore()
 }, 60_000)
 
 // A product as JSON carries it: no undefined keys.
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))
 const schemaAccepts = (product: unknown) => validate(clone(product)) as boolean
 const validatorAccepts = (product: Product) => productIssues(product).length === 0
+// Visits every object and array in the schema, with its path.
+const walk = (node: unknown, visit: (value: Json, path: string) => void, path = '#') => {
+  if (Array.isArray(node)) node.forEach((item, i) => walk(item, visit, `${path}/${i}`))
+  else if (node !== null && typeof node === 'object') {
+    visit(node as Json, path)
+    for (const [key, value] of Object.entries(node)) walk(value, visit, `${path}/${key}`)
+  }
+}
 
 const base: Product = {
   wrapper: 'note',
@@ -35,17 +51,18 @@ const base: Product = {
 const withPayoff = (payoff: Product['payoff'], overrides: Partial<Product> = {}): Product => ({ ...base, ...overrides, payoff })
 const downside = (terms: Partial<DownsideParticipation>) => withPayoff({ participations: [{ direction: 'downside', rate: 1, ...terms }] })
 const upside = (terms: Partial<UpsideParticipation>) => withPayoff({ participations: [{ direction: 'upside', rate: 1, ...terms }] })
-const bothWays = (terms: Partial<BarrierAbsoluteReturn>) => withPayoff({
+const bothWays = (terms: Partial<BarrierAbsoluteReturn>, payoff: Partial<Product['payoff']> = {}, overrides: Partial<Product> = {}) => withPayoff({
   participations: [],
   barrierAbsoluteReturn: { rate: 1, lowerBarrier: { level: 0.8, observation: 'final' }, upperBarrier: { level: 1.25, observation: 'final' }, ...terms },
-})
+  ...payoff,
+}, overrides)
 const deposit = (minimumReturn: number) => withPayoff({ participations: [{ direction: 'upside', rate: 1 }], minimumReturn }, { wrapper: 'deposit' })
 const determined = (determination: Extract<Product['underlier'], { kind: 'single' }>['determination']) => ({ ...base, underlier: { ...(base.underlier as object), determination } }) as Product
-const basket = (levels: number[], names = ['Index A', 'Index B']): Product => ({
+const basket = (levels: number[], names = ['Index A', 'Index B'], weights?: number[]): Product => ({
   ...base,
   underlier: {
     kind: 'basket',
-    components: names.map((name) => ({ asset: { kind: 'equity-index' as const, name }, weight: 1 / names.length })),
+    components: names.map((name, i) => ({ asset: { kind: 'equity-index' as const, name }, weight: weights?.[i] ?? 1 / names.length })),
     determination: { initial: { kind: 'given', levels: names.map((asset, i) => ({ asset, level: levels[i] })) }, final: { kind: 'final-date' }, basketReturn: { kind: 'weighted' } },
   },
 })
@@ -56,23 +73,18 @@ describe('product schema', () => {
     expect(committed === generated, 'docs/schema/product.schema.json is stale; run npm run schema').toBe(true)
   })
 
-  describe('accepts the products the model supports', () => {
-    const examples: Array<[string, Product]> = [
-      ['the starting note', startingProduct],
-      ['a note with both participations and protection', withPayoff({ participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1.5 }], principalProtection: 0.9 })],
-      ['a buffer and a cap', withPayoff({ participations: [{ direction: 'downside', buffer: 0.1, rate: 1 }, { direction: 'upside', rate: 1, cap: 0.2 }] })],
-      ['a barrier on each side, observed daily, with a rebate', withPayoff({ participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'daily-close' }, rate: 1 }, { direction: 'upside', barrier: { level: 1.3, observation: 'daily-close', rebate: 0.02 }, rate: 0.8 }] })],
-      ['absolute return under a buffer', withPayoff({ participations: [{ direction: 'downside', buffer: 0.15, absoluteReturn: { rate: 1 }, rate: 1 }, { direction: 'upside', rate: 1.25 }] })],
-      ['barrier absolute return with a conditional return', bothWays({ conditionalReturn: 0.02, lowerBarrier: { level: 0.8, observation: 'daily-close' }, upperBarrier: { level: 1.25, observation: 'daily-close' } })],
-      ['barrier absolute return with none', bothWays({})],
-      ['a deposit with a minimum return', deposit(0.05)],
-      ['lookback and averaging', withPayoff({ participations: [{ direction: 'upside', rate: 1 }] }, { underlier: { ...(base.underlier as object), determination: { initial: { kind: 'lookback', observationCount: 3 }, final: { kind: 'averaging', observationCount: 4 } } } as Product['underlier'] })],
-      ['a weighted basket', basket([100, 100])],
-    ]
+  it('compiles without strict-mode warnings', () => {
+    expect(compileWarnings).toBe(0)
+  })
 
-    it.each(examples)('%s', (_, product) => {
+  describe('accepts the products the model supports', () => {
+    it.each(productExamples.map(([title, product]) => [title, product] as const))('%s', (_, product) => {
       expect(validatorAccepts(product), 'validateProduct rejects the example').toBe(true)
       expect(schemaAccepts(product), JSON.stringify(validate.errors)).toBe(true)
+    })
+
+    it('publishes exactly these examples', () => {
+      expect(schema.examples).toEqual(productExamples.map(([, product]) => clone(product)))
     })
   })
 
@@ -89,8 +101,9 @@ describe('product schema', () => {
     })
   })
 
-  // Each case changes one value across a limit. The schema and validateProduct state these limits separately, so they must agree.
-  describe('agrees with validateProduct on the numeric limits', () => {
+  // Each case changes one value across a limit, or breaks one of the two conditions. The schema and validateProduct state these
+  // separately, so they must agree.
+  describe('agrees with validateProduct on the numeric limits and the two conditions', () => {
     const cases: Array<[string, Product, boolean]> = [
       ...[[0, false], [-1, false], [0.01, true]].map(([value, ok]): [string, Product, boolean] => [`principal ${value}`, { ...base, principalAmount: value as number }, ok as boolean]),
       ...[[0, false], [1, true], [120, true], [121, false], [1.5, false]].map(([value, ok]): [string, Product, boolean] => [`term of ${value} months`, { ...base, term: { months: value as number } }, ok as boolean]),
@@ -116,11 +129,81 @@ describe('product schema', () => {
       ...[[0, false], [0.01, true], [0.99, true], [1, false]].map(([value, ok]): [string, Product, boolean] => [`lower barrier at ${value}`, bothWays({ lowerBarrier: { level: value as number, observation: 'final' } }), ok as boolean]),
       ...[[1, false], [1.01, true], [2, true], [2.01, false]].map(([value, ok]): [string, Product, boolean] => [`upper barrier at ${value}`, bothWays({ upperBarrier: { level: value as number, observation: 'final' } }), ok as boolean]),
       ['conditional return -0.01', bothWays({ conditionalReturn: -0.01 }), false], ['conditional return 0', bothWays({ conditionalReturn: 0 }), true],
+      // Condition: barrier absolute return replaces participation and has no minimum return.
+      ['barrier absolute return beside an upside participation', bothWays({}, { participations: [{ direction: 'upside', rate: 1 }] }), false],
+      ['barrier absolute return with a minimum return', bothWays({}, { minimumReturn: 0.05 }, { wrapper: 'deposit' }), false],
+      ['barrier absolute return alone', bothWays({}), true],
+      // Condition: a deposit has no downside participation or protection, and a minimum return is for deposits only.
+      ['a deposit with downside participation', withPayoff({ participations: [{ direction: 'downside', rate: 1 }] }, { wrapper: 'deposit' }), false],
+      ['a deposit with principal protection', withPayoff({ participations: [], principalProtection: 1 }, { wrapper: 'deposit' }), false],
+      ['a deposit with upside participation', withPayoff({ participations: [{ direction: 'upside', rate: 1 }] }, { wrapper: 'deposit' }), true],
+      ['a note with a minimum return', withPayoff({ participations: [], minimumReturn: 0.05 }), false],
     ]
 
     it.each(cases)('%s', (_, product, expected) => {
       expect(validatorAccepts(product), 'validateProduct').toBe(expected)
       expect(schemaAccepts(product), `schema: ${JSON.stringify(validate.errors)}`).toBe(expected)
+    })
+  })
+
+  // The schema's description says these rules are not in it. If one is written into the schema later, this fails: move it from the
+  // list of rules validateProduct checks to the list of conditions in scripts/product-schema.ts.
+  describe('leaves these rules to validateProduct', () => {
+    it.each([
+      ['two upside participations', withPayoff({ participations: [{ direction: 'upside', rate: 1 }, { direction: 'upside', rate: 2 }] })],
+      ['a buffer and a downside barrier together', downside({ buffer: 0.1, barrier: { level: 0.7, observation: 'final' } })],
+      ['a cap and an upside barrier together', upside({ cap: 0.2, barrier: { level: 1.3, observation: 'final' } })],
+      ['basket weights that do not add up to 1', basket([100, 100], ['Index A', 'Index B'], [5, 5])],
+      ['barrier absolute return with lookback', { ...bothWays({}), underlier: determined({ initial: { kind: 'lookback', observationCount: 3 }, final: { kind: 'final-date' } }).underlier } as Product],
+    ])('%s', (_, product) => {
+      expect(schemaAccepts(product), 'schema').toBe(true)
+      expect(validatorAccepts(product), 'validateProduct').toBe(false)
+    })
+  })
+
+  describe('reads well to someone outside the repository', () => {
+    it('names its draft and its address', () => {
+      expect(schema.$schema).toBe('http://json-schema.org/draft-07/schema#')
+      expect(schema.$id).toBe(schemaId)
+    })
+
+    it('cites no repository file and uses no research wording in a description or a title', () => {
+      const offending: string[] = []
+      walk(schema, (node, path) => {
+        for (const key of ['description', 'title']) {
+          if (typeof node[key] === 'string' && /docs\/|\.md\b|verified/i.test(node[key])) offending.push(`${path}/${key}`)
+        }
+      })
+      expect(offending).toEqual([])
+    })
+
+    it('has a description for every type it defines', () => {
+      expect(Object.entries(schema.definitions).filter(([, definition]) => !(definition as Json).description).map(([name]) => name)).toEqual([])
+    })
+
+    it('keeps nothing beside a $ref, which draft-07 ignores', () => {
+      const offending: string[] = []
+      walk(schema, (node, path) => { if (node.$ref !== undefined && Object.keys(node).length > 1) offending.push(path) })
+      expect(offending).toEqual([])
+    })
+
+    it('says oneOf for a union told apart by a constant key, and names each variant', () => {
+      const unnamed: string[] = []
+      let unions = 0
+      walk(schema, (node, path) => {
+        expect(node.anyOf, `anyOf at ${path}`).toBeUndefined()
+        if (!Array.isArray(node.oneOf)) return
+        unions++
+        node.oneOf.forEach((member: Json, i: number) => { if (member.$ref === undefined && !member.title) unnamed.push(`${path}/oneOf/${i}`) })
+      })
+      expect(unions).toBeGreaterThan(0)
+      expect(unnamed).toEqual([])
+    })
+
+    it('says which limits belong to this reference and not to the product type', () => {
+      const { Term, InitialDetermination, FinalDetermination, UpperBarrier, UpsideBarrier } = schema.definitions
+      const texts = [Term.properties.months, InitialDetermination.oneOf[1].properties.observationCount, FinalDetermination.oneOf[1].properties.observationCount, UpperBarrier.properties.level, UpsideBarrier.properties.level].map((p: Json) => p.description)
+      for (const text of texts) expect(text).toMatch(/this reference/i)
     })
   })
 })

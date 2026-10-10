@@ -97,8 +97,9 @@ Keep `README.md` as the public entry point and `PLAN.md` as the near-term work p
 ### Keep the schema current
 
 - `docs/schema/product.schema.json` is generated from the domain types in `src/domain/note.ts`, so it shows every variant and feature of the structure. Whenever you add or change a field of the structure, write its JSDoc (a description and any numeric limits as tags such as `@exclusiveMinimum`, `@maximum` and `@asType integer`) and run `npm run schema` in the same change. This is part of the definition of done.
-- A test fails if the committed schema is stale. Another checks that every supported example passes the schema and that its numeric limits agree with `validateProduct`, which states them a second time. Extend its table of boundary cases when you add a limit.
-- The schema describes shape, variants and ranges only. Rules that tie fields together stay in `validateProduct`; add a new one to the list in `scripts/product-schema.ts` so a reader of the schema knows what it does not say.
+- Add an example product for each new feature to `scripts/product-examples.ts`. The schema publishes those examples, and the tests check that every one passes both the schema and `validateProduct`.
+- A test fails if the committed schema is stale. Others check that its numeric limits and its two conditions agree with `validateProduct`, which states them a second time (extend the table of boundary cases when you add a limit), and that it reads well outside the repository: no repository file or research wording in a description, a description for every type, every union a `oneOf` with named variants, and nothing beside a `$ref`. Write descriptions for a reader of the schema, and keep file references in `//` comments, not JSDoc. Say when a limit belongs to this reference and not to the product type.
+- The schema describes shape, variants and ranges, and two rules that tie fields together. The other such rules stay in `validateProduct`. Keep both lists in `scripts/product-schema.ts` (the rules written into the schema, and the rules only the validator checks) current, so a reader of the schema knows what it does not say.
 
 ## User-facing copy
 

@@ -1,3 +1,4 @@
+/** The kind of asset tracked: a single equity, or an equity index. */
 export type AssetKind = 'equity' | 'equity-index'
 export type ParticipationDirection = 'downside' | 'upside'
 
@@ -25,10 +26,11 @@ export interface DownsideParticipation {
   rate: number
 }
 
+// See docs/absolute-return.md.
 /**
  * A fall that downside participation does not reach pays its size, times the rate, as a gain: a fall within the buffer, or one that
  * ends at or above the barrier. Past it the gain is gone and the holder bears the fall as the buffer or barrier sets out, so the
- * payment drops there (docs/absolute-return.md).
+ * payment drops there.
  */
 export interface AbsoluteReturn {
   /**
@@ -38,9 +40,10 @@ export interface AbsoluteReturn {
   rate: number
 }
 
+// See docs/daily-observation.md.
 /**
  * When a barrier is observed. Final reads the final level the determination produces. Daily close reads every closing level from
- * pricing to the final observation date, through the lowest or highest of them (docs/daily-observation.md).
+ * pricing to the final observation date, through the lowest or highest of them.
  */
 export type BarrierObservation = 'final' | 'daily-close'
 
@@ -65,7 +68,8 @@ export interface Barrier {
  */
 export interface UpperBarrier {
   /**
-   * The level as a fraction of the initial level.
+   * The level as a fraction of the initial level. This reference accepts up to 2, a rise of 100%; that is a limit of this reference,
+   * not of the product type.
    * @exclusiveMinimum 1
    * @maximum 2
    */
@@ -73,14 +77,16 @@ export interface UpperBarrier {
   observation: BarrierObservation
 }
 
+// See docs/upside-barrier.md.
 /**
  * A level above the initial level, as a fraction of it. Upside participation applies while the observed level is at or below it.
  * Above it, participation is cancelled (a knock-out) and the optional rebate is paid instead: a return on principal.
- * Observed on the final date it reads the final level; observed daily, the highest close (docs/upside-barrier.md).
+ * Observed on the final date it reads the final level; observed daily, the highest close.
  */
 export interface UpsideBarrier {
   /**
-   * The level as a fraction of the initial level.
+   * The level as a fraction of the initial level. This reference accepts up to 2, a rise of 100%; that is a limit of this reference,
+   * not of the product type.
    * @exclusiveMinimum 1
    * @maximum 2
    */
@@ -113,11 +119,12 @@ export interface UpsideParticipation {
 /** A participation, in a fall or in a rise. A product has each direction at most once. */
 export type Participation = DownsideParticipation | UpsideParticipation
 
+// See docs/barrier-absolute-return.md.
 /**
  * Barrier absolute return: the payment is principal plus a share of the absolute value of the underlier's return, a rise or a fall
  * alike, for as long as neither barrier has been reached. Once either has, the absolute return ends on both sides and the note
- * pays the conditional return instead, whatever the final level (docs/barrier-absolute-return.md). Each barrier has its own level
- * and observation. The conditional return is a return on principal; absent means principal only.
+ * pays the conditional return instead, whatever the final level. Each barrier has its own level and observation. The conditional
+ * return is a return on principal; absent means principal only.
  */
 export interface BarrierAbsoluteReturn {
   /**
@@ -144,6 +151,7 @@ export interface Asset {
   name: string
 }
 
+/** One asset a single underlier tracks. */
 export interface UnderlierComponent {
   asset: Asset
 }
@@ -165,7 +173,8 @@ export type InitialDetermination =
   | {
       kind: 'lookback'
       /**
-       * The number of dates after pricing whose levels are observed.
+       * The number of dates after pricing whose levels are observed. This reference accepts 2 to 12, so each level can be set by hand;
+       * real notes can observe many more.
        * @asType integer
        * @minimum 2
        * @maximum 12
@@ -182,7 +191,8 @@ export type FinalDetermination =
   | {
       kind: 'averaging'
       /**
-       * The number of dates whose levels are averaged.
+       * The number of dates whose levels are averaged. This reference accepts 2 to 12, so each level can be set by hand; real notes can
+       * average over many more.
        * @asType integer
        * @minimum 2
        * @maximum 12
@@ -248,11 +258,12 @@ export interface BasketReturn {
   kind: 'weighted'
 }
 
+// See docs/basket.md.
 /**
  * Each component of a basket is measured from its own fixed initial level, and every component's final level is measured
  * the same way. The basket return then combines the component returns, so it needs both ends of every component and
- * comes after them. Lookback is not modelled on a basket: the lowest basket level and each component's lowest level
- * differ, and no public note settling which applies was verified (docs/basket.md).
+ * comes after them. This reference does not model lookback on a basket: the lowest basket level and each component's lowest
+ * level differ, and which of them applies is left open.
  */
 export interface BasketDetermination {
   initial: { kind: 'given'; levels: ComponentLevel[] }
@@ -277,7 +288,7 @@ export type Underlier = SingleUnderlier | BasketUnderlier
 /** The product's length, as a duration. It is part of the structure; the dates that put it on a calendar belong to issuance. */
 export interface Term {
   /**
-   * The length in whole months.
+   * The length in whole months. This reference accepts 1 to 120; it is a limit of this reference, not of the product type.
    * @asType integer
    * @minimum 1
    * @maximum 120
@@ -317,7 +328,7 @@ export interface Product {
     principalProtection?: number
     /**
      * The lowest return the product pays on principal, whatever the underlier does: a floor of principal × (1 + minimum return),
-     * not an addition to the participated return. Deposits only, since no note with one was verified.
+     * not an addition to the participated return. This reference allows it on deposits only.
      * @exclusiveMinimum 0
      */
     minimumReturn?: number
