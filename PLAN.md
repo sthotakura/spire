@@ -387,6 +387,17 @@ The structure the page shows as JSON now has a JSON Schema, [docs/schema/product
 - **Served from the site.** A small Vite plugin in `vite.config.ts` copies the committed file to `<base>product.schema.json` in the build (and in dev), so GitHub Pages serves it and the schema's `$id` is that URL. The page links to it under the JSON.
 - **Not done:** a schema for the scenario inputs (the closes and observed levels, which are not terms), and the remaining cross-field rules as `if/then`, which are where a second copy of the rules would drift.
 
+## 31. Route the builder and the book in one app
+
+The builder and the book were two HTML pages, each with its own Vue app and its own header. They are now two routes of one single-page app, so a reader moves between them without a page load and meets the same header and footer on both.
+
+- **One entry point, `vue-router` in history mode.** `/` is the builder and `/book/:slug?` is a chapter, so a chapter has its own address that can be shared or bookmarked, and the existing `/spire/book/` link still works. The book's code and chapters load only when it is opened. Unknown addresses go to the builder, and an unknown chapter shows the first.
+- **A shared shell.** `AppShell.vue` holds the header and footer around the routed view. The header carries the spelled-out name, which links home, and one link to the other page: "Read the book" on the builder, "Open the interactive builder" on the book. The "Built by … · Build: …" footer appears on both; the book keeps its own disclaimer line above it.
+- **GitHub Pages has no rewrite rules.** A direct visit to `/spire/book/05-underliers` finds no file, so Pages serves the site's `404.html`. The workflow copies `index.html` to `404.html` after the build, the app loads, and the router reads the address. Verified on the deployed site for the book and for individual chapters.
+- **Cost, accepted for now.** Those direct visits return HTTP 404 with a working page. Browsers and shared links do not mind; search engines may not index individual chapters. `/spire/` itself is a normal 200.
+- **Alternatives not taken.** Hash URLs (`#/book/…`) avoid the 404 but give ugly addresses and break the existing book link. Pre-rendering a real `index.html` per chapter at build time would give a 200 for each, and is the step to take if indexing chapters ever matters.
+- **Not done:** the builder's state is not kept when a reader goes to the book and back, as before; `KeepAlive` around the builder route would keep it.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.
