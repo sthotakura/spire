@@ -1171,7 +1171,7 @@ const chart = computed(() => {
         </section>
 
         <aside ref="jsonPanel" class="panel structure-json" aria-labelledby="structure-json-heading">
-          <header class="panel-head"><h2 id="structure-json-heading">Structure JSON<span v-if="errors.length" class="badge invalid">Invalid terms</span></h2><p>{{ errors.length ? 'A live draft containing invalid terms. Correct the highlighted terms before treating it as a valid structure.' : 'The same terms as data' }}</p></header>
+          <header class="panel-head"><h2 id="structure-json-heading">Structure JSON<span v-if="errors.length" class="badge invalid">Invalid terms</span></h2><p>{{ errors.length ? 'A live draft containing invalid terms. Correct the highlighted terms before treating it as a valid structure.' : 'The same terms as data' }}</p><a class="schema-link" :href="`${baseUrl}product.schema.json`" target="_blank" rel="noopener noreferrer" aria-label="JSON Schema for this structure (opens in a new tab)">JSON Schema ↗</a></header>
           <div class="json-wrap">
             <button type="button" :class="['copybtn', copyState]" aria-label="Copy the structure JSON" :title="copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : 'Copy JSON'" @click="copyJson">
               <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -1183,7 +1183,6 @@ const chart = computed(() => {
             <span class="visually-hidden" role="status">{{ copyState === 'copied' ? 'Structure JSON copied' : copyState === 'failed' ? 'Could not copy the structure JSON' : '' }}</span>
             <pre><code><span v-for="(line, index) in jsonLines" :key="index" :class="['jl', { on: line.concept && highlighted(line.concept) }]">{{ line.text }}</span></code></pre>
           </div>
-          <p class="schema-link"><a :href="`${baseUrl}product.schema.json`" target="_blank" rel="noopener noreferrer">JSON Schema for this structure</a></p>
         </aside>
       </div>
 
