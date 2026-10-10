@@ -16,6 +16,8 @@ Payment = 1,000 × (1 + 15%) = 1,150
 At 50% participation, the same rise produces a payment of 1,050. The rate
 changes the slope of the payoff. It does not set a maximum gain; a cap does that.
 
+![Payoff with 150% upside and 100% downside participation, at a final level of 110](charts/participation.svg)
+
 ## Downside participation
 
 At a 100% downside rate, a 20% fall reduces principal by 20%, giving 800

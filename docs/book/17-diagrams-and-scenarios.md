@@ -31,6 +31,8 @@ itself does not pay.
 There is no line connecting the branches. Such a line would imply intermediate
 payments that the rule does not produce.
 
+![Payoff with a 70% downside barrier observed on the final date, at a final level of 69](charts/barrier-final.svg)
+
 ## Two paths for a barrier observed on every close
 
 When a barrier is observed on every close, the payment depends on more than the
@@ -41,6 +43,8 @@ level, where a recovered underlier still pays the whole fall. For an upside
 barrier it runs below the barrier, where an earlier close has already earned the
 rebate. The final-level marker sits on whichever line the scenario's lowest or
 highest close puts it on, so it can sit on the dashed line.
+
+![The same barrier observed on every close: after a close at 65, a final level of 80 still pays the whole fall](charts/barrier-daily.svg)
 
 ## A V between two barriers
 
@@ -56,6 +60,8 @@ shows the payment had a close gone beyond a barrier earlier. The scenario table
 adds a row at each barrier, a row just past each, and a row for each barrier
 observed on every close where the underlier returned to the initial level after a
 close beyond it, labelled with that close.
+
+![Absolute return in both directions between barriers at 80% and 125%, with a 2% conditional return, at a final level of 110](charts/barrier-absolute-return.svg)
 
 ## Choosing scenarios
 

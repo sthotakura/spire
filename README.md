@@ -50,6 +50,17 @@ npm run dev
 
 Use `npm test` for the domain scenarios and `npm run build` for type checking and a static production build. The app currently supports the first synthetic product only. Amounts displayed in the interface are rounded to two decimal places; the calculator uses JavaScript numbers for this learning example and is not a production money calculation.
 
+## After adding or changing a feature
+
+Two generated files are not updated by `npm test` or `npm run build`, so regenerate them by hand and commit the result:
+
+```sh
+npm run schema        # docs/schema/product.schema.json, from the domain types
+npm run book-charts   # docs/book/charts/*.svg, drawn from the running app
+```
+
+`npm run book-charts` needs a browser once: `npx playwright install chromium`. It also needs an entry in `scripts/book-charts.ts` for any chart a new feature should show, and the chart embedded in its chapter with `![caption](charts/name.svg)`. The schema has a test that fails when it is stale; the charts do not, so this step is easy to forget.
+
 ## GitHub Pages
 
 The workflow in `.github/workflows/pages.yml` tests and builds the site on pushes to `main`, then deploys `dist` to GitHub Pages. In the repository's **Settings → Pages**, set **Build and deployment → Source** to **GitHub Actions**. The workflow builds with `/spire/` as the asset base for the repository site at `https://sthotakura.github.io/spire/`.

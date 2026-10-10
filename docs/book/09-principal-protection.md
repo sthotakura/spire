@@ -13,6 +13,8 @@ There is no buffer or barrier.
 - A 20% fall calculates 800, below the floor: payment is 900.
 - A 50% fall calculates 500: payment is still 900.
 
+![Payoff with 100% downside participation and a 90% protection floor, at a final level of 80](charts/principal-protection.svg)
+
 The floor is not added to the participated payment. The larger of the two
 amounts is paid. With 100% protection, downside participation cannot reduce
 the maturity payment below principal.

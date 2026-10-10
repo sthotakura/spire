@@ -23,6 +23,8 @@ absolute-return feature.
 - Final level 69 is below it: the whole 31% fall counts and payment is 690.
 - Final level 50 gives payment of 500.
 
+![Payoff with a 70% downside barrier observed on the final date, at a final level of 69](charts/barrier-final.svg)
+
 Equality matters. This example treats the barrier as breached only below 70.
 A small move from 70 to just below 70 produces a large drop in payment.
 A [public barrier note](https://www.sec.gov/Archives/edgar/data/19617/000121390026049358/ea0288297-01_424b2.htm)
@@ -60,6 +62,8 @@ Final level 80 (−20%): not reached; no downside participation, so 1,000
 The largest payment is at the barrier: a final level of 130 pays 1,240. Just
 above it the payment drops to 1,020, so a higher final level can pay less.
 Without a rebate, the first two rows would pay 1,000.
+
+![Payoff with 80% upside participation, a 130% upside barrier and a 2% rebate, at a final level of 120](charts/upside-barrier.svg)
 
 This example treats a final level exactly at 130 as not reaching the barrier,
 as the downside barrier above treats a level exactly at its threshold. One
@@ -115,6 +119,8 @@ The third row is what daily observation adds. The underlier recovered to 80,
 but it closed at 65 earlier, so the whole 20% fall counts. Observed on the
 final date, the same note pays 1,000. In the first row the barrier was reached
 but there is no fall left to count, so nothing is deducted.
+
+![The same barrier observed on every close: after a close at 65, a final level of 80 still pays the whole fall](charts/barrier-daily.svg)
 
 Now take the upside barrier above: 80% upside participation, a barrier at 130%,
 a 2% rebate, and 100% principal protection. The barrier is reached by any close

@@ -28,6 +28,8 @@ The 5.25% is for the whole term. Over seven years, 1,052.50 on principal
 of 1,000 corresponds to approximately 0.73% a year under the compound-return
 formula in the [Term chapter](04-term.md).
 
+![Deposit payoff with 100% upside participation, a 30% cap and a 5.25% minimum return, at a final level of 102](charts/deposit-minimum-return.svg)
+
 A minimum return must be below the cap, if there is one. A minimum at or above
 the cap would leave participation nothing to add: the payment would always be
 the minimum.

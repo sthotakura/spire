@@ -22,6 +22,8 @@ The threshold belongs to the gain-paying range. The discontinuity just below
 it is essential to the payoff; smoothing the chart would show payments the
 terms do not produce.
 
+![Payoff with a 15% buffer and 100% absolute return on a fall, at a final level of 95](charts/absolute-return.svg)
+
 ## Above a barrier
 
 The other form uses a barrier. At or above a 70% barrier, a 50%
@@ -97,6 +99,8 @@ a barrier pays 1,020, so reaching a barrier can pay more than ending flat. The
 public notes with a 2% conditional return work this way. Observed on the final
 date instead, the last two examples pay 1,000 and 1,100, since only the final
 level is read. With no conditional return, a barrier leaves only principal.
+
+![Absolute return in both directions between barriers at 80% and 125%, with a 2% conditional return, at a final level of 110](charts/barrier-absolute-return.svg)
 
 Assumptions and limits: only closing levels count; the lowest and highest close
 are hypothetical scenario inputs, not terms of the product; this payoff cannot

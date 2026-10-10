@@ -17,6 +17,8 @@ At final level 50: a 50% fall leaves 40% beyond it; payment = 600
 The buffer continues to remove the first 10% even on a large fall. A final
 level of zero gives a 90% counted loss and a payment of 100 in this example.
 
+![Payoff with a 10% buffer and 100% downside participation, at a final level of 85](charts/buffer.svg)
+
 ## Rate matters
 
 The downside rate applies after removing the buffer. With a 150% rate, a 15%

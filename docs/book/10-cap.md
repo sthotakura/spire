@@ -14,6 +14,8 @@ At a 20% rise: 150% × 20% = 30%, capped at 20%; payment = 1,200
 At a 50% rise: contribution is still capped at 20%; payment = 1,200
 ```
 
+![Payoff with 150% upside participation and a 20% cap, at a final level of 120](charts/cap.svg)
+
 The cap starts binding at an underlier rise of approximately 13.33%:
 
 ```text
