@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/sthotakura/spire/main/docs/schema/product.schema.json",
+  "$id": "https://sthotakura.github.io/spire/product.schema.json",
   "title": "SPIRe product",
   "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A basket needs unique asset names, one initial level for each asset and no other, and weights that add up to 1.",
   "type": "object",

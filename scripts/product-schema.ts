@@ -3,7 +3,7 @@ import { productExamples } from './product-examples'
 
 type Json = Record<string, any>
 
-export const schemaId = 'https://raw.githubusercontent.com/sthotakura/spire/main/docs/schema/product.schema.json'
+export const schemaId = 'https://sthotakura.github.io/spire/product.schema.json'
 
 // Rules that tie fields together and are also written into the schema as conditions, below.
 const rulesInSchema = [

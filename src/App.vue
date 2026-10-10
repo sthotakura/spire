@@ -18,6 +18,8 @@ import { barrierLevelAt, basketBreakdown, basketStartingLevel, equalWeights, fin
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
+const baseUrl = import.meta.env.BASE_URL
+
 const activeHint = ref<string | null>(null)
 const toggleHint = (hint: string) => { activeHint.value = activeHint.value === hint ? null : hint }
 const hints = {
@@ -1191,6 +1193,7 @@ const chart = computed(() => {
             <span class="visually-hidden" role="status">{{ copyState === 'copied' ? 'Structure JSON copied' : copyState === 'failed' ? 'Could not copy the structure JSON' : '' }}</span>
             <pre><code><span v-for="(line, index) in jsonLines" :key="index" :class="['jl', { on: line.concept && highlighted(line.concept) }]">{{ line.text }}</span></code></pre>
           </div>
+          <p class="schema-link"><a :href="`${baseUrl}product.schema.json`" target="_blank" rel="noopener noreferrer">JSON Schema for this structure</a></p>
         </aside>
       </div>
 
