@@ -71,7 +71,7 @@ terms. The payment is a derived result.
 
 ## The schema
 
-The structure has a [JSON Schema](https://github.com/sthotakura/spire/blob/main/docs/schema/product.schema.json)
+The structure has a [JSON Schema](https://sthotakura.github.io/spire/product.schema.json)
 that lists every variant and feature this reference supports: the two kinds of
 underlier, the ways of measuring each end, the participations and the features
 that belong to each, and barrier absolute return. It also gives each term's
