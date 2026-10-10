@@ -74,7 +74,7 @@ export function paymentFormula(note: Product): FormulaLine[] {
   const barrierTest = barrierTestFor('Downside barrier', barrier?.observation === 'daily-close' ? 'Lowest close' : 'Final level')
   // The same test on upside participation, with the level at the barrier counted as not reaching it, switches it off above the upside barrier, where the rebate, if there is one, is paid.
   if (upsideBarrier !== undefined) {
-    lines.push({ segments: [{ text: 'upside only when ' }, { text: barrierTestFor('Upside barrier', upsideBarrier.observation === 'daily-close' ? 'Highest close' : 'Final level', '≤'), concept: 'barrier' }, ...(upsideBarrier.rebate !== undefined ? [{ text: ', otherwise ' }, { text: 'Principal × (1 + Rebate)', concept: 'barrier' as const }] : [])] })
+    lines.push({ segments: [{ text: 'upside only when ' }, { text: barrierTestFor('Upside barrier', upsideBarrier.observation === 'daily-close' ? 'Highest close' : 'Final level', '≤'), concept: 'barrier' }, ...(upsideBarrier.rebate !== undefined ? [{ text: ', otherwise ' }, { text: 'Rebate', concept: 'barrier' as const }, { text: ' in its place' }] : [])] })
   }
   if (barrier !== undefined) lines.push({ segments: [{ text: 'downside only when ' }, { text: barrierTest, concept: 'barrier' }] })
   // Absolute return replaces the payment for a fall downside participation does not reach, so it qualifies the payment as the

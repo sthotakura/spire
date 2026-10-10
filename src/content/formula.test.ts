@@ -153,7 +153,7 @@ describe('payment rule with an upside barrier', () => {
     expect(text(finned(0.02))).toEqual([
       'Return = Final level ÷ Initial level − 1',
       'Payment = Principal × (1 + Upside × max(Return, 0))',
-      'upside only when Final level ≤ Upside barrier × Initial level, otherwise Principal × (1 + Rebate)',
+      'upside only when Final level ≤ Upside barrier × Initial level, otherwise Rebate in its place',
     ])
     expect(paymentFormula(finned(0.02))[2].segments.flatMap(({ concept }) => concept ?? [])).toEqual(['barrier', 'barrier'])
   })
@@ -182,7 +182,13 @@ describe('payment rule with barriers observed on every close', () => {
 
   it('reads the highest close for an upside barrier, and says the rebate is paid whatever the final level', () => {
     const finned = (rebate?: number): Product => ({ ...startingProduct, payoff: { participations: withSubFeatures([up], { upsideBarrier: { level: 1.3, observation: 'daily-close' as const, rebate } }) } })
-    expect(text(finned(0.02)).slice(2)).toEqual(['upside only when Highest close ≤ Upside barrier × Initial level, otherwise Principal × (1 + Rebate)'])
+    expect(text(finned(0.02)).slice(2)).toEqual(['upside only when Highest close ≤ Upside barrier × Initial level, otherwise Rebate in its place'])
+    // The rebate takes the place of the upside term only, so with downside participation the downside term is still in the payment.
+    const withDownside: Product = { ...startingProduct, payoff: { participations: withSubFeatures([down, up], { upsideBarrier: { level: 1.3, observation: 'daily-close' as const, rebate: 0.02 } }) } }
+    expect(text(withDownside).slice(1, 3)).toEqual([
+      'Payment = Principal × (1 + Upside × max(Return, 0) + Downside × min(Return, 0))',
+      'upside only when Highest close ≤ Upside barrier × Initial level, otherwise Rebate in its place',
+    ])
     expect(paymentInWords(finned(0.02))).toBe('Each 1% rise in Synthetic Index adds 1% of principal, but only if Synthetic Index never closes above 130% of its initial level. If Synthetic Index closes above 130% of its initial level on any day, upside participation ends and the payment adds only a fixed 2% of principal, whatever the final level. A fall leaves principal unchanged.')
     expect(paymentInWords(finned())).toContain('the payment adds nothing, whatever the final level.')
   })
