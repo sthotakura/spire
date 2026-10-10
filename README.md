@@ -27,7 +27,10 @@ written in `docs/book/` and rendered by the book view. Its chapter navigation
 is generated from the numbered Markdown files. See
 [docs/book-outline.md](docs/book-outline.md) for chapter status and the working
 research behind each chapter. Locally, open `/book/`; the production base path
-places it under `/spire/book/`. The chapters currently remain drafts.
+places it under `/spire/book/`. The builder and the book are routes of one
+client-side routed app (`/` and `/book/<chapter>`), sharing one header; the Pages
+workflow serves `index.html` as `404.html` so a direct visit to a chapter reaches
+the router. The chapters currently remain drafts.
 
 Use TypeScript and Vue with Vite to build a static single-page application. Keep payoff logic and validation in framework-independent TypeScript modules. Add a backend only when a concrete capability requires one.
 

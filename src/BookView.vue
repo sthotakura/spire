@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 interface Chapter { slug: string; title: string; source: string }
 
@@ -12,10 +13,13 @@ const chapters: Chapter[] = Object.entries(chapterSources)
     source,
   }))
 const imageUrls = import.meta.glob<string>(['../docs/book/charts/*.svg', '../docs/book/diagrams/*.svg'], { query: '?url', import: 'default', eager: true })
-const appUrl = import.meta.env.BASE_URL
+const route = useRoute()
+const router = useRouter()
 
-const selectedSlug = ref(chapters[0].slug)
-const selectedChapter = computed(() => chapters.find(chapter => chapter.slug === selectedSlug.value) ?? chapters[0])
+// An unknown or missing chapter in the address shows the first chapter.
+const selectedSlug = computed(() => chapters.find(chapter => chapter.slug === route.params.slug)?.slug ?? chapters[0].slug)
+const chapterPath = (slug: string) => `/book/${slug}`
+const selectedChapter = computed(() => chapters.find(chapter => chapter.slug === selectedSlug.value)!)
 const selectedIndex = computed(() => chapters.indexOf(selectedChapter.value))
 
 const escapeHtml = (value: string) => value
@@ -27,7 +31,7 @@ const escapeHtml = (value: string) => value
 
 const inlineMarkdown = (value: string) => escapeHtml(value)
   .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text: string, href: string) => /^[\w-]+\.md$/.test(href)
-    ? `<a href="#${href.replace(/\.md$/, '')}" data-chapter="${href.replace(/\.md$/, '')}">${text}</a>`
+    ? `<a href="${router.resolve(chapterPath(href.replace(/\.md$/, ''))).href}" data-chapter="${href.replace(/\.md$/, '')}">${text}</a>`
     : `<a href="${href}">${text}</a>`)
   .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   .replace(/`([^`]+)`/g, '<code>$1</code>')
@@ -90,31 +94,25 @@ const followChapterLink = (event: MouseEvent) => {
   const slug = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[data-chapter]')?.dataset.chapter
   if (!slug || !chapters.some(chapter => chapter.slug === slug)) return
   event.preventDefault()
-  selectedSlug.value = slug
-  window.scrollTo({ top: 0 })
+  router.push(chapterPath(slug))
 }
 </script>
 
 <template>
   <main class="book-shell">
-    <header class="book-header">
-      <a class="brand book-brand" :href="appUrl">SPI<span>Re</span></a>
-      <span>Structured products, built from their parts.</span>
-      <a :href="appUrl">Open the interactive reference →</a>
-    </header>
     <div class="book-layout">
       <aside class="book-nav" aria-label="Book chapters">
         <p class="book-kicker">The SPIRe learning book</p>
         <h2>Contents</h2>
-        <button v-for="(chapter, index) in chapters" :key="chapter.slug" :class="{ active: chapter.slug === selectedSlug }" :aria-current="chapter.slug === selectedSlug ? 'page' : undefined" @click="selectedSlug = chapter.slug">
+        <RouterLink v-for="(chapter, index) in chapters" :key="chapter.slug" :to="chapterPath(chapter.slug)" :class="{ active: chapter.slug === selectedSlug }" :aria-current="chapter.slug === selectedSlug ? 'page' : undefined">
           {{ index + 1 }}. {{ chapter.title }}
-        </button>
+        </RouterLink>
       </aside>
       <div>
         <article class="book-article" v-html="renderedChapter" @click="followChapterLink" />
         <nav class="book-pagination" aria-label="Adjacent chapters">
-          <button v-if="selectedIndex > 0" @click="selectedSlug = chapters[selectedIndex - 1].slug">← {{ chapters[selectedIndex - 1].title }}</button>
-          <button v-if="selectedIndex < chapters.length - 1" @click="selectedSlug = chapters[selectedIndex + 1].slug">{{ chapters[selectedIndex + 1].title }} →</button>
+          <RouterLink v-if="selectedIndex > 0" :to="chapterPath(chapters[selectedIndex - 1].slug)">← {{ chapters[selectedIndex - 1].title }}</RouterLink>
+          <RouterLink v-if="selectedIndex < chapters.length - 1" :to="chapterPath(chapters[selectedIndex + 1].slug)">{{ chapters[selectedIndex + 1].title }} →</RouterLink>
         </nav>
       </div>
     </div>

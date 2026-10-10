@@ -495,12 +495,6 @@ const chartDescription = computed(() => {
   const rise = selectedParticipation.upside ? `rises with positive underlier returns${capSelected.value ? ' until the cap applies' : upsideBarrierSelected.value ? `, until the upside barrier is reached, then drops to ${rebateSelected.value ? 'principal plus the rebate' : 'principal'}` : ''}` :'stays at principal for flat or positive underlier returns'
   return `Contractual maturity payment ${fall}. It ${rise}.${minimumSelected.value ? ' It never falls below principal plus the minimum return.' : ''}${dailySelected.value ? ' A dashed line shows the payment if the barrier had been reached on an earlier close.' : ''}`
 })
-const buildTimestampIso = __BUILD_TIMESTAMP__
-const buildTimestamp = new Intl.DateTimeFormat('en-GB', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-  timeZone: 'UTC',
-}).format(new Date(buildTimestampIso))
 
 const scenarios = computed(() => !initialValid.value ? [] : scenarioRows(note.value, determinedInitialLevel.value).map(({ returnValue, finalLevel, atBarrier, pastBarrier, atBuffer, afterBreach, breakdown }) => ({
   final: finalLevel,
@@ -856,11 +850,6 @@ const chart = computed(() => {
 
 <template>
   <div class="site-shell">
-    <header class="site-header">
-      <div class="brand full" aria-label="Structured Products Interactive Reference"><span>S</span>tructured <span>P</span>roducts <span>I</span>nteractive <span>Re</span>ference</div>
-      <a class="header-link" :href="`${baseUrl}book/`">Read the book</a>
-    </header>
-
     <main class="page">
       <div class="intro">
         <h1>Structured products, built from their parts.</h1>
@@ -1198,11 +1187,6 @@ const chart = computed(() => {
         </aside>
       </div>
 
-      <footer class="site-footer">
-        Built by <a href="https://www.linkedin.com/in/sureshthotakura/" target="_blank" rel="noopener noreferrer">Suresh Thotakura</a>
-        <span aria-hidden="true">·</span>
-        Build: <time :datetime="buildTimestampIso">{{ buildTimestamp }} UTC</time>
-      </footer>
     </main>
   </div>
 </template>

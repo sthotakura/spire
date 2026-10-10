@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
@@ -20,9 +19,6 @@ const productSchema = (): Plugin => ({
 
 export default defineConfig({
   plugins: [vue(), productSchema()],
-  build: {
-    rollupOptions: { input: { main: resolve('index.html'), book: resolve('book/index.html') } },
-  },
   define: {
     __BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()),
   },

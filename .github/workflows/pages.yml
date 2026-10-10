@@ -25,6 +25,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build -- --base=/spire/
+      # Pages has no rewrite rules; serving the app as 404.html lets a direct visit to /book/... reach the client-side router.
+      - run: cp dist/index.html dist/404.html
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
