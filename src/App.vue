@@ -176,7 +176,7 @@ const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concep
 type FeatureId = 'absolute-both' | 'absolute-return' | 'conditional' | 'barrier' | 'buffer' | 'cap' | 'coupon' | 'digital' | 'downside' | 'minimum' | 'protection' | 'rebate' | 'upside-barrier' | 'upside'
 const payoffFeatures: ReadonlyArray<{ id: FeatureId; label: string; description: string; available: boolean; requires?: ParticipationDirection }> = [
   { id: 'absolute-return', label: 'Absolute return', description: 'Pays a fall within the buffer, or ending above the downside barrier, as a gain.', available: true, requires: 'downside' },
-  { id: 'absolute-both', label: 'Absolute return (both directions)', description: 'Pays the absolute value of the underlier’s return, a rise or a fall alike, until it goes beyond a barrier on either side.', available: true },
+  { id: 'absolute-both', label: 'Absolute return (both directions)', description: 'Pays the absolute value of the underlier’s return, a rise or a fall alike, until it goes beyond the feature’s lower or upper barrier. After that it pays a fixed return, or only principal.', available: true },
   { id: 'buffer', label: 'Buffer', description: 'Protects against an initial portion of underlier losses.', available: true, requires: 'downside' },
   { id: 'cap', label: 'Cap', description: 'Limits the return upside participation can add.', available: true, requires: 'upside' },
   { id: 'conditional', label: 'Conditional return', description: 'Pays a fixed return once either barrier is reached, in place of the absolute return.', available: true },
@@ -1020,7 +1020,7 @@ const chart = computed(() => {
                     </li>
                     <li v-if="bothWaysSelected" :class="['node', { sel: highlighted('absolute-return') }]" :style="conceptStyle('absolute-return')">
                       <div class="nrow" @click="select('absolute-return')" @focusin="focusRow('absolute-return')">
-                        <span class="nlabel">Absolute return (both directions)<HintToggle id="absolute-both" about="absolute return in both directions" :text="hints['absolute-both']" :active="activeHint === 'absolute-both'" @toggle="toggleHint('absolute-both')" /></span>
+                        <span class="nlabel long">Absolute return (both directions)<HintToggle id="absolute-both" about="absolute return in both directions" :text="hints['absolute-both']" :active="activeHint === 'absolute-both'" @toggle="toggleHint('absolute-both')" /></span>
                         <span class="ctrl"><NumberInput id="rate-absolute-both" v-model="bothWaysRate" class="num rate" aria-label="Absolute return rate (%)" /><span class="unit">%</span><button type="button" class="xbtn" aria-label="Remove absolute return in both directions" @click.stop="removeFeature('absolute-both')">×</button></span>
                       </div>
                       <ul v-if="issuesFor('barrierAbsoluteReturn').length" class="errors" role="alert"><li v-for="message in issuesFor('barrierAbsoluteReturn')" :key="message">{{ message }}</li></ul>
