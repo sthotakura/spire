@@ -373,6 +373,17 @@ A barrier on each side, both observed on every close, was blocked because no pub
 - **The chart** takes every daily barrier as reached on its dashed other path, which gives two stretches meeting at the initial level, each labelled.
 - **Not sourced:** no public note with the combination was found. The docs and the book say so; the interface states what each side does.
 
+## 30. Publish a JSON Schema
+
+The structure the page shows as JSON now has a JSON Schema, [docs/schema/product.schema.json](docs/schema/product.schema.json), so the variants and features can be read in one place and a product written elsewhere can be checked against it.
+
+- **Generated, not hand-written.** `scripts/product-schema.ts` builds it from the domain types with `ts-json-schema-generator` (a dev dependency), and `npm run schema` writes it. The types stay the one source of truth. Their comments are now JSDoc, with descriptions and numeric limits as tags. The tool emits draft-07, whose keywords cover everything used here.
+- **Kept current by a test.** A test fails if the committed schema differs from what the types produce. `AGENTS.md` makes regenerating it part of the definition of done for any field change.
+- **Checked against the validator.** A second set of tests runs every supported example through the schema (with `ajv`, a dev dependency) and compares the schema and `validateProduct` on a table of boundary cases, because the numeric limits are stated in both. Loosening a limit in the types, or in one place only, fails a test.
+- **Shape, variants and ranges only.** Rules that tie fields together (a buffer and a barrier together, barrier absolute return beside participation, daily observation with lookback, and so on) stay in `validateProduct`. The schema's description lists them. Encoding them as `if/then` clauses was left out: that is where a second copy of the rules would drift.
+- **One type was split for it.** The upper barrier of barrier absolute return is its own type, `UpperBarrier`, because a schema cannot give one type two ranges and the lower barrier shares `Barrier` (0% to 100%) with the downside barrier. Its shape is the same, so nothing else changed.
+- **Not done:** serving the schema from the site, a schema for the scenario inputs (the closes and observed levels, which are not terms), and `if/then` cross-field rules.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.

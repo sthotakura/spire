@@ -1,0 +1,577 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SPIRe product",
+  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff. This schema describes shape, variants and ranges only. validateProduct enforces the rules that tie fields together: Each participation direction appears at most once. A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them. An upside barrier and a cap cannot both apply to an upside participation. A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall. Barrier absolute return replaces participation, so it cannot be combined with participations, a minimum return, lookback, a basket or averaging. A deposit has no downside participation and no principal protection, and a minimum return is for deposits only. A minimum return is less than any cap. A basket needs unique asset names, one initial level for each asset and no other, and weights that add up to 1.",
+  "type": "object",
+  "properties": {
+    "wrapper": {
+      "$ref": "#/definitions/Wrapper"
+    },
+    "principalAmount": {
+      "type": "number",
+      "description": "The amount the payment is a multiple of.",
+      "exclusiveMinimum": 0
+    },
+    "term": {
+      "$ref": "#/definitions/Term"
+    },
+    "redemption": {
+      "type": "string",
+      "const": "bullet",
+      "description": "Bullet redemption pays once, at maturity."
+    },
+    "underlier": {
+      "$ref": "#/definitions/Underlier"
+    },
+    "payoff": {
+      "type": "object",
+      "properties": {
+        "participations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Participation"
+          },
+          "description": "Features are listed in the order the payment applies them: participation with its buffer and cap, then the floor."
+        },
+        "barrierAbsoluteReturn": {
+          "$ref": "#/definitions/BarrierAbsoluteReturn",
+          "description": "A payoff of its own: it cannot be combined with participations, which this note's two barriers replace."
+        },
+        "principalProtection": {
+          "type": "number",
+          "description": "The least the note pays at maturity, as a fraction of principal. Absent means a holder can lose the whole principal.",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "minimumReturn": {
+          "type": "number",
+          "description": "The lowest return the product pays on principal, whatever the underlier does: a floor of principal × (1 + minimum return), not an addition to the participated return. Deposits only, since no note with one was verified.",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "participations"
+      ],
+      "additionalProperties": false,
+      "description": "The rules that turn the underlier's change into the maturity payment. With no features the product repays principal."
+    }
+  },
+  "required": [
+    "wrapper",
+    "principalAmount",
+    "term",
+    "redemption",
+    "underlier",
+    "payoff"
+  ],
+  "additionalProperties": false,
+  "definitions": {
+    "Wrapper": {
+      "type": "string",
+      "enum": [
+        "note",
+        "deposit"
+      ],
+      "description": "The legal form. A note is a debt security of its issuer. A deposit is held by a bank and repaid in full at the end of its term, so it cannot pay less than principal: it has no downside participation and no principal protection term."
+    },
+    "Term": {
+      "type": "object",
+      "properties": {
+        "months": {
+          "type": "integer",
+          "description": "The length in whole months.",
+          "minimum": 1,
+          "maximum": 120
+        }
+      },
+      "required": [
+        "months"
+      ],
+      "additionalProperties": false,
+      "description": "The product's length, as a duration. It is part of the structure; the dates that put it on a calendar belong to issuance."
+    },
+    "Underlier": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/SingleUnderlier"
+        },
+        {
+          "$ref": "#/definitions/BasketUnderlier"
+        }
+      ],
+      "description": "What the payoff reads: one asset, or a basket of several."
+    },
+    "SingleUnderlier": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "single"
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UnderlierComponent"
+          },
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "determination": {
+          "$ref": "#/definitions/Determination"
+        }
+      },
+      "required": [
+        "kind",
+        "components",
+        "determination"
+      ],
+      "additionalProperties": false,
+      "description": "The underlier produces the one return the payoff reads: which assets, where each starts, and how its change is measured. A single underlier has exactly one component."
+    },
+    "UnderlierComponent": {
+      "type": "object",
+      "properties": {
+        "asset": {
+          "$ref": "#/definitions/Asset"
+        }
+      },
+      "required": [
+        "asset"
+      ],
+      "additionalProperties": false
+    },
+    "Asset": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "$ref": "#/definitions/AssetKind"
+        },
+        "name": {
+          "type": "string",
+          "description": "The asset's name, which must not be blank.",
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "kind",
+        "name"
+      ],
+      "additionalProperties": false,
+      "description": "What is tracked. Its identity only: where its change is measured from belongs to the determination."
+    },
+    "AssetKind": {
+      "type": "string",
+      "enum": [
+        "equity",
+        "equity-index"
+      ]
+    },
+    "Determination": {
+      "type": "object",
+      "properties": {
+        "initial": {
+          "$ref": "#/definitions/InitialDetermination"
+        },
+        "final": {
+          "$ref": "#/definitions/FinalDetermination"
+        }
+      },
+      "required": [
+        "initial",
+        "final"
+      ],
+      "additionalProperties": false,
+      "description": "How the underlier's change is measured, one end at a time. Given at the start and final-date at the end is point-to-point."
+    },
+    "InitialDetermination": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "given"
+            },
+            "level": {
+              "type": "number",
+              "description": "The initial level.",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "lookback"
+            },
+            "observationCount": {
+              "type": "integer",
+              "description": "The number of dates after pricing whose levels are observed.",
+              "minimum": 2,
+              "maximum": 12
+            }
+          },
+          "required": [
+            "kind",
+            "observationCount"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "description": "How the initial level is measured. Given states the level as a term of the note. Lookback states only how many dates after pricing are observed: the level on the pricing date is observed like the others, and the lowest of them is the initial level, so a fall soon after pricing lowers the starting point."
+    },
+    "FinalDetermination": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "final-date"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "averaging"
+            },
+            "observationCount": {
+              "type": "integer",
+              "description": "The number of dates whose levels are averaged.",
+              "minimum": 2,
+              "maximum": 12
+            }
+          },
+          "required": [
+            "kind",
+            "observationCount"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "description": "How the final level is measured. Final-date takes the level on the one final date. Averaging takes the arithmetic average of the levels on several dates before maturity (averaging out)."
+    },
+    "BasketUnderlier": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "basket"
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BasketComponent"
+          },
+          "description": "The assets and their weights.",
+          "minItems": 2
+        },
+        "determination": {
+          "$ref": "#/definitions/BasketDetermination"
+        }
+      },
+      "required": [
+        "kind",
+        "components",
+        "determination"
+      ],
+      "additionalProperties": false,
+      "description": "A basket tracks several assets and combines their changes, by weight, into one return."
+    },
+    "BasketComponent": {
+      "type": "object",
+      "properties": {
+        "asset": {
+          "$ref": "#/definitions/Asset"
+        },
+        "weight": {
+          "type": "number",
+          "description": "The asset's share of the basket: 1 is 100%. The weights of a basket add up to 1.",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "asset",
+        "weight"
+      ],
+      "additionalProperties": false,
+      "description": "An asset in a weighted basket and its weight, which is part of what the basket holds. Weights are fixed on the pricing date and add up to 100%."
+    },
+    "BasketDetermination": {
+      "type": "object",
+      "properties": {
+        "initial": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "given"
+            },
+            "levels": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ComponentLevel"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "levels"
+          ],
+          "additionalProperties": false
+        },
+        "final": {
+          "$ref": "#/definitions/FinalDetermination"
+        },
+        "basketReturn": {
+          "$ref": "#/definitions/BasketReturn"
+        }
+      },
+      "required": [
+        "initial",
+        "final",
+        "basketReturn"
+      ],
+      "additionalProperties": false,
+      "description": "Each component of a basket is measured from its own fixed initial level, and every component's final level is measured the same way. The basket return then combines the component returns, so it needs both ends of every component and comes after them. Lookback is not modelled on a basket: the lowest basket level and each component's lowest level differ, and no public note settling which applies was verified (docs/basket.md)."
+    },
+    "ComponentLevel": {
+      "type": "object",
+      "properties": {
+        "asset": {
+          "type": "string",
+          "description": "The name of the asset in the basket."
+        },
+        "level": {
+          "type": "number",
+          "description": "The initial level of that asset.",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "asset",
+        "level"
+      ],
+      "additionalProperties": false,
+      "description": "An initial level of one component of a basket. It refers to the component by asset name, not by position, so removing a component cannot move a level onto another asset."
+    },
+    "BasketReturn": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "weighted"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "description": "How a basket's component returns make its return. Weighted adds up each component's return times its weight."
+    },
+    "Participation": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/DownsideParticipation"
+        },
+        {
+          "$ref": "#/definitions/UpsideParticipation"
+        }
+      ],
+      "description": "A participation, in a fall or in a rise. A product has each direction at most once."
+    },
+    "DownsideParticipation": {
+      "type": "object",
+      "properties": {
+        "direction": {
+          "type": "string",
+          "const": "downside"
+        },
+        "buffer": {
+          "type": "number",
+          "description": "The fall the holder does not bear, as a fraction of the initial level. Downside participation applies only to the fall beyond it.",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "barrier": {
+          "$ref": "#/definitions/Barrier",
+          "description": "Downside participation applies, to the whole fall, only once this barrier is reached."
+        },
+        "absoluteReturn": {
+          "$ref": "#/definitions/AbsoluteReturn",
+          "description": "Pays a fall that downside participation does not reach as a gain. Needs a buffer or a barrier."
+        },
+        "rate": {
+          "type": "number",
+          "description": "The share of the fall, beyond any buffer, that the holder bears: 1 is 100%.",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "direction",
+        "rate"
+      ],
+      "additionalProperties": false,
+      "description": "Participation in a fall of the underlier. Each direction carries the features that only make sense with it: a buffer changes the fall downside participation applies to, a barrier decides whether it applies at all, and absolute return pays as a gain a fall it does not reach. Their keys are listed in the order the payment applies them."
+    },
+    "Barrier": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "number",
+          "description": "The level as a fraction of the initial level.",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 1
+        },
+        "observation": {
+          "$ref": "#/definitions/BarrierObservation"
+        }
+      },
+      "required": [
+        "level",
+        "observation"
+      ],
+      "additionalProperties": false,
+      "description": "A level below the initial level, as a fraction of it, reached strictly below that level. Observed on the final date it reads the final level; observed daily, the lowest close from pricing to the final date. It is the downside barrier, which switches downside participation on, and the lower barrier of barrier absolute return."
+    },
+    "BarrierObservation": {
+      "type": "string",
+      "enum": [
+        "final",
+        "daily-close"
+      ],
+      "description": "When a barrier is observed. Final reads the final level the determination produces. Daily close reads every closing level from pricing to the final observation date, through the lowest or highest of them (docs/daily-observation.md)."
+    },
+    "AbsoluteReturn": {
+      "type": "object",
+      "properties": {
+        "rate": {
+          "type": "number",
+          "description": "The share of the fall paid as a gain: 1 is 100%.",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "rate"
+      ],
+      "additionalProperties": false,
+      "description": "A fall that downside participation does not reach pays its size, times the rate, as a gain: a fall within the buffer, or one that ends at or above the barrier. Past it the gain is gone and the holder bears the fall as the buffer or barrier sets out, so the payment drops there (docs/absolute-return.md)."
+    },
+    "UpsideParticipation": {
+      "type": "object",
+      "properties": {
+        "direction": {
+          "type": "string",
+          "const": "upside"
+        },
+        "barrier": {
+          "$ref": "#/definitions/UpsideBarrier",
+          "description": "Upside participation applies while the observed level is at or below this barrier, and ends above it."
+        },
+        "rate": {
+          "type": "number",
+          "description": "The share of the rise that is added to principal: 1 is 100%.",
+          "exclusiveMinimum": 0
+        },
+        "cap": {
+          "type": "number",
+          "description": "The most the note can pay above principal, as a fraction of principal. Absent means the payment has no ceiling.",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "direction",
+        "rate"
+      ],
+      "additionalProperties": false,
+      "description": "Participation in a rise of the underlier. Its barrier and cap are features that only make sense with it."
+    },
+    "UpsideBarrier": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "number",
+          "description": "The level as a fraction of the initial level.",
+          "exclusiveMinimum": 1,
+          "maximum": 2
+        },
+        "observation": {
+          "$ref": "#/definitions/BarrierObservation"
+        },
+        "rebate": {
+          "type": "number",
+          "description": "A return on principal paid in place of upside participation once the barrier is reached. Absent means nothing is paid.",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "level",
+        "observation"
+      ],
+      "additionalProperties": false,
+      "description": "A level above the initial level, as a fraction of it. Upside participation applies while the observed level is at or below it. Above it, participation is cancelled (a knock-out) and the optional rebate is paid instead: a return on principal. Observed on the final date it reads the final level; observed daily, the highest close (docs/upside-barrier.md)."
+    },
+    "BarrierAbsoluteReturn": {
+      "type": "object",
+      "properties": {
+        "rate": {
+          "type": "number",
+          "description": "The share of the absolute return paid: 1 is 100%.",
+          "exclusiveMinimum": 0
+        },
+        "lowerBarrier": {
+          "$ref": "#/definitions/Barrier"
+        },
+        "upperBarrier": {
+          "$ref": "#/definitions/UpperBarrier"
+        },
+        "conditionalReturn": {
+          "type": "number",
+          "description": "The return on principal paid once either barrier is reached, in place of the absolute return.",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "rate",
+        "lowerBarrier",
+        "upperBarrier"
+      ],
+      "additionalProperties": false,
+      "description": "Barrier absolute return: the payment is principal plus a share of the absolute value of the underlier's return, a rise or a fall alike, for as long as neither barrier has been reached. Once either has, the absolute return ends on both sides and the note pays the conditional return instead, whatever the final level (docs/barrier-absolute-return.md). Each barrier has its own level and observation. The conditional return is a return on principal; absent means principal only."
+    },
+    "UpperBarrier": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "number",
+          "description": "The level as a fraction of the initial level.",
+          "exclusiveMinimum": 1,
+          "maximum": 2
+        },
+        "observation": {
+          "$ref": "#/definitions/BarrierObservation"
+        }
+      },
+      "required": [
+        "level",
+        "observation"
+      ],
+      "additionalProperties": false,
+      "description": "A level above the initial level, as a fraction of it, reached strictly above that level. Observed on the final date it reads the final level; observed daily, the highest close from pricing to the final date. It is the upper barrier of barrier absolute return."
+    }
+  }
+}

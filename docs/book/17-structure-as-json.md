@@ -68,6 +68,22 @@ scenario input, supplied when calculating a payment. Likewise, lookback and
 averaging observations are inputs rather than known future outcomes in the
 terms. The payment is a derived result.
 
+## The schema
+
+The structure has a [JSON Schema](https://github.com/sthotakura/spire/blob/main/docs/schema/product.schema.json)
+that lists every variant and feature this reference supports: the two kinds of
+underlier, the ways of measuring each end, the participations and the features
+that belong to each, and barrier absolute return. It also gives each term's
+description and its numeric limits, such as a lower barrier between 0% and 100%
+of the initial level and a term of 1 to 120 whole months. It is generated from
+the same types the calculation uses, so it changes whenever a feature is added.
+
+A schema describes shape and ranges. It cannot say that a buffer and a barrier
+cannot both apply to one downside participation, or that barrier absolute
+return cannot sit beside participation. Those rules are checked by the
+validation that runs before a payment is calculated, and the schema's own
+description lists them.
+
 ## Scope
 
 This is SPIRe's public learning representation, not an industry standard

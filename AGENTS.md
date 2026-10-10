@@ -94,6 +94,12 @@ Keep `README.md` as the public entry point and `PLAN.md` as the near-term work p
 - Keep internal discussion, implementation decisions, and unresolved research in the working documents under `docs/`. If a concept remains unresolved, mark it as planned in the outline rather than publishing an unsupported explanation.
 - Verify the book update as part of the change: check example calculations against the domain rules, confirm chapter links and outline status, and check rendering when adding a chapter or changing Markdown features. The book navigation discovers chapter files automatically; agents remain responsible for writing and verifying their content.
 
+### Keep the schema current
+
+- `docs/schema/product.schema.json` is generated from the domain types in `src/domain/note.ts`, so it shows every variant and feature of the structure. Whenever you add or change a field of the structure, write its JSDoc (a description and any numeric limits as tags such as `@exclusiveMinimum`, `@maximum` and `@asType integer`) and run `npm run schema` in the same change. This is part of the definition of done.
+- A test fails if the committed schema is stale. Another checks that every supported example passes the schema and that its numeric limits agree with `validateProduct`, which states them a second time. Extend its table of boundary cases when you add a limit.
+- The schema describes shape, variants and ranges only. Rules that tie fields together stay in `validateProduct`; add a new one to the list in `scripts/product-schema.ts` so a reader of the schema knows what it does not say.
+
 ## User-facing copy
 
 - Keep option names and descriptions focused on the public financial concept they teach.

@@ -1,72 +1,146 @@
 export type AssetKind = 'equity' | 'equity-index'
 export type ParticipationDirection = 'downside' | 'upside'
 
-// Each direction carries the features that only make sense with it: a buffer changes the fall downside participation
-// applies to, a barrier decides whether downside participation applies at all, absolute return pays as a gain a fall that
-// downside participation does not reach, and a cap limits the return upside participation can add. Their keys are listed in the order the
-// payment applies them.
+/**
+ * Participation in a fall of the underlier. Each direction carries the features that only make sense with it: a buffer changes the
+ * fall downside participation applies to, a barrier decides whether it applies at all, and absolute return pays as a gain a fall it
+ * does not reach. Their keys are listed in the order the payment applies them.
+ */
 export interface DownsideParticipation {
   direction: 'downside'
-  // The fall the holder does not bear, as a fraction of the initial level. Downside participation applies only to the fall beyond it.
+  /**
+   * The fall the holder does not bear, as a fraction of the initial level. Downside participation applies only to the fall beyond it.
+   * @exclusiveMinimum 0
+   * @maximum 1
+   */
   buffer?: number
+  /** Downside participation applies, to the whole fall, only once this barrier is reached. */
   barrier?: Barrier
+  /** Pays a fall that downside participation does not reach as a gain. Needs a buffer or a barrier. */
   absoluteReturn?: AbsoluteReturn
+  /**
+   * The share of the fall, beyond any buffer, that the holder bears: 1 is 100%.
+   * @exclusiveMinimum 0
+   */
   rate: number
 }
 
-// A fall that downside participation does not reach pays its size, times the rate, as a gain: a fall within the buffer, or
-// one that ends at or above the barrier. Past it the gain is gone and the holder bears the fall as the buffer or barrier sets
-// out, so the payment drops there (docs/absolute-return.md).
+/**
+ * A fall that downside participation does not reach pays its size, times the rate, as a gain: a fall within the buffer, or one that
+ * ends at or above the barrier. Past it the gain is gone and the holder bears the fall as the buffer or barrier sets out, so the
+ * payment drops there (docs/absolute-return.md).
+ */
 export interface AbsoluteReturn {
+  /**
+   * The share of the fall paid as a gain: 1 is 100%.
+   * @exclusiveMinimum 0
+   */
   rate: number
 }
 
-// When a barrier is observed. Final reads the final level the determination produces. Daily close reads every closing level
-// from pricing to the final observation date, through the lowest or highest of them (docs/daily-observation.md).
+/**
+ * When a barrier is observed. Final reads the final level the determination produces. Daily close reads every closing level from
+ * pricing to the final observation date, through the lowest or highest of them (docs/daily-observation.md).
+ */
 export type BarrierObservation = 'final' | 'daily-close'
 
-// A level, as a fraction of the initial level. Downside participation applies, to the whole fall, only when the barrier is
-// reached: when the observed level is below it. Observed on the final date, that is the final level; observed daily, it is
-// the lowest close.
+/**
+ * A level below the initial level, as a fraction of it, reached strictly below that level. Observed on the final date it reads the
+ * final level; observed daily, the lowest close from pricing to the final date. It is the downside barrier, which switches downside
+ * participation on, and the lower barrier of barrier absolute return.
+ */
 export interface Barrier {
+  /**
+   * The level as a fraction of the initial level.
+   * @exclusiveMinimum 0
+   * @exclusiveMaximum 1
+   */
   level: number
   observation: BarrierObservation
 }
 
-// A level above the initial level, as a fraction of it. Upside participation applies while the observed level is at or below it.
-// Above it, participation is cancelled (a knock-out) and the optional rebate is paid instead: a return on principal.
-// Observed on the final date it reads the final level; observed daily, the highest close (docs/upside-barrier.md).
-export interface UpsideBarrier {
+/**
+ * A level above the initial level, as a fraction of it, reached strictly above that level. Observed on the final date it reads the
+ * final level; observed daily, the highest close from pricing to the final date. It is the upper barrier of barrier absolute return.
+ */
+export interface UpperBarrier {
+  /**
+   * The level as a fraction of the initial level.
+   * @exclusiveMinimum 1
+   * @maximum 2
+   */
   level: number
   observation: BarrierObservation
+}
+
+/**
+ * A level above the initial level, as a fraction of it. Upside participation applies while the observed level is at or below it.
+ * Above it, participation is cancelled (a knock-out) and the optional rebate is paid instead: a return on principal.
+ * Observed on the final date it reads the final level; observed daily, the highest close (docs/upside-barrier.md).
+ */
+export interface UpsideBarrier {
+  /**
+   * The level as a fraction of the initial level.
+   * @exclusiveMinimum 1
+   * @maximum 2
+   */
+  level: number
+  observation: BarrierObservation
+  /**
+   * A return on principal paid in place of upside participation once the barrier is reached. Absent means nothing is paid.
+   * @exclusiveMinimum 0
+   */
   rebate?: number
 }
 
+/** Participation in a rise of the underlier. Its barrier and cap are features that only make sense with it. */
 export interface UpsideParticipation {
   direction: 'upside'
+  /** Upside participation applies while the observed level is at or below this barrier, and ends above it. */
   barrier?: UpsideBarrier
+  /**
+   * The share of the rise that is added to principal: 1 is 100%.
+   * @exclusiveMinimum 0
+   */
   rate: number
-  // The most the note can pay above principal, as a fraction of principal. Absent means the payment has no ceiling.
+  /**
+   * The most the note can pay above principal, as a fraction of principal. Absent means the payment has no ceiling.
+   * @exclusiveMinimum 0
+   */
   cap?: number
 }
 
+/** A participation, in a fall or in a rise. A product has each direction at most once. */
 export type Participation = DownsideParticipation | UpsideParticipation
 
-// Barrier absolute return: the payment is principal plus a share of the absolute value of the underlier's return, a rise or a fall
-// alike, for as long as neither barrier has been reached. Once either has, the absolute return ends on both sides and the note
-// pays the conditional return instead, whatever the final level (docs/barrier-absolute-return.md). Each barrier has its own level
-// and observation. The lower barrier is below the initial level and is reached strictly below its level; the upper barrier is above
-// it and is reached strictly above its level. The conditional return is a return on principal; absent means principal only.
+/**
+ * Barrier absolute return: the payment is principal plus a share of the absolute value of the underlier's return, a rise or a fall
+ * alike, for as long as neither barrier has been reached. Once either has, the absolute return ends on both sides and the note
+ * pays the conditional return instead, whatever the final level (docs/barrier-absolute-return.md). Each barrier has its own level
+ * and observation. The conditional return is a return on principal; absent means principal only.
+ */
 export interface BarrierAbsoluteReturn {
+  /**
+   * The share of the absolute return paid: 1 is 100%.
+   * @exclusiveMinimum 0
+   */
   rate: number
   lowerBarrier: Barrier
-  upperBarrier: Barrier
+  upperBarrier: UpperBarrier
+  /**
+   * The return on principal paid once either barrier is reached, in place of the absolute return.
+   * @minimum 0
+   */
   conditionalReturn?: number
 }
 
-// What is tracked. Its identity only: where its change is measured from belongs to the determination.
+/** What is tracked. Its identity only: where its change is measured from belongs to the determination. */
 export interface Asset {
   kind: AssetKind
+  /**
+   * The asset's name, which must not be blank.
+   * @pattern \S
+   */
   name: string
 }
 
@@ -74,16 +148,49 @@ export interface UnderlierComponent {
   asset: Asset
 }
 
-// How the initial level is measured. Given states the level as a term of the note. Lookback states only how many dates
-// after pricing are observed: the level on the pricing date is observed like the others, and the lowest of them is the
-// initial level, so a fall soon after pricing lowers the starting point.
-export type InitialDetermination = { kind: 'given'; level: number } | { kind: 'lookback'; observationCount: number }
+/**
+ * How the initial level is measured. Given states the level as a term of the note. Lookback states only how many dates
+ * after pricing are observed: the level on the pricing date is observed like the others, and the lowest of them is the
+ * initial level, so a fall soon after pricing lowers the starting point.
+ */
+export type InitialDetermination =
+  | {
+      kind: 'given'
+      /**
+       * The initial level.
+       * @exclusiveMinimum 0
+       */
+      level: number
+    }
+  | {
+      kind: 'lookback'
+      /**
+       * The number of dates after pricing whose levels are observed.
+       * @asType integer
+       * @minimum 2
+       * @maximum 12
+       */
+      observationCount: number
+    }
 
-// How the final level is measured. Final-date takes the level on the one final date. Averaging takes the arithmetic
-// average of the levels on several dates before maturity (averaging out).
-export type FinalDetermination = { kind: 'final-date' } | { kind: 'averaging'; observationCount: number }
+/**
+ * How the final level is measured. Final-date takes the level on the one final date. Averaging takes the arithmetic
+ * average of the levels on several dates before maturity (averaging out).
+ */
+export type FinalDetermination =
+  | { kind: 'final-date' }
+  | {
+      kind: 'averaging'
+      /**
+       * The number of dates whose levels are averaged.
+       * @asType integer
+       * @minimum 2
+       * @maximum 12
+       */
+      observationCount: number
+    }
 
-// How the underlier's change is measured, one end at a time. Given at the start and final-date at the end is point-to-point.
+/** How the underlier's change is measured, one end at a time. Given at the start and final-date at the end is point-to-point. */
 export interface Determination {
   initial: InitialDetermination
   final: FinalDetermination
@@ -99,74 +206,120 @@ export interface DeterminedLevels {
   highestClose?: number
 }
 
-// The underlier produces the one return the payoff reads: which assets, where each starts, and how its change is measured.
-// A single underlier has exactly one component. A basket holds several, and a rule that combines them, which only a basket can have.
+/**
+ * The underlier produces the one return the payoff reads: which assets, where each starts, and how its change is measured.
+ * A single underlier has exactly one component.
+ */
 export interface SingleUnderlier {
   kind: 'single'
   components: [UnderlierComponent]
   determination: Determination
 }
 
-// An asset in a weighted basket and its weight, which is part of what the basket holds. Weights are fixed on the pricing
-// date and add up to 100%.
+/**
+ * An asset in a weighted basket and its weight, which is part of what the basket holds. Weights are fixed on the pricing
+ * date and add up to 100%.
+ */
 export interface BasketComponent {
   asset: Asset
+  /**
+   * The asset's share of the basket: 1 is 100%. The weights of a basket add up to 1.
+   * @exclusiveMinimum 0
+   */
   weight: number
 }
 
-// An initial level of one component of a basket. It refers to the component by asset name, not by position, so removing
-// a component cannot move a level onto another asset.
+/**
+ * An initial level of one component of a basket. It refers to the component by asset name, not by position, so removing
+ * a component cannot move a level onto another asset.
+ */
 export interface ComponentLevel {
+  /** The name of the asset in the basket. */
   asset: string
+  /**
+   * The initial level of that asset.
+   * @exclusiveMinimum 0
+   */
   level: number
 }
 
-// How a basket's component returns make its return. Weighted adds up each component's return times its weight.
+/** How a basket's component returns make its return. Weighted adds up each component's return times its weight. */
 export interface BasketReturn {
   kind: 'weighted'
 }
 
-// Each component of a basket is measured from its own fixed initial level, and every component's final level is measured
-// the same way. The basket return then combines the component returns, so it needs both ends of every component and
-// comes after them. Lookback is not modelled on a basket: the lowest basket level and each component's lowest level
-// differ, and no public note settling which applies was verified (docs/basket.md).
+/**
+ * Each component of a basket is measured from its own fixed initial level, and every component's final level is measured
+ * the same way. The basket return then combines the component returns, so it needs both ends of every component and
+ * comes after them. Lookback is not modelled on a basket: the lowest basket level and each component's lowest level
+ * differ, and no public note settling which applies was verified (docs/basket.md).
+ */
 export interface BasketDetermination {
   initial: { kind: 'given'; levels: ComponentLevel[] }
   final: FinalDetermination
   basketReturn: BasketReturn
 }
 
+/** A basket tracks several assets and combines their changes, by weight, into one return. */
 export interface BasketUnderlier {
   kind: 'basket'
+  /**
+   * The assets and their weights.
+   * @minItems 2
+   */
   components: BasketComponent[]
   determination: BasketDetermination
 }
 
+/** What the payoff reads: one asset, or a basket of several. */
 export type Underlier = SingleUnderlier | BasketUnderlier
 
-// The product's length, as a duration. It is part of the structure; the dates that put it on a calendar belong to issuance.
+/** The product's length, as a duration. It is part of the structure; the dates that put it on a calendar belong to issuance. */
 export interface Term {
+  /**
+   * The length in whole months.
+   * @asType integer
+   * @minimum 1
+   * @maximum 120
+   */
   months: number
 }
 
-// The legal form. A note is a debt security of its issuer. A deposit is held by a bank and repaid in full at the end of its
-// term, so it cannot pay less than principal: it has no downside participation and no principal protection term.
+/**
+ * The legal form. A note is a debt security of its issuer. A deposit is held by a bank and repaid in full at the end of its
+ * term, so it cannot pay less than principal: it has no downside participation and no principal protection term.
+ */
 export type Wrapper = 'note' | 'deposit'
 
+/** A structured product, composed of a wrapper, a term, an underlier and a payoff. */
 export interface Product {
   wrapper: Wrapper
+  /**
+   * The amount the payment is a multiple of.
+   * @exclusiveMinimum 0
+   */
   principalAmount: number
   term: Term
+  /** Bullet redemption pays once, at maturity. */
   redemption: 'bullet'
   underlier: Underlier
+  /** The rules that turn the underlier's change into the maturity payment. With no features the product repays principal. */
   payoff: {
-    // Features are listed in the order the payment applies them: participation with its buffer and cap, then the floor.
+    /** Features are listed in the order the payment applies them: participation with its buffer and cap, then the floor. */
     participations: Participation[]
-    // A payoff of its own: it cannot be combined with participations, which this note's two barriers replace.
+    /** A payoff of its own: it cannot be combined with participations, which this note's two barriers replace. */
     barrierAbsoluteReturn?: BarrierAbsoluteReturn
+    /**
+     * The least the note pays at maturity, as a fraction of principal. Absent means a holder can lose the whole principal.
+     * @minimum 0
+     * @maximum 1
+     */
     principalProtection?: number
-    // The lowest return the product pays on principal, whatever the underlier does: a floor of principal × (1 + minimum return),
-    // not an addition to the participated return. Deposits only, since no note with one was verified.
+    /**
+     * The lowest return the product pays on principal, whatever the underlier does: a floor of principal × (1 + minimum return),
+     * not an addition to the participated return. Deposits only, since no note with one was verified.
+     * @exclusiveMinimum 0
+     */
     minimumReturn?: number
   }
 }
