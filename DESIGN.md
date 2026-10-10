@@ -227,6 +227,7 @@ Restrained and mostly textual; the page has almost no filled buttons.
 
 ### Chips
 - **Name chips** ("Often marketed as"): pill, pale blue fill, mid-blue text at 600; hover or open darkens fill and border. They open a definition tooltip.
+- **Category chip** ("Category"): the same pill in neutral grey fill and slate text, before the name chips. At most one, opening a definition tooltip.
 - **Badges:** small pale-slate pills marking an option as unavailable. The invalid variant (pale red, Error text) marks the JSON heading when terms are invalid.
 
 ### Cards / Containers

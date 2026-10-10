@@ -7,7 +7,7 @@ import NumberInput from './components/NumberInput.vue'
 import TabGroup from './components/TabGroup.vue'
 import { calculationSteps } from './content/calculation'
 import type { ConceptId } from './content/concepts'
-import { marketingNames, type MarketingName } from './content/names'
+import { marketingNames, productCategory, type MarketingName } from './content/names'
 import { paymentFormula, paymentInWords } from './content/formula'
 import { explainOutcome } from './content/outcome'
 import { breachClose, scenarioRows } from './content/scenarios'
@@ -432,6 +432,13 @@ const nameHintId = (name: MarketingName) => `${name.name.toLowerCase().replace(/
 const openName = (name: MarketingName) => {
   select(name.concepts.length === 1 ? name.concepts[0] : 'payoff')
   toggleHint(nameHintKey(name))
+}
+const category = computed(() => productCategory(note.value))
+const categoryHintKey = 'category'
+const openCategory = () => {
+  const concepts = category.value?.concepts ?? []
+  select(concepts.length === 1 ? concepts[0] : 'payoff')
+  toggleHint(categoryHintKey)
 }
 // The observed levels fitted to the count the determination reads. While the count is invalid they are left as they are.
 const observations = computed(() => issuesFor('observationCount').length ? observedLevels.value : fitObservations(observedLevels.value, observationCountOf(determination.value.final)))
@@ -868,7 +875,7 @@ const chart = computed(() => {
 
       <p class="summary-sentence" aria-live="polite"><template v-for="(segment, index) in summary" :key="index"><button v-if="segment.concept" type="button" :class="['concept', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)" :aria-pressed="highlighted(segment.concept)" @click="select(segment.concept)">{{ segment.text }}</button><span v-else>{{ segment.text }}</span></template></p>
 
-      <div v-if="names.length" class="names"><span id="names-label" class="names-label">Often marketed as</span><div class="names-list" role="group" aria-labelledby="names-label"><button v-for="name in names" :key="name.name" type="button" class="name-chip" :aria-expanded="activeHint === nameHintKey(name)" :aria-controls="nameHintId(name)" @click="openName(name)">{{ name.name }}</button></div><template v-for="name in names" :key="name.name"><p v-if="activeHint === nameHintKey(name)" :id="nameHintId(name)" class="hint-text" role="tooltip">{{ name.reason }}</p></template></div>
+      <div v-if="category || names.length" class="names"><template v-if="category"><span id="category-label" class="names-label">Category</span><div class="names-list" role="group" aria-labelledby="category-label"><button type="button" class="name-chip category-chip" :aria-expanded="activeHint === categoryHintKey" aria-controls="category-hint" @click="openCategory">{{ category.name }}</button></div><p v-if="activeHint === categoryHintKey" id="category-hint" class="hint-text" role="tooltip">{{ category.reason }}</p></template><template v-if="names.length"><span id="names-label" class="names-label">Often marketed as</span><div class="names-list" role="group" aria-labelledby="names-label"><button v-for="name in names" :key="name.name" type="button" class="name-chip" :aria-expanded="activeHint === nameHintKey(name)" :aria-controls="nameHintId(name)" @click="openName(name)">{{ name.name }}</button></div><template v-for="name in names" :key="name.name"><p v-if="activeHint === nameHintKey(name)" :id="nameHintId(name)" class="hint-text" role="tooltip">{{ name.reason }}</p></template></template></div>
 
       <div class="workspace">
         <section ref="outlinePanel" class="panel outline" aria-label="Product structure">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { withSubFeatures, type Participation, type Product } from '../domain/note'
-import { marketingNames } from './names'
+import { marketingNames, productCategory } from './names'
 
 const noteWith = ({ participations = [], principalProtection, cap, buffer }: { participations?: Participation[]; principalProtection?: number; cap?: number; buffer?: number }): Product => ({
   wrapper: 'note',
@@ -205,5 +205,41 @@ describe('marketing names with barrier absolute return', () => {
 
   it('gives a deposit no such name', () => {
     expect(bothWays(undefined, 'deposit')).toEqual([])
+  })
+})
+
+describe('product category', () => {
+  const categoryOf = (payoff: Parameters<typeof noteWith>[0]) => productCategory(noteWith(payoff))?.name
+
+  it('places a note with any protection above 0% in Capital Protection, partial or full', () => {
+    expect(categoryOf({ principalProtection: 1 })).toBe('Capital Protection')
+    expect(categoryOf({ principalProtection: 0.1, participations: [up(1)] })).toBe('Capital Protection')
+    expect(categoryOf({ principalProtection: 0 })).toBeUndefined()
+  })
+
+  it('lets protection decide before a buffer, a cap or the participation', () => {
+    expect(categoryOf({ principalProtection: 0.9, participations: [up(1), down(1)], buffer: 0.1, cap: 0.2 })).toBe('Capital Protection')
+  })
+
+  it('places an unprotected note that follows the underlier in Participation, buffered or capped alike', () => {
+    expect(categoryOf({ participations: [up(1), down(1)] })).toBe('Participation')
+    expect(categoryOf({ participations: [up(1.5)], cap: 0.2 })).toBe('Participation')
+    expect(categoryOf({ participations: [up(1), down(1)], buffer: 0.1 })).toBe('Participation')
+    expect(categoryOf({ participations: [down(1)] })).toBe('Participation')
+  })
+
+  it('places no category on a note with no protection and no participation', () => {
+    expect(categoryOf({})).toBeUndefined()
+  })
+
+  it('places a deposit with upside participation in Capital Protection, because the wrapper repays principal', () => {
+    const deposit = { ...noteWith({ participations: [up(1)] }), wrapper: 'deposit' } as Product
+    expect(productCategory(deposit)?.name).toBe('Capital Protection')
+  })
+
+  it('highlights the protection, or the participation directions that place it', () => {
+    expect(productCategory(noteWith({ principalProtection: 1 }))?.concepts).toEqual(['protection'])
+    expect(productCategory(noteWith({ participations: [up(1)] }))?.concepts).toEqual(['upside'])
+    expect(productCategory(noteWith({ participations: [up(1), down(1)] }))?.concepts).toEqual(['upside', 'downside'])
   })
 })

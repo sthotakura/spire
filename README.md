@@ -16,7 +16,7 @@ The single-page application shows the product as an outline of its concepts: wra
 
 Beside the outline the page shows a one-sentence summary of the note, a payoff diagram with draggable handles, a worked calculation of the maturity payment, a scenario table, and the note's structure as JSON. Selecting a concept highlights it in each of them.
 
-Under the summary, "Often marketed as" lists generic names a structure like this is commonly sold under, such as a principal-protected note or a capped participation note. They are hints drawn from public sources, not definitions, and a note that fits none shows none. The rules are recorded in [docs/marketing-names.md](docs/marketing-names.md).
+Under the summary, "Often marketed as" lists generic names a structure like this is commonly sold under, such as a principal-protected note or a capped participation note. They are hints drawn from public sources, not definitions, and a note that fits none shows none. Before them, a single "Category" chip shows the broad class the terms place the note in, Capital Protection or Participation. The rules are recorded in [docs/marketing-names.md](docs/marketing-names.md).
 
 The first release supports only the combination we can define and test precisely. Other choices are visible and marked unavailable, without suggesting they already work. Observation or valuation schedules will arrive with an example that actually uses them; where they belong is an open question in [docs/underlier-model.md](docs/underlier-model.md). The interface design is recorded in [docs/annotated-outline-task.md](docs/annotated-outline-task.md).
 

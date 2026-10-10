@@ -47,11 +47,25 @@ These are example-specific assumptions about when a name fits the model's terms,
 
 A protection of 0% counts as no protection. The two pay the same, and the documentation already treats "absent" and "0%" as different descriptions of the same payment.
 
+## Categories
+
+The SSPA groups products into four categories: Capital Protection, Yield Enhancement, Participation and Leverage (which holds warrants and similar products). A category is a broad class with one answer per note, unlike the names above, of which several can apply. SPIRe uses the SSPA's word "Capital Protection", not "capital guarantee", since the issuer's credit risk remains.
+
+| Rule (model terms) | Category | Note |
+| :--- | :--- | :--- |
+| Protection is above 0% | Capital Protection | Partial protection counts, at any level. SSPA's own partial protection is 90%–100%; the hint says so. Protection decides first, so a buffer or a cap does not change it. |
+| Deposit with upside participation, no protection term | Capital Protection | The wrapper repays principal in full. Example-specific assumption. |
+| On a note: no protection, upside or downside participation | Participation | Includes buffered and capped notes. Downside participation alone is a category here although it gets no name. |
+
+Yield Enhancement and Leverage are not shown, because they need coupons, reverse-convertible shapes or warrants, none of which the model has. Only the matching category is shown; the others are not listed. A note with no protection and no participation (for example the barrier absolute return note) shows no category, since placing it is unverified.
+
 ## Interface
 
-The names appear as chips under the summary sentence, after the label "Often marketed as". Selecting a chip opens a short reason and highlights the part of the note it rests on. A name that rests on one part selects that part. A name that rests on several selects the whole payoff. The rules live in `src/content/names.ts`.
+The category, when there is one, appears as a neutral chip labelled "Category", before the names, and opens its reason in the same way. The names appear as chips under the summary sentence, after the label "Often marketed as". Selecting a chip opens a short reason and highlights the part of the note it rests on. A name that rests on one part selects that part. A name that rests on several selects the whole payoff. The rules live in `src/content/names.ts`.
 
 ## Open questions
+
+- Whether the barrier absolute return note and an unprotected shark fin note belong to Participation, Capital Protection or a category of their own is unverified, so the first shows none and the second shows Participation by the rule above.
 
 - SSPA's Outperformance Certificate is described without a cap. Whether a capped, leveraged note carries "Outperformance" in its name is unverified, so only "Capped participation" is shown for it.
 - With upside participation and no downside participation selected, the model repays principal on a fall. Whether that is a "principal-protected" structure or only resembles one is undecided. The rules look only at the protection term, so a note with upside participation alone is called only a participation note.

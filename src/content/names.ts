@@ -13,6 +13,48 @@ export interface MarketingName {
 const isRate = (rate: number | undefined): rate is number => rate !== undefined && Number.isFinite(rate) && rate > 0
 const percentText = (fraction: number) => `${(fraction * 100).toFixed(1).replace(/\.0$/, '')}%`
 
+export interface ProductCategory {
+  name: 'Capital Protection' | 'Participation'
+  reason: string
+  // The parts of the note that place it in the category.
+  concepts: ConceptId[]
+}
+
+// The Swiss taxonomy's broad category for the note, or none when the model's terms do not place it. One category at most.
+// Protection decides first: any protection above 0% is Capital Protection, so a buffer or a cap does not change it.
+// The rules are recorded in docs/marketing-names.md.
+export function productCategory(note: Product): ProductCategory | undefined {
+  const protection = note.payoff.principalProtection
+  const upside = upsideOf(note)?.rate
+  const downside = downsideOf(note)?.rate
+
+  if (protection !== undefined && Number.isFinite(protection) && protection > 0) {
+    return {
+      name: 'Capital Protection',
+      reason: protection === 1
+        ? 'The principal is repaid in full at maturity, whatever the underlier does, subject to the issuer’s ability to pay.'
+        : `Part of the principal is repaid whatever the underlier does. The Swiss taxonomy sets partial protection at 90% to 100% of principal; here any level above 0% is placed in this category.`,
+      concepts: ['protection'],
+    }
+  }
+  // A deposit repays principal in full, which is what places it here.
+  if (note.wrapper === 'deposit' && isRate(upside)) {
+    return {
+      name: 'Capital Protection',
+      reason: 'The deposit repays the principal in full at the end of the term, and only the return depends on the underlier.',
+      concepts: ['wrapper', 'upside'],
+    }
+  }
+  if (note.wrapper === 'note' && (isRate(upside) || isRate(downside))) {
+    return {
+      name: 'Participation',
+      reason: 'The payment follows the underlier, at a participation rate for each direction that is selected, with no protection of principal.',
+      concepts: isRate(upside) && isRate(downside) ? ['upside', 'downside'] : isRate(upside) ? ['upside'] : ['downside'],
+    }
+  }
+  return undefined
+}
+
 // Names a structure like this one is commonly sold under. They are hints, not definitions, and several can apply at once.
 // The rules are recorded in docs/marketing-names.md. A note that fits none returns an empty list.
 export function marketingNames(note: Product): MarketingName[] {

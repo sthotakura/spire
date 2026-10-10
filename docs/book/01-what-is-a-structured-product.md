@@ -43,6 +43,25 @@ This is a contractual-payment illustration under stated assumptions. It is not
 a market valuation, a prediction, investment advice, or a guarantee that an
 issuer will pay.
 
+## Categories and names
+
+Two labels sit on top of the parts, and neither is a term of the product.
+
+A **category** is a broad class. The Swiss Structured Products Association
+groups products into Capital Protection, Yield Enhancement, Participation and
+Leverage. A product falls in at most one. SPIRe shows a category only when the
+terms place the note in it: any principal protection above 0% is Capital
+Protection, and an unprotected note that follows the underlier is
+Participation. Yield Enhancement and Leverage need coupons or warrants, which the model does
+not have, so neither is shown.
+
+A **marketing name**, such as “principal-protected note”, is the label a seller
+puts on a product. Several can apply to one note, and no single authority
+defines them.
+
+Both are hints. The structure remains the authoritative description of what the
+product pays.
+
 ## What this model leaves out
 
 SPIRe's model is intentionally small. It explains a static product with
