@@ -857,8 +857,8 @@ const chart = computed(() => {
 <template>
   <div class="site-shell">
     <header class="site-header">
-      <div class="brand">SPI<span>Re</span></div>
-      <div class="header-note">Structured Products Interactive Reference</div>
+      <div class="brand full" aria-label="Structured Products Interactive Reference"><span>S</span>tructured <span>P</span>roducts <span>I</span>nteractive <span>Re</span>ference</div>
+      <a class="header-link" :href="`${baseUrl}book/`">Read the book</a>
     </header>
 
     <main class="page">
@@ -1200,8 +1200,6 @@ const chart = computed(() => {
 
       <footer class="site-footer">
         Built by <a href="https://www.linkedin.com/in/sureshthotakura/" target="_blank" rel="noopener noreferrer">Suresh Thotakura</a>
-        <span aria-hidden="true">·</span>
-        <a :href="`${baseUrl}book/`">Read the book</a>
         <span aria-hidden="true">·</span>
         Build: <time :datetime="buildTimestampIso">{{ buildTimestamp }} UTC</time>
       </footer>
