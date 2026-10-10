@@ -31,7 +31,7 @@ itself does not pay.
 There is no line connecting the branches. Such a line would imply intermediate
 payments that the rule does not produce.
 
-![Payoff with a 70% downside barrier observed on the final date, at a final level of 69](charts/barrier-final.svg)
+![Payoff with a 70% downside barrier observed on the final date, at a final level of 50](charts/barrier-final.svg)
 
 ## Two paths for a barrier observed on every close
 
@@ -51,15 +51,15 @@ highest close puts it on, so it can sit on the dashed line.
 Absolute return in both directions draws a V. Between the barriers the payment
 falls as the underlier rises from the lower barrier to the initial level, where
 it is principal, and rises again as the underlier rises beyond it, since a fall
-and a rise of the same size pay the same.
-Beyond each barrier the line is flat at the fixed return, with a jump at the
-barrier. The filled point of each jump is the payment at the barrier level, which
-is the absolute return, and the open point is the fixed return just beyond it. If
-a barrier is observed on every close, a dashed flat line at the fixed return
-shows the payment had a close gone beyond a barrier earlier. The scenario table
-adds a row at each barrier, a row just past each, and a row for each barrier
-observed on every close where the underlier returned to the initial level after a
-close beyond it, labelled with that close.
+and a rise of the same size pay the same. Beyond each barrier the line is flat
+at the fixed return, with a jump at the barrier. The filled point of each jump
+is the payment at the barrier level, which is the absolute return, and the open
+point is the fixed return just beyond it. If a barrier is observed on every
+close, a dashed flat line at the fixed return shows the payment had a close gone
+beyond a barrier earlier. The scenario table adds a row at each barrier, a row
+just past each, and a row for each barrier observed on every close where the
+underlier returned to the initial level after a close beyond it, labelled with
+that close.
 
 ![Absolute return in both directions between barriers at 80% and 125%, with a 2% conditional return, at a final level of 110](charts/barrier-absolute-return.svg)
 

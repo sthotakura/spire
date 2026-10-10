@@ -9,8 +9,9 @@ Return = determined final level ÷ determined initial level − 1
 
 ## Point-to-point
 
-With a fixed initial level and a level on one final observation date, the
-measurement is point-to-point. Starting at 100 and ending at 110 gives +10%.
+The pricing date is the date on which the starting level is set. With a fixed
+initial level and a level on one final observation date, the measurement is
+point-to-point. Starting at 100 and ending at 110 gives +10%.
 Intermediate rises and falls do not enter this measurement.
 
 ## Averaging the final level

@@ -23,7 +23,7 @@ absolute-return feature.
 - Final level 69 is below it: the whole 31% fall counts and payment is 690.
 - Final level 50 gives payment of 500.
 
-![Payoff with a 70% downside barrier observed on the final date, at a final level of 69](charts/barrier-final.svg)
+![Payoff with a 70% downside barrier observed on the final date, at a final level of 50](charts/barrier-final.svg)
 
 Equality matters. This example treats the barrier as breached only below 70.
 A small move from 70 to just below 70 produces a large drop in payment.
@@ -63,7 +63,7 @@ The largest payment is at the barrier: a final level of 130 pays 1,240. Just
 above it the payment drops to 1,020, so a higher final level can pay less.
 Without a rebate, the first two rows would pay 1,000.
 
-![Payoff with 80% upside participation, a 130% upside barrier and a 2% rebate, at a final level of 120](charts/upside-barrier.svg)
+![Payoff with 80% upside participation, a 130% upside barrier and a 2% rebate, at a final level of 150](charts/upside-barrier.svg)
 
 This example treats a final level exactly at 130 as not reaching the barrier,
 as the downside barrier above treats a level exactly at its threshold. One
@@ -80,19 +80,20 @@ observes every close.
 ## Observing a barrier on every close
 
 Many public notes observe a barrier on every trading day, using closing levels,
-from the pricing date to the final observation date. The barrier is then
-reached if any close crosses it, and it stays reached even if the underlier
-later recovers. One daily-monitored note has a knock-in event "if the closing
-level of either Index on any eligible trading day during the observation period
-is less than its threshold level"
-([SEC 424B2](https://www.sec.gov/Archives/edgar/data/72971/000138713119008969/wfcr1924-424b2_112119.htm)).
+from the pricing date to the final observation date. The barrier is then reached
+if any close crosses it, and it stays reached even if the underlier later
+recovers. One daily-monitored note has a knock-in event "if the closing level of
+either Index on any eligible trading day during the observation period is less
+than its threshold level" ([SEC
+424B2](https://www.sec.gov/Archives/edgar/data/72971/000138713119008969/wfcr1924-424b2_112119.htm)).
 Another note watches both sides: its event occurs if, on any day in the period,
 the closing level "is greater than the Upper Barrier or less than the Lower
 Barrier", and the holder then receives a fixed return on principal whatever the
-final level
-([SEC 424B2](https://www.sec.gov/Archives/edgar/data/19617/000161577418007603/s111907_424b2.htm)).
-That note pays the absolute value of the underlier's return on a rise as well
-as a fall until the event, which the [Absolute return chapter](13-absolute-return.md) covers.
+final level ([SEC
+424B2](https://www.sec.gov/Archives/edgar/data/19617/000161577418007603/s111907_424b2.htm)).
+That note pays the absolute value of the underlier's return on a rise as well as
+a fall until the event, which the [Absolute return
+chapter](13-absolute-return.md) covers.
 
 SPIRe states this as the barrier's observation, `daily-close`. A scenario then
 needs one more number than the final level: the lowest close for a downside
@@ -154,9 +155,10 @@ Final level 90, lowest close 65, highest close 135: upside ended, the whole 10% 
 Final level 65, lowest close 65, highest close 135: payment = 650
 ```
 
-With a 2% rebate, the third and fourth examples pay 1,020, the fifth pays 920 (the
-rebate of 2% less the 10% fall), and the sixth pays 670. The two sides do not
-cancel or override each other: each is read on its own and the terms are added.
+With a 2% rebate, the third and fourth examples pay 1,020, the fifth pays 920
+(the rebate of 2% less the 10% fall), and the sixth pays 670. The two sides do
+not cancel or override each other: each is read on its own and the terms are
+added.
 
 Assumptions and limits of this version:
 

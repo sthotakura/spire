@@ -1,10 +1,11 @@
 # What is a structured product?
 
 A structured product is a financial product whose payment is defined by a
-combination of contractual terms and the behaviour of one or more underliers.
-An underlier might be an equity, an equity index, or a basket of them; SPIRe
-covers equity and equity-index references. The product does not simply pass through the underlier's performance:
-its rules decide how that performance affects the payment.
+combination of contractual terms and the behaviour of one or more underliers. An
+underlier might be an equity, an equity index, or a basket of them; SPIRe covers
+equity and equity-index references. The product does not simply pass through the
+underlier's performance: its rules decide how that performance affects the
+payment.
 
 ## The parts
 
@@ -44,8 +45,8 @@ issuer will pay.
 
 ## What this model leaves out
 
-The first SPIRe model is intentionally small. It explains a static product
-with synthetic levels and terms. It does not model pricing, live market data,
+SPIRe's model is intentionally small. It explains a static product with
+synthetic levels and terms. It does not model pricing, live market data,
 issuer credit analysis, booking, issuance workflows, regulatory processing,
 or document generation.
 

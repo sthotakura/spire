@@ -48,13 +48,19 @@ drops to 1,020. The [Barrier chapter](12-barrier.md) has the full set of levels.
 
 ## Observe a barrier on every close
 
-Return to the 70% downside barrier with 100% downside participation, and
-final level 80. If no close was below 70, the payment is 1,000. If the
-underlier closed at 65 earlier and then recovered to 80, the barrier was
-reached and the whole 20% fall counts: the payment is 800. The same 80 final
-level pays 1,000 when the barrier is observed only on the final date. The
-[Barrier chapter](12-barrier.md) has the upside case, where one close above the barrier earns
-the rebate whatever the final level.
+Return to the 70% downside barrier with 100% downside participation, and final
+level 80. If no close was below 70, the payment is 1,000. If the underlier
+closed at 65 earlier and then recovered to 80, the barrier was reached and the
+whole 20% fall counts: the payment is 800. The same 80 final level pays 1,000
+when the barrier is observed only on the final date. The [Barrier
+chapter](12-barrier.md) has the upside case, where one close above the barrier
+earns the rebate whatever the final level.
+
+## Add absolute return
+
+With a 15% buffer, 100% absolute return, and 100% downside participation,
+final level 85 pays 1,150. Final level 84.99 pays 999.90. Include both sides
+of this threshold when reading the payoff.
 
 ## Pay the absolute return in both directions
 
@@ -62,13 +68,8 @@ With a 100% absolute return, a lower barrier at 80% and an upper barrier at 125%
 of the initial level, both observed on every close, and a 2% conditional return,
 final level 90 and final level 110 each pay 1,100: a fall pays like a rise. If a
 close was ever at 79, or above 125, the absolute return has ended, and any final
-level pays 1,020. The [Absolute return chapter](13-absolute-return.md) has the full set of levels.
-
-## Add absolute return
-
-With a 15% buffer, 100% absolute return, and 100% downside participation,
-final level 85 pays 1,150. Final level 84.99 pays 999.90. Include both sides
-of this threshold when reading the payoff.
+level pays 1,020. The [Absolute return chapter](13-absolute-return.md) has the
+full set of levels.
 
 ## Change how the return is measured
 
@@ -85,8 +86,8 @@ observation of 110 gives a return of +10% and a payment of 1,100.
   a return of +10% and a payment of 1,100. Many different component
   performances can give the same basket return.
 
-The [Determination methods](06-determination.md) and [Underliers](05-underliers.md)
-chapters have the calculations.
+The [Determination methods](06-determination.md) and
+[Underliers](05-underliers.md) chapters have the calculations.
 
 ## Change the wrapper
 

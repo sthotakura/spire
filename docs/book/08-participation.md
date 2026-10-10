@@ -14,7 +14,8 @@ Payment = 1,000 × (1 + 15%) = 1,150
 ```
 
 At 50% participation, the same rise produces a payment of 1,050. The rate
-changes the slope of the payoff. It does not set a maximum gain; a cap does that.
+changes the slope of the payoff. It does not set a maximum gain; a cap does
+that.
 
 ![Payoff with 150% upside and 100% downside participation, at a final level of 110](charts/participation.svg)
 
@@ -27,10 +28,10 @@ before any floor. At a 150% downside rate, it reduces principal by 30%, giving
 ## Separate choices
 
 In the synthetic model, upside only means a fall leaves principal unchanged.
-Downside only means a rise leaves principal unchanged. Selecting both uses
-each rate in its own direction. A flat return pays principal unless another
-feature, such as the minimum return a deposit can have (see the
-[Market-linked deposits chapter](14-market-linked-deposits.md)), raises the payment.
+Downside only means a rise leaves principal unchanged. Selecting both uses each
+rate in its own direction. A flat return pays principal unless another feature,
+such as the minimum return a deposit can have (see the [Market-linked deposits
+chapter](14-market-linked-deposits.md)), raises the payment.
 
 ## Assumptions
 

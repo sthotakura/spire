@@ -8,9 +8,9 @@ not by itself determine how an underlier's performance changes the payment.
 ## Note
 
 A note is a debt security of its issuer. Its payment is defined by the note's
-terms, and payment depends on the issuer's ability to pay. In the first SPIRe
-example, the note has bullet redemption: it makes one payment at scheduled
-maturity.
+terms, and payment depends on the issuer's ability to pay. In this book's
+basic example, the note has bullet redemption: it makes one payment at
+scheduled maturity.
 
 The note wrapper does not mean that the holder owns the linked equity or index.
 The underlier is a reference for calculating the payment.
