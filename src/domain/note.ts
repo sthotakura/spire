@@ -52,6 +52,18 @@ export interface UpsideParticipation {
 
 export type Participation = DownsideParticipation | UpsideParticipation
 
+// Barrier absolute return: the payment is principal plus a share of the absolute value of the underlier's return, a rise or a fall
+// alike, for as long as neither barrier has been reached. Once either has, the absolute return ends on both sides and the note
+// pays the conditional return instead, whatever the final level (docs/barrier-absolute-return.md). Each barrier has its own level
+// and observation. The lower barrier is below the initial level and is reached strictly below its level; the upper barrier is above
+// it and is reached strictly above its level. The conditional return is a return on principal; absent means principal only.
+export interface BarrierAbsoluteReturn {
+  rate: number
+  lowerBarrier: Barrier
+  upperBarrier: Barrier
+  conditionalReturn?: number
+}
+
 // What is tracked. Its identity only: where its change is measured from belongs to the determination.
 export interface Asset {
   kind: AssetKind
@@ -150,6 +162,8 @@ export interface Product {
   payoff: {
     // Features are listed in the order the payment applies them: participation with its buffer and cap, then the floor.
     participations: Participation[]
+    // A payoff of its own: it cannot be combined with participations, which this note's two barriers replace.
+    barrierAbsoluteReturn?: BarrierAbsoluteReturn
     principalProtection?: number
     // The lowest return the product pays on principal, whatever the underlier does: a floor of principal × (1 + minimum return),
     // not an addition to the participated return. Deposits only, since no note with one was verified.
@@ -169,7 +183,7 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
     ? { direction: 'downside', buffer, barrier, absoluteReturn, rate: participation.rate }
     : { direction: 'upside', barrier: upsideBarrier, rate: participation.rate, cap })
 
-export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn'
+export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn'
 
 // A barrier as an underlier level: its fraction of the level the return is measured from. Rounded to nine decimals, because
 // 1.1 × 100 is 110.00000000000001 in floating point, which would put a final level of 110 on the wrong side of a barrier at 110%.
@@ -289,6 +303,23 @@ export function productIssues(note: Product): ProductIssue[] {
       if (downsideOf(note) !== undefined) issues.push({ field: 'upsideBarrier', message: 'An upside barrier observed daily needs a note with no downside participation.' })
     }
   }
+  const bothWays = note.payoff.barrierAbsoluteReturn
+  if (bothWays !== undefined) {
+    if (!Number.isFinite(bothWays.rate) || bothWays.rate <= 0) issues.push({ field: 'barrierAbsoluteReturn', message: 'Absolute return must be greater than zero.' })
+    const { lowerBarrier, upperBarrier, conditionalReturn } = bothWays
+    if (!Number.isFinite(lowerBarrier.level) || lowerBarrier.level <= 0 || lowerBarrier.level >= 1) issues.push({ field: 'lowerBarrier', message: 'Lower barrier must be greater than 0% and less than 100% of the initial level.' })
+    // 200% is the edge of the chart's horizontal axis, a rise of 100%.
+    if (!Number.isFinite(upperBarrier.level) || upperBarrier.level <= 1 || upperBarrier.level > 2) issues.push({ field: 'upperBarrier', message: 'Upper barrier must be greater than 100% and at most 200% of the initial level.' })
+    if (conditionalReturn !== undefined && (!Number.isFinite(conditionalReturn) || conditionalReturn < 0)) issues.push({ field: 'conditionalReturn', message: 'Conditional return must be zero or greater.' })
+    // The two barriers replace the participations, and the buffer, cap and absolute return on a fall belong to them.
+    if (note.payoff.participations.length > 0) issues.push({ field: 'barrierAbsoluteReturn', message: 'Absolute return in both directions cannot be combined with participation, a buffer, a cap or an absolute return on a fall.' })
+    if (note.payoff.minimumReturn !== undefined) issues.push({ field: 'barrierAbsoluteReturn', message: 'Absolute return in both directions cannot be combined with a minimum return.' })
+    // No public note was verified with lookback, a basket or averaging, and the average of several levels is not a close.
+    const { underlier } = note
+    if (underlier.kind === 'basket' || underlier.determination.initial.kind === 'lookback' || underlier.determination.final.kind === 'averaging') {
+      issues.push({ field: 'barrierAbsoluteReturn', message: 'Absolute return in both directions needs a single underlier with a fixed initial level and a final level on the final date.' })
+    }
+  }
   // A deposit is repaid in full, so nothing may take the payment below principal, and principal needs no protection term.
   if (note.wrapper === 'deposit' && downsideOf(note)) issues.push({ field: 'participations', message: 'A deposit repays principal in full, so it cannot have downside participation.' })
   if (note.wrapper === 'deposit' && protection !== undefined) issues.push({ field: 'principalProtection', message: 'A deposit repays principal in full, so it has no principal protection term.' })
@@ -370,6 +401,18 @@ export function basketBreakdown(underlier: BasketUnderlier, observedLevels: numb
   return { components, basketReturn, levels: { initial: basketStartingLevel, final: basketStartingLevel * (1 + basketReturn) } }
 }
 
+// How the two barriers of barrier absolute return stand: each as an underlier level and whether it is reached, and whether either is,
+// which replaces the absolute return with the conditional return.
+export interface BarrierAbsoluteBreakdown {
+  lowerLevel: number
+  upperLevel: number
+  lowerReached: boolean
+  upperReached: boolean
+  reached: boolean
+  // The return on principal paid once a barrier is reached: zero when the note states none.
+  conditionalReturn: number
+}
+
 export interface PaymentBreakdown {
   // The level the return is measured from, as the initial end of the determination produced it.
   initialLevel: number
@@ -390,6 +433,8 @@ export interface PaymentBreakdown {
   // The closes a barrier observed daily reads. Undefined unless the barrier of that direction is observed daily.
   lowestClose?: number
   highestClose?: number
+  // Undefined unless the payoff is barrier absolute return.
+  barrierAbsolute?: BarrierAbsoluteBreakdown
   // Undefined when the note has no absolute return. Otherwise whether the fall is paid as a gain: within the buffer, or ending
   // at or above the barrier.
   absoluteReturnApplies?: boolean
@@ -446,7 +491,18 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
   const upsideBarrier = upsideOf(note)?.barrier
   const upsideBarrierLevel = upsideBarrier === undefined ? undefined : barrierLevelAt(upsideBarrier.level, levels.initial)
   const upsideBarrierReached = upsideBarrierLevel === undefined ? undefined : (upsideBarrier!.observation === 'daily-close' ? highestClose : levels.final) > upsideBarrierLevel
-  const participatedReturn = absoluteReturnApplies ? absoluteReturn!.rate * -underlierReturn
+  // Barrier absolute return: each barrier reads its own observed level, strictly beyond its level, and either one ends the absolute return.
+  const bothWays = note.payoff.barrierAbsoluteReturn
+  let barrierAbsolute: BarrierAbsoluteBreakdown | undefined
+  if (bothWays !== undefined) {
+    const lowerLevel = barrierLevelAt(bothWays.lowerBarrier.level, levels.initial)
+    const upperLevel = barrierLevelAt(bothWays.upperBarrier.level, levels.initial)
+    const lowerReached = (bothWays.lowerBarrier.observation === 'daily-close' ? lowestClose : levels.final) < lowerLevel
+    const upperReached = (bothWays.upperBarrier.observation === 'daily-close' ? highestClose : levels.final) > upperLevel
+    barrierAbsolute = { lowerLevel, upperLevel, lowerReached, upperReached, reached: lowerReached || upperReached, conditionalReturn: bothWays.conditionalReturn ?? 0 }
+  }
+  const participatedReturn = barrierAbsolute !== undefined ? (barrierAbsolute.reached ? barrierAbsolute.conditionalReturn : bothWays!.rate * Math.abs(underlierReturn))
+    : absoluteReturnApplies ? absoluteReturn!.rate * -underlierReturn
     : barrierHolds ? 0
     : upsideBarrierReached ? upsideBarrier!.rebate ?? 0
     : (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0))
@@ -468,8 +524,9 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
     barrierReached,
     upsideBarrierLevel,
     upsideBarrierReached,
-    lowestClose: barrier?.observation === 'daily-close' ? lowestClose : undefined,
-    highestClose: upsideBarrier?.observation === 'daily-close' ? highestClose : undefined,
+    lowestClose: barrier?.observation === 'daily-close' || bothWays?.lowerBarrier.observation === 'daily-close' ? lowestClose : undefined,
+    highestClose: upsideBarrier?.observation === 'daily-close' || bothWays?.upperBarrier.observation === 'daily-close' ? highestClose : undefined,
+    barrierAbsolute,
     absoluteReturnApplies,
     participationRate,
     participatedReturn,
