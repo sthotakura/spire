@@ -117,3 +117,33 @@ describe('payoff chart labels with barriers observed on every close', () => {
     expect(payoffLabels(productWith([down()], { barrier: 0.7 })).breach).toBeUndefined()
   })
 })
+
+describe('payoff chart labels with barrier absolute return', () => {
+  const bothWays = (terms: { conditionalReturn?: number; upper?: 'final' | 'daily-close'; lower?: 'final' | 'daily-close' } = {}): Product => ({
+    ...startingProduct,
+    payoff: {
+      participations: [],
+      barrierAbsoluteReturn: { rate: 1, lowerBarrier: { level: 0.8, observation: terms.lower ?? 'daily-close' }, upperBarrier: { level: 1.25, observation: terms.upper ?? 'daily-close' }, conditionalReturn: 'conditionalReturn' in terms ? terms.conditionalReturn : 0.02 },
+    },
+  })
+
+  it('says what the absolute return adds, and what is paid beyond each barrier', () => {
+    expect(payoffLabels(bothWays())).toMatchObject({
+      'absolute-return': 'Each 1% move, up or down, adds 1%',
+      'event-below': 'Below −20% it pays a fixed 1,020',
+      'event-above': 'Above +25% it pays a fixed 1,020',
+    })
+  })
+
+  it('says nothing is added beyond a barrier when there is no conditional return', () => {
+    const labels = payoffLabels(bothWays({ conditionalReturn: undefined }))
+    expect(labels['event-below']).toBe('Below −20% it adds nothing')
+    expect(labels['event-above']).toBe('Above +25% it adds nothing')
+  })
+
+  it('labels the other path when a barrier is observed on every close, and only then', () => {
+    expect(payoffLabels(bothWays()).breach).toBe('If a close went beyond a barrier, it pays a fixed 1,020, even after a return inside the range')
+    expect(payoffLabels(bothWays({ lower: 'final', upper: 'final' })).breach).toBeUndefined()
+    expect(payoffLabels(bothWays({ lower: 'final' })).breach).toBeDefined()
+  })
+})

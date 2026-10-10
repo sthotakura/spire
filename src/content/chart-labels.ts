@@ -12,7 +12,8 @@ const perPoint = (rate: number) => Number.isFinite(rate) ? `${rate.toLocaleStrin
 // `upside-barrier` labels the piece an upside barrier sets. It is the barrier concept, but a note can also have a barrier on
 // downside participation, and each piece needs its own label.
 // `breach` labels the dashed line a barrier observed on every close adds: the payment had the barrier been reached on an earlier close.
-export type PayoffLabelKey = ConceptId | 'lowest' | 'upside-barrier' | 'breach'
+// `event-below` and `event-above` label the flat pieces barrier absolute return pays beyond each barrier.
+export type PayoffLabelKey = ConceptId | 'lowest' | 'upside-barrier' | 'breach' | 'event-below' | 'event-above'
 
 export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, string>> {
   const labels: Partial<Record<PayoffLabelKey, string>> = {}
@@ -22,6 +23,15 @@ export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, s
   const { principalProtection, minimumReturn } = product.payoff
 
   labels.payoff = `Repays principal ${amount(principal)}`
+  // Barrier absolute return pays the absolute return between the barriers and a fixed return beyond them.
+  const bothWays = product.payoff.barrierAbsoluteReturn
+  if (bothWays !== undefined) {
+    const fixed = bothWays.conditionalReturn !== undefined && bothWays.conditionalReturn > 0 ? `pays a fixed ${amount(principal * (1 + bothWays.conditionalReturn))}` : 'adds nothing'
+    labels['absolute-return'] = `Each 1% move, up or down, adds ${perPoint(bothWays.rate)}`
+    labels['event-below'] = `Below −${percent(1 - bothWays.lowerBarrier.level)} it ${fixed}`
+    labels['event-above'] = `Above +${percent(bothWays.upperBarrier.level - 1)} it ${fixed}`
+    if (bothWays.lowerBarrier.observation === 'daily-close' || bothWays.upperBarrier.observation === 'daily-close') labels.breach = `If a close went beyond a barrier, it ${fixed}, even after a return inside the range`
+  }
   if (upside) {
     const barrier = upside.barrier
     labels.upside = `Each 1% rise${barrier === undefined ? '' : ` up to +${percent(barrier.level - 1)}`} adds ${perPoint(upside.rate)}`

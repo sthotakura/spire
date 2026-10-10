@@ -608,9 +608,9 @@ const chartHighlight = computed(() => ({
 // A feature is selected when the reader picks one part of the payoff rather than the whole of it, which is selected at rest.
 const featureSelected = computed(() => selected.value !== 'payoff')
 // Each regime is drawn in its concept's colour and labelled with what that concept does.
-const regimeConcept = computed<Record<Regime, ConceptId>>(() => ({ principal: 'payoff', buffer: 'buffer', barrier: 'barrier', 'upside-barrier': 'barrier', absolute: 'absolute-return', downside: 'downside', upside: 'upside', floor: floorConcept.value, cap: 'cap' }))
+const regimeConcept = computed<Record<Regime, ConceptId>>(() => ({ principal: 'payoff', buffer: 'buffer', barrier: 'barrier', 'upside-barrier': 'barrier', 'event-below': 'barrier', 'event-above': 'barrier', absolute: 'absolute-return', downside: 'downside', upside: 'upside', floor: floorConcept.value, cap: 'cap' }))
 // The order labels claim space in, after the selected feature's: the features that bend the line first, principal last.
-const labelPriority: ReadonlyArray<PayoffLabelKey> = ['cap', 'absolute-return', 'buffer', 'barrier', 'upside-barrier', 'breach', 'protection', 'minimum-return', 'downside', 'upside', 'lowest', 'payoff']
+const labelPriority: ReadonlyArray<PayoffLabelKey> = ['cap', 'absolute-return', 'buffer', 'barrier', 'upside-barrier', 'event-below', 'event-above', 'breach', 'protection', 'minimum-return', 'downside', 'upside', 'lowest', 'payoff']
 // A change of the underlier, as the axis and the bubble show it: +30%, −5%, 0%.
 const changeText = (change: number) => Math.abs(change) < 5e-4 ? '0%' : signedPercent(change)
 const chart = computed(() => {
@@ -722,7 +722,7 @@ const chart = computed(() => {
   const longest = new Map<PayoffLabelKey, RegimeRun>()
   for (const run of runs) {
     // An upside barrier is the barrier concept, but its piece has its own label beside the barrier on downside participation.
-    const key: PayoffLabelKey = run.regime === 'upside-barrier' ? 'upside-barrier' : regimeConcept.value[run.regime]
+    const key: PayoffLabelKey = run.regime === 'upside-barrier' || run.regime === 'event-below' || run.regime === 'event-above' ? run.regime : regimeConcept.value[run.regime]
     const current = longest.get(key)
     if (texts[key] && (!current || run.end - run.start > current.end - current.start)) longest.set(key, run)
   }
@@ -755,7 +755,7 @@ const chart = computed(() => {
     lines: requests.find(({ id }) => id === label.id)?.lines ?? [],
     from: leaderStart(label),
     // The lowest payment is where downside participation ends, so it belongs to it.
-    concept: (label.id === 'lowest' ? 'downside' : label.id === 'upside-barrier' || label.id === 'breach' ? 'barrier' : label.id) as ConceptId,
+    concept: (label.id === 'lowest' ? 'downside' : label.id === 'upside-barrier' || label.id === 'event-below' || label.id === 'event-above' || label.id === 'breach' ? 'barrier' : label.id) as ConceptId,
   }))
   return {
     axis,

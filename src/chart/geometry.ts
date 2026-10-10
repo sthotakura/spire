@@ -111,13 +111,14 @@ export const keyDelta = (key: string, shift: boolean, step: number): number | nu
 }
 
 // The rule that sets the payment at a final level. The line is drawn in one colour per rule, so the reader can see which one binds where.
-export type Regime = 'principal' | 'buffer' | 'barrier' | 'upside-barrier' | 'absolute' | 'downside' | 'upside' | 'floor' | 'cap'
+// Barrier absolute return adds two: the fixed return paid when the final level is itself below the lower barrier, and above the upper one.
+export type Regime = 'principal' | 'buffer' | 'barrier' | 'upside-barrier' | 'absolute' | 'downside' | 'upside' | 'floor' | 'cap' | 'event-below' | 'event-above'
 
 // A fall the buffer absorbs in full leaves principal unchanged, but it is the buffer, not the absence of participation, that holds the payment there.
 // A fall that ends at or above a barrier is held at principal by the barrier in the same way. A fall within the buffer that
 // absolute return pays as a gain is absolute return's. A rise that reaches an upside barrier is paid the rebate, or principal,
 // by that barrier, which is the same concept as the barrier on downside participation but a different piece of the line.
-export const regimeOf = (b: PaymentBreakdown): Regime => b.floorApplies ? 'floor' : b.capApplies ? 'cap' : b.absoluteReturnApplies ? 'absolute' : b.participationRate === undefined ? 'principal'
+export const regimeOf = (b: PaymentBreakdown): Regime => b.barrierAbsolute ? (b.barrierAbsolute.reached ? (b.barrierAbsolute.lowerReached ? 'event-below' : 'event-above') : 'absolute') : b.floorApplies ? 'floor' : b.capApplies ? 'cap' : b.absoluteReturnApplies ? 'absolute' : b.participationRate === undefined ? 'principal'
   : b.direction === 'downside' && b.barrierReached === false ? 'barrier'
     : b.direction === 'upside' && b.upsideBarrierReached ? 'upside-barrier'
       : b.direction === 'downside' && b.bufferAbsorbs && b.participatedReturn === 0 ? 'buffer' : b.direction
@@ -139,6 +140,12 @@ export const jumpsOf = (product: Product, initialLevel: number): Jump[] => {
   else if (downside?.absoluteReturn !== undefined && downside.buffer !== undefined) jumps.push({ level: bufferLevel(initialLevel, downside.buffer), paysAbove: true })
   const upsideBarrier = upsideOf(product)?.barrier
   if (upsideBarrier !== undefined) jumps.push({ level: barrierLevelAt(upsideBarrier.level, initialLevel), paysAbove: false })
+  // Barrier absolute return jumps at each barrier: the lower barrier is reached only below its level, so its level pays the absolute
+  // return like the samples above it, and the upper barrier is reached only above its level, so its level pays like those below it.
+  const bothWays = product.payoff.barrierAbsoluteReturn
+  if (bothWays !== undefined) {
+    jumps.push({ level: barrierLevelAt(bothWays.lowerBarrier.level, initialLevel), paysAbove: true }, { level: barrierLevelAt(bothWays.upperBarrier.level, initialLevel), paysAbove: false })
+  }
   return jumps
 }
 
@@ -149,6 +156,18 @@ export const jumpLevelsOf = (product: Product, initialLevel: number): number[] =
 // barrier it is the lowest close at zero, and for an upside barrier the highest close just above the barrier level, or above the
 // initial and final levels if they are higher.
 export function reachedPayment(product: Product, levels: DeterminedLevels): number | undefined {
+  // Barrier absolute return: a barrier observed daily is taken as reached, so the other path is the fixed return at every final level.
+  const bothWays = product.payoff.barrierAbsoluteReturn
+  if (bothWays !== undefined) {
+    const lowerDaily = bothWays.lowerBarrier.observation === 'daily-close'
+    const upperDaily = bothWays.upperBarrier.observation === 'daily-close'
+    if (!lowerDaily && !upperDaily) return undefined
+    return maturityPayment(product, {
+      ...levels,
+      lowestClose: lowerDaily ? 0 : undefined,
+      highestClose: upperDaily ? Math.max(levels.initial, levels.final, barrierLevelAt(bothWays.upperBarrier.level, levels.initial) * (1 + 1e-9)) : undefined,
+    })
+  }
   if (downsideOf(product)?.barrier?.observation === 'daily-close') return maturityPayment(product, { ...levels, lowestClose: 0 })
   const upsideBarrier = upsideOf(product)?.barrier
   if (upsideBarrier?.observation !== 'daily-close') return undefined

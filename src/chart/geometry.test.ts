@@ -418,3 +418,51 @@ describe('barrier observed on every close', () => {
     })
   })
 })
+
+describe('barrier absolute return on the chart', () => {
+  // The worked example in docs/barrier-absolute-return.md: a lower barrier at 80% and an upper barrier at 125%, a 2% conditional return.
+  const bothWays = (lower: 'final' | 'daily-close' = 'daily-close', upper: 'final' | 'daily-close' = 'daily-close'): Product => ({
+    ...startingProduct,
+    payoff: { participations: [], barrierAbsoluteReturn: { rate: 1, lowerBarrier: { level: 0.8, observation: lower }, upperBarrier: { level: 1.25, observation: upper }, conditionalReturn: 0.02 } },
+  })
+  const regimeAt = (n: Product, level: number) => regimeOf(paymentBreakdown(n, { initial: 100, final: level }))
+
+  it('names the absolute return between the barriers, and the fixed return beyond each', () => {
+    expect([60, 79.99].map((level) => regimeAt(bothWays(), level))).toEqual(['event-below', 'event-below'])
+    expect([80, 100, 125].map((level) => regimeAt(bothWays(), level))).toEqual(['absolute', 'absolute', 'absolute'])
+    expect([125.01, 150].map((level) => regimeAt(bothWays(), level))).toEqual(['event-above', 'event-above'])
+  })
+
+  it('names the regime from the barrier reached, whichever way each is observed', () => {
+    expect(regimeAt(bothWays('final', 'final'), 70)).toBe('event-below')
+    expect(regimeAt(bothWays('final', 'daily-close'), 130)).toBe('event-above')
+  })
+
+  it('finds a jump at each barrier, with the lower level paying like the samples above it and the upper like those below it', () => {
+    expect(jumpsOf(bothWays(), 100)).toEqual([{ level: 80, paysAbove: true }, { level: 125, paysAbove: false }])
+    expect(jumpsOf(bothWays(), 80)).toEqual([{ level: 64, paysAbove: true }, { level: 100, paysAbove: false }])
+    // The level pays the absolute return, and a level just beyond it pays the fixed return.
+    expect(maturityPayment(bothWays(), { initial: 100, final: 80 })).toBeCloseTo(1200, 8)
+    expect(maturityPayment(bothWays(), { initial: 100, final: 80 * (1 - 1e-9) })).toBeCloseTo(1020, 8)
+    expect(maturityPayment(bothWays(), { initial: 100, final: 125 })).toBeCloseTo(1250, 8)
+    expect(maturityPayment(bothWays(), { initial: 100, final: 125 * (1 + 1e-9) })).toBeCloseTo(1020, 8)
+  })
+
+  it('draws the other path as the fixed return at every final level, when a barrier is observed on every close', () => {
+    for (const final of [0, 50, 90, 100, 110, 126, 200]) expect(reachedPayment(bothWays(), { initial: 100, final })).toBeCloseTo(1020, 8)
+    expect(reachedPayment(bothWays('daily-close', 'final'), { initial: 100, final: 110 })).toBeCloseTo(1020, 8)
+    expect(reachedPayment(bothWays('final', 'daily-close'), { initial: 100, final: 110 })).toBeCloseTo(1020, 8)
+  })
+
+  it('has no other path when both barriers are read on the final date', () => {
+    expect(reachedPayment(bothWays('final', 'final'), { initial: 100, final: 110 })).toBeUndefined()
+  })
+
+  it('finds where the two paths differ: between the barriers, and not beyond them', () => {
+    const note = bothWays()
+    const levels = [0, 50, 79.99, 80, 100, 125, 125.01, 150]
+    const main = levels.map((final) => maturityPayment(note, { initial: 100, final }))
+    const reached = levels.map((final) => reachedPayment(note, { initial: 100, final })!)
+    expect(differingRuns(main, reached, 1e-6)).toEqual([{ start: 2, end: 6 }])
+  })
+})
