@@ -299,8 +299,8 @@ export function productIssues(note: Product): ProductIssue[] {
     if (cap !== undefined) issues.push({ field: 'upsideBarrier', message: 'An upside barrier and a cap cannot both apply to upside participation.' })
     if (upsideBarrier.observation === 'daily-close') {
       if (!dailyCloseAllowedOn(note.underlier)) issues.push({ field: 'upsideBarrier', message: 'An upside barrier cannot be observed daily with lookback or a basket.' })
-      // Reached before a fall, the rebate could be paid beside a downside fall, and no public note was found that does both.
-      if (downsideOf(note) !== undefined) issues.push({ field: 'upsideBarrier', message: 'An upside barrier observed daily needs a note with no downside participation.' })
+      // With downside participation too, an early breach ends only the upside term; the downside term still reads the final return.
+      // No public note was found with this combination. It is allowed as a combination of parts that are each defined (docs/daily-observation.md).
     }
   }
   const bothWays = note.payoff.barrierAbsoluteReturn
@@ -441,6 +441,11 @@ export interface PaymentBreakdown {
   // Undefined when that direction has no participation, so principal is unchanged.
   participationRate?: number
   participatedReturn: number
+  // The two sides of the participated return, which add up to it. The upside term is the participated rise, or the rebate once the
+  // upside barrier is reached; the downside term is the fall's gain or loss. Either can be non-zero beside the other when an upside
+  // barrier observed daily was reached before a fall, so each is stated on its own.
+  upsideTerm: number
+  downsideTerm: number
   // Principal plus the participated return, before any cap or floor.
   uncappedPayment: number
   // Undefined when the note has no cap. Otherwise principal plus the maximum return. It limits upside participation only.
@@ -487,7 +492,7 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
   const absoluteReturnApplies = absoluteReturn === undefined ? undefined
     : direction === 'downside' && (buffer !== undefined ? levels.final >= levels.initial * (1 - buffer) : barrierReached === false)
   // Observed on the final date, reaching the upside barrier means a rise, so the downside features above cannot also apply.
-  // Observed daily it can be reached before a fall, which is why only a note with no downside participation may observe it so.
+  // Observed daily it can be reached before a fall, so the two sides each keep their own term: see upsideTerm and downsideTerm below.
   const upsideBarrier = upsideOf(note)?.barrier
   const upsideBarrierLevel = upsideBarrier === undefined ? undefined : barrierLevelAt(upsideBarrier.level, levels.initial)
   const upsideBarrierReached = upsideBarrierLevel === undefined ? undefined : (upsideBarrier!.observation === 'daily-close' ? highestClose : levels.final) > upsideBarrierLevel
@@ -501,11 +506,13 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
     const upperReached = (bothWays.upperBarrier.observation === 'daily-close' ? highestClose : levels.final) > upperLevel
     barrierAbsolute = { lowerLevel, upperLevel, lowerReached, upperReached, reached: lowerReached || upperReached, conditionalReturn: bothWays.conditionalReturn ?? 0 }
   }
+  // The upside term is the rebate, or nothing, once the upside barrier is reached, and the participated rise otherwise. The downside
+  // term is the fall's gain, nothing when the downside barrier holds, or the participated fall. Each side keeps its own rule, so an
+  // upside barrier observed daily and reached early ends the upside whatever the final level, and a fall still gets its downside term.
+  const upsideTerm = upsideBarrierReached ? upsideBarrier!.rebate ?? 0 : direction === 'upside' ? (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0)) : 0
+  const downsideTerm = direction !== 'downside' ? 0 : absoluteReturnApplies ? absoluteReturn!.rate * -underlierReturn : barrierHolds ? 0 : (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0))
   const participatedReturn = barrierAbsolute !== undefined ? (barrierAbsolute.reached ? barrierAbsolute.conditionalReturn : bothWays!.rate * Math.abs(underlierReturn))
-    : absoluteReturnApplies ? absoluteReturn!.rate * -underlierReturn
-    : barrierHolds ? 0
-    : upsideBarrierReached ? upsideBarrier!.rebate ?? 0
-    : (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0))
+    : upsideTerm + downsideTerm
   const uncappedPayment = note.principalAmount * (1 + participatedReturn)
   // The cap limits upside participation only, so a fall paid as a gain is not capped. A cap is above any floor: protection
   // cannot exceed principal, and a minimum return must be below the cap. The order of the two cannot change the result.
@@ -530,6 +537,8 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
     absoluteReturnApplies,
     participationRate,
     participatedReturn,
+    upsideTerm,
+    downsideTerm,
     uncappedPayment,
     capAmount,
     capApplies,

@@ -13,7 +13,8 @@ const perPoint = (rate: number) => Number.isFinite(rate) ? `${rate.toLocaleStrin
 // downside participation, and each piece needs its own label.
 // `breach` labels the dashed line a barrier observed on every close adds: the payment had the barrier been reached on an earlier close.
 // `event-below` and `event-above` label the flat pieces barrier absolute return pays beyond each barrier.
-export type PayoffLabelKey = ConceptId | 'lowest' | 'upside-barrier' | 'breach' | 'event-below' | 'event-above'
+// `upside-breach` is the label for an upside barrier's other path when a downside barrier has one too, so each side says its own.
+export type PayoffLabelKey = ConceptId | 'lowest' | 'upside-barrier' | 'breach' | 'upside-breach' | 'event-below' | 'event-above'
 
 export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, string>> {
   const labels: Partial<Record<PayoffLabelKey, string>> = {}
@@ -40,7 +41,7 @@ export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, s
     if (barrier !== undefined) {
       const fixed = barrier.rebate === undefined ? 'adds nothing' : `pays a fixed ${amount(principal * (1 + barrier.rebate))}`
       labels['upside-barrier'] = barrier.rebate === undefined ? `Above +${percent(barrier.level - 1)} a rise adds nothing` : `Above +${percent(barrier.level - 1)} it pays a fixed ${amount(principal * (1 + barrier.rebate))}`
-      if (barrier.observation === 'daily-close') labels.breach = `If a close went above +${percent(barrier.level - 1)}, it ${fixed}, even after a fall`
+      if (barrier.observation === 'daily-close') labels[downside?.barrier?.observation === 'daily-close' ? 'upside-breach' : 'breach'] = `If a close went above +${percent(barrier.level - 1)}, it ${fixed}, even after a fall`
     }
     // The horizontal axis ends at +100%. A cap reached beyond it is said where it is reached.
     if (upside.cap !== undefined) {

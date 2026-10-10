@@ -1070,9 +1070,9 @@ describe('daily close observation', () => {
       expect(productIssues(withDownside(finalDownside, { absoluteReturn: { rate: 0.5 } }))).toEqual([])
     })
 
-    it('does not allow an upside barrier with downside participation', () => {
+    it('allows an upside barrier with downside participation, on either observation', () => {
       const both = (observation: 'final' | 'daily-close') => ({ ...note, payoff: { ...note.payoff, participations: [{ direction: 'downside' as const, rate: 1 }, ...finnedAt(observation).payoff.participations] } })
-      expect(productIssues(both('daily-close'))).toEqual([{ field: 'upsideBarrier', message: 'An upside barrier observed daily needs a note with no downside participation.' }])
+      expect(productIssues(both('daily-close'))).toEqual([])
       expect(productIssues(both('final'))).toEqual([])
     })
   })
@@ -1240,5 +1240,78 @@ describe('barrier absolute return', () => {
       }
       expect(productIssues(basket)).toEqual([{ field: 'barrierAbsoluteReturn', message: needsSingle }])
     })
+  })
+})
+
+describe('daily upside barrier with downside participation', () => {
+  // Allowed as a combination of parts that are each defined; no public note was found with it (docs/daily-observation.md). Each side
+  // keeps its own term: an early upside breach ends only the upside, and the downside term reads the final return as it always does.
+  const noProtection = { ...note, payoff: { ...note.payoff, principalProtection: undefined } }
+  const bothSides = (downside: Partial<DownsideParticipation>, upsideRebate?: number, upsideObservation: 'final' | 'daily-close' = 'daily-close'): SingleProduct =>
+    withUpside(withDownside(noProtection, { rate: 1, ...downside }), { rate: 0.8, barrier: { level: 1.3, observation: upsideObservation, rebate: upsideRebate } })
+  const downsideBarrier = (observation: 'final' | 'daily-close' = 'daily-close') => ({ barrier: { level: 0.7, observation } })
+
+  describe('with a downside barrier and no rebate', () => {
+    const product = bothSides(downsideBarrier())
+
+    it.each([
+      [100, 100, 100, 1000],
+      [120, 100, 120, 1160],
+      [120, 100, 135, 1000],
+      [90, 90, 135, 1000],
+      [90, 65, 135, 900],
+      [90, 65, 100, 900],
+      [65, 65, 100, 650],
+      [65, 65, 135, 650],
+    ])('pays final level %s after a lowest close of %s and a highest close of %s as %s', (final, lowestClose, highestClose, expected) => {
+      expect(maturityPayment(product, { initial: 100, final, lowestClose, highestClose })).toBeCloseTo(expected, 8)
+    })
+
+    it('reports both barriers, each from its own close', () => {
+      expect(paymentBreakdown(product, { initial: 100, final: 90, lowestClose: 65, highestClose: 135 })).toMatchObject({ barrierReached: true, upsideBarrierReached: true, lowestClose: 65, highestClose: 135 })
+    })
+  })
+
+  describe('with a rebate', () => {
+    const product = bothSides(downsideBarrier(), 0.02)
+
+    it('adds the rebate to the downside term, since each side keeps its own rule', () => {
+      expect(maturityPayment(product, { initial: 100, final: 120, highestClose: 135 })).toBeCloseTo(1020, 8)
+      expect(maturityPayment(product, { initial: 100, final: 90, lowestClose: 90, highestClose: 135 })).toBeCloseTo(1020, 8)
+      expect(maturityPayment(product, { initial: 100, final: 90, lowestClose: 65, highestClose: 135 })).toBeCloseTo(920, 8)
+      expect(maturityPayment(product, { initial: 100, final: 65, lowestClose: 65, highestClose: 135 })).toBeCloseTo(670, 8)
+    })
+
+    it('pays no rebate when the upside barrier was not reached', () => {
+      expect(maturityPayment(product, { initial: 100, final: 90, lowestClose: 65 })).toBeCloseTo(900, 8)
+    })
+  })
+
+  it('applies plain downside participation after an early upside breach, with no downside barrier', () => {
+    const product = bothSides({})
+    expect(maturityPayment(product, { initial: 100, final: 90, highestClose: 135 })).toBeCloseTo(900, 8)
+    expect(maturityPayment(product, { initial: 100, final: 120, highestClose: 135 })).toBeCloseTo(1000, 8)
+    expect(maturityPayment(product, { initial: 100, final: 120, highestClose: 125 })).toBeCloseTo(1160, 8)
+  })
+
+  it('reads a downside barrier on the final date beside a daily upside barrier', () => {
+    const product = bothSides(downsideBarrier('final'))
+    expect(maturityPayment(product, { initial: 100, final: 90, lowestClose: 65, highestClose: 135 })).toBeCloseTo(1000, 8)
+    expect(maturityPayment(product, { initial: 100, final: 65, lowestClose: 65, highestClose: 135 })).toBeCloseTo(650, 8)
+  })
+
+  it('leaves the payment unchanged for the cases that could be written before', () => {
+    // A daily upside barrier with no downside participation still pays the rebate after a fall back.
+    const finned = withUpside({ ...note, payoff: { ...note.payoff, participations: [{ direction: 'upside', rate: 1.5 }] } }, { rate: 0.8, barrier: { level: 1.3, observation: 'daily-close', rebate: 0.02 } })
+    expect(maturityPayment(finned, { initial: 100, final: 90, highestClose: 135 })).toBeCloseTo(1020, 8)
+    // A downside barrier with an upside barrier read on the final date is as it was.
+    const finalDate = bothSides(downsideBarrier('final'), 0.02, 'final')
+    expect(maturityPayment(finalDate, { initial: 100, final: 140 })).toBeCloseTo(1020, 8)
+    expect(maturityPayment(finalDate, { initial: 100, final: 65 })).toBeCloseTo(650, 8)
+  })
+
+  it('still cannot be observed daily with lookback or a basket', () => {
+    const lookback: SingleProduct = { ...bothSides(downsideBarrier()), underlier: { ...note.underlier, determination: { initial: { kind: 'lookback', observationCount: 3 }, final: { kind: 'final-date' } } } }
+    expect(productIssues(lookback).map(({ field }) => field)).toContain('upsideBarrier')
   })
 })

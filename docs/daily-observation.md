@@ -49,7 +49,7 @@ The simplest version first; the rest waits for a verified public note.
 
 - **Allowed with:** a single underlier, a given initial level, and either final method. With averaging, the payment checks the closes against the final level (the average); keeping the lowest close at or below every averaged level, and the highest at or above, is the interface's job when it edits the scenario.
 - **Unavailable with:** lookback, a basket, and absolute return. Lookback and basket have no verified public daily note. The public trigger note that supports absolute return reads its barrier on the final date.
-- **Upside barrier needs no downside participation.** If the highest close reached the barrier and the final level then fell, the rebate and a downside fall could both apply, which no public note was found to do. Daily observation on an upside barrier is unavailable while the note has downside participation. This can be relaxed later.
+- **A daily upside barrier may be combined with downside participation.** This was first excluded, because no public note with the combination was found. It was then allowed deliberately, as a combination of parts that are each defined, on the principle that financially coherent combinations are allowed but their consequences are stated, never invented silently. Each side keeps its own rule. An upside barrier reached on any close ends upside participation, and pays the rebate if there is one, whatever the final level. Downside participation still reads the final return as it always does: the whole fall if its barrier is reached, none if the barrier holds, or past the buffer. The payment is the sum of the two terms, so with a rebate a note can pay the rebate and a downside loss together. Example: principal 1,000, a 70% downside barrier at 100% and a 130% upside barrier at 80%, both observed daily, a 2% rebate; a final level of 90 after a lowest close of 65 and a highest close of 135 pays 920, the rebate of 2% less the whole 10% fall. No public note with this combination was found.
 - **Both observations coexist.** Final date remains available for either barrier, so existing notes and tests are unchanged.
 
 ## Consequences
@@ -92,7 +92,7 @@ The last row pays the rebate although the final level fell: the barrier was reac
 
 1. Daily close is added beside Final date, not instead of it.
 2. First version: single underlier, given initial level, either final method. Unavailable with lookback, a basket and absolute return.
-3. An upside barrier observed daily needs a note with no downside participation. Revisit if a public note shows otherwise.
+3. An upside barrier observed daily may be combined with downside participation, with or without a downside barrier and with or without a rebate. It was first excluded and then allowed deliberately; see the scope above for what each side does, and the note that no public note shows it.
 4. The downside barrier is reached strictly below its level and the upside barrier strictly above it. The upside rule was first at or above and changed to strictly above after a public filing was cited (open question 1).
 5. "Shark fin" names show for either observation, because the name follows the payoff diagram.
 6. The period starts at pricing. Whether it starts on the pricing date or the issue date is a minor detail for this project and is not modelled.
@@ -115,6 +115,7 @@ All five steps are done. The model, the worked examples (each row is a domain te
 - **The rename.** `belowBarrier` in the payment breakdown became `barrierReached`, since it no longer means only the final level. The breakdown also reports `lowestClose` or `highestClose` for a barrier observed daily.
 - **The extra scenario row** (`afterBreach`) puts the final level halfway between the barrier and the initial level, with a close 5% of the initial level past the barrier. It stays beside the row at that final level that never reached the barrier.
 - **Unavailable combinations** are blocked in both directions in the interface, with the reason in the option label, and rejected by validation.
+- **Both barriers daily.** The payment adds an upside term and a downside term (`upsideTerm` and `downsideTerm` in the breakdown), so the calculation, the outcome sentence and the scenario cells each state a side's own term and not the net. The chart's dashed other path takes every daily barrier as reached, which gives two stretches that meet at the initial level, labelled separately.
 - **Strictly above.** With the upside barrier reached only strictly above its level, the level itself pays the participation, so the barrier row of the scenario table pays the largest payment, a second row just above it ("above barrier") shows the rebate, the chart's filled mark is the lower end of the drop, and a highest close exactly at the barrier does not reach it.
 - **Not yet checked in the running app:** narrow screens, keyboard use, the scenario table, averaging, deposits, and dragging the final-level handle with a close set.
 
@@ -122,6 +123,6 @@ All five steps are done. The model, the worked examples (each row is a domain te
 
 1. **The upside barrier test.** Decided: strictly above. The only public source cited ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/19617/000161577418007603/s111907_424b2.htm)) says strictly greater than for its upper barrier. A public shark fin term sheet may differ; revisit if one is found.
 2. **Closing levels.** Both cited notes compare closing levels on any day in the period, not intraday levels. Other notes may monitor differently (one product supplement allows intraday or weekly monitoring, per [barrier.md](barrier.md)).
-3. **Rebate with a fall and a downside feature.** Not modelled; the first version excludes the combination.
+3. **Rebate with a fall and a downside feature.** Allowed, with the consequence stated in the scope above: the rebate and the downside term are added. No public note shows it, so the combination rests on each part being defined on its own.
 4. **Lookback and basket.** Whether the period and the extreme apply to a lookback level or a basket level, and how.
 5. **Dates.** A coupon or call observed on stated dates still needs [observation-dates.md](observation-dates.md); the extreme close does not replace it.

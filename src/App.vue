@@ -224,7 +224,6 @@ const dailySelected = computed(() => lowestCloseWanted.value || highestCloseWant
 const dailyBlockedReason = (direction: ParticipationDirection) => {
   if (lookingBack.value || isBasket.value) return 'Not with lookback or a basket'
   if (direction === 'downside' && absoluteSelected.value) return 'Not with absolute return'
-  if (direction === 'upside' && selectedParticipation.downside) return 'Not with downside participation'
   return null
 }
 const minimumSelected = ref(false)
@@ -264,7 +263,6 @@ const blockedReason = (id: FeatureId) => {
   if (id === 'rebate' && !upsideBarrierSelected.value) return 'Needs an upside barrier'
   if (id === 'absolute-return' && !bufferSelected.value && !barrierSelected.value) return 'Needs a buffer or downside barrier'
   if (id === 'absolute-return' && dailyDownside.value) return 'Not with a daily downside barrier'
-  if (id === 'downside' && dailyUpside.value) return 'Not with a daily upside barrier'
   return null
 }
 // Why a wrapper cannot be chosen, or null when it can. Switching never removes the reader's terms, so a wrapper is
@@ -513,9 +511,9 @@ const scenarios = computed(() => !initialValid.value ? [] : scenarioRows(note.va
   calculations: Object.fromEntries(selectedDirections.value.map((direction) => [
     direction,
     // At or above the upside barrier the rebate, if there is one, replaces upside participation.
-    direction === 'upside' && breakdown.upsideBarrierReached ? (rebateSelected.value ? `rebate ${formatPercent(breakdown.participatedReturn)}` : 'barrier reached')
+    direction === 'upside' && breakdown.upsideBarrierReached ? (rebateSelected.value ? `rebate ${formatPercent(breakdown.upsideTerm)}` : 'barrier reached')
     : returnValue !== 0 && direction === breakdown.direction && breakdown.participationRate !== undefined && !(direction === 'downside' && breakdown.barrierReached === false) && !breakdown.absoluteReturnApplies
-      ? `${formatPercent(breakdown.participationRate)} × ${direction === 'downside' && bufferSelected.value ? `min(${formatPercent(returnValue)} + ${bufferSummary.value}, 0)` : formatPercent(returnValue)} = ${formatPercent(breakdown.participatedReturn)}`
+      ? `${formatPercent(breakdown.participationRate)} × ${direction === 'downside' && bufferSelected.value ? `min(${formatPercent(returnValue)} + ${bufferSummary.value}, 0)` : formatPercent(returnValue)} = ${formatPercent(direction === 'downside' ? breakdown.downsideTerm : breakdown.upsideTerm)}`
       : null,
   ])) as Record<ParticipationDirection, string | null>,
   uncappedPayment: breakdown.uncappedPayment,
@@ -651,7 +649,7 @@ const featureSelected = computed(() => selected.value !== 'payoff')
 // Each regime is drawn in its concept's colour and labelled with what that concept does.
 const regimeConcept = computed<Record<Regime, ConceptId>>(() => ({ principal: 'payoff', buffer: 'buffer', barrier: 'barrier', 'upside-barrier': 'barrier', 'event-below': 'barrier', 'event-above': 'barrier', absolute: 'absolute-return', downside: 'downside', upside: 'upside', floor: floorConcept.value, cap: 'cap' }))
 // The order labels claim space in, after the selected feature's: the features that bend the line first, principal last.
-const labelPriority: ReadonlyArray<PayoffLabelKey> = ['cap', 'absolute-return', 'buffer', 'barrier', 'upside-barrier', 'event-below', 'event-above', 'breach', 'protection', 'minimum-return', 'downside', 'upside', 'lowest', 'payoff']
+const labelPriority: ReadonlyArray<PayoffLabelKey> = ['cap', 'absolute-return', 'buffer', 'barrier', 'upside-barrier', 'event-below', 'event-above', 'breach', 'upside-breach', 'protection', 'minimum-return', 'downside', 'upside', 'lowest', 'payoff']
 // A change of the underlier, as the axis and the bubble show it: +30%, −5%, 0%.
 const changeText = (change: number) => Math.abs(change) < 5e-4 ? '0%' : signedPercent(change)
 const chart = computed(() => {
@@ -780,13 +778,21 @@ const chart = computed(() => {
   if (texts.cap && !anchors.has('cap')) anchors.set('cap', [levels.length - 1])
   // The dashed line is labelled by the middle of its longest stretch, like the pieces of the line.
   const longestBranch = branchRuns.reduce<RegimeRun | null>((best, run) => !best || run.end - run.start > best.end - best.start ? { regime: 'principal', ...run } : best, null)
-  if (texts.breach && longestBranch) anchors.set('breach', along(longestBranch))
+  if (texts['upside-breach'] && texts.breach) {
+    // A barrier on each side observed daily: the dashed line below the initial level is the downside's, and above it the upside's.
+    const branchIndices = branchRuns.flatMap(({ start, end: last }) => Array.from({ length: last - start + 1 }, (_, i) => start + i))
+    const pick = (indices: number[]) => [0.5, 0.25, 0.75].map((share) => indices[Math.min(indices.length - 1, Math.floor(indices.length * share))])
+    const below = branchIndices.filter((i) => levels[i] < initial)
+    const above = branchIndices.filter((i) => levels[i] > initial)
+    if (below.length) anchors.set('breach', pick(below))
+    if (above.length) anchors.set('upside-breach', pick(above))
+  } else if (texts.breach && longestBranch) anchors.set('breach', along(longestBranch))
   const lineHeight = 13 * labelScale.value
   const first = selected.value as PayoffLabelKey
   const order = [...(featureSelected.value && anchors.has(first) ? [first] : []), ...labelPriority.filter((key) => !(featureSelected.value && key === first))]
   const requests = order.filter((key) => anchors.has(key)).map((key) => {
     const lines = wrapWords(texts[key] as string, 26)
-    return { id: key, lines, anchors: (anchors.get(key) as number[]).map((i) => ({ x: x(levels[i]), y: y(key === 'breach' ? branchValues[i] : values[i]) })), width: Math.max(...lines.map((line) => line.length)) * 6.2 * labelScale.value + 6, height: lines.length * lineHeight + 4 }
+    return { id: key, lines, anchors: (anchors.get(key) as number[]).map((i) => ({ x: x(levels[i]), y: y(key === 'breach' || key === 'upside-breach' ? branchValues[i] : values[i]) })), width: Math.max(...lines.map((line) => line.length)) * 6.2 * labelScale.value + 6, height: lines.length * lineHeight + 4 }
   })
   const obstacles: Box[] = [
     { x: plot.left + 4, y: y(principalAmount) + (principalBelow ? 2 : -18 * labelScale.value), width: 20 + labelWidth(`Principal ${formatAmount(principalAmount)}`), height: 16 * labelScale.value },
@@ -801,7 +807,7 @@ const chart = computed(() => {
     lines: requests.find(({ id }) => id === label.id)?.lines ?? [],
     from: leaderStart(label),
     // The lowest payment is where downside participation ends, so it belongs to it.
-    concept: (label.id === 'lowest' ? 'downside' : label.id === 'upside-barrier' || label.id === 'event-below' || label.id === 'event-above' || label.id === 'breach' ? 'barrier' : label.id) as ConceptId,
+    concept: (label.id === 'lowest' ? 'downside' : label.id === 'upside-barrier' || label.id === 'event-below' || label.id === 'event-above' || label.id === 'breach' || label.id === 'upside-breach' ? 'barrier' : label.id) as ConceptId,
   }))
   return {
     axis,

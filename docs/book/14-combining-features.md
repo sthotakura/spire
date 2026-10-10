@@ -31,7 +31,8 @@ an upside barrier on the same upside participation. A barrier on each direction
 can appear on one product, because each switches a different rule. A barrier
 observed on every close is available on a single underlier with a fixed initial
 level. A daily downside barrier cannot be combined with absolute return, and a
-daily upside barrier needs a note with no downside participation. Absolute
+daily upside barrier may be combined with downside participation, each side
+keeping its own rule. Absolute
 return in both directions, with a lower and an upper barrier, is a payoff of its
 own: it replaces participation, so it cannot be combined with a buffer, a cap or
 the absolute return on a fall, nor with a minimum return, lookback, a basket or

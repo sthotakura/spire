@@ -338,3 +338,32 @@ describe('calculation steps with barrier absolute return', () => {
     expect(stepOf(stepsWith(none, 126), 'Payment at maturity')?.value).toBe('1,000')
   })
 })
+
+describe('calculation steps with a daily upside barrier and downside participation', () => {
+  const bothSides = (rebate?: number): SingleProduct => ({
+    ...noteWith([{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 0.8 }]),
+    payoff: { participations: withSubFeatures([{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 0.8 }], {
+      barrier: { level: 0.7, observation: 'daily-close' as const },
+      upsideBarrier: { level: 1.3, observation: 'daily-close' as const, rebate },
+    }) },
+  })
+  const stepsWith = (note: SingleProduct, finalLevel: number, closes: { lowestClose?: number; highestClose?: number }) =>
+    calculationSteps(note, paymentBreakdown(note, { initial: 100, final: finalLevel, ...closes }), [finalLevel], [])
+  const stepOf = (list: ReturnType<typeof stepsWith>, title: string) => list.find((candidate) => candidate.title === title)
+
+  it('shows each side its own term: the rebate on the upside, the loss on the downside, and their sum as the payment', () => {
+    const list = stepsWith(bothSides(0.02), 90, { lowestClose: 65, highestClose: 135 })
+    expect(stepOf(list, 'Rebate')).toMatchObject({ value: '+2%' })
+    expect(stepOf(list, 'Downside participation')).toMatchObject({ value: '−10%' })
+    expect(stepOf(list, 'Upside participation')).toMatchObject({ value: '0%', muted: true })
+    expect(stepOf(list, 'Payment from participation')).toMatchObject({ how: '1,000 × (1 − 8%)', value: '920' })
+    expect(stepOf(list, 'Payment at maturity')?.value).toBe('920')
+  })
+
+  it('shows the downside loss, and an upside that ended, with no rebate', () => {
+    const list = stepsWith(bothSides(), 90, { lowestClose: 65, highestClose: 135 })
+    expect(stepOf(list, 'Downside participation')).toMatchObject({ value: '−10%' })
+    expect(stepOf(list, 'Upside barrier')).toMatchObject({ how: '130% × 100 · highest close 135 is above it, so upside participation ends' })
+    expect(stepOf(list, 'Payment at maturity')?.value).toBe('900')
+  })
+})

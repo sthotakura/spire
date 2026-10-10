@@ -466,3 +466,40 @@ describe('barrier absolute return on the chart', () => {
     expect(differingRuns(main, reached, 1e-6)).toEqual([{ start: 2, end: 6 }])
   })
 })
+
+describe('barriers observed on every close on both sides', () => {
+  // A daily barrier on each side: 70% below, 130% above, no rebate. Each side differs from the line over its own final levels.
+  const bothSides = (rebate?: number): Product => ({
+    ...startingProduct,
+    payoff: {
+      participations: withSubFeatures([{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 0.8 }], {
+        barrier: { level: 0.7, observation: 'daily-close' },
+        upsideBarrier: { level: 1.3, observation: 'daily-close', rebate },
+      }),
+    },
+  })
+
+  it('draws one other path with each barrier taken as reached', () => {
+    // Below the initial level the fall counts whole, above it the upside has ended. A rise is paid principal, a fall its loss.
+    expect(reachedPayment(bothSides(), { initial: 100, final: 85 })).toBeCloseTo(850, 8)
+    expect(reachedPayment(bothSides(), { initial: 100, final: 120 })).toBeCloseTo(1000, 8)
+    expect(reachedPayment(bothSides(), { initial: 100, final: 50 })).toBeCloseTo(500, 8)
+  })
+
+  it('finds the two sides differ over different final levels, and not between', () => {
+    const note = bothSides()
+    const levels = [0, 50, 69.99, 70, 85, 100, 110, 130, 130.01, 150]
+    const main = levels.map((final) => maturityPayment(note, { initial: 100, final }))
+    const reached = levels.map((final) => reachedPayment(note, { initial: 100, final })!)
+    // Below 70 the line already counts the fall. The paths differ from 70 to 100 for the downside and from 100 to 130 for the upside,
+    // and meet at the initial level, where a flat return pays principal on both, so there are two stretches that touch there.
+    expect(differingRuns(main, reached, 1e-6)).toEqual([{ start: 2, end: 5 }, { start: 5, end: 8 }])
+  })
+
+  it('keeps the other path of a single daily barrier as it was', () => {
+    const downsideOnly: Product = { ...startingProduct, payoff: { participations: withSubFeatures([{ direction: 'downside', rate: 1 }], { barrier: { level: 0.7, observation: 'daily-close' } }) } }
+    expect(reachedPayment(downsideOnly, { initial: 100, final: 85 })).toBeCloseTo(850, 8)
+    const upsideOnly: Product = { ...startingProduct, payoff: { participations: withSubFeatures([{ direction: 'upside', rate: 0.8 }], { upsideBarrier: { level: 1.3, observation: 'daily-close', rebate: 0.02 } }), principalProtection: 1 } }
+    expect(reachedPayment(upsideOnly, { initial: 100, final: 110 })).toBeCloseTo(1020, 8)
+  })
+})

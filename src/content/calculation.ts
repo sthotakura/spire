@@ -31,7 +31,9 @@ function participationStep(note: Product, breakdown: PaymentBreakdown, direction
   // A fall paid as a gain is absolute return's contribution, not downside participation's.
   // Above the upside barrier the rebate replaces upside participation, and its own step carries it.
   const knockedOut = direction === 'upside' && breakdown.upsideBarrierReached === true
-  const contribution = direction === breakdown.direction && !breakdown.absoluteReturnApplies && !knockedOut ? breakdown.participatedReturn : 0
+  // Each step shows its own side's term: with an upside barrier observed daily and reached before a fall, the rebate is the upside's
+  // and the loss the downside's, and the payment is their sum.
+  const contribution = knockedOut ? 0 : direction === 'upside' ? (breakdown.direction === 'upside' ? breakdown.upsideTerm : 0) : (breakdown.direction === 'downside' && !breakdown.absoluteReturnApplies ? breakdown.downsideTerm : 0)
   const buffer = direction === 'downside' ? downsideOf(note)?.buffer : undefined
   const how = `${formatPercent(rate)} × ${direction === 'upside' ? 'max' : 'min'}(${signedPercent(breakdown.underlierReturn)}${buffer === undefined ? '' : ` + ${formatPercent(buffer)}`}, 0)`
   // The buffer and the barrier belong to downside participation, so only its step gives them as the reason.
@@ -57,7 +59,7 @@ function bufferStep(buffer: number, breakdown: PaymentBreakdown): Omit<Calculati
 function absoluteReturnStep(rate: number, breakdown: PaymentBreakdown, withBarrier: boolean): Omit<CalculationStep, 'n'> {
   const how = `${formatPercent(rate)} × |${signedPercent(breakdown.underlierReturn)}|`
   const title = 'Absolute return'
-  if (breakdown.absoluteReturnApplies) return { title, how, value: signedPercent(breakdown.participatedReturn), concept: 'absolute-return' }
+  if (breakdown.absoluteReturnApplies) return { title, how, value: signedPercent(breakdown.downsideTerm), concept: 'absolute-return' }
   const past = withBarrier ? 'the level ends below the downside barrier' : 'the fall is beyond the buffer'
   if (breakdown.direction === 'downside') return { title, how: `${how} · ${past}, so it pays no gain`, value: '0%', muted: true, concept: 'absolute-return' }
   // On a rise there is no fall to pay, so the step states the feature, as the buffer step does.

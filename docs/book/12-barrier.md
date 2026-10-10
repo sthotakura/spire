@@ -135,6 +135,23 @@ last row the rebate is paid although the underlier fell back below the initial
 level. This is the behaviour public descriptions give for a shark fin note: the
 rebate is paid once the barrier is reached, whatever the final level.
 
+Both barriers can be observed on every close on one note. Take the downside
+barrier at 70% with 100% downside participation, and the upside barrier at 130%
+with 80% upside participation, with no rebate and no protection:
+
+```text
+Final level 100, no close beyond a barrier: payment = 1,000
+Final level 120, highest close 120: 1,000 × (1 + 80% × 20%) = 1,160
+Final level 120, highest close 135: the upside ended; payment = 1,000
+Final level 90, lowest close 90, highest close 135: upside ended, downside barrier held; payment = 1,000
+Final level 90, lowest close 65, highest close 135: upside ended, the whole 10% fall counts; payment = 900
+Final level 65, lowest close 65, highest close 135: payment = 650
+```
+
+With a 2% rebate, the third and fourth examples pay 1,020, the fifth pays 920 (the
+rebate of 2% less the 10% fall), and the sixth pays 670. The two sides do not
+cancel or override each other: each is read on its own and the terms are added.
+
 Assumptions and limits of this version:
 
 - Only closing levels count. Intraday levels, and monitoring on other schedules
@@ -146,9 +163,12 @@ Assumptions and limits of this version:
   It is not combined with lookback or a basket, whose public notes were not
   verified, or with absolute return, which the public trigger note reads on the
   final date.
-- A daily upside barrier needs a note with no downside participation. If it
-  were reached before a fall, a rebate and a downside loss could both apply, and
-  no public note was found that does both.
+- A daily upside barrier may be combined with downside participation, and each
+  side keeps its own rule. An upside barrier reached on any close ends the upside,
+  and pays the rebate if there is one, whatever the final level. The downside
+  participation still reads the final return. With a rebate, the note can pay the
+  rebate and a downside loss together. No public note with this combination was
+  found; it is allowed because each part is defined on its own.
 - The test is the same as above: a downside barrier is reached strictly below
   the threshold and an upside barrier strictly above it, as the two-sided note
   above tests its upper barrier. A close exactly at either barrier does not

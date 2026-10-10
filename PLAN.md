@@ -335,7 +335,7 @@ Add a second observation for both barriers: every closing level from pricing to 
 
 - **`observation: 'final' | 'daily-close'`** on each barrier, with the final date still available. No dates or calendar are added.
 - **One extra scenario input**, the lowest close (downside barrier) or the highest close (upside barrier), instead of a path of levels. Left unset it means no close went beyond the initial and final levels. Contradictory closes are rejected.
-- **First version:** a single underlier with a fixed initial level, either final method. Unavailable with lookback, a basket and absolute return; a daily upside barrier needs a note with no downside participation.
+- **First version:** a single underlier with a fixed initial level, either final method. Unavailable with lookback, a basket and absolute return; a daily upside barrier was first limited to notes with no downside participation, which section 29 lifted.
 - **The payment breakdown** gains `lowestClose` and `highestClose`, and `belowBarrier` is renamed `barrierReached`. The calculation, outcome, scenario rows, summary, payment rule and shark fin names read it; the scenario table adds a row where the barrier was reached and the underlier moved back.
 - **The chart** draws a dashed line for the path where a close reached the barrier earlier, with its own label, beside the solid line for the path where none did. The final-level marker sits on whichever line the closes put it on.
 - **Interface:** the Observed choice enables Daily close, with the reason when it is unavailable, and a lowest or highest close field appears in the calculation.
@@ -362,6 +362,17 @@ Five public notes ("Barrier Absolute Return … with daily barrier observation")
 - **Book:** a section in the Absolute return chapter, with notes in the Barrier, combining, worked examples, diagrams and JSON chapters.
 - **Not done:** the GS minimum return alongside it (the minimum return stays for deposits only), a barrier list shared by features (the Payoff direction above), and keyboard and deposit checks of the new interface.
 
+## 29. Allow a daily upside barrier with downside participation
+
+A barrier on each side, both observed on every close, was blocked because no public note showed it. It is allowed now, deliberately, on a principle the project follows: **allow financially coherent combinations, but do not silently invent their consequences.** The combination is built from parts that are each defined, and what it does is stated where the reader sees it, with the note that no public note with it was found. New products and shapes still need sources first. This is about combining parts already defined. The proposal is in [docs/daily-observation.md](docs/daily-observation.md).
+
+- **The consequence:** Each side keeps its own rule. An upside barrier reached on any close ends upside participation, and pays the rebate if there is one, whatever the final level. Downside participation still reads the final return as it always does: the whole fall if its barrier is reached, none if the barrier holds, or past the buffer. The payment is the sum of the two terms, so with a rebate a note can pay the rebate and a downside loss together.
+- **Allowed:** a daily upside barrier with downside participation, with or without a downside barrier, with or without a rebate. Daily observation stays unavailable with lookback, a basket and (for the downside barrier) absolute return.
+- **The payment** is the sum of an upside term and a downside term, both in the payment breakdown. Every case that could be written before pays what it did.
+- **Stated in the interface:** the outcome sentence names each side's effect, the calculation shows each side's own term, and the scenario cells use them, so a rebate beside a loss is never shown as a net.
+- **The chart** takes every daily barrier as reached on its dashed other path, which gives two stretches meeting at the initial level, each labelled.
+- **Not sourced:** no public note with the combination was found. The docs and the book say so; the interface states what each side does.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.
@@ -377,7 +388,7 @@ Open questions:
 
 Payoff may eventually stop being one list of features and become several sections, for example with barriers and their observation moved out to a section of their own that payoff features refer to. This is a direction, not a plan: nothing is scheduled, and the current model stays as it is until a concrete need settles it.
 
-- **Why it may be needed.** A barrier is nested under one participation direction today, so it can govern only that direction's feature, and a note with a barrier on each side needs two. Several restrictions come from that nesting rather than from the contracts they describe, such as a daily upside barrier needing a note with no downside participation. Barrier.md already records the alternatives: a barrier event that several features refer to, and a list of barriers.
+- **Why it may be needed.** A barrier is nested under one participation direction today, so it can govern only that direction's feature, and a note with a barrier on each side needs two. Several restrictions come from that nesting rather than from the contracts they describe, such as the daily upside barrier that was first limited to notes with no downside participation. Barrier.md already records the alternatives: a barrier event that several features refer to, and a list of barriers.
 - **A test case.** A public note observes an upper and a lower barrier on closing levels as one event that replaces absolute return, on both a rise and a fall, with a fixed return ([docs/daily-observation.md](docs/daily-observation.md)). It can be read as two barriers joined by "either", with observation stated once. Section 28 built it in the current model as a payoff feature of its own that owns both barriers.
 - **What would carry over.** The `observation` term, the lowest and highest close as scenario inputs, the dashed other path on the chart, and the equality rules (a barrier is reached strictly beyond its level) do not depend on where the barrier lives.
 - **Open questions.** Where observation belongs (its own section, on each barrier, or in Payoff), how a feature refers to a barrier or an event, and how the outline and Structure JSON keep the same shape when features no longer nest under a direction. The composable form above would need the same answers.

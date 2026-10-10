@@ -147,3 +147,27 @@ describe('payoff chart labels with barrier absolute return', () => {
     expect(payoffLabels(bothWays({ lower: 'final' })).breach).toBeDefined()
   })
 })
+
+describe('payoff chart labels with a daily barrier on each side', () => {
+  const bothSides = (downsideObservation: 'final' | 'daily-close'): Product => ({
+    ...startingProduct,
+    payoff: {
+      participations: withSubFeatures([{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 0.8 }], {
+        barrier: { level: 0.7, observation: downsideObservation },
+        upsideBarrier: { level: 1.3, observation: 'daily-close', rebate: 0.02 },
+      }),
+    },
+  })
+
+  it('labels each side\'s other path with its own text', () => {
+    const labels = payoffLabels(bothSides('daily-close'))
+    expect(labels.breach).toBe('If a close fell past 30%, every 1% fall loses 1%')
+    expect(labels['upside-breach']).toBe('If a close went above +30%, it pays a fixed 1,020, even after a fall')
+  })
+
+  it('keeps the single label when only one side is observed on every close', () => {
+    const labels = payoffLabels(bothSides('final'))
+    expect(labels.breach).toBe('If a close went above +30%, it pays a fixed 1,020, even after a fall')
+    expect(labels['upside-breach']).toBeUndefined()
+  })
+})

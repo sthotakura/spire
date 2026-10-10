@@ -168,10 +168,17 @@ export function reachedPayment(product: Product, levels: DeterminedLevels): numb
       highestClose: upperDaily ? Math.max(levels.initial, levels.final, barrierLevelAt(bothWays.upperBarrier.level, levels.initial) * (1 + 1e-9)) : undefined,
     })
   }
-  if (downsideOf(product)?.barrier?.observation === 'daily-close') return maturityPayment(product, { ...levels, lowestClose: 0 })
+  // Each barrier observed daily is taken as reached. With one on each side the two sides differ from the line over different final
+  // levels, below the initial level and above it, so one dashed line shows both.
+  const downsideDaily = downsideOf(product)?.barrier?.observation === 'daily-close'
   const upsideBarrier = upsideOf(product)?.barrier
-  if (upsideBarrier?.observation !== 'daily-close') return undefined
-  return maturityPayment(product, { ...levels, highestClose: Math.max(levels.initial, levels.final, barrierLevelAt(upsideBarrier.level, levels.initial) * (1 + 1e-9)) })
+  const upsideDaily = upsideBarrier?.observation === 'daily-close'
+  if (!downsideDaily && !upsideDaily) return undefined
+  return maturityPayment(product, {
+    ...levels,
+    lowestClose: downsideDaily ? 0 : undefined,
+    highestClose: upsideDaily ? Math.max(levels.initial, levels.final, barrierLevelAt(upsideBarrier!.level, levels.initial) * (1 + 1e-9)) : undefined,
+  })
 }
 
 // The stretches of sampled points where two lines differ by more than the tolerance, by index. Each stretch also includes the

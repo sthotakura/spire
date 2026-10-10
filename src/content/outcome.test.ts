@@ -218,3 +218,35 @@ describe('outcome with barrier absolute return', () => {
     expect(explainWith(bothWays({ conditionalReturn: undefined }), 126)).toBe('The underlier rose 26%. The highest close, 126, was above the 125 upper barrier, so the absolute return ends and principal is unchanged, whatever the final level. The contractual payment is 1,000, the same as principal.')
   })
 })
+
+describe('outcome with a daily upside barrier and downside participation', () => {
+  // Each side keeps its own effect: an early upside breach ends the upside, and the downside reads the final return as ever.
+  const bothSides = (rebate?: number, downsideBarrier = true): SingleProduct => ({
+    ...noteWith(both),
+    payoff: { participations: withSubFeatures(both.map((p) => p.direction === 'upside' ? { ...p, rate: 0.8 } : p), {
+      barrier: downsideBarrier ? { level: 0.7, observation: 'daily-close' as const } : undefined,
+      upsideBarrier: { level: 1.3, observation: 'daily-close' as const, rebate },
+    }) },
+  })
+  const explainWith = (note: SingleProduct, finalLevel: number, closes: { lowestClose?: number; highestClose?: number }) => explainOutcome(note, paymentBreakdown(note, { initial: 100, final: finalLevel, ...closes }))
+
+  it('states both effects: the upside ended, and the fall counted whole', () => {
+    expect(explainWith(bothSides(), 90, { lowestClose: 65, highestClose: 135 })).toBe('The underlier fell 10%. The highest close, 135, was above the 130 upside barrier, so upside participation ends and principal is unchanged. The lowest close, 65, was below the 70 downside barrier, so downside participation of 100% deducts the whole 10% from principal. There is no principal protection, so the contractual payment is 900, 100 less than principal.')
+  })
+
+  it('states both effects when the downside barrier held: the upside ended, and the fall left principal unchanged', () => {
+    expect(explainWith(bothSides(), 90, { lowestClose: 90, highestClose: 135 })).toBe('The underlier fell 10%. The highest close, 135, was above the 130 upside barrier, so upside participation ends and principal is unchanged. No close was below the 70 downside barrier (the lowest was 90), so downside participation does not apply and principal is unchanged. The contractual payment is 1,000, the same as principal.')
+  })
+
+  it('names the rebate and the loss separately, not their net', () => {
+    expect(explainWith(bothSides(0.02), 90, { lowestClose: 65, highestClose: 135 })).toBe('The underlier fell 10%. The highest close, 135, was above the 130 upside barrier, so upside participation ends and a rebate of 2% is added to principal. The lowest close, 65, was below the 70 downside barrier, so downside participation of 100% deducts the whole 10% from principal. There is no principal protection, so the contractual payment is 920, 80 less than principal.')
+  })
+
+  it('says the upside ended whatever the final level when the underlier rose', () => {
+    expect(explainWith(bothSides(), 120, { highestClose: 135 })).toBe('The underlier rose 20%. The highest close, 135, was above the 130 upside barrier, so upside participation ends and principal is unchanged, whatever the final level. The contractual payment is 1,000, the same as principal.')
+  })
+
+  it('applies plain downside participation after an early upside breach, with no downside barrier', () => {
+    expect(explainWith(bothSides(undefined, false), 90, { highestClose: 135 })).toContain('so upside participation ends and principal is unchanged. Downside participation of 100% deducts 10% from principal.')
+  })
+})
