@@ -209,7 +209,7 @@ describe('marketing names with barrier absolute return', () => {
 })
 
 describe('product category', () => {
-  const categoryOf = (payoff: Parameters<typeof noteWith>[0]) => productCategory(noteWith(payoff))?.name
+  const categoryOf = (payoff: Parameters<typeof noteWith>[0]) => productCategory(noteWith(payoff))
 
   it('places a note with any protection above 0% in Capital Protection, partial or full', () => {
     expect(categoryOf({ principalProtection: 1 })).toBe('Capital Protection')
@@ -234,12 +234,6 @@ describe('product category', () => {
 
   it('places a deposit with upside participation in Capital Protection, because the wrapper repays principal', () => {
     const deposit = { ...noteWith({ participations: [up(1)] }), wrapper: 'deposit' } as Product
-    expect(productCategory(deposit)?.name).toBe('Capital Protection')
-  })
-
-  it('highlights the protection, or the participation directions that place it', () => {
-    expect(productCategory(noteWith({ principalProtection: 1 }))?.concepts).toEqual(['protection'])
-    expect(productCategory(noteWith({ participations: [up(1)] }))?.concepts).toEqual(['upside'])
-    expect(productCategory(noteWith({ participations: [up(1), down(1)] }))?.concepts).toEqual(['upside', 'downside'])
+    expect(productCategory(deposit)).toBe('Capital Protection')
   })
 })

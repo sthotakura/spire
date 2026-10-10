@@ -57,11 +57,11 @@ The SSPA groups products into four categories: Capital Protection, Yield Enhance
 | Deposit with upside participation, no protection term | Capital Protection | The wrapper repays principal in full. Example-specific assumption. |
 | On a note: no protection, upside or downside participation | Participation | Includes buffered and capped notes. Downside participation alone is a category here although it gets no name. |
 
-Yield Enhancement and Leverage are not shown, because they need coupons, reverse-convertible shapes or warrants, none of which the model has. Only the matching category is shown; the others are not listed. A note with no protection and no participation (for example the barrier absolute return note) shows no category, since placing it is unverified.
+Yield Enhancement and Leverage are not shown, because they need coupons, reverse-convertible shapes or warrants, none of which the model has. Only the matching category is shown; the others are not listed. Downside participation alone is Participation by the rule but gets no name, so the category is not shown for it. A note with no protection and no participation (for example the barrier absolute return note) shows no category, since placing it is unverified.
 
 ## Interface
 
-The category, when there is one, appears as a neutral chip labelled "Category", before the names, and opens its reason in the same way. The names appear as chips under the summary sentence, after the label "Often marketed as". Selecting a chip opens a short reason and highlights the part of the note it rests on. A name that rests on one part selects that part. A name that rests on several selects the whole payoff. The rules live in `src/content/names.ts`.
+The category is not shown on its own. Each name's popup ends with a line "Category: …", so it is read with the name it sits beside, and a note with no name shows no category. The names appear as chips under the summary sentence, after the label "Often marketed as". Selecting a chip opens a short reason and highlights the part of the note it rests on. A name that rests on one part selects that part. A name that rests on several selects the whole payoff. The rules live in `src/content/names.ts`.
 
 ## Open questions
 

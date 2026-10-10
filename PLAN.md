@@ -59,7 +59,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Derive names from the note's terms in a pure function, `src/content/names.ts`. Several names can apply at once, and a note that fits none shows none.
 - Use only generic public names: plain-language US investor material and the Swiss Structured Products Association's product types. Exclude branded names, and names that depend on buffers, barriers or coupons.
 - Treat names as hints. The structure the reader built remains the authoritative description.
-- Show the SSPA category (Capital Protection or Participation) as one neutral chip before the names, derived by `productCategory` in `src/content/names.ts`. Only the matching category is shown.
+- Show the SSPA category (Capital Protection or Participation) as a line of subtext in each name's popup, derived by `productCategory` in `src/content/names.ts`. Only the matching category is shown.
 
 ## Deferred questions
 
