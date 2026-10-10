@@ -9,7 +9,7 @@ payoff rules described in this book.
 
 The illustrated payment is not the price at which a product could be bought
 or sold today. Market valuation would require additional information and a
-pricing model. The diagram supplies neither.
+pricing model. The payoff diagrams and scenario tables supply neither.
 
 Repayment also depends on the party that owes it. A contractual floor,
 buffer, or barrier does not demonstrate that an issuer can meet its obligations.
@@ -18,7 +18,8 @@ buffer, or barrier does not demonstrate that an issuer can meet its obligations.
 
 The examples use hypothetical observed levels. They do not connect to live
 market data. Observation counts stand in for schedules; actual calendar
-dates and business-day conventions are not calculated.
+dates and business-day conventions are not calculated. A term is a whole
+number of months, from 1 to 120 in this reference.
 
 The products illustrated pay once at scheduled maturity. Coupon schedules,
 autocalls, and issuer calls need additional terms and observations before their

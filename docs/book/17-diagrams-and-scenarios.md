@@ -45,8 +45,9 @@ highest close puts it on, so it can sit on the dashed line.
 ## A V between two barriers
 
 Absolute return in both directions draws a V. Between the barriers the payment
-falls as the underlier falls to the initial level, where it is principal, and
-rises again as it rises, since a fall and a rise of the same size pay the same.
+falls as the underlier rises from the lower barrier to the initial level, where
+it is principal, and rises again as the underlier rises beyond it, since a fall
+and a rise of the same size pay the same.
 Beyond each barrier the line is flat at the fixed return, with a jump at the
 barrier. The filled point of each jump is the payment at the barrier level, which
 is the absolute return, and the open point is the fixed return just beyond it. If

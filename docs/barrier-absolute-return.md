@@ -18,7 +18,7 @@ Five public notes, all on the S&P 500, all "Barrier Absolute Return" notes with 
 | Barclays Bank PLC, 2025 ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/312070/000095010325010558/dp233273_424b2-7706ubs.htm)) | 84.00% of the initial level | 116.00% | principal only, with no positive return | `$1,000 + ($1,000 × absolute value of the Underlying Return)`, at most $1,160 |
 | HSBC USA, 2024 ([FWP](https://www.sec.gov/Archives/edgar/data/83246/000110465924077685/tm2418635d56_fwp.pdf)) | at least 19.00% below, set on the trade date | at least 19.00% above | `$1,000 + ($1,000 × Conditional Return)`, 2.00% | `$1,000 + ($1,000 × Absolute Reference Return)` |
 
-How these were read: the HSBC text was extracted from the PDF directly. The JPMorgan and both GS notes were read through a fetch tool that summarises, and the Barclays note likewise, so the quotes there should be checked in the filings before they are relied on. The issuer for the Barclays filing is as the fetch tool reported it.
+How these were read: the HSBC text was extracted from the PDF directly. The JPMorgan and both GS notes were read through a fetch tool that summarises, and the Barclays note likewise, so the quotes there should be checked in the filings before they are relied on. The issuer for the Barclays filing is as the fetch tool reported it. On 10 October 2026 the JPMorgan, GS (the 5% minimum return note) and Barclays filings were fetched again and the issuer names, barrier levels, payment formulas and barrier event wording matched the rows above. This was still a summarising fetch tool, so the second GS note was not re-read and a reading of the filings themselves would be stronger.
 
 What they agree on:
 
@@ -119,7 +119,7 @@ Every step is done: the domain, the content, the chart and the interface, with a
 
 ## Open questions
 
-1. **Re-read the sources.** The JPMorgan, GS and Barclays quotes came through a fetch tool and should be checked in the filings, in particular each payment sentence and the Barclays issuer.
+1. **Re-read the sources.** The JPMorgan, GS (minimum return note) and Barclays quotes matched on a second fetch (see above). The second GS note and a reading of the filings without a summarising tool remain.
 2. **The period start.** The filings start after the trade date and set the initial level on or before it. SPIRe starts at pricing. Nothing in the payment depends on it.
 3. **A note with a loss after the event.** None found. If one is, the conditional return becomes a payoff that can depend on the final level, which this model does not allow.
 4. **A fixed return below the no-event payment.** A note where the conditional return is under what the absolute return pays is not excluded, though it would pay less after an event than before, and none was found.

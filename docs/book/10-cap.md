@@ -29,7 +29,7 @@ SPIRe places the cap on upside participation. It does not cap an
 absolute-return contribution paid on a fall. When that feature exists, the
 upside cap is not necessarily a maximum on every possible payment.
 
-An upside barrier (see the Barrier chapter) also limits what a rise can pay, but in a
+An upside barrier (see the [Barrier chapter](12-barrier.md)) also limits what a rise can pay, but in a
 different way: it ends participation at a level and may pay a fixed rebate in
 its place, so the payment can fall at the barrier. SPIRe does not combine a
 cap and an upside barrier on the same upside participation.

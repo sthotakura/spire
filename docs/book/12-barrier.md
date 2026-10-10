@@ -88,7 +88,7 @@ Barrier", and the holder then receives a fixed return on principal whatever the
 final level
 ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/19617/000161577418007603/s111907_424b2.htm)).
 That note pays the absolute value of the underlier's return on a rise as well
-as a fall until the event, which the Absolute return chapter covers.
+as a fall until the event, which the [Absolute return chapter](13-absolute-return.md) covers.
 
 SPIRe states this as the barrier's observation, `daily-close`. A scenario then
 needs one more number than the final level: the lowest close for a downside
@@ -160,15 +160,17 @@ Assumptions and limits of this version:
   the product. A close cannot be below the lowest of the initial level and the
   levels the final level is read from, or above the highest of them.
 - A daily barrier is available on a single underlier with a fixed initial level.
-  It is not combined with lookback or a basket, whose public notes were not
-  verified, or with absolute return, which the public trigger note reads on the
-  final date.
+  It is not combined with lookback or a basket. Nor is a daily downside barrier
+  combined with the absolute return on a fall, which the public trigger note
+  reads on the final date. Absolute return in both directions is a separate
+  payoff that carries its own daily barriers, described in the
+  [Absolute return chapter](13-absolute-return.md).
 - A daily upside barrier may be combined with downside participation, and each
   side keeps its own rule. An upside barrier reached on any close ends the upside,
   and pays the rebate if there is one, whatever the final level. The downside
   participation still reads the final return. With a rebate, the note can pay the
-  rebate and a downside loss together. No public note with this combination was
-  found; it is allowed because each part is defined on its own.
+  rebate and a downside loss together. This is a combination of two parts that
+  are each defined on their own, rather than a copy of one public note.
 - The test is the same as above: a downside barrier is reached strictly below
   the threshold and an upside barrier strictly above it, as the two-sided note
   above tests its upper barrier. A close exactly at either barrier does not

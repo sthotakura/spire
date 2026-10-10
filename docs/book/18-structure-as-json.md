@@ -6,7 +6,7 @@ payoff.
 
 ## A complete synthetic structure
 
-```
+```json
 {
   "wrapper": "note",
   "principalAmount": 1000,
@@ -40,9 +40,10 @@ how the return is measured.
 
 Other sub-features nest the same way. An upside barrier and its rebate belong
 to upside participation, and the barrier is listed before the rate because the
-payment checks it first:
+payment checks it first. This and the next block are excerpts, not complete
+structures:
 
-```
+```json
 { "direction": "upside", "barrier": { "level": 1.3, "observation": "final", "rebate": 0.02 }, "rate": 0.8 }
 ```
 
@@ -56,7 +57,7 @@ Absolute return in both directions is a payoff of its own, beside the
 participations, and the two barriers belong to it. Each barrier has its own
 level and observation, so the two sides can differ:
 
-```
+```json
 "barrierAbsoluteReturn": { "rate": 1, "lowerBarrier": { "level": 0.8, "observation": "daily-close" }, "upperBarrier": { "level": 1.25, "observation": "daily-close" }, "conditionalReturn": 0.02 }
 ```
 

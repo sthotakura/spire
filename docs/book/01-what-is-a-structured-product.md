@@ -2,8 +2,8 @@
 
 A structured product is a financial product whose payment is defined by a
 combination of contractual terms and the behaviour of one or more underliers.
-An underlier might be an equity, an equity index, a rate, or a basket of
-assets. The product does not simply pass through the underlier's performance:
+An underlier might be an equity, an equity index, or a basket of them; SPIRe
+covers equity and equity-index references. The product does not simply pass through the underlier's performance:
 its rules decide how that performance affects the payment.
 
 ## The parts
@@ -12,6 +12,7 @@ SPIRe describes a product as several separate concepts:
 
 - **Wrapper:** the contractual form, such as a note or deposit.
 - **Redemption:** when the product ends and the payment is made.
+- **Term:** the scheduled length of the product, as a duration.
 - **Underlier:** what the product reads, and how its change is determined.
 - **Payoff:** the rules that turn that change into a contractual payment.
 
@@ -51,8 +52,3 @@ or document generation.
 The product's payment also depends on the issuer's ability to pay. A payoff
 calculation explains what the terms say should be paid; it does not remove
 that contractual or credit risk.
-
-## Next
-
-The next chapter begins with the wrapper: the contractual form in which the
-product is issued.

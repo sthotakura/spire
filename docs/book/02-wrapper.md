@@ -1,7 +1,7 @@
 # Wrapper
 
 The wrapper is the contractual form in which a structured product is issued.
-SPIRe currently distinguishes a **note** and a **deposit**. The wrapper helps
+SPIRe distinguishes a **note** and a **deposit**. The wrapper helps
 describe the issuer's promise and the conditions around repayment, but it does
 not by itself determine how an underlier's performance changes the payment.
 
@@ -45,8 +45,3 @@ respectively.
 The examples in this book use synthetic products and simplified contractual
 rules. They do not reproduce an issuer's document, operational workflow, or
 proprietary terminology.
-
-## Next
-
-The next chapter explains redemption behaviour: the event at which the
-product ends and its contractual payment is made.

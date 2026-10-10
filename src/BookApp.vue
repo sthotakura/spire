@@ -25,7 +25,9 @@ const escapeHtml = (value: string) => value
   .replaceAll("'", '&#39;')
 
 const inlineMarkdown = (value: string) => escapeHtml(value)
-  .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+  .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text: string, href: string) => /^[\w-]+\.md$/.test(href)
+    ? `<a href="#${href.replace(/\.md$/, '')}" data-chapter="${href.replace(/\.md$/, '')}">${text}</a>`
+    : `<a href="${href}">${text}</a>`)
   .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   .replace(/`([^`]+)`/g, '<code>$1</code>')
 
@@ -76,6 +78,15 @@ const renderMarkdown = (source: string) => {
 }
 
 const renderedChapter = computed(() => renderMarkdown(selectedChapter.value.source))
+
+// A link to another chapter's file, as GitHub shows it, opens that chapter here.
+const followChapterLink = (event: MouseEvent) => {
+  const slug = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[data-chapter]')?.dataset.chapter
+  if (!slug || !chapters.some(chapter => chapter.slug === slug)) return
+  event.preventDefault()
+  selectedSlug.value = slug
+  window.scrollTo({ top: 0 })
+}
 </script>
 
 <template>
@@ -94,7 +105,7 @@ const renderedChapter = computed(() => renderMarkdown(selectedChapter.value.sour
         </button>
       </aside>
       <div>
-        <article class="book-article" v-html="renderedChapter" />
+        <article class="book-article" v-html="renderedChapter" @click="followChapterLink" />
         <nav class="book-pagination" aria-label="Adjacent chapters">
           <button v-if="selectedIndex > 0" @click="selectedSlug = chapters[selectedIndex - 1].slug">← {{ chapters[selectedIndex - 1].title }}</button>
           <button v-if="selectedIndex < chapters.length - 1" @click="selectedSlug = chapters[selectedIndex + 1].slug">{{ chapters[selectedIndex + 1].title }} →</button>

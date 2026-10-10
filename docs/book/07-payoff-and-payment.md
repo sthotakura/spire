@@ -9,14 +9,18 @@ payment, while leaving the product's terms in place.
 In this book's maturity examples, the calculation follows this sequence:
 
 - Determine the initial and final levels, and then the underlier return.
-- On a rise, apply upside participation and any upside cap.
+- On a rise, apply upside participation and any upside cap. If an upside
+  barrier has been reached, participation ends and any rebate is paid instead.
 - On a fall, apply the downside rule, including any buffer, barrier, or
   absolute-return feature.
 - Add the resulting contribution to principal.
-- Apply the contractual payment floor.
+- Apply the contractual payment floor: the protection percentage on a note, or
+  on a deposit its principal or its minimum return.
 
 The applicable direction is chosen from the measured return. Upside and
-downside participation do not both apply to the same nonzero return.
+downside participation do not both apply to the same nonzero return. A
+payoff of absolute return in both directions replaces the participation steps
+above; the [Absolute return chapter](13-absolute-return.md) covers it.
 
 ## Example
 

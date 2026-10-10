@@ -27,7 +27,8 @@ before any floor. At a 150% downside rate, it reduces principal by 30%, giving
 In the synthetic model, upside only means a fall leaves principal unchanged.
 Downside only means a rise leaves principal unchanged. Selecting both uses
 each rate in its own direction. A flat return pays principal unless another
-feature, such as a deposit minimum return, raises the payment.
+feature, such as the minimum return a deposit can have (see the
+[Market-linked deposits chapter](14-market-linked-deposits.md)), raises the payment.
 
 ## Assumptions
 

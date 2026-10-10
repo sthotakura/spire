@@ -15,7 +15,8 @@ is capped. A 50% fall repays 1,000 under the assumed deposit terms.
 Some deposit terms provide a minimum linked payment. In the form illustrated
 here it is a floor, not an amount added to participation.
 
-With a 5.25% minimum return and 100% upside participation:
+Take principal of 1,000, a seven-year term, a 5.25% minimum return, and 100%
+upside participation:
 
 ```text
 At a 7% rise: greater of 1,070 and 1,052.50 = 1,070
@@ -25,7 +26,11 @@ At a 50% fall: greater of 1,000 and 1,052.50 = 1,052.50
 
 The 5.25% is for the whole term. Over seven years, 1,052.50 on principal
 of 1,000 corresponds to approximately 0.73% a year under the compound-return
-formula in the term chapter.
+formula in the [Term chapter](04-term.md).
+
+A minimum return must be below the cap, if there is one. A minimum at or above
+the cap would leave participation nothing to add: the payment would always be
+the minimum.
 
 ## Scope and contractual terms
 

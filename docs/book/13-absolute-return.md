@@ -42,7 +42,9 @@ from two Morgan Stanley preliminary pricing supplements dated October 1, 2026:
   on a single index, with a 15% buffer and a 100% absolute-return rate.
 - The barrier case follows [Dual Directional Trigger PLUS, No. 18,961](https://www.morganstanley.com/structuredinvestments/docs/prospectus/prelim/ProspectusRed61781LUU2.pdf),
   on the worst performing of two indices, with a threshold at 70% of the
-  initial level, read on the final date, and a 50% absolute-return rate.
+  initial level, read on the final date, and a 50% absolute-return rate. The
+  example above uses a single underlier, because a worst-of rule is not
+  calculated here; only the shape of the payoff is taken from the note.
 
 ## In both directions, until a barrier
 
@@ -101,6 +103,4 @@ are hypothetical scenario inputs, not terms of the product; this payoff cannot
 be combined with participation, a buffer, a cap, a minimum return, lookback, a
 basket or averaging. It never pays less than principal, so a protection floor
 changes nothing. The fixed amount is not a coupon and not a downside rule, and
-no note was found that loses principal after a barrier. The quotes behind the
-JPMorgan, Goldman Sachs and Barclays rows were read through a summarising tool
-and are worth checking in the filings.
+no note was found that loses principal after a barrier.

@@ -28,11 +28,11 @@ remain working research and design records. Reader-facing chapters belong in
 | 11. Buffer | Draft | [Read chapter](book/11-buffer.md) | [Buffer](buffer.md) |
 | 12. Barrier | Draft | [Read chapter](book/12-barrier.md) | [Barrier](barrier.md), [Upside barrier](upside-barrier.md), [Daily observation](daily-observation.md) |
 | 13. Absolute return | Draft | [Read chapter](book/13-absolute-return.md) | [Absolute return](absolute-return.md), [Barrier absolute return](barrier-absolute-return.md) |
-| 14. Combining payoff features | Draft | [Read chapter](book/14-combining-features.md) | [Feature map](feature-map.md) |
-| 15. Worked synthetic examples | Draft | [Read chapter](book/15-worked-examples.md) | [Milestone 1](milestone-1.md) |
-| 16. Payoff diagrams and scenarios | Draft | [Read chapter](book/16-diagrams-and-scenarios.md) | [Payoff chart](payoff-chart.md) |
-| 17. The structure as JSON | Draft | [Read chapter](book/17-structure-as-json.md) | [Underlier model](underlier-model.md) |
-| 18. Market-linked deposits | Draft | [Read chapter](book/18-market-linked-deposits.md) | [Deposit](deposit.md) |
+| 14. Market-linked deposits | Draft | [Read chapter](book/14-market-linked-deposits.md) | [Deposit](deposit.md) |
+| 15. Combining payoff features | Draft | [Read chapter](book/15-combining-features.md) | [Feature map](feature-map.md) |
+| 16. Worked synthetic examples | Draft | [Read chapter](book/16-worked-examples.md) | [Milestone 1](milestone-1.md) |
+| 17. Payoff diagrams and scenarios | Draft | [Read chapter](book/17-diagrams-and-scenarios.md) | [Payoff chart](payoff-chart.md) |
+| 18. The structure as JSON | Draft | [Read chapter](book/18-structure-as-json.md) | [Underlier model](underlier-model.md) |
 | 19. Boundaries of the reference | Draft | [Read chapter](book/19-boundaries.md) | [README](../README.md) |
 | Coupons | Planned | — | [Coupon](coupon.md) |
 | Observation dates and early redemption | Planned | — | [Observation dates](observation-dates.md), [Feature map](feature-map.md) |
