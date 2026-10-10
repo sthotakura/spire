@@ -22,6 +22,17 @@ export interface ScenarioRow {
   breakdown: PaymentBreakdown
 }
 
+// The close that reached a barrier in a row where one was reached on an earlier close, to say beside the final level. With barrier
+// absolute return both closes can be stated, so it is the one beyond the barrier that was reached.
+export function breachClose(breakdown: PaymentBreakdown): { kind: 'lowest' | 'highest'; level: number } | null {
+  if (breakdown.barrierAbsolute !== undefined) {
+    if (breakdown.barrierAbsolute.lowerReached && breakdown.lowestClose !== undefined) return { kind: 'lowest', level: breakdown.lowestClose }
+    return breakdown.barrierAbsolute.upperReached && breakdown.highestClose !== undefined ? { kind: 'highest', level: breakdown.highestClose } : null
+  }
+  if (breakdown.lowestClose !== undefined) return { kind: 'lowest', level: breakdown.lowestClose }
+  return breakdown.highestClose !== undefined ? { kind: 'highest', level: breakdown.highestClose } : null
+}
+
 // One row per scenario return, measured from the determined initial level. Every number comes from the payment breakdown,
 // so the table cannot disagree with the calculation.
 // A barrier adds a row at its level, so the table shows where a fall stops repaying principal wherever the barrier is, and an

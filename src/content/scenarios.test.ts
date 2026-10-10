@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { maturityPayment, type Product } from '../domain/note'
 import { startingProduct } from '../domain/starting-note'
-import { scenarioReturns, scenarioRows } from './scenarios'
+import { breachClose, scenarioReturns, scenarioRows } from './scenarios'
 
 const withFeatures = (participations: Product['payoff']['participations'], principalProtection?: number): Product => ({
   ...startingProduct,
@@ -207,5 +207,29 @@ describe('scenario rows with barrier absolute return', () => {
     const rows = scenarioRows(bothWays('final'), 80)
     expect(rows.find(({ atBarrier, finalLevel }) => atBarrier && finalLevel < 80)?.finalLevel).toBeCloseTo(64, 8)
     expect(rows.find(({ atBarrier, finalLevel }) => atBarrier && finalLevel > 80)?.finalLevel).toBeCloseTo(100, 8)
+  })
+})
+
+describe('the close that reached a barrier', () => {
+  const bothWays: Product = {
+    ...startingProduct,
+    payoff: { participations: [], barrierAbsoluteReturn: { rate: 1, lowerBarrier: { level: 0.8, observation: 'daily-close' }, upperBarrier: { level: 1.25, observation: 'daily-close' }, conditionalReturn: 0.02 } },
+  }
+
+  it('names the lowest close for a lower barrier and the highest for an upper barrier, although both closes are stated', () => {
+    const [lowerRow, upperRow] = scenarioRows(bothWays, 100).filter(({ afterBreach }) => afterBreach)
+    expect(breachClose(lowerRow.breakdown)).toEqual({ kind: 'lowest', level: expect.closeTo(75, 8) })
+    expect(breachClose(upperRow.breakdown)).toEqual({ kind: 'highest', level: expect.closeTo(130, 8) })
+  })
+
+  it('names the one close a single daily barrier reads', () => {
+    const downside = withFeatures([{ direction: 'downside', barrier: { level: 0.7, observation: 'daily-close' }, rate: 1 }])
+    const upside = withFeatures([{ direction: 'upside', barrier: { level: 1.3, observation: 'daily-close', rebate: 0.02 }, rate: 0.8 }], 1)
+    expect(breachClose(scenarioRows(downside, 100).find(({ afterBreach }) => afterBreach)!.breakdown)).toMatchObject({ kind: 'lowest' })
+    expect(breachClose(scenarioRows(upside, 100).find(({ afterBreach }) => afterBreach)!.breakdown)).toMatchObject({ kind: 'highest' })
+  })
+
+  it('names nothing when no barrier is observed daily', () => {
+    expect(breachClose(scenarioRows(startingProduct, 100)[0].breakdown)).toBeNull()
   })
 })

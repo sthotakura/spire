@@ -10,7 +10,7 @@ import type { ConceptId } from './content/concepts'
 import { marketingNames, type MarketingName } from './content/names'
 import { paymentFormula, paymentInWords } from './content/formula'
 import { explainOutcome } from './content/outcome'
-import { scenarioRows } from './content/scenarios'
+import { breachClose, scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
@@ -39,6 +39,10 @@ const hints = {
   'upside-barrier': 'A level of the underlier above the initial level, as a percentage of it. A knock-out barrier: while the level stays at or below it, upside participation applies as usual; once it goes above it, upside participation ends and the rebate, if there is one, is paid instead. Observed on the final date, it reads the final level. Observed daily, it reads every closing level from pricing to the final date, so one close at or above it is enough, even if the underlier later falls back.',
   'lowest-close': 'A hypothetical lowest closing level of the underlier from pricing to the final date, for this scenario. A daily downside barrier is reached if it is below the barrier. It cannot be above the initial level or any level observed on the final date or the averaging dates. Changing it does not change the product’s terms.',
   'highest-close': 'A hypothetical highest closing level of the underlier from pricing to the final date, for this scenario. A daily upside barrier is reached if it is above the barrier. It cannot be below the initial level or any level observed on the final date or the averaging dates. Changing it does not change the product’s terms.',
+  'absolute-both': 'Pays a share of the absolute value of the underlier’s return, a rise or a fall alike, so a 10% fall pays like a 10% rise, until either barrier is reached. Once one is, the absolute return ends on both sides and the conditional return, if there is one, is paid instead, whatever the final level. The payment never falls below principal.',
+  'lower-barrier': 'A level of the underlier below the initial level, as a percentage of it. It is reached strictly below its level, so a level exactly at it does not reach it. Observed on the final date it reads the final level. Observed daily it reads every closing level from pricing to the final date, so one close below it is enough, even if the underlier later recovers.',
+  'upper-barrier': 'A level of the underlier above the initial level, as a percentage of it. It is reached strictly above its level, so a level exactly at it does not reach it. Observed on the final date it reads the final level. Observed daily it reads every closing level from pricing to the final date, so one close above it is enough, even if the underlier later falls back.',
+  conditional: 'A fixed return on principal, paid in place of the absolute return once either barrier is reached. It does not depend on the final level, so it can pay more than a note that ends flat inside the barriers. Without it, reaching a barrier leaves only principal.',
   rebate: 'A fixed return on principal, paid in place of upside participation once the upside barrier is reached. It does not depend on how far the underlier rose.',
   'absolute-return': 'Pays as a gain a fall that downside participation does not reach, within the buffer or ending at or above the downside barrier: each 1% fall adds the absolute return rate, as a percentage of principal. A larger fall pays no gain and reduces principal as the buffer or barrier sets out, so the payment drops there.',
   upside: 'The share of a positive underlier return added to principal.',
@@ -169,11 +173,13 @@ const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concep
 // Payoff features are added one at a time to a payoff that starts with none. A removed feature keeps its last value.
 // A buffer, barrier or absolute return belongs to downside participation and a cap or upside barrier to upside participation, so each is added under its direction.
 // A rebate belongs to the upside barrier.
-type FeatureId = 'absolute-return' | 'barrier' | 'buffer' | 'cap' | 'coupon' | 'digital' | 'downside' | 'minimum' | 'protection' | 'rebate' | 'upside-barrier' | 'upside'
+type FeatureId = 'absolute-both' | 'absolute-return' | 'conditional' | 'barrier' | 'buffer' | 'cap' | 'coupon' | 'digital' | 'downside' | 'minimum' | 'protection' | 'rebate' | 'upside-barrier' | 'upside'
 const payoffFeatures: ReadonlyArray<{ id: FeatureId; label: string; description: string; available: boolean; requires?: ParticipationDirection }> = [
   { id: 'absolute-return', label: 'Absolute return', description: 'Pays a fall within the buffer, or ending above the downside barrier, as a gain.', available: true, requires: 'downside' },
+  { id: 'absolute-both', label: 'Absolute return (both directions)', description: 'Pays the absolute value of the underlier’s return, a rise or a fall alike, until it goes beyond a barrier on either side.', available: true },
   { id: 'buffer', label: 'Buffer', description: 'Protects against an initial portion of underlier losses.', available: true, requires: 'downside' },
   { id: 'cap', label: 'Cap', description: 'Limits the return upside participation can add.', available: true, requires: 'upside' },
+  { id: 'conditional', label: 'Conditional return', description: 'Pays a fixed return once either barrier is reached, in place of the absolute return.', available: true },
   { id: 'coupon', label: 'Coupon', description: 'An additional contractual payment on stated dates.', available: false },
   { id: 'digital', label: 'Digital', description: 'Pays a predefined amount if a stated condition is met.', available: false },
   { id: 'barrier', label: 'Downside barrier', description: 'Downside participation applies only if the underlier ends below a stated level.', available: true, requires: 'downside' },
@@ -210,7 +216,10 @@ const lowestCloseInput = ref<number>()
 const highestCloseInput = ref<number>()
 const dailyDownside = computed(() => barrierSelected.value && barrierObservation.value === 'daily-close')
 const dailyUpside = computed(() => upsideBarrierSelected.value && upsideBarrierObservation.value === 'daily-close')
-const dailySelected = computed(() => dailyDownside.value || dailyUpside.value)
+// The lowest close is read by a daily downside barrier or a daily lower barrier, the highest by a daily upside or upper barrier.
+const lowestCloseWanted = computed(() => dailyDownside.value || (bothWaysSelected.value && lowerObservation.value === 'daily-close'))
+const highestCloseWanted = computed(() => dailyUpside.value || (bothWaysSelected.value && upperObservation.value === 'daily-close'))
+const dailySelected = computed(() => lowestCloseWanted.value || highestCloseWanted.value)
 // Why a barrier cannot be observed daily, or null when it can: the same rules productIssues enforces.
 const dailyBlockedReason = (direction: ParticipationDirection) => {
   if (lookingBack.value || isBasket.value) return 'Not with lookback or a basket'
@@ -220,8 +229,18 @@ const dailyBlockedReason = (direction: ParticipationDirection) => {
 }
 const minimumSelected = ref(false)
 const minimumPercent = ref(firstFeatureValues.minimum)
+// Barrier absolute return: a payoff of its own with a lower and an upper barrier, each with its own level and observation, and an
+// optional conditional return. Both barriers are observed on every close at first, as the public notes are.
+const bothWaysSelected = ref(false)
+const bothWaysRate = ref(firstFeatureValues.absoluteReturn)
+const lowerBarrierPercent = ref(firstFeatureValues.lowerBarrier)
+const upperBarrierPercent = ref(firstFeatureValues.upperBarrier)
+const lowerObservation = ref<BarrierObservation>('daily-close')
+const upperObservation = ref<BarrierObservation>('daily-close')
+const conditionalSelected = ref(false)
+const conditionalPercent = ref(firstFeatureValues.conditional)
 const selectedDirections = computed(() => (['downside', 'upside'] as ParticipationDirection[]).filter((direction) => selectedParticipation[direction]))
-const isAdded = (id: FeatureId) => id === 'protection' ? protectionSelected.value : id === 'minimum' ? minimumSelected.value : id === 'cap' ? capSelected.value : id === 'buffer' ? bufferSelected.value : id === 'barrier' ? barrierSelected.value : id === 'upside-barrier' ? upsideBarrierSelected.value : id === 'rebate' ? rebateSelected.value : id === 'absolute-return' ? absoluteSelected.value : id === 'downside' || id === 'upside' ? selectedParticipation[id] : false
+const isAdded = (id: FeatureId) => id === 'absolute-both' ? bothWaysSelected.value : id === 'conditional' ? conditionalSelected.value : id === 'protection' ? protectionSelected.value : id === 'minimum' ? minimumSelected.value : id === 'cap' ? capSelected.value : id === 'buffer' ? bufferSelected.value : id === 'barrier' ? barrierSelected.value : id === 'upside-barrier' ? upsideBarrierSelected.value : id === 'rebate' ? rebateSelected.value : id === 'absolute-return' ? absoluteSelected.value : id === 'downside' || id === 'upside' ? selectedParticipation[id] : false
 // Why a feature cannot be added yet, or null when it can: it needs its direction first, a buffer and a barrier are not combined,
 // and absolute return pays the falls a buffer or barrier keeps from downside participation, so it needs one of them.
 // A deposit is repaid in full, so it takes nothing that could pay less than principal; a minimum return is on deposits only.
@@ -229,6 +248,12 @@ const depositExcludes: ReadonlyArray<FeatureId> = ['downside', 'buffer', 'barrie
 const blockedReason = (id: FeatureId) => {
   if (wrapper.value === 'deposit' && depositExcludes.includes(id)) return 'Not on a deposit'
   if (wrapper.value !== 'deposit' && id === 'minimum') return 'Deposits only'
+  // Barrier absolute return is a payoff of its own: it replaces participation, and has no minimum return, lookback, basket or averaging beside it.
+  if (id === 'absolute-both' && selectedDirections.value.length) return 'Not with participation'
+  if (id === 'absolute-both' && minimumSelected.value) return 'Not with a minimum return'
+  if (id === 'absolute-both' && (lookingBack.value || isBasket.value || averaging.value)) return 'Not with lookback, a basket or averaging'
+  if (id === 'conditional' && !bothWaysSelected.value) return 'Needs absolute return in both directions'
+  if (bothWaysSelected.value && (id === 'downside' || id === 'upside' || id === 'minimum')) return 'Not with absolute return in both directions'
   const requires = payoffFeatures.find((feature) => feature.id === id)?.requires
   if (requires && !selectedParticipation[requires]) return `Needs ${participationLabels[requires].toLowerCase()}`
   if (id === 'barrier' && bufferSelected.value) return 'Not with a buffer'
@@ -255,7 +280,7 @@ const setWrapper = (id: string) => {
   beginGesture()
   wrapper.value = id
 }
-const hasFeatures = computed(() => protectionSelected.value || minimumSelected.value || capSelected.value || bufferSelected.value || barrierSelected.value || selectedDirections.value.length > 0)
+const hasFeatures = computed(() => bothWaysSelected.value || protectionSelected.value || minimumSelected.value || capSelected.value || bufferSelected.value || barrierSelected.value || selectedDirections.value.length > 0)
 
 const paletteOpen = ref(false)
 const paletteQuery = ref('')
@@ -288,6 +313,8 @@ const addFeature = async (id: FeatureId) => {
   else if (id === 'upside-barrier') upsideBarrierSelected.value = true
   else if (id === 'rebate') rebateSelected.value = true
   else if (id === 'absolute-return') absoluteSelected.value = true
+  else if (id === 'absolute-both') bothWaysSelected.value = true
+  else if (id === 'conditional') conditionalSelected.value = true
   else if (id === 'downside' || id === 'upside') selectedParticipation[id] = true
   paletteOpen.value = false
   await nextTick()
@@ -303,6 +330,8 @@ const removeFeature = async (id: FeatureId) => {
   else if (id === 'upside-barrier') upsideBarrierSelected.value = false
   else if (id === 'rebate') rebateSelected.value = false
   else if (id === 'absolute-return') absoluteSelected.value = false
+  else if (id === 'absolute-both') bothWaysSelected.value = false
+  else if (id === 'conditional') conditionalSelected.value = false
   else if (id === 'downside' || id === 'upside') selectedParticipation[id] = false
   // Removing a direction removes the buffer, barrier or cap that belongs to it, and removing the buffer or barrier removes the
   // absolute return that depends on it.
@@ -310,9 +339,10 @@ const removeFeature = async (id: FeatureId) => {
   if (id === 'downside' || id === 'buffer' || id === 'barrier') absoluteSelected.value = false
   if (id === 'upside') { capSelected.value = false; upsideBarrierSelected.value = false; rebateSelected.value = false }
   if (id === 'upside-barrier') rebateSelected.value = false
+  if (id === 'absolute-both') conditionalSelected.value = false
   // The barrier concept belongs to both barriers, so it stays selected while either remains.
-  if ((selected.value === 'barrier' && !barrierSelected.value && !upsideBarrierSelected.value) || selected.value === id || (id === 'minimum' && selected.value === 'minimum-return') || (id === 'downside' && (selected.value === 'buffer' || selected.value === 'barrier' || selected.value === 'absolute-return'))
-    || ((id === 'buffer' || id === 'barrier') && selected.value === 'absolute-return') || (id === 'upside' && selected.value === 'cap')) selected.value = 'payoff'
+  if ((selected.value === 'barrier' && !barrierSelected.value && !upsideBarrierSelected.value && !bothWaysSelected.value) || selected.value === id || (id === 'minimum' && selected.value === 'minimum-return') || (id === 'downside' && (selected.value === 'buffer' || selected.value === 'barrier' || selected.value === 'absolute-return'))
+    || ((id === 'buffer' || id === 'barrier') && selected.value === 'absolute-return') || (id === 'upside' && selected.value === 'cap') || (id === 'absolute-both' && selected.value === 'absolute-return')) selected.value = 'payoff'
   await nextTick()
   addButton.value?.focus()
 }
@@ -362,6 +392,12 @@ const note = computed<Product>(() => ({
       absoluteReturn: absoluteSelected.value ? { rate: absolutePercent.value / 100 } : undefined,
       cap: capSelected.value ? capPercent.value / 100 : undefined,
     }),
+    barrierAbsoluteReturn: bothWaysSelected.value ? {
+      rate: bothWaysRate.value / 100,
+      lowerBarrier: { level: fractionFrom(lowerBarrierPercent.value), observation: lowerObservation.value },
+      upperBarrier: { level: fractionFrom(upperBarrierPercent.value), observation: upperObservation.value },
+      conditionalReturn: conditionalSelected.value ? fractionFrom(conditionalPercent.value) : undefined,
+    } : undefined,
     principalProtection: protectionSelected.value ? protectionPercent.value / 100 : undefined,
     minimumReturn: minimumSelected.value ? fractionFrom(minimumPercent.value) : undefined,
   },
@@ -433,8 +469,8 @@ const isLowest = (level: number) => Number.isFinite(determinedInitialLevel.value
 const finalLevel = computed(() => !valid.value ? Number.NaN : basketMeasure.value ? basketMeasure.value.levels.final : finalLevelFrom(determination.value.final, observations.value))
 // The closes a barrier observed daily reads. A close is a level on a date in the period, so none can be beyond the initial level
 // or any level observed on the final or averaging dates; the reader's level is moved in to stay within them.
-const lowestClose = computed(() => dailyDownside.value && initialValid.value ? Math.min(Number.isFinite(lowestCloseInput.value) ? Math.max(0, lowestCloseInput.value as number) : Infinity, determinedInitialLevel.value, ...observations.value) : undefined)
-const highestClose = computed(() => dailyUpside.value && initialValid.value ? Math.max(Number.isFinite(highestCloseInput.value) ? highestCloseInput.value as number : -Infinity, determinedInitialLevel.value, ...observations.value) : undefined)
+const lowestClose = computed(() => lowestCloseWanted.value && initialValid.value ? Math.min(Number.isFinite(lowestCloseInput.value) ? Math.max(0, lowestCloseInput.value as number) : Infinity, determinedInitialLevel.value, ...observations.value) : undefined)
+const highestClose = computed(() => highestCloseWanted.value && initialValid.value ? Math.max(Number.isFinite(highestCloseInput.value) ? highestCloseInput.value as number : -Infinity, determinedInitialLevel.value, ...observations.value) : undefined)
 const breakdown = computed(() => valid.value ? paymentBreakdown(note.value, { initial: determinedInitialLevel.value, final: finalLevel.value, lowestClose: lowestClose.value, highestClose: highestClose.value }) : null)
 const payment = computed(() => breakdown.value?.payment ?? null)
 const outcomeSentence = computed(() => breakdown.value ? explainOutcome(note.value, breakdown.value) : '')
@@ -451,6 +487,7 @@ const absoluteSummary = computed(() => formatPercent(absolutePercent.value / 100
 const capSummary = computed(() => `${formatAmount(principal.value * (1 + capPercent.value / 100))} (a ${formatPercent(capPercent.value / 100)} return on principal)`)
 const chartDescription = computed(() => {
   if (!hasFeatures.value) return 'Contractual maturity payment stays at principal for every final level.'
+  if (bothWaysSelected.value) return `Contractual maturity payment rises with the size of the underlier’s move, up or down, between the two barriers, then drops to ${conditionalSelected.value ? 'principal plus the conditional return' : 'principal'} beyond each.${dailySelected.value ? ' A dashed line shows the payment if a barrier had been reached on an earlier close.' : ''}`
   const fall = selectedParticipation.downside
     ? `${absoluteSelected.value ? `rises with falls ${barrierSelected.value ? 'that end at or above the downside barrier, then drops by the whole fall below it' : 'within the buffer, then drops at the buffer level'} and falls` : bufferSelected.value ? `stays at principal for falls within the buffer, then falls` : barrierSelected.value ? 'stays at principal for falls that end at or above the barrier, then drops by the whole fall below it and falls' : 'falls'} with negative underlier returns${protectionSelected.value ? ' until the protection floor applies' : ', but not below zero'}`
     : 'stays at principal for negative underlier returns'
@@ -471,8 +508,8 @@ const scenarios = computed(() => !initialValid.value ? [] : scenarioRows(note.va
   pastBarrier,
   atBuffer,
   // The row where a barrier observed daily was reached on an earlier close, with the close that reached it.
-  closeNote: !afterBreach ? null : breakdown.lowestClose !== undefined ? `lowest close ${formatAmount(breakdown.lowestClose)}` : `highest close ${formatAmount(breakdown.highestClose ?? 0)}`,
-  absolute: breakdown.absoluteReturnApplies ? `${absoluteSummary.value} × |${formatPercent(returnValue)}| = ${formatPercent(breakdown.participatedReturn)}` : null,
+  closeNote: !afterBreach ? null : ((close) => close === null ? null : `${close.kind} close ${formatAmount(close.level)}`)(breachClose(breakdown)),
+  absolute: breakdown.barrierAbsolute ? (breakdown.barrierAbsolute.reached ? (conditionalSelected.value ? `fixed ${formatPercent(breakdown.participatedReturn)}` : 'barrier reached') : `${formatPercent(bothWaysRate.value / 100)} × |${formatPercent(returnValue)}| = ${formatPercent(breakdown.participatedReturn)}`) : breakdown.absoluteReturnApplies ? `${absoluteSummary.value} × |${formatPercent(returnValue)}| = ${formatPercent(breakdown.participatedReturn)}` : null,
   calculations: Object.fromEntries(selectedDirections.value.map((direction) => [
     direction,
     // At or above the upside barrier the rebate, if there is one, replaces upside participation.
@@ -535,10 +572,10 @@ const ghostNote = ref<Product | null>(null)
 function beginGesture() { ghostNote.value = JSON.parse(JSON.stringify(note.value)) as Product }
 const focusRow = (concept: ConceptId) => { select(concept); beginGesture() }
 
-type HandleId = 'floor' | 'slope' | 'cap' | 'buffer' | 'barrier' | 'upside-barrier' | 'final'
+type HandleId = 'floor' | 'slope' | 'cap' | 'buffer' | 'barrier' | 'upside-barrier' | 'lower-barrier' | 'upper-barrier' | 'final'
 // The floor is the minimum return on a deposit that has one, and protection otherwise. The two cannot both be present.
 const floorConcept = computed<ConceptId>(() => minimumSelected.value ? 'minimum-return' : 'protection')
-const handleConcept = (id: HandleId): ConceptId | null => id === 'floor' ? floorConcept.value : { slope: 'upside', cap: 'cap', buffer: 'buffer', barrier: 'barrier', 'upside-barrier': 'barrier', final: null }[id] as ConceptId | null
+const handleConcept = (id: HandleId): ConceptId | null => id === 'floor' ? floorConcept.value : { slope: 'upside', cap: 'cap', buffer: 'buffer', barrier: 'barrier', 'upside-barrier': 'barrier', 'lower-barrier': 'barrier', 'upper-barrier': 'barrier', final: null }[id] as ConceptId | null
 const dragging = ref<HandleId | null>(null)
 // The axis in view when a drag starts, held until it ends so the line does not move under the pointer.
 const frozenAxis = ref<AmountAxis | null>(null)
@@ -573,6 +610,8 @@ const dragMove = (id: HandleId, event: PointerEvent) => {
   else if (id === 'buffer') bufferPercent.value = bufferFromX(point.x, axisScale.value, plot, determinedInitialLevel.value)
   else if (id === 'barrier') barrierPercent.value = barrierFromX(point.x, axisScale.value, plot, determinedInitialLevel.value)
   else if (id === 'upside-barrier') upsideBarrierPercent.value = upsideBarrierFromX(point.x, axisScale.value, plot, determinedInitialLevel.value)
+  else if (id === 'lower-barrier') lowerBarrierPercent.value = barrierFromX(point.x, axisScale.value, plot, determinedInitialLevel.value)
+  else if (id === 'upper-barrier') upperBarrierPercent.value = upsideBarrierFromX(point.x, axisScale.value, plot, determinedInitialLevel.value)
   else setFinalLevel(finalLevelFromX(point.x, axisScale.value, plot))
 }
 const endDrag = () => {
@@ -591,6 +630,8 @@ const keyHandle = (id: HandleId, event: KeyboardEvent) => {
   else if (id === 'buffer') bufferPercent.value = clampBuffer(bufferPercent.value + (event.key === 'ArrowLeft' || event.key === 'ArrowRight' ? -delta : delta))
   else if (id === 'barrier') barrierPercent.value = clampBarrier(barrierPercent.value + delta)
   else if (id === 'upside-barrier') upsideBarrierPercent.value = clampUpsideBarrier(upsideBarrierPercent.value + delta)
+  else if (id === 'lower-barrier') lowerBarrierPercent.value = clampBarrier(lowerBarrierPercent.value + delta)
+  else if (id === 'upper-barrier') upperBarrierPercent.value = clampUpsideBarrier(upperBarrierPercent.value + delta)
   else setFinalLevel(clampFinalLevel(finalLevel.value + delta, axisScale.value))
 }
 
@@ -707,6 +748,11 @@ const chart = computed(() => {
   // rebate, or principal, which is where the line continues from the jump.
   const upsideBarrierX = upsideBarrierAt === undefined ? null : x(upsideBarrierAt)
   const upsideBarrierY = upsideBarrierAt === undefined ? 0 : pinnedY(maturityPayment(note.value, at(upsideBarrierAt)))
+  // Barrier absolute return's handles sit at each barrier, on the end the barrier level itself pays: the absolute return.
+  const lowerBarrierAt = bothWaysSelected.value ? barrierLevelAt(fractionFrom(lowerBarrierPercent.value), initial) : undefined
+  const upperBarrierAt = bothWaysSelected.value ? barrierLevelAt(fractionFrom(upperBarrierPercent.value), initial) : undefined
+  const lowerBarrierHandle = lowerBarrierAt === undefined ? null : { x: x(lowerBarrierAt), y: pinnedY(maturityPayment(note.value, at(lowerBarrierAt))) }
+  const upperBarrierHandle = upperBarrierAt === undefined ? null : { x: x(upperBarrierAt), y: pinnedY(maturityPayment(note.value, at(upperBarrierAt))) }
   const otherHandles = [
     capHandleX === null ? null : { x: capHandleX, y: pinnedY(capAmount) },
     selectedParticipation.upside ? { x: x(slopeAt), y: pinnedY(maturityPayment(note.value, at(slopeAt))) } : null,
@@ -787,6 +833,8 @@ const chart = computed(() => {
     bufferHandle: bufferX === null ? null : { x: bufferX, y: bufferY },
     barrierHandle: barrierX === null ? null : { x: barrierX, y: barrierY },
     upsideBarrierHandle: upsideBarrierX === null ? null : { x: upsideBarrierX, y: upsideBarrierY },
+    lowerBarrierHandle,
+    upperBarrierHandle,
     capHandle: otherHandles[0],
     // The floor handle sits a quarter of the way across, on the floor's level.
     floorHandle: hasFloor ? { x: plot.left + (plot.right - plot.left) * 0.25, y: y(floorAmount) } : null,
@@ -838,7 +886,7 @@ const chart = computed(() => {
                 <li :class="['node', { sel: highlighted('underlier') }]" :style="conceptStyle('underlier')">
                   <div class="nrow" @click="select('underlier')" @focusin="focusRow('underlier')">
                     <span class="nlabel">Underlier<HintToggle id="underlier" about="underlier" :text="hints.underlier" :active="activeHint === 'underlier'" @toggle="toggleHint('underlier')" /></span>
-                    <span class="ctrl pick"><select aria-label="Underlier" :value="underlierKind" @change="setUnderlierKind(($event.target as HTMLSelectElement).value as Underlier['kind'])"><option v-for="option in underlierOptions" :key="option.id" :value="option.id" :disabled="!option.available || (option.id === 'basket' && dailySelected)">{{ option.label }}{{ option.available ? (option.id === 'basket' && dailySelected ? ' (not with a daily barrier)' : '') : ' (unavailable)' }}</option></select></span>
+                    <span class="ctrl pick"><select aria-label="Underlier" :value="underlierKind" @change="setUnderlierKind(($event.target as HTMLSelectElement).value as Underlier['kind'])"><option v-for="option in underlierOptions" :key="option.id" :value="option.id" :disabled="!option.available || (option.id === 'basket' && (dailySelected || bothWaysSelected))">{{ option.label }}{{ option.available ? (option.id === 'basket' && bothWaysSelected ? ' (not with barrier absolute return)' : option.id === 'basket' && dailySelected ? ' (not with a daily barrier)' : '') : ' (unavailable)' }}</option></select></span>
                   </div>
                   <ul>
                     <li v-if="!isBasket" :class="['node', { sel: highlighted('asset') }]" :style="conceptStyle('asset')">
@@ -870,7 +918,7 @@ const chart = computed(() => {
                         <li :class="['node', { sel: highlighted('initial-level') }]" :style="conceptStyle('initial-level')">
                           <div class="nrow" @click="select('initial-level')" @focusin="focusRow('initial-level')">
                             <span class="nlabel">Initial level<HintToggle id="initial-level" about="initial level" :text="hints['initial-level']" :active="activeHint === 'initial-level'" @toggle="toggleHint('initial-level')" /></span>
-                            <span class="ctrl pick"><select id="initial-determination" v-model="initialKind" aria-label="Initial level"><option v-for="option in initialDeterminationOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="option.id === 'lookback' && (isBasket || dailySelected)">{{ option.label }}{{ option.id === 'lookback' ? (isBasket ? ' (single asset only)' : dailySelected ? ' (not with a daily barrier)' : '') : '' }}</option></select></span>
+                            <span class="ctrl pick"><select id="initial-determination" v-model="initialKind" aria-label="Initial level"><option v-for="option in initialDeterminationOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="option.id === 'lookback' && (isBasket || dailySelected || bothWaysSelected)">{{ option.label }}{{ option.id === 'lookback' ? (isBasket ? ' (single asset only)' : bothWaysSelected ? ' (not with barrier absolute return)' : dailySelected ? ' (not with a daily barrier)' : '') : '' }}</option></select></span>
                             <span v-if="lookingBack" class="ctrl block wraps"><label for="lookback-count">Observations after pricing</label><HintToggle id="lookback-count" about="observations after pricing" :text="hints['lookback-observations']" :active="activeHint === 'lookback-observations'" @toggle="toggleHint('lookback-observations')" /><NumberInput id="lookback-count" v-model="lookbackCount" class="num count" /></span>
                             <span v-if="lookingBack" class="ctrl block wraps"><span class="flabel">Observed levels</span><span class="unit">Hypothetical, set in the calculation</span></span>
                             <template v-else-if="isBasket"><span v-for="(asset, index) in basketAssets" :key="index" class="ctrl block"><label :for="`initial-level-${index}`">{{ asset.name.trim() || `Asset ${index + 1}` }}</label><NumberInput :id="`initial-level-${index}`" v-model="asset.initialLevel" class="num" /></span></template>
@@ -881,7 +929,7 @@ const chart = computed(() => {
                         <li :class="['node', { sel: highlighted('final-level') }]" :style="conceptStyle('final-level')">
                           <div class="nrow" @click="select('final-level')" @focusin="focusRow('final-level')">
                             <span class="nlabel">Final level<HintToggle id="final-level" about="final level" :text="hints['final-level']" :active="activeHint === 'final-level'" @toggle="toggleHint('final-level')" /></span>
-                            <span class="ctrl pick"><select id="final-determination" v-model="finalKind" aria-label="Final level"><option v-for="option in finalDeterminationOptions" :key="option.id" :value="option.id" :title="option.description">{{ option.label }}</option></select></span>
+                            <span class="ctrl pick"><select id="final-determination" v-model="finalKind" aria-label="Final level"><option v-for="option in finalDeterminationOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="option.id === 'averaging' && bothWaysSelected">{{ option.label }}{{ option.id === 'averaging' && bothWaysSelected ? ' (not with barrier absolute return)' : '' }}</option></select></span>
                             <span v-if="averaging" class="ctrl block"><label for="observation-count">Observations</label><HintToggle id="observation-count" about="observations" :text="hints.observations" :active="activeHint === 'observations'" @toggle="toggleHint('observations')" /><NumberInput id="observation-count" v-model="observationCount" class="num count" /></span>
                             <span class="ctrl block wraps"><span class="flabel">{{ averaging ? 'Observed levels' : isBasket ? 'Levels on the final date' : 'Level on the final date' }}</span><span class="unit">{{ averaging || isBasket ? 'Hypothetical, set in the calculation' : 'Hypothetical, set on the chart' }}</span></span>
                           </div>
@@ -961,6 +1009,38 @@ const chart = computed(() => {
                               </div>
                             </li>
                           </ul>
+                        </li>
+                      </ul>
+                    </li>
+                    <li v-if="bothWaysSelected" :class="['node', { sel: highlighted('absolute-return') }]" :style="conceptStyle('absolute-return')">
+                      <div class="nrow" @click="select('absolute-return')" @focusin="focusRow('absolute-return')">
+                        <span class="nlabel">Absolute return (both directions)<HintToggle id="absolute-both" about="absolute return in both directions" :text="hints['absolute-both']" :active="activeHint === 'absolute-both'" @toggle="toggleHint('absolute-both')" /></span>
+                        <span class="ctrl"><NumberInput id="rate-absolute-both" v-model="bothWaysRate" class="num rate" aria-label="Absolute return rate (%)" /><span class="unit">%</span><button type="button" class="xbtn" aria-label="Remove absolute return in both directions" @click.stop="removeFeature('absolute-both')">×</button></span>
+                      </div>
+                      <ul v-if="issuesFor('barrierAbsoluteReturn').length" class="errors" role="alert"><li v-for="message in issuesFor('barrierAbsoluteReturn')" :key="message">{{ message }}</li></ul>
+                      <ul>
+                        <li :class="['node', { sel: highlighted('barrier') }]" :style="conceptStyle('barrier')">
+                          <div class="nrow" @click="select('barrier')" @focusin="focusRow('barrier')">
+                            <span class="nlabel">Lower barrier<HintToggle id="lower-barrier" about="lower barrier" :text="hints['lower-barrier']" :active="activeHint === 'lower-barrier'" @toggle="toggleHint('lower-barrier')" /></span>
+                            <span class="ctrl"><NumberInput id="rate-lower-barrier" v-model="lowerBarrierPercent" class="num rate" aria-label="Lower barrier: level (% of the initial level)" /><span class="unit">%</span></span>
+                            <span class="ctrl block"><label for="lower-barrier-observation">Observed</label><select id="lower-barrier-observation" v-model="lowerObservation"><option value="final">Final date</option><option value="daily-close">Daily close</option></select></span>
+                          </div>
+                          <ul v-if="issuesFor('lowerBarrier').length" class="errors" role="alert"><li v-for="message in issuesFor('lowerBarrier')" :key="message">{{ message }}</li></ul>
+                        </li>
+                        <li :class="['node', { sel: highlighted('barrier') }]" :style="conceptStyle('barrier')">
+                          <div class="nrow" @click="select('barrier')" @focusin="focusRow('barrier')">
+                            <span class="nlabel">Upper barrier<HintToggle id="upper-barrier" about="upper barrier" :text="hints['upper-barrier']" :active="activeHint === 'upper-barrier'" @toggle="toggleHint('upper-barrier')" /></span>
+                            <span class="ctrl"><NumberInput id="rate-upper-barrier" v-model="upperBarrierPercent" class="num rate" aria-label="Upper barrier: level (% of the initial level)" /><span class="unit">%</span></span>
+                            <span class="ctrl block"><label for="upper-barrier-observation">Observed</label><select id="upper-barrier-observation" v-model="upperObservation"><option value="final">Final date</option><option value="daily-close">Daily close</option></select></span>
+                          </div>
+                          <ul v-if="issuesFor('upperBarrier').length" class="errors" role="alert"><li v-for="message in issuesFor('upperBarrier')" :key="message">{{ message }}</li></ul>
+                        </li>
+                        <li v-if="conditionalSelected" :class="['node', { sel: highlighted('barrier') }]" :style="conceptStyle('barrier')">
+                          <div class="nrow" @click="select('barrier')" @focusin="focusRow('barrier')">
+                            <span class="nlabel">Conditional return<HintToggle id="conditional" about="conditional return" :text="hints.conditional" :active="activeHint === 'conditional'" @toggle="toggleHint('conditional')" /></span>
+                            <span class="ctrl"><NumberInput id="rate-conditional" v-model="conditionalPercent" class="num rate" aria-label="Conditional return: return paid on principal (%)" /><span class="unit">%</span><button type="button" class="xbtn" aria-label="Remove conditional return" @click.stop="removeFeature('conditional')">×</button></span>
+                          </div>
+                          <ul v-if="issuesFor('conditionalReturn').length" class="errors" role="alert"><li v-for="message in issuesFor('conditionalReturn')" :key="message">{{ message }}</li></ul>
                         </li>
                       </ul>
                     </li>
@@ -1045,6 +1125,12 @@ const chart = computed(() => {
               <g v-if="chart.upsideBarrierHandle" :class="['handle', { on: highlighted('barrier') }]" :style="conceptStyle('barrier')" :transform="`translate(${chart.upsideBarrierHandle.x} ${chart.upsideBarrierHandle.y})`" tabindex="0" role="slider" aria-orientation="horizontal" aria-label="Upside barrier" aria-valuemin="101" aria-valuemax="200" :aria-valuenow="upsideBarrierPercent" :aria-valuetext="`Upside barrier at ${upsideBarrierPercent}% of the ${lookingBack ? 'lookback' : 'initial'} level`" @pointerdown="startDrag('upside-barrier', $event)" @pointermove="dragMove('upside-barrier', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('upside-barrier', $event)" @focus="focusHandle('upside-barrier')">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
+              <g v-if="chart.lowerBarrierHandle" :class="['handle', { on: highlighted('barrier') }]" :style="conceptStyle('barrier')" :transform="`translate(${chart.lowerBarrierHandle.x} ${chart.lowerBarrierHandle.y})`" tabindex="0" role="slider" aria-orientation="horizontal" aria-label="Lower barrier" aria-valuemin="1" aria-valuemax="99" :aria-valuenow="lowerBarrierPercent" :aria-valuetext="`Lower barrier at ${lowerBarrierPercent}% of the initial level`" @pointerdown="startDrag('lower-barrier', $event)" @pointermove="dragMove('lower-barrier', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('lower-barrier', $event)" @focus="focusHandle('lower-barrier')">
+                <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
+              </g>
+              <g v-if="chart.upperBarrierHandle" :class="['handle', { on: highlighted('barrier') }]" :style="conceptStyle('barrier')" :transform="`translate(${chart.upperBarrierHandle.x} ${chart.upperBarrierHandle.y})`" tabindex="0" role="slider" aria-orientation="horizontal" aria-label="Upper barrier" aria-valuemin="101" aria-valuemax="200" :aria-valuenow="upperBarrierPercent" :aria-valuetext="`Upper barrier at ${upperBarrierPercent}% of the initial level`" @pointerdown="startDrag('upper-barrier', $event)" @pointermove="dragMove('upper-barrier', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('upper-barrier', $event)" @focus="focusHandle('upper-barrier')">
+                <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
+              </g>
               <g v-if="chart.slopeHandle":class="['handle', { on: highlighted('upside') }]" :style="conceptStyle('upside')" :transform="`translate(${chart.slopeHandle.x} ${chart.slopeHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Upside participation rate" aria-valuemin="5" aria-valuemax="200" :aria-valuenow="participationPercent.upside" :aria-valuetext="`${participationPercent.upside}% upside participation`" @pointerdown="startDrag('slope', $event)" @pointermove="dragMove('slope', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('slope', $event)" @focus="focusHandle('slope')">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
@@ -1067,8 +1153,8 @@ const chart = computed(() => {
               <div v-else-if="averaging" class="hint-field"><div class="field-heading"><span id="observed-levels-label" class="observed-heading">Final level: hypothetical levels of {{ underlierLabel }} on the averaging dates</span><button type="button" class="hint-button" aria-label="About the averaged final level" aria-controls="observed-levels-hint" :aria-expanded="activeHint === 'observed-levels'" @click="toggleHint('observed-levels')">ⓘ</button><p v-if="activeHint === 'observed-levels'" id="observed-levels-hint" class="hint-text" role="tooltip">Hypothetical levels on each averaging date, earliest first. Their average is the final level. Changing them does not change the {{ wrapper }}'s terms.</p></div><div class="observed-levels" role="group" aria-labelledby="observed-levels-label" :style="conceptStyle('final-level')"><template v-for="(level, index) in observations" :key="index"><span v-if="index > 0" class="observed-op" aria-hidden="true">+</span><span class="observed-cell"><label :for="`observation-${index}`" class="observed-name">Obs {{ index + 1 }}<template v-if="index === observations.length - 1"> · final date</template></label><NumberInput :id="`observation-${index}`" :model-value="level" class="observed-input" @update:model-value="setObservation(index, $event)" /></span></template><span class="observed-op" aria-hidden="true">÷ {{ observations.length }} =</span><span class="observed-cell"><span class="observed-name">Final level</span><output class="observed-result" aria-live="polite">{{ Number.isFinite(finalLevel) ? formatAmount(finalLevel) : '—' }}</output></span></div></div>
               <div v-else class="hint-field"><div class="field-heading"><label for="final-level">Final level: hypothetical level of {{ underlierLabel }} on the final date</label><button type="button" class="hint-button" aria-label="About the final level" aria-controls="final-level-hint" :aria-expanded="activeHint === 'final-level'" @click="toggleHint('final-level')">ⓘ</button><p v-if="activeHint === 'final-level'" id="final-level-hint" class="hint-text" role="tooltip">A hypothetical level for this scenario. Changing it does not change the {{ wrapper }}'s terms.</p></div><NumberInput id="final-level" :model-value="observations[0]" class="final-input" @update:model-value="setObservation(0, $event)" /></div>
               <p v-if="finalError" class="errors" role="alert">{{ finalError }}</p>
-              <div v-if="dailyDownside && lowestClose !== undefined" class="hint-field"><div class="field-heading"><label for="lowest-close">Lowest close: hypothetical lowest close of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About the lowest close" aria-controls="lowest-close-hint" :aria-expanded="activeHint === 'lowest-close'" @click="toggleHint('lowest-close')">ⓘ</button><p v-if="activeHint === 'lowest-close'" id="lowest-close-hint" class="hint-text" role="tooltip">{{ hints['lowest-close'] }}</p></div><NumberInput id="lowest-close" :model-value="lowestClose" class="final-input" @update:model-value="lowestCloseInput = $event" /></div>
-              <div v-if="dailyUpside && highestClose !== undefined" class="hint-field"><div class="field-heading"><label for="highest-close">Highest close: hypothetical highest close of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About the highest close" aria-controls="highest-close-hint" :aria-expanded="activeHint === 'highest-close'" @click="toggleHint('highest-close')">ⓘ</button><p v-if="activeHint === 'highest-close'" id="highest-close-hint" class="hint-text" role="tooltip">{{ hints['highest-close'] }}</p></div><NumberInput id="highest-close" :model-value="highestClose" class="final-input" @update:model-value="highestCloseInput = $event" /></div>
+              <div v-if="lowestCloseWanted && lowestClose !== undefined" class="hint-field"><div class="field-heading"><label for="lowest-close">Lowest close: hypothetical lowest close of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About the lowest close" aria-controls="lowest-close-hint" :aria-expanded="activeHint === 'lowest-close'" @click="toggleHint('lowest-close')">ⓘ</button><p v-if="activeHint === 'lowest-close'" id="lowest-close-hint" class="hint-text" role="tooltip">{{ hints['lowest-close'] }}</p></div><NumberInput id="lowest-close" :model-value="lowestClose" class="final-input" @update:model-value="lowestCloseInput = $event" /></div>
+              <div v-if="highestCloseWanted && highestClose !== undefined" class="hint-field"><div class="field-heading"><label for="highest-close">Highest close: hypothetical highest close of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About the highest close" aria-controls="highest-close-hint" :aria-expanded="activeHint === 'highest-close'" @click="toggleHint('highest-close')">ⓘ</button><p v-if="activeHint === 'highest-close'" id="highest-close-hint" class="hint-text" role="tooltip">{{ hints['highest-close'] }}</p></div><NumberInput id="highest-close" :model-value="highestClose" class="final-input" @update:model-value="highestCloseInput = $event" /></div>
               <div class="formula" role="group" aria-label="Payment rule"><div v-for="(line, index) in formula" :key="index" :class="['fline', { limit: !line.lead }]"><span class="flead">{{ line.lead }}</span><span class="feq">{{ line.lead ? '=' : '' }}</span><span class="fexpr"><template v-for="(segment, part) in line.segments" :key="part"><span v-if="segment.concept" :class="['fterm', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)">{{ segment.text }}</span><template v-else>{{ segment.text }}</template></template></span></div><p class="fwords"><b>In words:</b> {{ formulaWords }}</p></div>
               <ol class="calc-steps" aria-live="polite"><li v-for="step in calculation" :key="step.n" :class="{ hl: step.concept && highlighted(step.concept), muted: step.muted, result: step.result }"><span class="calc-n">{{ step.n }}</span><b>{{ step.title }}</b><span class="calc-value">{{ step.value }}</span><span class="calc-how">{{ step.how }}</span></li></ol>
               <p v-if="outcomeSentence" class="outcome" aria-live="polite">{{ outcomeSentence }}</p>
@@ -1077,8 +1163,8 @@ const chart = computed(() => {
               <template v-if="chart">
                 <h3>Example scenarios</h3>
                 <p class="table-scroll-hint">Scroll horizontally to see every scenario column.</p>
-                <div class="table-wrap"><table><thead><tr><th>{{ isBasket ? 'Basket level' : 'Final level' }}</th><th>Underlier change</th><th v-if="absoluteSelected">Absolute return</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected || minimumSelected">Payment before {{ minimumSelected ? 'minimum' : 'protection' }}</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="`${row.returnValue}-${row.closeNote}`"><td>{{ formatAmount(row.final) }}<span v-if="row.atBarrier" class="floor-note">at barrier</span><span v-if="row.pastBarrier" class="floor-note">{{ row.pastBarrier }} barrier</span><span v-if="row.atBuffer" class="floor-note">at buffer</span><span v-if="row.closeNote" class="floor-note">{{ row.closeNote }}</span></td><td>{{ formatPercent(row.returnValue) }}</td><td v-if="absoluteSelected">{{ row.absolute ?? '—' }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected || minimumSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="(protectionSelected || minimumSelected) && row.floorApplied" class="floor-note">{{ minimumSelected ? 'minimum applied' : 'floor applied' }}</span></td></tr></tbody></table></div>
-                <p class="scenario-formula"><template v-if="lookingBack">Each change is measured from the lookback level, {{ formatAmount(determinedInitialLevel) }}. </template><template v-if="averaging">Each final level is the average of the observed levels. </template><strong>Selected participation:</strong> {{ participationSummary }}. A move in a direction without participation leaves principal unchanged before any floor applies.<template v-if="bufferSelected"> The buffer absorbs the first {{ bufferSummary }} of a fall.</template><template v-if="absoluteSelected"> A fall {{ barrierSelected ? 'that ends at or above the downside barrier' : 'within the buffer' }} pays {{ absoluteSummary }} of the fall as a gain.</template><template v-if="upsideBarrierSelected"> At or above the upside barrier, upside participation ends{{ rebateSelected ? ` and the rebate pays ${formatPercent(rebatePercent / 100)} of principal instead` : '' }}.</template> The payment cannot fall below {{ floorSummary }}.<template v-if="capSelected"> It cannot exceed {{ capSummary }}.</template></p>
+                <div class="table-wrap"><table><thead><tr><th>{{ isBasket ? 'Basket level' : 'Final level' }}</th><th>Underlier change</th><th v-if="absoluteSelected || bothWaysSelected">Absolute return</th><th v-for="direction in selectedDirections" :key="direction">{{ participationLabels[direction] }}</th><th v-if="capSelected">Payment before cap</th><th v-if="protectionSelected || minimumSelected">Payment before {{ minimumSelected ? 'minimum' : 'protection' }}</th><th>Final payment</th></tr></thead><tbody><tr v-for="row in scenarios" :key="`${row.returnValue}-${row.closeNote}`"><td>{{ formatAmount(row.final) }}<span v-if="row.atBarrier" class="floor-note">at barrier</span><span v-if="row.pastBarrier" class="floor-note">{{ row.pastBarrier }} barrier</span><span v-if="row.atBuffer" class="floor-note">at buffer</span><span v-if="row.closeNote" class="floor-note">{{ row.closeNote }}</span></td><td>{{ formatPercent(row.returnValue) }}</td><td v-if="absoluteSelected || bothWaysSelected">{{ row.absolute ?? '—' }}</td><td v-for="direction in selectedDirections" :key="direction">{{ row.calculations[direction] ?? '—' }}</td><td v-if="capSelected">{{ formatAmount(row.uncappedPayment) }}</td><td v-if="protectionSelected || minimumSelected">{{ formatAmount(row.unflooredPayment) }}</td><td>{{ formatAmount(row.payment) }}<span v-if="capSelected && row.capApplied" class="floor-note">cap applied</span><span v-if="(protectionSelected || minimumSelected) && row.floorApplied" class="floor-note">{{ minimumSelected ? 'minimum applied' : 'floor applied' }}</span></td></tr></tbody></table></div>
+                <p class="scenario-formula"><template v-if="lookingBack">Each change is measured from the lookback level, {{ formatAmount(determinedInitialLevel) }}. </template><template v-if="averaging">Each final level is the average of the observed levels. </template><template v-if="bothWaysSelected">Absolute return pays {{ formatPercent(bothWaysRate / 100) }} of the size of the move, up or down, until a barrier is reached, and then {{ conditionalSelected ? `a fixed ${formatPercent(conditionalPercent / 100)}` : 'nothing more than principal' }}.</template><template v-else><strong>Selected participation:</strong> {{ participationSummary }}. A move in a direction without participation leaves principal unchanged before any floor applies.</template><template v-if="bufferSelected"> The buffer absorbs the first {{ bufferSummary }} of a fall.</template><template v-if="absoluteSelected"> A fall {{ barrierSelected ? 'that ends at or above the downside barrier' : 'within the buffer' }} pays {{ absoluteSummary }} of the fall as a gain.</template><template v-if="upsideBarrierSelected"> Above the upside barrier, upside participation ends{{ rebateSelected ? ` and the rebate pays ${formatPercent(rebatePercent / 100)} of principal instead` : '' }}.</template> The payment cannot fall below {{ bothWaysSelected ? formatAmount(principal) : floorSummary }}.<template v-if="capSelected"> It cannot exceed {{ capSummary }}.</template></p>
               </template>
               <p v-else class="help">Enter valid terms to see the scenarios.</p>
             </template>
