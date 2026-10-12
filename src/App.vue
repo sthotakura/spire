@@ -14,7 +14,7 @@ import { breachClose, scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
-import { barrierLevelAt, basketBreakdown, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
+import { barrierLevelAt, basketBreakdown, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
@@ -51,7 +51,7 @@ const hints = {
   cap: 'The most upside participation can add to principal, as a percentage of principal, however far the underlier rises.',
   protection: 'The minimum contractual maturity payment as a percentage of principal. Protection applies at maturity and depends on the issuer’s ability to pay.',
   'minimum-return': 'The lowest return the deposit pays on principal, whatever the underlier does. The payment is the greater of the participated payment and principal plus this return, so it is a floor, not an addition.',
-  'basket-return': 'How a basket’s asset returns make its one return. Weighted adds up each asset’s return times its weight. The basket level starts at 100 and moves by that return, and the payoff reads it as it reads a single asset’s level.',
+  'basket-return': 'How a basket’s asset returns make its one return. Weighted adds up each asset’s return times its weight. Worst of uses the return of the asset that performs worst, so a fall in any one asset counts in full. Best of uses the return of the asset that performs best. The basket level starts at 100 and moves by that return, and the payoff reads it as it reads a single asset’s level.',
   weight: 'The asset’s share of the basket, fixed on the pricing date. The weights add up to 100%: the total beside Add asset shows how much is left to allocate, or how much is over.',
 }
 const wrapperOptions = [
@@ -81,7 +81,8 @@ const underlierOptions = [
 ] as const
 const basketReturnOptions = [
   { id: 'weighted', label: 'Weighted', description: 'Adds up each asset’s return times its weight.', available: true },
-  { id: 'worst-of', label: 'Worst-of', description: 'Uses the return of the asset that performs worst.', available: false },
+  { id: 'worst-of', label: 'Worst of', description: 'Uses the return of the asset that performs worst.', available: true },
+  { id: 'best-of', label: 'Best of', description: 'Uses the return of the asset that performs best.', available: true },
 ] as const
 const assetOptions: ReadonlyArray<{ id: AssetKind; label: string }> = [
   { id: 'equity-index', label: 'Equity index' },
@@ -104,6 +105,9 @@ const finalKind = ref<FinalDetermination['kind']>(startingProduct.underlier.dete
 const observationCount = ref(firstObservationCount)
 const underlierKind = ref<Underlier['kind']>(startingProduct.underlier.kind)
 const isBasket = computed(() => underlierKind.value === 'basket')
+// How a basket's asset returns make its return. Weights are kept while another rule is chosen, and are not part of the note then.
+const basketReturnKind = ref<BasketReturn['kind']>('weighted')
+const weighted = computed(() => basketReturnKind.value === 'weighted')
 // The terms of each asset in a basket, in order. While the note tracks a basket, the single asset's terms above are not read.
 interface BasketAsset { kind: AssetKind; name: string; initialLevel: number; weightPercent: number }
 const basketAssets = ref<BasketAsset[]>([])
@@ -371,11 +375,11 @@ const underlier = computed<Underlier>(() => !isBasket.value
   ? { kind: 'single', components: [{ asset: { kind: assetKind.value, name: assetName.value } }], determination: determination.value }
   : {
       kind: 'basket',
-      components: basketAssets.value.map(({ kind, name, weightPercent }) => ({ asset: { kind, name }, weight: fractionFrom(weightPercent) })),
+      components: basketAssets.value.map(({ kind, name, weightPercent }) => weighted.value ? { asset: { kind, name }, weight: fractionFrom(weightPercent) } : { asset: { kind, name } }),
       determination: {
         initial: { kind: 'given', levels: basketAssets.value.map(({ name, initialLevel }) => ({ asset: name, level: initialLevel })) },
         final: determination.value.final,
-        basketReturn: { kind: 'weighted' },
+        basketReturn: { kind: basketReturnKind.value },
       },
     })
 const note = computed<Product>(() => ({
@@ -902,10 +906,10 @@ const chart = computed(() => {
                           <span class="ctrl pick"><select v-model="asset.kind" :aria-label="`Asset ${index + 1} type`"><option v-for="option in assetOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
                           <button v-if="basketAssets.length > 2" type="button" class="xbtn" :aria-label="`Remove ${asset.name.trim() || `asset ${index + 1}`}`" @click.stop="removeAsset(index)">×</button>
                           <span class="ctrl block"><label :for="`asset-name-${index}`">Name</label><input :id="`asset-name-${index}`" v-model="asset.name" type="text" placeholder="Synthetic Asset" /></span>
-                          <span class="ctrl block"><label :for="`weight-${index}`">Weight</label><HintToggle v-if="index === 0" id="weight" about="weight" :text="hints.weight" :active="activeHint === 'weight'" @toggle="toggleHint('weight')" /><NumberInput :id="`weight-${index}`" v-model="asset.weightPercent" class="num rate" /><span class="unit">%</span></span>
+                          <span v-if="weighted" class="ctrl block"><label :for="`weight-${index}`">Weight</label><HintToggle v-if="index === 0" id="weight" about="weight" :text="hints.weight" :active="activeHint === 'weight'" @toggle="toggleHint('weight')" /><NumberInput :id="`weight-${index}`" v-model="asset.weightPercent" class="num rate" /><span class="unit">%</span></span>
                         </div>
                       </li>
-                      <li class="addrow"><button type="button" class="addbtn" @click="addAsset">＋ Add asset</button><output class="unit weights-total" aria-live="polite">Weights: {{ weightTotal }}</output></li>
+                      <li class="addrow"><button type="button" class="addbtn" @click="addAsset">＋ Add asset</button><output v-if="weighted" class="unit weights-total" aria-live="polite">Weights: {{ weightTotal }}</output></li>
                       <li v-if="issuesFor('underlierName', 'basketComponents', 'weights').length" class="addrow"><ul class="errors" role="alert"><li v-for="message in issuesFor('underlierName', 'basketComponents', 'weights')" :key="message">{{ message }}</li></ul></li>
                     </template>
                     <li :class="['node', { sel: highlighted('determination') }]" :style="conceptStyle('determination')">
@@ -935,8 +939,8 @@ const chart = computed(() => {
                         </li>
                         <li v-if="isBasket" :class="['node', { sel: highlighted('basket-return') }]" :style="conceptStyle('basket-return')">
                           <div class="nrow" @click="select('basket-return')" @focusin="focusRow('basket-return')">
-                            <span class="nlabel">Basket return<HintToggle id="basket-return" about="basket return" :text="hints['basket-return']" :active="activeHint === 'basket-return'" @toggle="toggleHint('basket-return')" /></span>
-                            <span class="ctrl pick"><select aria-label="Basket return" value="weighted"><option v-for="option in basketReturnOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
+                            <span class="nlabel long">Return combination<HintToggle id="basket-return" about="return combination" :text="hints['basket-return']" :active="activeHint === 'basket-return'" @toggle="toggleHint('basket-return')" /></span>
+                            <span class="ctrl pick"><select v-model="basketReturnKind" aria-label="Return combination"><option v-for="option in basketReturnOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
                           </div>
                         </li>
                       </ul>

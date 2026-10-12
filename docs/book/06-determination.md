@@ -45,9 +45,10 @@ observations is only the simplified way this example expresses that period.
 ## Combining the methods
 
 The initial and final ends are separate choices. A single underlier can use
-lookback at the start and averaging at the end. A weighted basket in SPIRe
+lookback at the start and averaging at the end. A basket in SPIRe
 uses fixed initial levels and can average each component's final levels before
-weighting their returns. Basket lookback is not assigned a rule here.
+combining their returns: weighted, or the lowest (worst-of) or highest
+(best-of) of them. Basket lookback is not assigned a rule here.
 
 ## Public example
 

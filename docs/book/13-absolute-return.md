@@ -45,8 +45,9 @@ from two Morgan Stanley preliminary pricing supplements dated October 1, 2026:
 - The barrier case follows [Dual Directional Trigger PLUS, No. 18,961](https://www.morganstanley.com/structuredinvestments/docs/prospectus/prelim/ProspectusRed61781LUU2.pdf),
   on the worst performing of two indices, with a threshold at 70% of the
   initial level, read on the final date, and a 50% absolute-return rate. The
-  example above uses a single underlier, because a worst-of rule is not
-  calculated here; only the shape of the payoff is taken from the note.
+  example above uses a single underlier, because barrier absolute return is
+  not calculated on a basket here; only the shape of the payoff is taken from
+  the note.
 
 ## In both directions, until a barrier
 

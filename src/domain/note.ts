@@ -227,16 +227,17 @@ export interface SingleUnderlier {
 }
 
 /**
- * An asset in a weighted basket and its weight, which is part of what the basket holds. Weights are fixed on the pricing
- * date and add up to 100%.
+ * An asset in a basket. In a weighted basket it has a weight, which is part of what the basket holds. Weights are fixed on
+ * the pricing date and add up to 100%. In a worst-of or best-of basket nothing is weighted, so a component has none.
  */
 export interface BasketComponent {
   asset: Asset
   /**
-   * The asset's share of the basket: 1 is 100%. The weights of a basket add up to 1.
+   * The asset's share of the basket: 1 is 100%. The weights of a weighted basket add up to 1. Present for a weighted basket
+   * only: a worst-of or best-of basket reads one asset's return, so a weight would have no effect.
    * @exclusiveMinimum 0
    */
-  weight: number
+  weight?: number
 }
 
 /**
@@ -253,10 +254,14 @@ export interface ComponentLevel {
   level: number
 }
 
-/** How a basket's component returns make its return. Weighted adds up each component's return times its weight. */
-export interface BasketReturn {
-  kind: 'weighted'
-}
+/**
+ * How a basket's component returns make its return. Weighted adds up each component's return times its weight. Worst-of
+ * takes the lowest component return, and best-of the highest.
+ */
+export type BasketReturn =
+  | { kind: 'weighted' }
+  | { kind: 'worst-of' }
+  | { kind: 'best-of' }
 
 // See docs/basket.md.
 /**
@@ -394,10 +399,15 @@ function basketIssues(underlier: BasketUnderlier): ProductIssue[] {
   for (const { asset, level } of levels) {
     if (!Number.isFinite(level) || level <= 0) issues.push({ field: 'initialLevel', message: `Initial level of ${asset} must be greater than zero.` })
   }
-  for (const { asset, weight } of underlier.components) {
-    if (!Number.isFinite(weight) || weight <= 0) issues.push({ field: 'weights', message: `Weight of ${asset.name} must be greater than zero.` })
+  if (underlier.determination.basketReturn.kind !== 'weighted') {
+    // The rule reads one asset's return, so a weight would look like a term that matters and have no effect.
+    if (underlier.components.some(({ weight }) => weight !== undefined)) issues.push({ field: 'weights', message: 'A worst-of or best-of basket has no weights.' })
+    return issues
   }
-  if (!(Math.abs(underlier.components.reduce((sum, { weight }) => sum + weight, 0) - 1) <= weightTolerance)) issues.push({ field: 'weights', message: 'Weights must add up to 100%.' })
+  for (const { asset, weight } of underlier.components) {
+    if (weight === undefined || !Number.isFinite(weight) || weight <= 0) issues.push({ field: 'weights', message: `Weight of ${asset.name} must be greater than zero.` })
+  }
+  if (!(Math.abs(underlier.components.reduce((sum, { weight }) => sum + (weight ?? 0), 0) - 1) <= weightTolerance)) issues.push({ field: 'weights', message: 'Weights must add up to 100%.' })
   return issues
 }
 
@@ -531,7 +541,8 @@ export const basketStartingLevel = 100
 
 export interface ComponentPerformance {
   asset: string
-  weight: number
+  // Undefined unless the basket is weighted.
+  weight?: number
   initialLevel: number
   // The levels the final end of the determination read, in date order, and the final level it produced from them: the
   // level on the final date, or the average.
@@ -541,28 +552,40 @@ export interface ComponentPerformance {
 }
 
 export interface BasketBreakdown {
+  // The rule that made the basket return from the component returns.
+  rule: BasketReturn['kind']
   components: ComponentPerformance[]
-  // The weighted sum of the component returns.
+  // The weighted sum of the component returns, or the lowest or highest of them for worst-of or best-of.
   basketReturn: number
   // The basket's starting level and its final level, 100 × (1 + basket return), which the payoff reads.
   levels: DeterminedLevels
 }
 
-// Measures each component from its own initial level to its final level, then weights the component returns. Observed
-// levels are listed per component, in the order of the components, each in date order. Averaging each component and then
-// weighting gives the same final level as averaging the basket level on each date, because the basket level is a weighted sum.
+// The basket return from the component returns, by the basket's rule. Weighted adds up each return times its weight; worst-of
+// and best-of take the lowest and the highest, so two assets with the same return give the same basket return.
+function basketReturnFrom(rule: BasketReturn['kind'], components: ComponentPerformance[]): number {
+  const returns = components.map(({ componentReturn }) => componentReturn)
+  if (rule === 'worst-of') return Math.min(...returns)
+  if (rule === 'best-of') return Math.max(...returns)
+  return components.reduce((sum, { weight, componentReturn }) => sum + weight! * componentReturn, 0)
+}
+
+// Measures each component from its own initial level to its final level, then makes the basket return by the basket's rule.
+// Observed levels are listed per component, in the order of the components, each in date order. Averaging each component and
+// then weighting gives the same final level as averaging the basket level on each date, because the basket level is a weighted
+// sum. Worst-of and best-of are not sums, so averaging each component first is the order this reference states.
 export function basketBreakdown(underlier: BasketUnderlier, observedLevels: number[][]): BasketBreakdown {
   const errors = underlierIssues(underlier)
   if (errors.length) throw new Error(errors.map(({ message }) => message).join(' '))
   if (observedLevels.length !== underlier.components.length) throw new Error(`Expected observed levels for ${underlier.components.length} assets.`)
-  const { initial, final } = underlier.determination
+  const { initial, final, basketReturn: rule } = underlier.determination
   const components = underlier.components.map(({ asset, weight }, index): ComponentPerformance => {
     const initialLevel = initial.levels.find((term) => term.asset === asset.name)!.level
     const finalLevel = finalLevelFrom(final, observedLevels[index])
     return { asset: asset.name, weight, initialLevel, observedLevels: observedLevels[index], finalLevel, componentReturn: finalLevel / initialLevel - 1 }
   })
-  const basketReturn = components.reduce((sum, { weight, componentReturn }) => sum + weight * componentReturn, 0)
-  return { components, basketReturn, levels: { initial: basketStartingLevel, final: basketStartingLevel * (1 + basketReturn) } }
+  const basketReturn = basketReturnFrom(rule.kind, components)
+  return { rule: rule.kind, components, basketReturn, levels: { initial: basketStartingLevel, final: basketStartingLevel * (1 + basketReturn) } }
 }
 
 // How the two barriers of barrier absolute return stand: each as an underlier level and whether it is reached, and whether either is,

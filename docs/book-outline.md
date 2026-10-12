@@ -19,7 +19,7 @@ remain working research and design records. Reader-facing chapters belong in
 | 2. Wrapper | Draft | [Read chapter](book/02-wrapper.md) | [Term](term.md), [Deposit](deposit.md) |
 | 3. Redemption behaviour | Draft | [Read chapter](book/03-redemption.md) | [Feature map](feature-map.md) |
 | 4. Term | Draft | [Read chapter](book/04-term.md) | [Term](term.md) |
-| 5. Underliers | Draft | [Read chapter](book/05-underliers.md) | [Underlier model](underlier-model.md), [Basket](basket.md) |
+| 5. Underliers | Draft | [Read chapter](book/05-underliers.md) | [Underlier model](underlier-model.md), [Basket](basket.md), [Worst-of](worst-of.md) |
 | 6. Determination methods | Draft | [Read chapter](book/06-determination.md) | [Averaging](averaging.md), [Lookback](lookback.md) |
 | 7. Payoff and payment | Draft | [Read chapter](book/07-payoff-and-payment.md) | [Participation and protection](participation-and-protection.md) |
 | 8. Participation | Draft | [Read chapter](book/08-participation.md) | [Participation and protection](participation-and-protection.md) |

@@ -16,15 +16,19 @@ const amount = (value: number) => Number.isFinite(value) ? value.toLocaleString(
 // Names the assets in a list: "A", "A and B", "A, B and C".
 const listed = (items: SummarySegment[][]): SummarySegment[] => items.flatMap((item, index) => [...(index === 0 ? [] : [{ text: index === items.length - 1 ? ' and ' : ', ' }]), ...item])
 
-// A single asset is named. A basket names its assets, with their weights unless the weights are equal.
+// A single asset is named. A weighted basket names its assets, with their weights unless the weights are equal. A worst-of or
+// best-of basket names the assets and which one sets the return; nothing is weighted.
 function underlierPhrase(note: Product): SummarySegment[] {
   const { underlier } = note
   if (underlier.kind === 'single') return [{ text: underlier.components[0].asset.name.trim() || 'the underlier', concept: 'asset' }]
   const { components } = underlier
+  const rule = underlier.determination.basketReturn.kind
+  const plain = components.map(({ asset }): SummarySegment[] => [{ text: asset.name.trim() || 'an unnamed asset', concept: 'asset' }])
+  if (rule !== 'weighted') return [{ text: 'the ' }, { text: rule === 'worst-of' ? 'worst performing' : 'best performing', concept: 'basket-return' }, { text: ' of ' }, ...listed(plain)]
   const equal = components.every(({ weight }) => weight === components[0].weight)
   // Each weight belongs to its asset, so it is part of the asset's phrase.
   const assets = components.map(({ asset, weight }): SummarySegment[] =>
-    [{ text: asset.name.trim() || 'an unnamed asset', concept: 'asset' }, ...(equal ? [] : [{ text: ' ' }, { text: `(${weightPercent(weight)})`, concept: 'asset' as const }])])
+    [{ text: asset.name.trim() || 'an unnamed asset', concept: 'asset' }, ...(equal ? [] : [{ text: ' ' }, { text: `(${weightPercent(weight!)})`, concept: 'asset' as const }])])
   return equal
     ? [{ text: 'an ' }, { text: 'equally weighted basket', concept: 'basket-return' }, { text: ' of ' }, ...listed(assets)]
     : [{ text: 'a ' }, { text: 'weighted basket', concept: 'basket-return' }, { text: ' of ' }, ...listed(assets)]
@@ -77,9 +81,13 @@ export function summarize(note: Product): SummarySegment[] {
   // The barrier is a fraction of the level the return is measured from: the lookback level with lookback, and the basket's
   // starting level for a basket.
   const barrierFrom = initial.kind === 'lookback' ? 'lookback level' : basket ? 'initial basket level' : 'initial level'
+  // A worst-of basket is below the downside barrier exactly when some asset is below it, so that barrier is stated for each asset.
+  // An upside barrier is above it only when every asset is, so it keeps the basket's level.
+  const worstOf = note.underlier.kind === 'basket' && note.underlier.determination.basketReturn.kind === 'worst-of'
+  const downsideBarrierFrom = worstOf && initial.kind !== 'lookback' ? 'initial level of each asset' : barrierFrom
   // A barrier is read on the final observation date unless it says it is observed on every close.
   const everyClose = (observation: 'final' | 'daily-close') => observation === 'daily-close' ? ', observed on every close,' : ''
-  if (barrier !== undefined) clauses.push({ text: `a downside barrier at ${percent(barrier.level)} of the ${barrierFrom}${barrier.observation === 'daily-close' ? ', observed on every close' : ''}`, concept: 'barrier' })
+  if (barrier !== undefined) clauses.push({ text: `a downside barrier at ${percent(barrier.level)} of the ${downsideBarrierFrom}${barrier.observation === 'daily-close' ? ', observed on every close' : ''}`, concept: 'barrier' })
   // Absolute return follows the buffer or barrier it depends on, which "it" names.
   if (absoluteReturn !== undefined) clauses.push({ text: `${percent(absoluteReturn.rate)} absolute return on a fall ${barrier !== undefined ? 'that ends at or above it' : 'within it'}`, concept: 'absolute-return' })
   if (protection !== undefined) clauses.push({ text: `${percent(protection)} principal protection`, concept: 'protection' })

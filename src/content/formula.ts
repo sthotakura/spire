@@ -56,14 +56,15 @@ export function paymentFormula(note: Product): FormulaLine[] {
   const lines: FormulaLine[] = []
   const { initial, final } = note.underlier.determination
   const basket = note.underlier.kind === 'basket'
+  const basketRule = note.underlier.kind === 'basket' ? note.underlier.determination.basketReturn.kind : undefined
   // Lookback and averaging define their levels before the return reads them. Point-to-point needs no line: each level is one observed level.
   if (initial.kind === 'lookback') lines.push({ lead: 'Lookback level', segments: [{ text: 'Lowest of the levels on the pricing date and the dates after it', concept: 'initial-level' }] })
   if (final.kind === 'averaging') lines.push({ lead: 'Final level', segments: [{ text: basket ? 'Average of each asset’s observed levels' : 'Average of the observed levels', concept: 'final-level' }] })
-  // A basket measures each asset on its own, then weights the asset returns into one return, which moves the basket level.
+  // A basket measures each asset on its own, then makes one return from the asset returns by its rule, which moves the basket level.
   if (basket) {
     lines.push(
       { lead: 'Asset return', segments: [{ text: 'Final level ÷ Initial level − 1', concept: 'determination' }, { text: ', for each asset' }] },
-      { lead: 'Return', segments: [{ text: 'Sum of Weight × Asset return', concept: 'basket-return' }] },
+      { lead: 'Return', segments: [{ text: basketRule === 'worst-of' ? 'Lowest Asset return' : basketRule === 'best-of' ? 'Highest Asset return' : 'Sum of Weight × Asset return', concept: 'basket-return' }] },
       { lead: 'Basket level', segments: [{ text: '100 × (1 + Return)', concept: 'basket-return' }] },
     )
   } else lines.push({ lead: 'Return', segments: [{ text: `Final level ÷ ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level − 1`, concept: 'determination' }] })

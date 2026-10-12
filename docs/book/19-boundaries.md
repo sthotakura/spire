@@ -2,8 +2,8 @@
 
 SPIRe explains how explicitly stated terms produce contractual maturity
 payments in synthetic scenarios. Its examples cover equity and equity-index
-references, a single underlier or weighted basket, and the determination and
-payoff rules described in this book.
+references, a single underlier or a basket (weighted, worst-of or best-of), and
+the determination and payoff rules described in this book.
 
 ## Contractual payment and market value
 

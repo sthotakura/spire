@@ -34,7 +34,7 @@ The determination has two ends. The initial end is `given` (a level stated as a 
 }
 ```
 
-A basket adds components and a rule that combines them. The weighted basket is proposed in [basket.md](basket.md), where each initial level and each weight refers to its component.
+A basket adds components and a rule that combines them. The weighted basket is proposed in [basket.md](basket.md), where each initial level and each weight refers to its component. Worst-of and best-of are two more rules, and have no weights ([worst-of.md](worst-of.md)).
 
 The outline nests the same parts. A JSON list is shown as repeated rows without a heading row of its own, as the payoff features already are:
 

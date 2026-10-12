@@ -51,4 +51,24 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
       },
     }),
   ],
+  [
+    'a worst-of basket with a buffer, whose loss reaches 100% when the worst asset falls to zero',
+    note({ participations: [{ direction: 'downside', buffer: 0.2, rate: 1.25 }] }, {
+      underlier: {
+        kind: 'basket',
+        components: [{ asset: asset('Index A') }, { asset: asset('Index B') }],
+        determination: { initial: { kind: 'given', levels: [{ asset: 'Index A', level: 100 }, { asset: 'Index B', level: 50 }] }, final: { kind: 'final-date' }, basketReturn: { kind: 'worst-of' } },
+      },
+    }),
+  ],
+  [
+    'a best-of basket with averaging',
+    note({ participations: [{ direction: 'upside', rate: 1 }] }, {
+      underlier: {
+        kind: 'basket',
+        components: [{ asset: asset('Index A') }, { asset: asset('Index B') }],
+        determination: { initial: { kind: 'given', levels: [{ asset: 'Index A', level: 100 }, { asset: 'Index B', level: 100 }] }, final: { kind: 'averaging', observationCount: 4 }, basketReturn: { kind: 'best-of' } },
+      },
+    }),
+  ],
 ]

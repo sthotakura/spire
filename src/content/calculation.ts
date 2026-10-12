@@ -137,8 +137,14 @@ function singleSteps(note: SingleProduct, breakdown: PaymentBreakdown, observedL
   return steps
 }
 
+// How the asset returns make the basket return: each weighted and added, or the lowest or highest of them.
+function basketReturnHow({ rule, components }: BasketBreakdown): string {
+  if (rule === 'weighted') return components.map(({ weight, componentReturn }) => `${weightPercent(weight!)} × ${signedPercent(componentReturn)}`).join(' + ')
+  return `${rule === 'worst-of' ? 'min' : 'max'}(${components.map(({ componentReturn }) => signedPercent(componentReturn)).join(', ')})`
+}
+
 // How a basket's assets give its level: each asset's averaged final level when the note averages, each asset's return,
-// then the weighted return and the basket level it moves.
+// then the basket return, by its rule, and the basket level it moves.
 function basketSteps(basket: BasketBreakdown): Array<Omit<CalculationStep, 'n'>> {
   const steps: Array<Omit<CalculationStep, 'n'>> = []
   for (const { asset, observedLevels, finalLevel, initialLevel, componentReturn } of basket.components) {
@@ -146,7 +152,7 @@ function basketSteps(basket: BasketBreakdown): Array<Omit<CalculationStep, 'n'>>
     steps.push({ title: `${asset} return`, how: `${formatAmount(finalLevel)} ÷ ${formatAmount(initialLevel)} − 1`, value: signedPercent(componentReturn), concept: 'determination' })
   }
   steps.push(
-    { title: 'Basket return', how: basket.components.map(({ weight, componentReturn }) => `${weightPercent(weight)} × ${signedPercent(componentReturn)}`).join(' + '), value: signedPercent(basket.basketReturn), concept: 'basket-return' },
+    { title: 'Basket return', how: basketReturnHow(basket), value: signedPercent(basket.basketReturn), concept: 'basket-return' },
     { title: 'Basket level', how: `${formatAmount(basket.levels.initial)} × (1 ${basket.basketReturn < 0 ? '−' : '+'} ${formatPercent(Math.abs(basket.basketReturn))})`, value: formatAmount(basket.levels.final), concept: 'basket-return' },
   )
   return steps

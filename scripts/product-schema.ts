@@ -19,7 +19,8 @@ const rulesInValidator = [
   'A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.',
   'Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.',
   'A minimum return is less than any cap.',
-  'A basket needs unique asset names, one initial level for each asset and no other, and weights that add up to 1.',
+  'A basket needs unique asset names and one initial level for each asset and no other.',
+  'A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.',
 ]
 
 // Names for the variants a union spells out inline, keyed by the value of the key that tells them apart. A variant that is a named
@@ -29,6 +30,9 @@ const variantTitles: Record<string, string> = {
   lookback: 'Lookback initial level',
   'final-date': 'Final level on the final date',
   averaging: 'Averaged final level',
+  weighted: 'Weighted basket return',
+  'worst-of': 'Worst-of basket return',
+  'best-of': 'Best-of basket return',
 }
 const variantOf = (member: Json): string | undefined => member.properties?.kind?.const ?? member.properties?.direction?.const
 

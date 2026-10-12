@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://sthotakura.github.io/spire/product.schema.json",
   "title": "SPIRe product",
-  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A basket needs unique asset names, one initial level for each asset and no other, and weights that add up to 1.",
+  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.",
   "type": "object",
   "properties": {
     "wrapper": {
@@ -559,6 +559,116 @@
           }
         ]
       }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "basket",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Index A"
+            }
+          },
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Index B"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "levels": [
+              {
+                "asset": "Index A",
+                "level": 100
+              },
+              {
+                "asset": "Index B",
+                "level": 50
+              }
+            ]
+          },
+          "final": {
+            "kind": "final-date"
+          },
+          "basketReturn": {
+            "kind": "worst-of"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "buffer": 0.2,
+            "rate": 1.25
+          }
+        ]
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "basket",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Index A"
+            }
+          },
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Index B"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "levels": [
+              {
+                "asset": "Index A",
+                "level": 100
+              },
+              {
+                "asset": "Index B",
+                "level": 100
+              }
+            ]
+          },
+          "final": {
+            "kind": "averaging",
+            "observationCount": 4
+          },
+          "basketReturn": {
+            "kind": "best-of"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "upside",
+            "rate": 1
+          }
+        ]
+      }
     }
   ],
   "definitions": {
@@ -802,16 +912,15 @@
         },
         "weight": {
           "type": "number",
-          "description": "The asset's share of the basket: 1 is 100%. The weights of a basket add up to 1.",
+          "description": "The asset's share of the basket: 1 is 100%. The weights of a weighted basket add up to 1. Present for a weighted basket only: a worst-of or best-of basket reads one asset's return, so a weight would have no effect.",
           "exclusiveMinimum": 0
         }
       },
       "required": [
-        "asset",
-        "weight"
+        "asset"
       ],
       "additionalProperties": false,
-      "description": "An asset in a weighted basket and its weight, which is part of what the basket holds. Weights are fixed on the pricing date and add up to 100%."
+      "description": "An asset in a basket. In a weighted basket it has a weight, which is part of what the basket holds. Weights are fixed on the pricing date and add up to 100%. In a worst-of or best-of basket nothing is weighted, so a component has none."
     },
     "BasketDetermination": {
       "type": "object",
@@ -872,18 +981,51 @@
       "description": "An initial level of one component of a basket. It refers to the component by asset name, not by position, so removing a component cannot move a level onto another asset."
     },
     "BasketReturn": {
-      "type": "object",
-      "properties": {
-        "kind": {
-          "type": "string",
-          "const": "weighted"
+      "oneOf": [
+        {
+          "title": "Weighted basket return",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "weighted"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "title": "Worst-of basket return",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "worst-of"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "title": "Best-of basket return",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "best-of"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
         }
-      },
-      "required": [
-        "kind"
       ],
-      "additionalProperties": false,
-      "description": "How a basket's component returns make its return. Weighted adds up each component's return times its weight."
+      "description": "How a basket's component returns make its return. Weighted adds up each component's return times its weight. Worst-of takes the lowest component return, and best-of the highest."
     },
     "Participation": {
       "oneOf": [

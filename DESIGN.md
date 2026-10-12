@@ -158,7 +158,7 @@ A cool, low-chroma neutral world in which the only saturated colour is meaning: 
 ### Concept palette
 Seventeen hues, one per concept, applied through a single CSS variable (`--c`) on the element that represents the concept. They are mid-tone so they read as lines, bars and underlines on white, and as 6–26% `color-mix` tints for fills. Protection shares Ledger Blue, and payoff shares Slate.
 
-- **Wrapper** Dusty Navy, **Redemption** Sea Teal, **Underlier** Iris, **Asset** Lilac, **Determination** Ochre, **Initial level** Walnut, **Final level** Olive, **Basket return** Slate Violet, **Payoff** Slate, **Protection** Ledger Blue, **Minimum return** Indigo, **Upside** Field Green, **Downside** Burnt Orange, **Cap** Plum, **Buffer** Cyan Teal, **Barrier** Lavender, **Absolute return** Gold.
+- **Wrapper** Dusty Navy, **Redemption** Sea Teal, **Underlier** Iris, **Asset** Lilac, **Determination** Ochre, **Initial level** Walnut, **Final level** Olive, **Return combination** Slate Violet, **Payoff** Slate, **Protection** Ledger Blue, **Minimum return** Indigo, **Upside** Field Green, **Downside** Burnt Orange, **Cap** Plum, **Buffer** Cyan Teal, **Barrier** Lavender, **Absolute return** Gold.
 
 ### Neutral
 - **Ink** (`ink`): headings, values, the final-level dot and bubble on the chart.

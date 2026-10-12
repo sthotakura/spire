@@ -165,12 +165,12 @@ Open questions:
 ## 19. Add a weighted basket
 
 - Add a basket as a second kind of underlier: several components whose returns, each measured from its own initial level, are combined by weight into a basket level that starts at 100. The payoff reads the basket level as it reads a single asset's. The proposal, sources and worked example are in [docs/basket.md](docs/basket.md).
-- Put each weight on its component, `{ "asset": {…}, "weight": 0.5 }`, and the rule that combines the component returns in the determination, after both ends: `"basketReturn": { "kind": "weighted" }`. Each initial level refers to its component by asset name, not by position. This replaced a `combination` beside the determination that held both the rule and the weights. Whether the rule belongs in the determination is to be revisited with worst-of.
+- Put each weight on its component, `{ "asset": {…}, "weight": 0.5 }`, and the rule that combines the component returns in the determination, after both ends: `"basketReturn": { "kind": "weighted" }`. Each initial level refers to its component by asset name, not by position. This replaced a `combination` beside the determination that held both the rule and the weights. Worst-of kept it there (section 32).
 - Let the reader add and remove components, at least two. Adding or removing one resets the weights to equal.
 - Allow averaging: averaging each component and then weighting gives the same final level as averaging the basket level, and public notes use both. Show lookback as unavailable on a basket until a public note settles how it applies.
-- Keep worst-of for a later increment.
+- Worst-of and best-of followed in section 32.
 - Build the domain first: the basket types, validation and `basketBreakdown`, which measures each component and returns the basket's two levels for the payoff.
-- Keep the outline in the JSON's shape: one Asset row per asset with its kind, name and weight, the total of the weights beside Add asset, one level per asset under Initial level, and a Basket return row as the last part of Determination. Weights are entered as percents to two decimal places; equal weights give the remainder to the first asset (33.34%, 33.33%, 33.33%).
+- Keep the outline in the JSON's shape: one Asset row per asset with its kind, name and weight, the total of the weights beside Add asset, one level per asset under Initial level, and a Return combination row as the last part of Determination. Weights are entered as percents to two decimal places; equal weights give the remainder to the first asset (33.34%, 33.33%, 33.33%).
 - Measure the chart, scenario table, barrier and buffer on the basket level. The final-level handle moves every asset's return by the same amount; each asset's final level, or its averaged levels, is edited in the calculation.
 - Switching to a basket makes the single asset its first asset and adds a second with the same return, so the payment does not jump. Switching back keeps the first asset.
 
@@ -397,6 +397,16 @@ The builder and the book were two HTML pages, each with its own Vue app and its 
 - **Cost, accepted for now.** Those direct visits return HTTP 404 with a working page. Browsers and shared links do not mind; search engines may not index individual chapters. `/spire/` itself is a normal 200.
 - **Alternatives not taken.** Hash URLs (`#/book/…`) avoid the 404 but give ugly addresses and break the existing book link. Pre-rendering a real `index.html` per chapter at build time would give a 200 for each, and is the step to take if indexing chapters ever matters.
 - **Not done:** the builder's state is not kept when a reader goes to the book and back, as before; `KeepAlive` around the builder route would keep it.
+
+## 32. Add worst-of and best-of baskets
+
+- Add two more rules for a basket's return, beside the weighted sum: the lowest component return (worst-of) and the highest (best-of). The basket level and everything the payoff reads from it are unchanged. The proposal, sources and worked example are in [docs/worst-of.md](docs/worst-of.md).
+- Keep the rule in the determination as `basketReturn` and make `weight` optional on a component: a weighted basket needs one on each asset, and a worst-of or best-of basket must have none. The schema shows `weight` as optional and lists the rule among those only the validator checks.
+- Average each asset first, then compare returns, and state that order. Allow it with a stated consequence: no public note that averages a worst-of basket was verified.
+- State a worst-of downside barrier for each asset in the summary, because on the final date it is the same test as the basket level below the barrier. A best-of basket keeps the basket level.
+- Keep lookback and daily barriers unavailable on a basket. Show no marketing name for either rule.
+- Verified public sources exist for worst-of. No public note linked to the single best performing asset was found, so best-of is the mirror rule and is labelled so in the book.
+- The note that motivated this, an auto-callable contingent interest note on the lesser performing of two funds, is mapped in [docs/contingent-autocall.md](docs/contingent-autocall.md) with the increments still needed: observation dates, a contingent coupon with memory, autocall, and a cash-flow result.
 
 ## Later direction: a composable form
 
