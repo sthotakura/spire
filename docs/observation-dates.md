@@ -1,69 +1,172 @@
 # Observation dates
 
-This is a proposal, not yet built. It answers the open question in [underlier-model.md](underlier-model.md): where do observation dates belong? It records what dates mean in public term sheets, proposes the smallest model, and lists the decisions to agree before any code.
+This is a proposal for review, not yet built. It answers the open question in [underlier-model.md](underlier-model.md): where do observation dates belong? It records what dates mean in public term sheets, revises the earlier placement proposal in light of that research, proposes a build order, and lists the decisions to agree before any code.
 
-SPIRe models how a product is structured, so the only dates it models are those on which something is observed. Dates that belong to issuing and settling the note, such as the issue date and the maturity date, are left out.
+SPIRe models how a product is structured, so the only dates it models are those on which something is observed. Dates that belong to issuing and settling the note, such as the issue date, the interest payment dates and the maturity date, are left out ([term.md](term.md)).
+
+**Status of this revision:** the research and the plan below are new. The placement proposal in the first version of this document is superseded where noted.
 
 ## Established concepts
 
-Public pricing supplements state a small set of dates. One lookback note, for example, states a pricing date, an original issue date a few days later, a lookback observation period "from and including the Pricing Date to and including" a date a month later, a single observation date, and a maturity date three business days after it ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026050822/ea0288734-01_424b2.htm)).
+These come from public pricing supplements and SSPA material. Synthetic names, levels and dates stand in for them in everything SPIRe publishes.
 
-- **Pricing date** (or trade date): the terms are set, and the initial level is usually the closing level on this date.
-- **Issue date** (or settlement date): the holder pays for the note. It is part of issuance, not of the structure.
-- **Observation dates** (also called valuation or determination dates): the dates on which an underlier level is read. There is one final observation date for point-to-point, several for averaging, and a period of trading days for lookback.
-- **Maturity date**: the date the maturity payment is due. It falls a few business days after the final observation date, so the payment can be calculated and settled. It is also part of issuance: nothing is observed on it.
-- **Postponement.** Observation dates are postponed for market disruption events and non-trading days, and the maturity date moves with them. The detailed rules sit in the issuer's product supplement, not the pricing supplement.
-- **Daily or on the final date.** A barrier may be observed only on the final observation date, or on every trading day in a period. One daily-monitored note has a knock-in event "if the closing level of either Index on any eligible trading day during the observation period is less than its threshold level", over every trading day from the pricing date to the calculation day ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/72971/000138713119008969/wfcr1924-424b2_112119.htm)). This decides whether the payoff reads one final level or the path of levels.
+- **Pricing date** (or trade date): the terms are set. A note may fix the initial level on a *strike date* a day earlier, as one contingent interest note does ([JPM 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)).
+- **Issue date** (settlement date): the holder pays. Issuance, not structure.
+- **Observation dates** (review dates, valuation dates, determination dates): the dates on which an underlier level is read. One final date for point-to-point, several for averaging, a period for lookback, and a series of reviews for coupons and calls.
+- **Maturity date and payment dates**: a few business days after the observation they follow, so the payment can be calculated and settled. Nothing is observed on them. Issuance.
+- **Postponement.** Observation dates move for non-trading days and market disruption events. The rules sit in the issuer's product supplement, which the pricing supplements cited here reference without restating. In the 2002 ISDA Equity Derivatives Definitions, a disrupted averaging date is omitted, postponed (capped at eight scheduled trading days), or modified-postponed, as the confirmation chooses (third-party reproduction of the text; the official text was not read).
+
+### What public notes do with a schedule
+
+Findings from three US pricing supplements and the SSPA's material.
+
+| Finding | Evidence |
+|---|---|
+| **One schedule is tested by several features.** A 12-month note lists 12 review dates. The contingent interest barrier is tested on all 12, the automatic call on reviews 6 to 11, and the last review is also the final valuation. | [JPM contingent interest note](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm) |
+| **Payment dates follow review dates by a short lag**, and a call settles on the next interest payment date. They are not observation dates. | same note; [JPM index note](https://www.sec.gov/Archives/edgar/data/1000275/000095010325003784/dp226660_424b2-jpmeln570lly.htm), "three business days following each Observation Date" |
+| **Call dates can be a subset of review dates**, with a non-call period at the start. | same note: the earliest call is review 6 |
+| **The final level can be an average**: eight quarterly observation dates, and the final underlier value is the average of five closes ending on the last observation date. The coupon and maturity tests read that average. | [JPM index note](https://www.sec.gov/Archives/edgar/data/1000275/000095010325003784/dp226660_424b2-jpmeln570lly.htm) |
+| **The call trigger can step down**, here from 100% to 75% of the initial level in 5-point steps over six dates, and **the call payment rises with elapsed time**. This note pays no coupon. | [UBS step-down note](https://www.sec.gov/Archives/edgar/data/1114446/000183988225047092/ubs_424b2-26373.htm) |
+| **A call trigger need not step down.** The index note uses the initial level on every call date, and a fixed coupon barrier. | [JPM index note](https://www.sec.gov/Archives/edgar/data/1000275/000095010325003784/dp226660_424b2-jpmeln570lly.htm) |
+| **Unpaid contingent interest is carried forward** and paid on a later date on which its test is met. | [JPM contingent interest note](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm) |
+| **Two kinds of early redemption.** An autocall is an obligation when the underlyings are above the trigger. A softcall is an issuer option on predetermined dates. Both happen only on predetermined observation dates. | [SSPA Lab](https://sspa.ch/en/lab/) |
+| **Barrier observation differs from coupon observation.** A European barrier is read once at maturity; a continuous barrier reads every day. This is the existing `observation` choice on barriers, and is a separate matter from review dates. | [SSPA Swiss Derivative Map](https://sspa.ch/wp-content/uploads/2026/01/en_sspaswissmap_2026.pdf) and issuer term sheets |
+
+### Limits of the research
+
+- The product supplements, where postponement rules live, were not read.
+- The ISDA wording came from third-party commentary, not the ISDA publication.
+- A Swiss term sheet was found but its PDF could not be read.
+- The SSPA material describes autocall and softcall, but no formal glossary definition of "observation date" was found.
+- No source was found for a note that observes its coupon or call on a schedule different from its final valuation, other than the call being a subset.
 
 ## What dates change today
 
-Nothing in the payment. Every payoff built so far reads the determined initial and final levels, and a date changes neither. Averaging and lookback already state how many levels they read; the dates would say when. Dates start to change payments with:
+Nothing in the payment. Every payoff built so far reads the determined initial and final levels. Averaging and lookback state how many levels they read; the dates would say when. A barrier observed daily is read through one scenario extreme close, with no dates ([daily-observation.md](daily-observation.md)).
 
-- coupons and calls, whose conditions are observed on stated dates,
-- a barrier observed daily, which reads the levels between dates, in principle. A barrier alone does not need them: SPIRe reads it through the lowest or highest close a scenario states, without dates ([daily-observation.md](daily-observation.md)). Coupons and calls need levels on stated dates, which that extreme close cannot give.
+Dates change payments only with features that test a level on each of several dates: **contingent coupons** and **calls**. The schedule has to exist before those can.
 
-A barrier observed only on the final observation date reads the final level, as the buffer does, and needs no dates.
+## Revised placement
 
-## Proposal
-
-**Observation dates sit on the concept that observes.** The note is composed of small named parts, and each observation date belongs to one of them:
+The first version proposed that each date sit on the concept that observes it. The research above contradicts that for review dates: the coupon, the call and the final level all observe **the same dates**, so no one of them can own the schedule.
 
 | Date | Belongs to | Why |
 |---|---|---|
-| Pricing date | Initial level (`determination.initial`) | It is when the initial level is observed, and where a lookback period starts |
-| Lookback dates | Initial level | They are the levels the lowest is taken from |
-| Final observation date, averaging dates | Final level (`determination.final`) | They are the levels the final level is read from |
-| Issue date, maturity date | Not modelled | Nothing is observed on them; they belong to issuance |
+| Pricing date, lookback dates | Initial level (`determination.initial`) | Unchanged: only the initial level reads them |
+| Review dates | **A schedule on the product** | The final level, the coupon and the call all refer to it |
+| Averaging dates | Final level, ending on the last review | They are the levels the final level is read from, as before |
+| Issue, payment and maturity dates | Not modelled | Nothing is observed on them; issuance |
+
+This is the alternative the first version listed as "one schedule", for review dates only. Pricing and lookback dates stay co-located.
+
+## Proposed model
+
+**Reviews are periodic and numbered, not dated.** The term already states the length in months, so a frequency gives the number of reviews, as [coupon.md](coupon.md) derives its coupon count.
 
 ```json
-"underlier": {
-  "determination": {
-    "initial": { "kind": "lookback", "pricingDate": "2026-03-17", "dates": ["2026-03-24", "2026-03-31", "2026-04-07"] },
-    "final": { "kind": "averaging", "dates": ["2030-12-17", "2031-01-17", "2031-02-17", "2031-03-17"] }
-  }
+"schedule": { "frequency": "monthly" }
+```
+
+```text
+months per period = 1 (monthly), 3 (quarterly), 6 (semi-annual), 12 (annual)
+reviews           = term months / months per period      (a whole number)
+final review      = the last one, at the end of the term
+```
+
+- A review is named by number ("review 6 of 12"), as a coupon is ("coupon 3 of 4").
+- The final review is also the final observation date. A product with no schedule has one review, the final date, as today.
+- No calendar, business-day or holiday logic. Real calendar dates are a later layer that would be derived from a start date and the schedule.
+- **Scenario levels stay separate.** The level on each review is a scenario input, like every other observed level. A date is a term, the level on it is not.
+- **A path replaces one final level in the scenario.** Each asset has a level on each review. With one review it is today's final level.
+
+### What the first feature adds
+
+Autocall belongs with redemption behaviour, beside bullet ([feature-map.md](feature-map.md)). The redemption dropdown already lists it as unavailable. A first version:
+
+```json
+"redemption": {
+  "kind": "autocall",
+  "trigger": 1.0,
+  "callAmount": 0.1
 }
 ```
 
-- **Counts become derived.** `observationCount` is replaced by the length of the date list, with the same limit of 2 to 12.
-- **One timeline view, derived.** A pure function gathers every date into one ordered timeline for display and validation. It is not stored, so there is one source for each date.
-- **Ordering rules.** Pricing date < lookback dates < averaging dates ≤ final observation date, and each list strictly increasing. A violation is a named issue on the field, like other invalid terms.
-- **Scenario levels stay separate.** The hypothetical level on each date remains a scenario input, as now. A date is a term; the level observed on it is not.
-- **Payoff features get their own observation later.** When a barrier arrives, "observed on the final observation date" or "observed daily from … to …" is a term of the barrier, not of the determination. That keeps "the payoff reads one return" true for every feature except those that state their own observation.
+- **Trigger.** The underlier level, as a fraction of the determined initial level, at or above which the note is called on a review. The comparison reads the basket level, so worst-of works already. A step-down is a later addition, deferred.
+- **Call amount.** A flat amount, the same on every call date, as a fraction of principal: the note repays principal plus this amount when it is called. The UBS note's amount rises with elapsed time (a rate times years); that form is recorded as a later addition ([Resolved questions](#resolved-questions)).
+- **Called on every review before the last.** The call is tested on reviews 1 to N−1. The final review is the maturity: it pays the payoff as it does today, so there is no call at the end. This is how both JPM notes treat their last review, and it keeps the final review's payment in one place.
+- **No non-call period in slice 1.** The first review can call. A non-call period is its own feature ([non-call-period.md](non-call-period.md)).
+- **The maturity payment is unchanged.** It is `paymentBreakdown` on the final review's level, so the tests built so far should not change.
 
-## Alternatives considered
+### Result
 
-1. **One note-level `schedule`** holding every observation date, referenced by name from the determination. It makes the timeline and the ordering checks trivial, but separates each date from the concept it describes, and the outline would need a row that the JSON's shape does not otherwise suggest.
-2. **Keep counts and add no dates** until a payment depends on them. This is the smallest change: record this placement decision now and build dates with the first feature that needs them (coupons, calls, or a daily barrier).
+With a call the result is no longer one payment, but a payment on a review number, and an end review. It is derived from one breakdown, as the maturity payment is ([contingent-autocall.md](contingent-autocall.md)). The annualised return reads the actual length, not the scheduled term.
+
+## Build order
+
+Each slice needs a public source, a book chapter, a schema example and tests, and is separate from the next.
+
+| # | Slice | Source | What it adds |
+|---|---|---|---|
+| 1 | **Autocall without coupons** | UBS step-down note (the call mechanism; its amount differs, see below) | Review schedule, path scenario, call trigger, flat call amount, early-redemption result |
+| 2 | **Contingent coupon, then memory** | JPM contingent interest note | A coupon barrier tested on each review; unpaid coupons carried forward |
+| 3 | **Cash-flow result** | JPM contingent interest note | A payment per review, total paid, annualised return on actual length |
+| 4 | **Fixed coupon on the schedule** | [coupon.md](coupon.md) | A coupon always paid; the schedule replaces coupon.md's own frequency |
+| 5 | **Issuer call** | SSPA softcall | An issuer option on stated reviews, which tests no level |
+| — | **Non-call period** | JPM contingent interest note | Its own feature, planned in [non-call-period.md](non-call-period.md) |
+| — | **Call amount from a rate and elapsed time; trigger step-down** | UBS step-down note | Later additions to slice 1 |
+
+Slice 1 is first because it needs no coupon logic and still forces the hard parts: the schedule, the path scenario, and a result that is not one payment.
+
+## Consequences to design before slice 1
+
+- **Outline and JSON.** A Review schedule row beside the term (a product concept), and autocall as a redemption kind. The outline and the Structure JSON keep one shape.
+- **Scenario.** A table of levels per review, one column per asset, like the basket levels table. Named scenarios ("called at review 3", "never reaches the trigger", "crash") are better than a grid of inputs.
+- **Chart.** The payoff chart is payment against final level. With an autocall the payment depends on when the note ends, so the chart is either "if held to the final review" or needs a second view, such as a timeline of tests. This is a visible design change.
+- **Term.** The term becomes the scheduled length. The actual length depends on the scenario ([term.md](term.md), open question 1).
+- **Validation.** Named issues for a term that does not hold whole periods, a schedule with fewer than two reviews (nothing to call before the last), a trigger at or below zero, and a call amount below zero.
+- **Averaging.** The index note's final level is an average ending on the last review. Whether averaging is allowed with a schedule needs a stated rule (decision 5).
+- **Lookback and daily barriers** remain unavailable on a basket; their interaction with reviews is not settled.
+- **Schema and book.** Add the schedule and redemption to the JSON Schema and an example product per slice, and a book chapter ("Observation dates and early redemption" is the planned entry) in the same change as each slice.
+- **User-facing copy.** The interface states availability through state, not roadmap language ([AGENTS.md](../AGENTS.md)).
 
 ## Assumptions
 
-- Dates are synthetic ISO calendar dates. There is no trading-day or business-day calendar, so weekends and holidays are not checked.
+- Reviews are evenly spaced whole numbers of months. Public notes list calendar dates, which are roughly monthly or quarterly but shift with weekends; the periodic form simplifies this.
 - Postponement for market disruption is described in words, not modelled.
-- A lookback period of every trading day is represented by a short list of stated dates. This is a simplification for hand entry, as the count already is.
+- A lookback period of every trading day is represented by a short list of stated dates, as the count already is.
+- **The call amount is flat, a simplification.** No source read pays the same extra amount on every call date with no coupon: the UBS note's rises with elapsed time, and the JPM notes pay principal plus that date's coupon. A flat amount is the smallest form that has a stated meaning. The UBS table cannot be reproduced exactly until the rate form is added.
+- The call trigger is a level of the basket or underlier, measured from the determined initial level.
 
-## Open questions
+## Alternatives considered
 
-1. **Build now, or record only?** Dates change no payment built so far (see *What dates change today*).
-2. **Co-located dates or one schedule?** The proposal co-locates them; alternative 1 is the other reasonable model.
-3. **Lookback as a period or a list?** Real notes state a period of trading days. A list keeps hand entry possible but departs from how term sheets phrase it.
-4. **Which barrier first?** Answered: the final-date barrier first, then the daily barrier, which needed only one extreme close as a scenario input, not a path or dates ([daily-observation.md](daily-observation.md)).
+1. **Co-located dates only** (the first version of this document). Rejected for review dates, since three concepts read the same dates. Kept for pricing and lookback dates.
+2. **Explicit ISO dates on a schedule.** It reads like a term sheet, but adds ordering and calendar validation with no effect on payments, and drifts toward issuance. Possible later, derived from a start date.
+3. **Keep counts and add no dates** until a payment depends on them. This was the first version's smallest option. It no longer holds, because calls and contingent coupons are now the intended next work.
+4. **A generic trigger type** shared by call, coupon barrier and buffer threshold. Held back: separate named types until a third copy appears ([contingent-autocall.md](contingent-autocall.md), open question 1).
+
+## Decisions to agree
+
+1. **Numbered periodic reviews, or explicit dates?** Recommended: numbered and periodic.
+2. **A shared review schedule on the product?** Recommended: yes, reversing the first version's co-location for review dates.
+3. **Which slice first?** Recommended: autocall without coupons. The alternative is the contingent coupon, the note that motivated the work.
+4. **The chart with an autocall.** Recommended: keep it as the payoff if held to the final review, and add a separate view of what happens on each review.
+5. **Averaging with a schedule.** Allow with a stated consequence (as with worst-of averaging), or leave unavailable at first.
+6. **Redemption dropdown.** Keep "Autocallable" unavailable until slice 1 lands.
+
+## Resolved questions
+
+Questions raised earlier in this proposal, and how they were settled.
+
+| Question | Answer |
+|---|---|
+| **Call amount** | A flat amount on each call date first. A rate times elapsed time (the UBS form) is a later addition. |
+| **Non-call period** | A separate feature, planned in [non-call-period.md](non-call-period.md). Slice 1 can call from the first review. |
+| **Call test at the final review** | The last review is the schedule's last date, the final valuation date and the maturity. The call is tested only on earlier reviews, and the final review pays the payoff. |
+| **Strike date versus pricing date** | Not distinguished. The initial level is the initial level. Separate strike and pricing dates are issuance. |
+| **Term after a call** | The term is the scheduled length. A called note ends earlier, and the result states the actual length. See below. |
+| **Business-day and payment lags** | Out of scope. They are issuance concepts. |
+| **Trigger step-down** | Deferred. Slice 1 has a single trigger level. |
+
+### Term after a call
+
+The Term field says 36 months. With an autocall the note may end sooner, for example when it is called on review 6 of 12. The question was only what the Term field then means. The answer recorded here: it stays the term, defined in its hint as the scheduled length, the latest the note can end. The result shows the actual length (6 months) and the annualised return reads that length, not the term. Nothing is renamed.
