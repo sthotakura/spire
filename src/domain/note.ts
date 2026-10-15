@@ -301,6 +301,39 @@ export interface Term {
   months: number
 }
 
+// See docs/observation-dates.md.
+/** How often the product is reviewed: the number of months between one review and the next. */
+export type ReviewFrequency = 'monthly' | 'quarterly' | 'semi-annual' | 'annual'
+
+/**
+ * The reviews: the dates on which a condition of the product is tested. They are evenly spaced through the term and numbered from 1,
+ * and the last is the end of the term. The term must hold a whole number of periods, and at least two reviews.
+ */
+export interface Schedule {
+  frequency: ReviewFrequency
+}
+
+/**
+ * Automatic early redemption. On each review before the last, if the underlier's level is at or above the trigger, the product ends
+ * and repays principal plus the call amount. The last review is the end of the term and pays the payoff as a bullet product does.
+ */
+export interface Autocall {
+  kind: 'autocall'
+  /**
+   * The level at or above which the product is called, as a fraction of the initial level. This reference accepts up to 2, a rise of
+   * 100%; that is a limit of this reference, not of the product type.
+   * @exclusiveMinimum 0
+   * @maximum 2
+   */
+  trigger: number
+  /**
+   * What a call pays above principal, as a fraction of principal: the same amount whenever the product is called. Zero repays
+   * principal only.
+   * @minimum 0
+   */
+  callAmount: number
+}
+
 /**
  * The legal form. A note is a debt security of its issuer. A deposit is held by a bank and repaid in full at the end of its
  * term, so it cannot pay less than principal: it has no downside participation and no principal protection term.
@@ -316,8 +349,10 @@ export interface Product {
    */
   principalAmount: number
   term: Term
-  /** Bullet redemption pays once, at maturity. */
-  redemption: 'bullet'
+  /** The reviews through the term. Required by an autocall, and only by an autocall. */
+  schedule?: Schedule
+  /** Bullet redemption pays once, at maturity. An autocall can end the product earlier, on a review. */
+  redemption: 'bullet' | Autocall
   underlier: Underlier
   /** The rules that turn the underlier's change into the maturity payment. With no features the product repays principal. */
   payoff: {
@@ -352,7 +387,7 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
     ? { direction: 'downside', buffer, barrier, absoluteReturn, rate: participation.rate }
     : { direction: 'upside', barrier: upsideBarrier, rate: participation.rate, cap })
 
-export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn'
+export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'callAmount'
 
 // A barrier as an underlier level: its fraction of the level the return is measured from. Rounded to nine decimals, because
 // 1.1 × 100 is 110.00000000000001 in floating point, which would put a final level of 110 on the wrong side of a barrier at 110%.
@@ -434,6 +469,42 @@ function finalIssues(final: FinalDetermination): ProductIssue[] {
 // Daily observation reads closes of the underlier from pricing. Lookback and a basket have no verified public note that settles how.
 const dailyCloseAllowedOn = (underlier: Underlier) => underlier.kind === 'single' && underlier.determination.initial.kind === 'given'
 
+// The months between reviews, as each frequency names them.
+export const monthsPerReview: Record<ReviewFrequency, number> = { monthly: 1, quarterly: 3, 'semi-annual': 6, annual: 12 }
+
+// The number of reviews, the last of which is the end of the term. Undefined when the schedule does not divide the term into
+// whole periods. A product with no schedule has one review: the final date.
+export function reviewCount(note: Pick<Product, 'term' | 'schedule'>): number | undefined {
+  if (note.schedule === undefined) return 1
+  const months = monthsPerReview[note.schedule.frequency]
+  if (months === undefined || !Number.isInteger(note.term.months)) return undefined
+  return note.term.months % months === 0 ? note.term.months / months : undefined
+}
+
+// An autocall reads the underlier on the review dates, so it needs a schedule that divides the term, and the observations that are
+// not tied to those dates are left out. A daily barrier reads the period to the final date, which a called product does not reach.
+function redemptionIssues(note: Product): ProductIssue[] {
+  const issues: ProductIssue[] = []
+  const { redemption, schedule } = note
+  if (redemption === 'bullet') {
+    if (schedule !== undefined) issues.push({ field: 'schedule', message: 'A review schedule is used by an autocall, and this product has none.' })
+    return issues
+  }
+  if (schedule === undefined) issues.push({ field: 'schedule', message: 'An autocall needs a review schedule.' })
+  else {
+    const count = reviewCount(note)
+    if (count === undefined) issues.push({ field: 'schedule', message: 'The term must hold a whole number of review periods.' })
+    else if (count < 2) issues.push({ field: 'schedule', message: 'An autocall needs at least two reviews, so the product can be called before the last.' })
+  }
+  if (!Number.isFinite(redemption.trigger) || redemption.trigger <= 0 || redemption.trigger > 2) issues.push({ field: 'trigger', message: 'Call trigger must be greater than 0% and at most 200% of the initial level.' })
+  if (!Number.isFinite(redemption.callAmount) || redemption.callAmount < 0) issues.push({ field: 'callAmount', message: 'Call amount must be zero or greater.' })
+  const { underlier, payoff } = note
+  if (underlier.kind === 'single' && underlier.determination.initial.kind === 'lookback') issues.push({ field: 'schedule', message: 'An autocall cannot be combined with lookback: the lookback dates are not tied to the review schedule.' })
+  const observations = [downsideOf(note)?.barrier, upsideOf(note)?.barrier, payoff.barrierAbsoluteReturn?.lowerBarrier, payoff.barrierAbsoluteReturn?.upperBarrier]
+  if (observations.some((barrier) => barrier?.observation === 'daily-close')) issues.push({ field: 'schedule', message: 'A barrier observed on every close cannot be combined with an autocall: a called product ends before the observation period does.' })
+  return issues
+}
+
 export function productIssues(note: Product): ProductIssue[] {
   const issues: ProductIssue[] = underlierIssues(note.underlier)
   if (!Number.isFinite(note.principalAmount) || note.principalAmount <= 0) issues.push({ field: 'principalAmount', message: 'Principal must be greater than zero.' })
@@ -494,6 +565,7 @@ export function productIssues(note: Product): ProductIssue[] {
       issues.push({ field: 'barrierAbsoluteReturn', message: 'Absolute return in both directions needs a single underlier with a fixed initial level and a final level on the final date.' })
     }
   }
+  issues.push(...redemptionIssues(note))
   // A deposit is repaid in full, so nothing may take the payment below principal, and principal needs no protection term.
   if (note.wrapper === 'deposit' && downsideOf(note)) issues.push({ field: 'participations', message: 'A deposit repays principal in full, so it cannot have downside participation.' })
   if (note.wrapper === 'deposit' && protection !== undefined) issues.push({ field: 'principalProtection', message: 'A deposit repays principal in full, so it has no principal protection term.' })
@@ -586,6 +658,21 @@ export function basketBreakdown(underlier: BasketUnderlier, observedLevels: numb
   })
   const basketReturn = basketReturnFrom(rule.kind, components)
   return { rule: rule.kind, components, basketReturn, levels: { initial: basketStartingLevel, final: basketStartingLevel * (1 + basketReturn) } }
+}
+
+// The basket's level on one date, from the level of each asset on it, in the order of the components. The same rule as
+// basketBreakdown, so a level read on a review and the final level are comparable.
+export function basketLevelFrom(underlier: BasketUnderlier, levels: number[]): number {
+  const errors = underlierIssues(underlier)
+  if (errors.length) throw new Error(errors.map(({ message }) => message).join(' '))
+  if (levels.length !== underlier.components.length) throw new Error(`Expected a level for each of ${underlier.components.length} assets.`)
+  if (levels.some((level) => !Number.isFinite(level) || level < 0)) throw new Error('Levels must be zero or greater.')
+  const { initial, basketReturn: rule } = underlier.determination
+  const components = underlier.components.map(({ asset, weight }, index): ComponentPerformance => {
+    const initialLevel = initial.levels.find((term) => term.asset === asset.name)!.level
+    return { asset: asset.name, weight, initialLevel, observedLevels: [levels[index]], finalLevel: levels[index], componentReturn: levels[index] / initialLevel - 1 }
+  })
+  return basketStartingLevel * (1 + basketReturnFrom(rule.kind, components))
 }
 
 // How the two barriers of barrier absolute return stand: each as an underlier level and whether it is reached, and whether either is,

@@ -21,6 +21,8 @@ const rulesInValidator = [
   'A minimum return is less than any cap.',
   'A basket needs unique asset names and one initial level for each asset and no other.',
   'A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.',
+  'An autocall needs a review schedule, and a schedule is used by an autocall only. The term must hold a whole number of review periods, and at least two.',
+  'An autocall cannot be combined with lookback, or with a barrier observed on every close.',
 ]
 
 // Names for the variants a union spells out inline, keyed by the value of the key that tells them apart. A variant that is a named
@@ -33,8 +35,9 @@ const variantTitles: Record<string, string> = {
   weighted: 'Weighted basket return',
   'worst-of': 'Worst-of basket return',
   'best-of': 'Best-of basket return',
+  bullet: 'Bullet redemption',
 }
-const variantOf = (member: Json): string | undefined => member.properties?.kind?.const ?? member.properties?.direction?.const
+const variantOf = (member: Json): string | undefined => member.properties?.kind?.const ?? member.properties?.direction?.const ?? member.const
 
 // Three changes to what the generator writes:
 // - A union becomes oneOf, not anyOf. Every union here is told apart by a constant key, so exactly one member matches, and oneOf

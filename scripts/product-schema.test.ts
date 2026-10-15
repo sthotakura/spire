@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import Ajv, { type ValidateFunction } from 'ajv'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { productIssues, type BarrierAbsoluteReturn, type DownsideParticipation, type Product, type UpsideParticipation } from '../src/domain/note'
+import { productIssues, type Autocall, type BarrierAbsoluteReturn, type DownsideParticipation, type Product, type UpsideParticipation } from '../src/domain/note'
 import { startingProduct } from '../src/domain/starting-note'
 import { productExamples } from './product-examples'
 import { productSchemaText, schemaId } from './product-schema'
@@ -57,6 +57,7 @@ const bothWays = (terms: Partial<BarrierAbsoluteReturn>, payoff: Partial<Product
   ...payoff,
 }, overrides)
 const deposit = (minimumReturn: number) => withPayoff({ participations: [{ direction: 'upside', rate: 1 }], minimumReturn }, { wrapper: 'deposit' })
+const callable = (terms: Partial<Autocall>): Product => ({ ...base, term: { months: 12 }, schedule: { frequency: 'monthly' }, redemption: { kind: 'autocall', trigger: 1, callAmount: 0.08, ...terms } })
 const determined = (determination: Extract<Product['underlier'], { kind: 'single' }>['determination']) => ({ ...base, underlier: { ...(base.underlier as object), determination } }) as Product
 const basket = (levels: number[], names = ['Index A', 'Index B'], weights?: number[]): Product => ({
   ...base,
@@ -138,6 +139,8 @@ describe('product schema', () => {
       ['a deposit with principal protection', withPayoff({ participations: [], principalProtection: 1 }, { wrapper: 'deposit' }), false],
       ['a deposit with upside participation', withPayoff({ participations: [{ direction: 'upside', rate: 1 }] }, { wrapper: 'deposit' }), true],
       ['a note with a minimum return', withPayoff({ participations: [], minimumReturn: 0.05 }), false],
+      ...[[0, false], [0.01, true], [2, true], [2.01, false]].map(([value, ok]): [string, Product, boolean] => [`autocall trigger ${value}`, callable({ trigger: value as number }), ok as boolean]),
+      ['autocall call amount -0.01', callable({ callAmount: -0.01 }), false], ['autocall call amount 0', callable({ callAmount: 0 }), true],
     ]
 
     it.each(cases)('%s', (_, product, expected) => {
@@ -154,6 +157,9 @@ describe('product schema', () => {
       ['a buffer and a downside barrier together', downside({ buffer: 0.1, barrier: { level: 0.7, observation: 'final' } })],
       ['a cap and an upside barrier together', upside({ cap: 0.2, barrier: { level: 1.3, observation: 'final' } })],
       ['basket weights that do not add up to 1', basket([100, 100], ['Index A', 'Index B'], [5, 5])],
+      ['an autocall with no schedule', { ...callable({}), schedule: undefined } as Product],
+      ['a schedule on a bullet product', { ...callable({}), redemption: 'bullet' } as Product],
+      ['a quarterly schedule over a term of 10 months', { ...callable({}), term: { months: 10 }, schedule: { frequency: 'quarterly' } } as Product],
       ['barrier absolute return with lookback', { ...bothWays({}), underlier: determined({ initial: { kind: 'lookback', observationCount: 3 }, final: { kind: 'final-date' } }).underlier } as Product],
     ])('%s', (_, product) => {
       expect(schemaAccepts(product), 'schema').toBe(true)
