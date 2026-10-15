@@ -111,13 +111,25 @@ export function summarize(note: Product): SummarySegment[] {
   }
   const features: SummarySegment[] = clauses.flatMap((clause, index) => [{ text: index === 0 ? ', with ' : index === clauses.length - 1 ? ' and ' : ', ' }, clause])
 
+  // An autocall says when it is called and what it pays, then that it otherwise redeems at maturity. The trigger is a share of the
+  // initial level of what the payoff reads, so the underlier is named again.
+  const redemption: SummarySegment[] = note.redemption === 'bullet'
+    ? [{ text: ' that redeems ' }, { text: 'at maturity', concept: 'redemption' }]
+    : [
+        { text: ' that is called early if ' },
+        ...underlier,
+        { text: ` is at or above ${percent(note.redemption.trigger)} of its initial level on any ${note.schedule?.frequency ?? 'monthly'} review before maturity`, concept: 'redemption' },
+        { text: note.redemption.callAmount > 0 ? `, paying ${percent(note.redemption.callAmount)} above principal,` : ', repaying principal,', concept: 'redemption' },
+        { text: ' and otherwise redeems ' },
+        { text: 'at maturity', concept: 'redemption' },
+      ]
+
   const term = termPhrase(note.term.months)
   return [
     { text: term.article },
     // The term is a term of the whole product, shown with the wrapper as the principal is.
     { text: `${term.text} ${note.wrapper}`, concept: 'wrapper' },
-    { text: ' that redeems ' },
-    { text: 'at maturity', concept: 'redemption' },
+    ...redemption,
     ...payoff,
     { text: ', measured ' },
     ...measured,
