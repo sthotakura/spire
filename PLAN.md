@@ -396,7 +396,7 @@ The builder and the book were two HTML pages, each with its own Vue app and its 
 - **GitHub Pages has no rewrite rules.** A direct visit to `/spire/book/05-underliers` finds no file, so Pages serves the site's `404.html`. The workflow copies `index.html` to `404.html` after the build, the app loads, and the router reads the address. Verified on the deployed site for the book and for individual chapters.
 - **Cost, accepted for now.** Those direct visits return HTTP 404 with a working page. Browsers and shared links do not mind; search engines may not index individual chapters. `/spire/` itself is a normal 200.
 - **Alternatives not taken.** Hash URLs (`#/book/…`) avoid the 404 but give ugly addresses and break the existing book link. Pre-rendering a real `index.html` per chapter at build time would give a 200 for each, and is the step to take if indexing chapters ever matters.
-- **Not done:** the builder's state is not kept when a reader goes to the book and back, as before; `KeepAlive` around the builder route would keep it.
+- **Builder state is kept.** `AppShell.vue` wraps the routed view in `KeepAlive` (included for the builder only), so a reader's terms survive a visit to the book and back. The book is not cached.
 
 ## 32. Add worst-of and best-of baskets
 
