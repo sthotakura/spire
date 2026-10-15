@@ -31,6 +31,39 @@ payoff.
 }
 ```
 
+## A product with reviews
+
+An autocall adds a review schedule after the term, and the redemption becomes
+an object that carries the trigger and the call amount. The payoff is the one
+paid at the end of the term if the product is not called.
+
+```json
+{
+  "wrapper": "note",
+  "principalAmount": 1000,
+  "term": { "months": 12 },
+  "schedule": { "frequency": "monthly" },
+  "redemption": { "kind": "autocall", "trigger": 1, "callAmount": 0.08 },
+  "underlier": {
+    "kind": "single",
+    "components": [
+      { "asset": { "kind": "equity-index", "name": "Synthetic Index" } }
+    ],
+    "determination": {
+      "initial": { "kind": "given", "level": 100 },
+      "final": { "kind": "final-date" }
+    }
+  },
+  "payoff": {
+    "participations": [{ "direction": "downside", "rate": 1 }]
+  }
+}
+```
+
+A product with no autocall has no `schedule`, and its `redemption` is the
+string `"bullet"`. The chapter on [reviews and early
+redemption](19-reviews-and-early-redemption.md) explains the terms.
+
 ## Reading the terms
 
 Rates are fractions: `1.5` means 150% participation; `0.2` means a 20% cap.

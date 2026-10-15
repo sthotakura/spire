@@ -190,3 +190,21 @@ describe('a worst-of basket as the underlier of an autocall', () => {
     expect(() => basketLevelFrom(worstOf, [240])).toThrow()
   })
 })
+
+// The worked example of the book chapter on reviews and early redemption.
+describe('the book example', () => {
+  const note = callable({ payoff: { participations: [{ direction: 'downside', rate: 1 }] } })
+  const below = flat(11, 99)
+
+  it.each<[string, number[], number, number | undefined, number, number]>([
+    ['called on review 1', [100, ...flat(10)], 100, 1, 1, 1080],
+    ['called on review 7', [99, 99, 99, 99, 99, 99, 102, ...flat(4)], 100, 7, 7, 1080],
+    ['never called, ends at 110', below, 110, undefined, 12, 1000],
+    ['never called, ends at 70', below, 70, undefined, 12, 700],
+  ])('%s', (_, reviews, final, calledAt, months, payment) => {
+    const outcome = redemptionOutcome(note, reviews, { initial: 100, final })
+    expect(outcome.calledAtReview).toBe(calledAt)
+    expect(outcome.months).toBe(months)
+    expect(outcome.payment).toBeCloseTo(payment, 9)
+  })
+})

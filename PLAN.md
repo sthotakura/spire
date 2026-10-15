@@ -408,6 +408,18 @@ The builder and the book were two HTML pages, each with its own Vue app and its 
 - Verified public sources exist for worst-of. No public note linked to the single best performing asset was found, so best-of is the mirror rule and is labelled so in the book.
 - The note that motivated this, an auto-callable contingent interest note on the lesser performing of two funds, is mapped in [docs/contingent-autocall.md](docs/contingent-autocall.md) with the increments still needed: observation dates, a contingent coupon with memory, autocall, and a cash-flow result.
 
+## 33. Add reviews and autocall
+
+Reviews are the dates on which a condition of the product is tested. A product may carry a review schedule, and an autocall ends it on the first review before the last at which the underlier is at or above a trigger. The proposal, its sources and the decisions are in [docs/observation-dates.md](docs/observation-dates.md).
+
+- **A schedule on the product, beside the term.** `"schedule": { "frequency": "monthly" }`: evenly spaced, numbered reviews derived from the term, the last at the end of the term. No calendar dates. This reverses the first proposal's placement of review dates on the concept that observes: the coupon, the call and the final level all read the same dates. Pricing and lookback dates stay with the initial level.
+- **`redemption: 'bullet' | Autocall`.** `{ "kind": "autocall", "trigger": 1, "callAmount": 0.08 }`. The trigger is a share of the determined initial level, read at or above. The call amount is flat, paid above principal whenever the product is called. The last review is the end of the term and pays the payoff; it is not a call. The maturity payment is the existing payment on the final level.
+- **Unavailable with an autocall:** lookback, a barrier observed on every close, and barrier absolute return. Averaging and a basket are allowed. A basket is read as its basket level, one level for each review.
+- **Result.** `redemptionOutcome` returns the review the product was called on, the reviews tested, the months it lasted, what it paid, and what the payoff would pay at maturity. The calculation lists the review tests and the call, then the payoff steps, muted when the product was called. The chart still shows the payoff if held to the end of the term.
+- **Scenarios.** A table of the level on each review before the last, with named paths to load (called on the first review, called late, never called and flat, never called and falling).
+- **Book.** Chapter 19, Reviews and early redemption; boundaries moved to chapter 20.
+- **Not done:** review levels for each asset of a basket (one basket level is entered for each review), a rate-and-elapsed-time call amount, a trigger that steps down, the non-call period ([docs/non-call-period.md](docs/non-call-period.md)), contingent coupons with memory, a cash-flow result, an issuer call, and keyboard and narrow-screen checks of the review table beyond overflow.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.
@@ -431,4 +443,4 @@ Payoff may eventually stop being one list of features and become several section
 
 ## Not planned
 
-Market pricing, implied volatility, Greeks, live data, contingent and floating coupons, calls, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.
+Market pricing, implied volatility, Greeks, live data, contingent and floating coupons, issuer calls, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.

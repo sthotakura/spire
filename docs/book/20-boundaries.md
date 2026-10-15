@@ -21,11 +21,13 @@ market data. Observation counts stand in for schedules; actual calendar
 dates and business-day conventions are not calculated. A term is a whole
 number of months, from 1 to 120 in this reference.
 
-The products illustrated pay once at scheduled maturity. Coupon schedules,
-autocalls, and issuer calls need additional terms and observations before their
-payments can be calculated. A barrier can be observed on every close, but only
-through the one lowest or highest close a scenario states. Conditions observed
-on stated dates would need dated observations, which are not modelled.
+The products illustrated pay once, at scheduled maturity or when an autocall
+ends them early. Reviews are numbered and evenly spaced, not dated.
+Coupon schedules and issuer calls need additional terms and observations before
+their payments can be calculated. A barrier can be observed on every close, but
+only through the one lowest or highest close a scenario states. It is not
+combined with an autocall. Conditions observed on calendar dates would need
+dated observations, which are not modelled.
 
 ## Reading other contracts
 

@@ -4,7 +4,7 @@ This is a proposal for review, not yet built. It answers the open question in [u
 
 SPIRe models how a product is structured, so the only dates it models are those on which something is observed. Dates that belong to issuing and settling the note, such as the issue date, the interest payment dates and the maturity date, are left out ([term.md](term.md)).
 
-**Status of this revision:** the research and the plan below are new. The placement proposal in the first version of this document is superseded where noted.
+**Status:** slice 1 (reviews and autocall without coupons) is built ([PLAN.md](../PLAN.md), section 33). The placement proposal in the first version of this document is superseded where noted. Later slices are not built.
 
 ## Established concepts
 
