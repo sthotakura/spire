@@ -5,6 +5,7 @@ import { payoffLabels, type PayoffLabelKey } from './content/chart-labels'
 import HintToggle from './components/HintToggle.vue'
 import NumberInput from './components/NumberInput.vue'
 import TabGroup from './components/TabGroup.vue'
+import { explainRedemption, pathScenarios, redemptionFormula, redemptionSteps } from './content/autocall'
 import { calculationSteps } from './content/calculation'
 import type { ConceptId } from './content/concepts'
 import { marketingNames, productCategory, type MarketingName } from './content/names'
@@ -14,7 +15,8 @@ import { breachClose, scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
-import { barrierLevelAt, basketBreakdown, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
+import { redemptionOutcome } from './domain/autocall'
+import { barrierLevelAt, basketBreakdown, reviewCount, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
@@ -27,6 +29,9 @@ const hints = {
   redemption: 'Sets when the product ends and principal is paid back: at scheduled maturity, or earlier if its terms allow a call or a put. Bullet redemption pays once, at maturity.',
   term: 'The length of the product, stated as a duration such as 3 years. Principal is repaid at the end of the term. The issue and maturity dates that put the term on a calendar are set when the product is issued.',
   underlier: 'What the payoff reads: the asset it tracks and how its change is measured, from where it starts. A single underlier tracks one asset. A basket tracks several and combines their changes into one return.',
+  schedule: 'How often the product is reviewed through its term. Reviews are evenly spaced and numbered from 1, and the last is the end of the term. The term must hold a whole number of periods.',
+  trigger: 'The level, as a share of the initial level, at or above which the product is called on a review. The last review is the end of the term, so it is not a call.',
+  'call-amount': 'What a call pays above principal, as a share of principal. The same amount is paid whenever the product is called.',
   asset: 'The equity or equity index the product tracks. Holding the product does not mean owning the asset.',
   determination: 'Sets which observed levels measure the underlier’s change: final ÷ initial − 1. The initial and final levels are each set on their own. Point-to-point uses the fixed initial level and the level on the final date; moves in between do not count. Lookback starts from the lowest of the levels on the pricing date and on several dates after it, so a fall soon after pricing lowers the starting point. Averaging takes the final level as the average of the levels observed on several dates before maturity, so a sharp move on the last date counts for less.',
   'lookback-observations': 'The number of dates after pricing whose levels can lower the starting point. The lowest of their levels and the level on the pricing date is the lookback level.',
@@ -61,11 +66,17 @@ const wrapperOptions = [
   { id: 'etf', label: 'ETF', description: 'A fund whose shares trade on an exchange and represent an interest in a portfolio.', available: false },
 ] as const
 const redemptionOptions = [
-  { id: 'autocallable', label: 'Autocallable', description: 'Defined conditions may trigger redemption before scheduled maturity.', available: false },
+  { id: 'autocall', label: 'Autocallable', description: 'The product is called early when the underlier is at or above a trigger on a review.', available: true },
   { id: 'bullet', label: 'Bullet', description: 'One payment at scheduled maturity; no early call.', available: true },
   { id: 'issuer-callable', label: 'Issuer callable', description: 'The issuer may redeem the note early under defined terms.', available: false },
   { id: 'puttable', label: 'Puttable', description: 'The holder may require redemption under defined terms.', available: false },
 ] as const
+const reviewFrequencyOptions: ReadonlyArray<{ id: ReviewFrequency; label: string }> = [
+  { id: 'monthly', label: 'Monthly' },
+  { id: 'quarterly', label: 'Quarterly' },
+  { id: 'semi-annual', label: 'Semi-annual' },
+  { id: 'annual', label: 'Annual' },
+]
 // Each level of the determination is chosen on its own. A fixed initial level and a final level on the final date is point-to-point.
 const initialDeterminationOptions: ReadonlyArray<{ id: InitialDetermination['kind']; label: string; description: string }> = [
   { id: 'given', label: 'Fixed', description: 'Uses the initial level set in the terms.' },
@@ -94,6 +105,13 @@ const assetName = ref(startingComponent.asset.name)
 const principal = ref(startingProduct.principalAmount)
 const wrapper = ref<Wrapper>(startingProduct.wrapper)
 const termMonths = ref(startingProduct.term.months)
+// An autocall tests the underlier on the reviews of a schedule. The level on each review before the last is a scenario input.
+const redemptionKind = ref<'bullet' | 'autocall'>('bullet')
+const reviewFrequency = ref<ReviewFrequency>('monthly')
+const triggerPercent = ref(100)
+const callAmountPercent = ref(8)
+const autocalled = computed(() => redemptionKind.value === 'autocall')
+const reviewLevelInputs = ref<number[]>([])
 // A term of whole years is also shown in years, as term sheets often state it.
 const termYears = computed(() => Number.isInteger(termMonths.value) && termMonths.value > 0 && termMonths.value % 12 === 0 ? `${termMonths.value / 12} year${termMonths.value === 12 ? '' : 's'}` : null)
 // The level on the pricing date. With a fixed initial level it is the stated term; with lookback it is the first observed
@@ -228,6 +246,7 @@ const highestCloseWanted = computed(() => dailyUpside.value || (bothWaysSelected
 const dailySelected = computed(() => lowestCloseWanted.value || highestCloseWanted.value)
 // Why a barrier cannot be observed daily, or null when it can: the same rules productIssues enforces.
 const dailyBlockedReason = (direction: ParticipationDirection) => {
+  if (autocalled.value) return 'Not with an autocall'
   if (lookingBack.value || isBasket.value) return 'Not with lookback or a basket'
   if (direction === 'downside' && absoluteSelected.value) return 'Not with absolute return'
   return null
@@ -256,6 +275,7 @@ const blockedReason = (id: FeatureId) => {
   // Barrier absolute return is a payoff of its own: it replaces participation, and has no minimum return, lookback, basket or averaging beside it.
   if (id === 'absolute-both' && selectedDirections.value.length) return 'Not with participation'
   if (id === 'absolute-both' && minimumSelected.value) return 'Not with a minimum return'
+  if (id === 'absolute-both' && autocalled.value) return 'Not with an autocall'
   if (id === 'absolute-both' && (lookingBack.value || isBasket.value || averaging.value)) return 'Not with lookback, a basket or averaging'
   if (id === 'conditional' && !bothWaysSelected.value) return 'Needs absolute return in both directions'
   if (bothWaysSelected.value && (id === 'downside' || id === 'upside' || id === 'minimum')) return 'Not with absolute return in both directions'
@@ -395,7 +415,8 @@ const note = computed<Product>(() => ({
   wrapper: wrapper.value,
   principalAmount: principal.value,
   term: { months: termMonths.value },
-  redemption: 'bullet',
+  schedule: autocalled.value ? { frequency: reviewFrequency.value } : undefined,
+  redemption: autocalled.value ? { kind: 'autocall', trigger: fractionFrom(triggerPercent.value), callAmount: fractionFrom(callAmountPercent.value) } : 'bullet',
   underlier: underlier.value,
   payoff: {
     participations: withSubFeatures(selectedDirections.value.map((direction) => ({ direction, rate: participationPercent[direction] / 100 })), {
@@ -416,7 +437,7 @@ const note = computed<Product>(() => ({
   },
 }))
 const jsonLines = computed(() => structureLines(note.value))
-const formula = computed(() => paymentFormula(note.value))
+const formula = computed(() => [...paymentFormula(note.value), ...redemptionFormula(note.value)])
 const formulaWords = computed(() => paymentInWords(note.value))
 // What the final level on the chart belongs to: the asset, or the basket.
 const underlierLabel = computed(() => isBasket.value ? 'the basket' : assetName.value.trim() || 'the underlier')
@@ -487,7 +508,36 @@ const lowestClose = computed(() => lowestCloseWanted.value && initialValid.value
 const highestClose = computed(() => highestCloseWanted.value && initialValid.value ? Math.max(Number.isFinite(highestCloseInput.value) ? highestCloseInput.value as number : -Infinity, determinedInitialLevel.value, ...observations.value) : undefined)
 const breakdown = computed(() => valid.value ? paymentBreakdown(note.value, { initial: determinedInitialLevel.value, final: finalLevel.value, lowestClose: lowestClose.value, highestClose: highestClose.value }) : null)
 const payment = computed(() => breakdown.value?.payment ?? null)
-const outcomeSentence = computed(() => breakdown.value ? explainOutcome(note.value, breakdown.value) : '')
+// An autocall that was called says so and what it paid. One that ran to the end of its term says no review reached the trigger, and
+// then how the payoff paid.
+const reviewsBeforeLast = computed(() => {
+  const count = reviewCount({ term: { months: termMonths.value }, schedule: { frequency: reviewFrequency.value } })
+  return autocalled.value && count !== undefined && count >= 2 ? count - 1 : 0
+})
+// Until the reader sets one, a review is a little below the trigger, so the product is not called and the payoff is what the chart shows.
+const defaultReviewLevel = computed(() => (Number.isFinite(determinedInitialLevel.value) ? determinedInitialLevel.value : 100) * (Number.isFinite(triggerPercent.value) ? triggerPercent.value / 100 : 1) * 0.9)
+const reviewLevels = computed(() => Array.from({ length: reviewsBeforeLast.value }, (_, index) => reviewLevelInputs.value[index] ?? defaultReviewLevel.value))
+const setReviewLevel = (index: number, level: number) => { reviewLevelInputs.value = reviewLevels.value.map((current, i) => i === index ? level : current) }
+const reviewError = computed(() => reviewLevels.value.every((level) => Number.isFinite(level) && level >= 0) ? '' : 'Each review level must be zero or greater.')
+const redemption = computed(() => autocalled.value && valid.value && !reviewError.value && breakdown.value
+  ? redemptionOutcome(note.value, reviewLevels.value, { initial: determinedInitialLevel.value, final: finalLevel.value })
+  : null)
+const pathOptions = computed(() => autocalled.value && initialValid.value ? pathScenarios(note.value, determinedInitialLevel.value) : [])
+const loadPath = (event: Event) => {
+  const choice = event.target as HTMLSelectElement
+  const path = pathOptions.value[Number(choice.value)]
+  choice.value = ''
+  if (!path) return
+  reviewLevelInputs.value = path.reviewLevels
+  setFinalLevel(path.finalLevel)
+}
+const outcomeSentence = computed(() => {
+  if (!breakdown.value) return ''
+  const maturity = explainOutcome(note.value, breakdown.value)
+  if (!redemption.value) return maturity
+  const early = explainRedemption(note.value, redemption.value)
+  return redemption.value.calledAtReview === undefined ? `${early} ${maturity}` : early
+})
 const formatAmount = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 })
 const formatPercent = (value: number) => `${(value * 100).toFixed(1).replace(/\.0$/, '')}%`
 // A return with its sign, as the calculation shows it: +10%, −43.7%.
@@ -539,7 +589,12 @@ const activeTab = ref('calculation')
 const calculation = computed(() => {
   const b = breakdown.value
   if (!b) return []
-  return calculationSteps(note.value, b, observations.value, initialObservations.value, basketMeasure.value ?? undefined)
+  const maturity = calculationSteps(note.value, b, observations.value, initialObservations.value, basketMeasure.value ?? undefined)
+  if (!redemption.value) return maturity
+  // Reviews come first. When the product was called its payoff steps are what it would have paid at maturity, so they are muted.
+  const early = redemptionSteps(note.value, redemption.value).map((step, index) => ({ ...step, n: index + 1 }))
+  const called = redemption.value.calledAtReview !== undefined
+  return [...early, ...maturity.map((step) => ({ ...step, n: step.n + early.length, muted: step.muted || called, result: step.result && !called }))]
 })
 
 // The chart. Its vertical axis is fitted to the payoff (see chart/geometry.ts), and handles on it edit the same values the outline fields edit.
@@ -891,8 +946,31 @@ const chart = computed(() => {
                 <li :class="['node', { sel: highlighted('redemption') }]" :style="conceptStyle('redemption')">
                   <div class="nrow" @click="select('redemption')" @focusin="focusRow('redemption')">
                     <span class="nlabel">Redemption<HintToggle id="redemption" about="redemption" :text="hints.redemption" :active="activeHint === 'redemption'" @toggle="toggleHint('redemption')" /></span>
-                    <span class="ctrl pick"><select aria-label="Redemption" :value="note.redemption"><option v-for="option in redemptionOptions" :key="option.id" :value="option.id" :disabled="!option.available">{{ option.label }}{{ option.available ? '' : ' (unavailable)' }}</option></select></span>
+                    <span class="ctrl pick"><select aria-label="Redemption" :value="redemptionKind" @change="redemptionKind = ($event.target as HTMLSelectElement).value as 'bullet' | 'autocall'"><option v-for="option in redemptionOptions" :key="option.id" :value="option.id" :disabled="!option.available || (option.id === 'autocall' && !autocalled && (lookingBack || dailySelected || bothWaysSelected))">{{ option.label }}{{ !option.available ? ' (unavailable)' : option.id === 'autocall' && !autocalled && lookingBack ? ' (not with lookback)' : option.id === 'autocall' && !autocalled && (dailySelected || bothWaysSelected) ? ' (not with a daily barrier)' : '' }}</option></select></span>
                   </div>
+                  <ul v-if="autocalled">
+                    <li class="node" :style="conceptStyle('redemption')">
+                      <div class="nrow" @click="select('redemption')" @focusin="focusRow('redemption')">
+                        <span class="nlabel">Reviews<HintToggle id="schedule" about="the review schedule" :text="hints.schedule" :active="activeHint === 'schedule'" @toggle="toggleHint('schedule')" /></span>
+                        <span class="ctrl pick"><select id="review-frequency" v-model="reviewFrequency" aria-label="Review frequency"><option v-for="option in reviewFrequencyOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
+                      </div>
+                      <ul v-if="issuesFor('schedule').length" class="errors" role="alert"><li v-for="message in issuesFor('schedule')" :key="message">{{ message }}</li></ul>
+                    </li>
+                    <li class="node" :style="conceptStyle('redemption')">
+                      <div class="nrow" @click="select('redemption')" @focusin="focusRow('redemption')">
+                        <span class="nlabel">Call trigger<HintToggle id="trigger" about="the call trigger" :text="hints.trigger" :active="activeHint === 'trigger'" @toggle="toggleHint('trigger')" /></span>
+                        <span class="ctrl"><NumberInput id="call-trigger" v-model="triggerPercent" class="num rate" aria-label="Call trigger: level (% of the initial level)" /><span class="unit">%</span></span>
+                      </div>
+                      <ul v-if="issuesFor('trigger').length" class="errors" role="alert"><li v-for="message in issuesFor('trigger')" :key="message">{{ message }}</li></ul>
+                    </li>
+                    <li class="node" :style="conceptStyle('redemption')">
+                      <div class="nrow" @click="select('redemption')" @focusin="focusRow('redemption')">
+                        <span class="nlabel">Call amount<HintToggle id="call-amount" about="the call amount" :text="hints['call-amount']" :active="activeHint === 'call-amount'" @toggle="toggleHint('call-amount')" /></span>
+                        <span class="ctrl"><NumberInput id="call-amount-input" v-model="callAmountPercent" class="num rate" aria-label="Call amount: paid above principal (% of principal)" /><span class="unit">%</span></span>
+                      </div>
+                      <ul v-if="issuesFor('callAmount').length" class="errors" role="alert"><li v-for="message in issuesFor('callAmount')" :key="message">{{ message }}</li></ul>
+                    </li>
+                  </ul>
                 </li>
                 <li :class="['node', { sel: highlighted('underlier') }]" :style="conceptStyle('underlier')">
                   <div class="nrow" @click="select('underlier')" @focusin="focusRow('underlier')">
@@ -929,7 +1007,7 @@ const chart = computed(() => {
                         <li :class="['node', { sel: highlighted('initial-level') }]" :style="conceptStyle('initial-level')">
                           <div class="nrow" @click="select('initial-level')" @focusin="focusRow('initial-level')">
                             <span class="nlabel">Initial level<HintToggle id="initial-level" about="initial level" :text="hints['initial-level']" :active="activeHint === 'initial-level'" @toggle="toggleHint('initial-level')" /></span>
-                            <span class="ctrl pick"><select id="initial-determination" v-model="initialKind" aria-label="Initial level"><option v-for="option in initialDeterminationOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="option.id === 'lookback' && (isBasket || dailySelected || bothWaysSelected)">{{ option.label }}{{ option.id === 'lookback' ? (isBasket ? ' (single asset only)' : bothWaysSelected ? ' (not with barrier absolute return)' : dailySelected ? ' (not with a daily barrier)' : '') : '' }}</option></select></span>
+                            <span class="ctrl pick"><select id="initial-determination" v-model="initialKind" aria-label="Initial level"><option v-for="option in initialDeterminationOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="option.id === 'lookback' && (isBasket || autocalled || dailySelected || bothWaysSelected)">{{ option.label }}{{ option.id === 'lookback' ? (isBasket ? ' (single asset only)' : autocalled ? ' (not with an autocall)' : bothWaysSelected ? ' (not with barrier absolute return)' : dailySelected ? ' (not with a daily barrier)' : '') : '' }}</option></select></span>
                             <span v-if="lookingBack" class="ctrl block wraps"><label for="lookback-count">Observations after pricing</label><HintToggle id="lookback-count" about="observations after pricing" :text="hints['lookback-observations']" :active="activeHint === 'lookback-observations'" @toggle="toggleHint('lookback-observations')" /><NumberInput id="lookback-count" v-model="lookbackCount" class="num count" /></span>
                             <span v-if="lookingBack" class="ctrl block wraps"><span class="flabel">Observed levels</span><span class="unit">Hypothetical, set in the calculation</span></span>
                             <template v-else-if="isBasket"><span v-for="(asset, index) in basketAssets" :key="index" class="ctrl block"><label :for="`initial-level-${index}`">{{ asset.name.trim() || `Asset ${index + 1}` }}</label><NumberInput :id="`initial-level-${index}`" v-model="asset.initialLevel" class="num" /></span></template>
@@ -1093,7 +1171,7 @@ const chart = computed(() => {
         </section>
 
         <section class="panel preview" aria-label="Payoff preview">
-          <header class="panel-head"><h2>Payoff at {{ wrapper === 'deposit' ? 'maturity' : 'redemption' }}</h2><p>What it pays for each hypothetical final level</p></header>
+          <header class="panel-head"><h2>Payoff at {{ wrapper === 'deposit' ? 'maturity' : 'redemption' }}</h2><p>{{ autocalled ? 'What it pays if held to the end of its term, for each hypothetical final level' : 'What it pays for each hypothetical final level' }}</p></header>
           <template v-if="chart">
             <svg ref="chartSvg" :class="['chart', { 'feature-selected': featureSelected }]" viewBox="0 0 620 350" role="group" :aria-label="chartDescription" :style="{ '--label': `${11 * labelScale}px` }">
               <defs><clipPath id="plot-clip"><rect :x="plot.left" :y="plot.top" :width="plot.right - plot.left" :height="plot.bottom - plot.top"/></clipPath></defs>
@@ -1166,6 +1244,11 @@ const chart = computed(() => {
               <p v-if="finalError" class="errors" role="alert">{{ finalError }}</p>
               <div v-if="lowestCloseWanted && lowestClose !== undefined" class="hint-field"><div class="field-heading"><label for="lowest-close">Lowest close: hypothetical lowest close of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About the lowest close" aria-controls="lowest-close-hint" :aria-expanded="activeHint === 'lowest-close'" @click="toggleHint('lowest-close')">ⓘ</button><p v-if="activeHint === 'lowest-close'" id="lowest-close-hint" class="hint-text" role="tooltip">{{ hints['lowest-close'] }}</p></div><NumberInput id="lowest-close" :model-value="lowestClose" class="final-input" @update:model-value="lowestCloseInput = $event" /></div>
               <div v-if="highestCloseWanted && highestClose !== undefined" class="hint-field"><div class="field-heading"><label for="highest-close">Highest close: hypothetical highest close of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About the highest close" aria-controls="highest-close-hint" :aria-expanded="activeHint === 'highest-close'" @click="toggleHint('highest-close')">ⓘ</button><p v-if="activeHint === 'highest-close'" id="highest-close-hint" class="hint-text" role="tooltip">{{ hints['highest-close'] }}</p></div><NumberInput id="highest-close" :model-value="highestClose" class="final-input" @update:model-value="highestCloseInput = $event" /></div>
+              <div v-if="autocalled && reviewsBeforeLast" class="hint-field">
+                <div class="field-heading"><span id="review-levels-label" class="observed-heading">Reviews: hypothetical level of {{ underlierLabel }} on each review before the last</span><select class="path-select" aria-label="Load a path" @change="loadPath($event)"><option value="">Load a path…</option><option v-for="(path, index) in pathOptions" :key="path.name" :value="index">{{ path.name }}</option></select></div>
+                <div class="table-wrap basket-levels review-levels" :style="conceptStyle('redemption')"><table aria-labelledby="review-levels-label"><thead><tr><th scope="col">Review</th><th scope="col">{{ isBasket ? 'Basket level' : 'Level' }}</th><th scope="col">Test</th></tr></thead><tbody><tr v-for="(level, index) in reviewLevels" :key="index"><th scope="row">{{ index + 1 }} of {{ reviewsBeforeLast + 1 }}</th><td><NumberInput :model-value="level" class="observed-input" :aria-label="`Level on review ${index + 1}`" @update:model-value="setReviewLevel(index, $event)" /></td><td class="asset-return">{{ !redemption ? '—' : redemption.calledAtReview !== undefined && index + 1 > redemption.calledAtReview ? 'Ended' : redemption.tests[index]?.called ? 'Called' : 'Not called' }}</td></tr></tbody></table></div>
+                <p v-if="reviewError" class="errors" role="alert">{{ reviewError }}</p>
+              </div>
               <div class="formula" role="group" aria-label="Payment rule"><div v-for="(line, index) in formula" :key="index" :class="['fline', { limit: !line.lead }]"><span class="flead">{{ line.lead }}</span><span class="feq">{{ line.lead ? '=' : '' }}</span><span class="fexpr"><template v-for="(segment, part) in line.segments" :key="part"><span v-if="segment.concept" :class="['fterm', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)">{{ segment.text }}</span><template v-else>{{ segment.text }}</template></template></span></div><p class="fwords"><b>In words:</b> {{ formulaWords }}</p></div>
               <ol class="calc-steps" aria-live="polite"><li v-for="step in calculation" :key="step.n" :class="{ hl: step.concept && highlighted(step.concept), muted: step.muted, result: step.result }"><span class="calc-n">{{ step.n }}</span><b>{{ step.title }}</b><span class="calc-value">{{ step.value }}</span><span class="calc-how">{{ step.how }}</span></li></ol>
               <p v-if="outcomeSentence" class="outcome" aria-live="polite">{{ outcomeSentence }}</p>
