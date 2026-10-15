@@ -358,8 +358,17 @@ const closeOnOutsidePointer = (event: PointerEvent) => {
   if (paletteOpen.value && !paletteRoot.value?.contains(event.target as Node)) paletteOpen.value = false
   if (activeHint.value && !(event.target as Element).closest('.hint-button, .hint-text, .name-chip')) activeHint.value = null
 }
-onMounted(() => document.addEventListener('pointerdown', closeOnOutsidePointer))
-onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutsidePointer))
+const closeHintOnEscape = (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && activeHint.value) activeHint.value = null
+}
+onMounted(() => {
+  document.addEventListener('pointerdown', closeOnOutsidePointer)
+  document.addEventListener('keydown', closeHintOnEscape)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', closeOnOutsidePointer)
+  document.removeEventListener('keydown', closeHintOnEscape)
+})
 
 // A weight or minimum return entered as a percent, as a fraction without the floating-point noise of dividing (33.34 / 100 is 0.33340000000000003).
 const fractionFrom = (percent: number) => Math.round(percent * 1e8) / 1e10
