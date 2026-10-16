@@ -24,7 +24,7 @@ Three terms describe it, and the sections below add three more:
 - the **call amount**, paid above principal when the product is called, as a share of principal, such as 8%;
 - the **review frequency**, which sets how many reviews there are.
 
-The others are a **trigger step**, which moves the trigger on each review, whether the call amount is paid for each call or for each year elapsed, and whether the last review is a call too.
+The others are a **trigger step**, which moves the trigger on each review, whether the call amount is flat or a rate per year, and whether the last review is a call too.
 
 The trigger is read at or above: a level exactly at it calls the product. By default the last review is not a call. It is the end of the term, so the payoff reads the final level there, as it does for any product. A product can also be set so that the last review is a call too, as described below.
 
@@ -41,7 +41,7 @@ A synthetic note with principal of 1,000, a term of 12 months, monthly reviews, 
 
 The calculation also states the annualised return, which reads the months the product lasted and not the term. Called on review 7 after 7 months, the 8% is (1,080 ÷ 1,000)^(12 ÷ 7) − 1, or 14.1% a year. Called on review 1 it is the same 8% earned in one month, which annualises to 151.8% a year. A product that ran to the end of its term annualises over the whole term. The steps for the payoff are still shown after a call, under a heading that says they are what it would have paid at maturity, and none of it is paid.
 
-In this example the call amount is the same whenever the product is called, so being called on review 7 pays no more than being called on review 1. That is the flat form. Some public notes pay more the longer they last, which the section on a call amount for each year describes.
+In this example the call amount is the same whenever the product is called, so being called on review 7 pays no more than being called on review 1. That is the flat form. Some public notes pay more the longer they last, which the section on a call amount per year describes.
 
 The payoff chart for a product with an autocall shows what it would pay if held to the end of its term, since that is what is read from the final level. The review table shows when it ends early. In the reference, the table has a column for the level each review needs and one for each level the reader states. Named paths, such as called on the first review, called late after a fall, never called and ending up, or never called and ending down, fill the review levels in one step. A path called before the last review leaves the final level alone, because a product that ended early never reaches it. The final level is dimmed then, since it no longer sets the payment, but it still sets the dot on the chart and the comparison with what the payoff would have paid at maturity.
 
@@ -49,9 +49,9 @@ The payoff chart for a product with an autocall shows what it would pay if held 
 
 A trigger can change as the product ages. The **trigger step** is how much the trigger changes on each review after the first, as a share of the initial level. A negative step lowers it, so that a product that has not recovered becomes easier to call: a trigger of 100% with a step of −5% is 100% on review 1, 95% on review 2, 90% on review 3, and 75% on review 6. A positive step raises it, so each review asks for more than the one before: 100% with a step of +5% is 105% on review 2 and 110% on review 3. A step of zero keeps one trigger for every review. The trigger must stay above zero, and at most 200% of the initial level, on every review that is tested. The public note read for this chapter steps down; the reference allows a step up as the same idea in the other direction.
 
-## A call amount for each year
+## A call amount per year
 
-The call amount can be paid in one of two ways. **Each call** pays the same amount whenever the product is called, as in the table above. **Each year elapsed** pays the amount for every year the product has lasted, so the longer it runs, the more a call pays. With 10% for each year and semi-annual reviews, a call after six months pays 5% above principal, after a year 10%, and after three years 30%. The time elapsed is the number of months to the review, divided by 12.
+The call amount can be stated in one of two ways. **Flat** pays the same amount whenever the product is called, as in the table above. **Per year** treats it as a rate for each year the product has lasted, as a term sheet states a call return of “10% per annum”, so the longer it runs, the more a call pays. With 10% per year and semi-annual reviews, a call after six months pays 5% above principal, after a year 10%, and after three years 30%. The time elapsed is the number of months to the review, divided by 12.
 
 ## A period with no calls
 
@@ -137,7 +137,7 @@ An issuer call is not available with a barrier observed on every close or with b
 - The calls and reviews follow public auto-callable notes, such as an auto-callable contingent interest note whose automatic call can occur from a later review ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)), and a step-down trigger autocallable note whose call threshold falls on each observation date, whose call return grows with time, and whose final valuation date is also tested for a call ([UBS AG, 424B2](https://www.sec.gov/Archives/edgar/data/1114446/000183988225047092/ubs_424b2-26373.htm)).
 - The Swiss Structured Products Association describes an autocall as an obligation to repay early when the underlyings are above the trigger on a predetermined observation date, and a softcall as an issuer option on such dates ([SSPA](https://sspa.ch/en/lab/)).
 - The reviews are evenly spaced whole numbers of months. Public notes list dates that shift with weekends and holidays.
-- The call amount is either one flat amount, or an amount for each year elapsed. Public notes that pay more the longer they last state it as a rate and a table of call prices; the reference states the rate, and works out the price for each review.
+- The call amount is either one flat amount, or a rate per year. Public notes that pay more the longer they last state it as a rate and a table of call prices; the reference states the rate, and works out the price for each review.
 - The trigger moves by the same step on each review. Public notes list a threshold for each date, which can step by uneven amounts.
 - A final review that is a call is tested on the final level the payoff reads.
 - Postponement for market disruptions is not modelled.

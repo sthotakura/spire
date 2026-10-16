@@ -35,7 +35,7 @@ const hints = {
   'issuer-choice': 'Whether and when the issuer calls is its own choice, so a scenario states it. The issuer can call on any review after the non-call period except the last, which is the end of the term. A call ends the product and pays principal plus the call amount.',
   'trigger-step': 'How much the trigger changes on each review after the first, as a share of the initial level. −5% on a trigger of 100% steps it down to 95% on review 2, 90% on review 3, and so on. A positive value steps it up. Zero keeps one trigger for every review.',
   'call-amount': 'What a call pays above principal, as a share of principal. It is paid in full whenever the product is called, or for each year the product has lasted, as the choice below says.',
-  'call-basis': 'Each call pays the call amount whenever the product is called. Each year elapsed pays it for every year the product has lasted, so a call after six months pays half of it and a call after three years pays three times it.',
+  'call-basis': 'Flat pays the call amount whenever the product is called. Per year treats it as a rate for each year the product has lasted, as a term sheet states “10% per annum”: a call after six months pays half of it, and a call after three years pays three times it.',
   'final-call': 'The last review is the end of the term. It pays the payoff, or it is a call too: a level at or above the trigger on that review pays principal plus the call amount in place of the payoff. With an upside participation, a trigger above the initial level draws the payoff as a shark fin: it climbs, then drops to the call amount.',
   asset: 'The equity or equity index the product tracks. Holding the product does not mean owning the asset.',
   determination: 'Sets which observed levels measure the underlier’s change: final ÷ initial − 1. The initial and final levels are each set on their own. Point-to-point uses the fixed initial level and the level on the final date; moves in between do not count. Lookback starts from the lowest of the levels on the pricing date and on several dates after it, so a fall soon after pricing lowers the starting point. Averaging takes the final level as the average of the levels observed on several dates before maturity, so a sharp move on the last date counts for less.',
@@ -1101,8 +1101,8 @@ const chart = computed(() => {
                     </li>
                     <li :class="['node', { sel: highlighted('call-amount') }]" :style="conceptStyle('call-amount')">
                       <div class="nrow" @click="select('call-amount')" @focusin="focusRow('call-amount')">
-                        <span class="nlabel">Call amount for<HintToggle id="call-basis" about="what the call amount is for" :text="hints['call-basis']" :active="activeHint === 'call-basis'" @toggle="toggleHint('call-basis')" /></span>
-                        <span class="ctrl pick"><select id="call-basis" v-model="callAmountBasis" aria-label="Call amount for"><option value="flat">Each call</option><option value="per-year">Each year elapsed</option></select></span>
+                        <span class="nlabel">Call amount is<HintToggle id="call-basis" about="how the call amount is stated" :text="hints['call-basis']" :active="activeHint === 'call-basis'" @toggle="toggleHint('call-basis')" /></span>
+                        <span class="ctrl pick"><select id="call-basis" v-model="callAmountBasis" aria-label="Call amount is"><option value="flat">Flat</option><option value="per-year">Per year</option></select></span>
                       </div>
                     </li>
                     <li v-if="autocalled" :class="['node', { sel: highlighted('final-call') }]" :style="conceptStyle('final-call')">
