@@ -37,6 +37,13 @@ An autocall adds a review schedule after the term, and the redemption becomes
 an object that carries the trigger and the call amount. The payoff is the one
 paid at the end of the term if the product is not called.
 
+The redemption has three more terms, each with a default that applies when it is
+left out: a `triggerStep` of 0 (one trigger on every review), a `callAmountBasis`
+of `"flat"` (the same call amount on every call) and `callOnFinalReview` of
+`false` (the last review pays the payoff). The example leaves them out, so it is
+the shortest form. The reference's own structure states all three, so what the
+outline shows is also what the JSON says.
+
 ```json
 {
   "wrapper": "note",
