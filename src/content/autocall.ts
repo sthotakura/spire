@@ -78,8 +78,8 @@ export interface PathScenario {
   finalLevel?: number
 }
 
-// Named paths a reader can load, since a path is not a grid of inputs: called at once, called late, never called and flat, and
-// never called and falling. Each is built from the trigger on each review so it means the same whatever the trigger is. When the
+// Named paths a reader can load, since a path is not a grid of inputs: called at once, called late, called late after a fall, never
+// called and ending up, flat, or falling. Each is built from the trigger on each review so it means the same whatever the trigger is. When the
 // final review is a call too, there is also a path called only on it, and the paths that are never called end below its trigger.
 export function pathScenarios(note: Product, initialLevel: number): PathScenario[] {
   if (note.redemption === 'bullet') return []
@@ -98,10 +98,19 @@ export function pathScenarios(note: Product, initialLevel: number): PathScenario
   // The final level of a path that is never called is below the trigger of the last review when that review is a call too.
   const endsBelow = (level: number) => (redemption.callOnFinalReview ? Math.min(level, below(reviews)) : level)
   const endsFlat = endsBelow(initialLevel) === initialLevel
+  // A fall that recovers: each review is lower than its trigger, rising from 70% of the initial level, until the review before the last
+  // reaches its trigger. It needs a review in between to show the recovery.
+  const recovers = Array.from({ length: before }, (_, index) => index + 1 === before ? triggerLevel(before) : Math.min(below(index + 1), initialLevel * (0.7 + (0.3 * index) / Math.max(before - 1, 1))))
+  // A rise after the last review that is tested: no review called it, and the final level is well above the initial level. When the
+  // final review is a call too, that level would call it, so the path is left to the path called on the final review.
+  const endsUpLevel = initialLevel * 1.2
+  const endsUp = !redemption.callOnFinalReview || endsUpLevel < triggerLevel(reviews)
   return [
     called(1),
     ...(before > 1 ? [called(before)] : []),
     ...(redemption.callOnFinalReview ? [called(reviews)] : []),
+    ...(before > 2 ? [{ name: 'Falls first, then recovers: called late', reviewLevels: recovers }] : []),
+    ...(endsUp ? [{ name: 'Never called, ends 20% up', reviewLevels: Array.from({ length: before }, (_, index) => below(index + 1)), finalLevel: endsUpLevel }] : []),
     ...(endsFlat ? [{ name: 'Never called, ends flat', reviewLevels: Array.from({ length: before }, (_, index) => below(index + 1)), finalLevel: initialLevel }] : []),
     { name: 'Never called, ends 40% down', reviewLevels: falling, finalLevel: endsBelow(initialLevel * 0.6) },
   ]

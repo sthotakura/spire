@@ -150,6 +150,7 @@ describe('a trigger that steps down, a call amount for each year and a call on t
       'Called on the first review': 1,
       'Called on review 5': 5,
       'Called on the final review': 6,
+      'Falls first, then recovers: called late': 5,
       'Never called, ends 40% down': undefined,
     })
   })
@@ -161,6 +162,8 @@ describe('named path scenarios', () => {
     expect(paths['Called on the first review']).toBeUndefined()
     expect(paths['Called on review 11']).toBeUndefined()
     expect(paths['Never called, ends flat']).toBe(100)
+    expect(paths['Never called, ends 20% up']).toBe(120)
+    expect(paths['Falls first, then recovers: called late']).toBeUndefined()
     expect(paths['Never called, ends 40% down']).toBe(60)
     expect(Object.fromEntries(pathScenarios(stepped, 100).map(({ name, finalLevel }) => [name, finalLevel]))['Called on the final review']).toBe(75)
   })
@@ -173,6 +176,8 @@ describe('named path scenarios', () => {
       expect(results).toEqual({
         'Called on the first review': 1,
         'Called on review 11': 11,
+        'Falls first, then recovers: called late': 11,
+        'Never called, ends 20% up': undefined,
         'Never called, ends flat': undefined,
         'Never called, ends 40% down': undefined,
       })
