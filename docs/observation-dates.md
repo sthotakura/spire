@@ -91,7 +91,7 @@ Autocall belongs with redemption behaviour, beside bullet ([feature-map.md](feat
 }
 ```
 
-- **Trigger.** The underlier level, as a fraction of the determined initial level, at or above which the note is called on a review. The comparison reads the basket level, so worst-of works already. It can step down by the same amount on each review after the first (`triggerStepDown`), as in the UBS note's 100% to 75% over six dates.
+- **Trigger.** The underlier level, as a fraction of the determined initial level, at or above which the note is called on a review. The comparison reads the basket level, so worst-of works already. It can step by the same amount on each review after the first (`triggerStep`, signed): −5% reproduces the UBS note's 100% to 75% over six dates, and a positive step raises the trigger.
 - **Call amount.** A fraction of principal: the note repays principal plus this amount when it is called. It is either the same on every call date (`flat`) or a rate for each year elapsed (`per-year`, the UBS form: 37.5% a year pays 18.75% after six months).
 - **Called on every review before the last.** The call is tested on reviews 1 to N−1. The final review is the maturity: it pays the payoff as it does today, so there is no call at the end. This is how both JPM notes treat their last review, and it keeps the final review's payment in one place. The UBS note also tests its final valuation date for a call, so the final review can be made a call too (`callOnFinalReview`); a final level at or above the last trigger then pays principal plus the call amount at maturity.
 - **No non-call period in slice 1.** The first review can call. A non-call period is its own feature ([non-call-period.md](non-call-period.md)).
@@ -167,7 +167,7 @@ Questions raised earlier in this proposal, and how they were settled.
 | **Strike date versus pricing date** | Not distinguished. The initial level is the initial level. Separate strike and pricing dates are issuance. |
 | **Term after a call** | The term is the scheduled length. A called note ends earlier, and the result states the actual length. See below. |
 | **Business-day and payment lags** | Out of scope. They are issuance concepts. |
-| **Trigger step-down** | Added after slice 1 as one step-down for every review after the first. A threshold listed date by date, with uneven steps, is not modelled. |
+| **Trigger step-down** | Added after slice 1 as one signed step for every review after the first (`triggerStep`): negative steps down, as in the UBS note, and positive steps up. A threshold listed date by date, with uneven steps, is not modelled. |
 
 ### Term after a call
 

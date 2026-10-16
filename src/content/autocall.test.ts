@@ -100,12 +100,16 @@ const stepped: Product = {
   ...callable,
   term: { months: 36 },
   schedule: { frequency: 'semi-annual' },
-  redemption: { kind: 'autocall', trigger: 1, triggerStepDown: 0.05, callAmount: 0.1, callAmountBasis: 'per-year', callOnFinalReview: true },
+  redemption: { kind: 'autocall', trigger: 1, triggerStep: -0.05, callAmount: 0.1, callAmountBasis: 'per-year', callOnFinalReview: true },
 }
 
 describe('a trigger that steps down, a call amount for each year and a call on the final review', () => {
   it('says all three in the summary', () => {
     expect(text(stepped)).toContain('is called early if Synthetic Index is at or above 100% of its initial level on any semi-annual review including the last, the trigger falling 5% on each later review, paying 10% for each year elapsed above principal, and otherwise redeems at maturity')
+  })
+
+  it('says a trigger that steps up is rising', () => {
+    expect(text({ ...stepped, redemption: { ...(stepped.redemption as object), triggerStep: 0.05 } as Product['redemption'] })).toContain('the trigger rising 5% on each later review')
   })
 
   it('writes the rule with the trigger on that review, the years elapsed and every review', () => {

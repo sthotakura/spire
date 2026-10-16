@@ -89,7 +89,7 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     note({ participations: [{ direction: 'downside', barrier: { level: 0.5, observation: 'final' }, rate: 1 }] }, {
       term: { months: 36 },
       schedule: { frequency: 'semi-annual' },
-      redemption: { kind: 'autocall', trigger: 1, triggerStepDown: 0.05, callAmount: 0.1, callAmountBasis: 'per-year', callOnFinalReview: true },
+      redemption: { kind: 'autocall', trigger: 1, triggerStep: -0.05, callAmount: 0.1, callAmountBasis: 'per-year', callOnFinalReview: true },
       underlier: {
         kind: 'basket',
         components: [{ asset: asset('Index A') }, { asset: asset('Index B') }, { asset: asset('Index C') }],

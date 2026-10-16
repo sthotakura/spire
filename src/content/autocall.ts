@@ -16,8 +16,8 @@ export function explainRedemption(note: Product, outcome: RedemptionOutcome): st
   const test = calledAtReview === undefined ? undefined : tests[calledAtReview - 1]
   if (test === undefined) {
     const reviewed = note.redemption.callOnFinalReview ? 'No review, including the last, was' : 'No review before the last was'
-    // The trigger is one level unless it steps down, when each review has its own.
-    const trigger = note.redemption.triggerStepDown ? 'its trigger' : `the ${units(tests[0]?.triggerLevel ?? 0)} trigger`
+    // The trigger is one level unless it steps, when each review has its own.
+    const trigger = note.redemption.triggerStep ? 'its trigger' : `the ${units(tests[0]?.triggerLevel ?? 0)} trigger`
     return `${reviewed} at or above ${trigger}, so the product ran to the end of its term.`
   }
   const difference = Math.round((payment - note.principalAmount) * 100) / 100
@@ -26,15 +26,15 @@ export function explainRedemption(note: Product, outcome: RedemptionOutcome): st
 }
 
 // The call rule beside the payment rule. It is tested on each review before the last, and the last review pays the payoff unless it
-// is a call too. A trigger that steps down and a call amount for each year say so in the rule.
+// is a call too. A trigger that steps and a call amount for each year say so in the rule.
 export function redemptionFormula(note: Product): FormulaLine[] {
   if (note.redemption === 'bullet') return []
-  const { triggerStepDown, callAmountBasis, callOnFinalReview } = note.redemption
+  const { triggerStep, callAmountBasis, callOnFinalReview } = note.redemption
   return [{
     lead: 'Call',
     segments: [
       { text: callOnFinalReview ? 'On every review, if ' : 'On a review before the last, if ' },
-      { text: triggerStepDown ? 'Level ≥ Trigger on that review × Initial level' : 'Level ≥ Trigger × Initial level', concept: 'redemption' },
+      { text: triggerStep ? 'Level ≥ Trigger on that review × Initial level' : 'Level ≥ Trigger × Initial level', concept: 'redemption' },
       { text: ', pay ' },
       { text: callAmountBasis === 'per-year' ? 'Principal × (1 + Call amount × Years elapsed)' : 'Principal × (1 + Call amount)', concept: 'redemption' },
       { text: ' and end' },

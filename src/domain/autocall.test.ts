@@ -74,15 +74,23 @@ describe('validation of a schedule and an autocall', () => {
     expect(fieldsOf(callable({ redemption: autocall({ callAmount }) }))).toEqual(ok ? [] : ['callAmount'])
   })
 
-  it.each([[0, true], [0.05, true], [-0.01, false], [Number.NaN, false]])('a trigger step-down of %s is accepted: %s', (triggerStepDown, ok) => {
-    expect(fieldsOf(callable({ redemption: autocall({ triggerStepDown }) }))).toEqual(ok ? [] : ['triggerStepDown'])
+  it.each([[0, true], [-0.05, true], [0.05, true], [Number.NaN, false], [Number.POSITIVE_INFINITY, false]])('a trigger step of %s is accepted: %s', (triggerStep, ok) => {
+    expect(fieldsOf(callable({ redemption: autocall({ triggerStep }) }))).toEqual(ok ? [] : ['triggerStep'])
   })
 
-  it('needs the trigger to stay above zero on the last review that is tested', () => {
+  it('needs the trigger to stay above zero on every review that is tested', () => {
     // Twelve reviews: the last one tested is 11 unless the final review calls too.
-    expect(validateProduct(callable({ redemption: autocall({ triggerStepDown: 0.09 }) }))).toEqual([])
-    expect(fieldsOf(callable({ redemption: autocall({ triggerStepDown: 0.1 }) }))).toEqual(['triggerStepDown'])
-    expect(validateProduct(callable({ redemption: autocall({ triggerStepDown: 0.1, callOnFinalReview: true }) }))).not.toEqual([])
+    expect(validateProduct(callable({ redemption: autocall({ triggerStep: -0.09 }) }))).toEqual([])
+    expect(fieldsOf(callable({ redemption: autocall({ triggerStep: -0.1 }) }))).toEqual(['triggerStep'])
+    expect(validateProduct(callable({ redemption: autocall({ triggerStep: -0.09, callOnFinalReview: true }) }))).toEqual([])
+    expect(fieldsOf(callable({ redemption: autocall({ triggerStep: -0.1, callOnFinalReview: true }) }))).toEqual(['triggerStep'])
+  })
+
+  it('needs the trigger to stay at most 200% on every review that is tested', () => {
+    // From 100% by 10% a review, review 11 is 200% and review 12 is 210%.
+    expect(validateProduct(callable({ redemption: autocall({ triggerStep: 0.1 }) }))).toEqual([])
+    expect(fieldsOf(callable({ redemption: autocall({ triggerStep: 0.11 }) }))).toEqual(['triggerStep'])
+    expect(fieldsOf(callable({ redemption: autocall({ triggerStep: 0.1, callOnFinalReview: true }) }))).toEqual(['triggerStep'])
   })
 
   it('cannot be combined with lookback', () => {
@@ -194,7 +202,7 @@ describe('a trigger that steps down, a call amount for each year, and a call on 
   const stepped = callable({
     term: { months: 36 },
     schedule: { frequency: 'semi-annual' },
-    redemption: autocall({ trigger: 1, triggerStepDown: 0.05, callAmount: 0.1, callAmountBasis: 'per-year', callOnFinalReview: true }),
+    redemption: autocall({ trigger: 1, triggerStep: -0.05, callAmount: 0.1, callAmountBasis: 'per-year', callOnFinalReview: true }),
     payoff: { participations: [{ direction: 'downside', barrier: { level: 0.5, observation: 'final' }, rate: 1 }] },
   })
   const never = [90, 85, 80, 70, 60]
@@ -203,9 +211,17 @@ describe('a trigger that steps down, a call amount for each year, and a call on 
     expect(validateProduct(stepped)).toEqual([])
   })
 
-  it('lowers the trigger level by the step-down on each review', () => {
+  it('moves the trigger level by the step on each review', () => {
     const outcome = redemptionOutcome(stepped, never, { initial: 100, final: 60 })
     expect(outcome.tests.map(({ triggerLevel }) => triggerLevel)).toEqual([100, 95, 90, 85, 80, 75])
+  })
+
+  it('raises the trigger on each review when the step is positive, so a level that called on review 1 may not call later', () => {
+    const rising = callable({ redemption: autocall({ trigger: 1, triggerStep: 0.05 }) })
+    expect(redemptionOutcome(rising, flat(11), levels).tests.map(({ triggerLevel }) => triggerLevel).slice(0, 4)).toEqual([100, 105, 110, 115])
+    // 104 is below review 2's trigger of 105, and 105 is at it.
+    expect(redemptionOutcome(rising, [90, 104, ...flat(9)], levels).calledAtReview).toBeUndefined()
+    expect(redemptionOutcome(rising, [90, 105, ...flat(9)], levels).calledAtReview).toBe(2)
   })
 
   it.each([[1, 100, 0.05, 6], [2, 95, 0.1, 12], [3, 90, 0.15, 18], [4, 85, 0.2, 24], [5, 80, 0.25, 30]])('is called on review %i at %s, paying %s above principal after %i months', (review, level, extra, months) => {
@@ -241,7 +257,7 @@ describe('a trigger that steps down, a call amount for each year, and a call on 
   })
 
   it('does not test the final review when it is not a call', () => {
-    const note = callable({ ...stepped, redemption: autocall({ trigger: 1, triggerStepDown: 0.05, callAmount: 0.1, callAmountBasis: 'per-year' }) })
+    const note = callable({ ...stepped, redemption: autocall({ trigger: 1, triggerStep: -0.05, callAmount: 0.1, callAmountBasis: 'per-year' }) })
     const outcome = redemptionOutcome(note, never, { initial: 100, final: 100 })
     expect(outcome.calledAtReview).toBeUndefined()
     expect(outcome.tests).toHaveLength(5)
@@ -289,7 +305,7 @@ describe('the second book example', () => {
   const note = callable({
     term: { months: 36 },
     schedule: { frequency: 'semi-annual' },
-    redemption: autocall({ trigger: 1, triggerStepDown: 0.05, callAmount: 0.1, callAmountBasis: 'per-year', callOnFinalReview: true }),
+    redemption: autocall({ trigger: 1, triggerStep: -0.05, callAmount: 0.1, callAmountBasis: 'per-year', callOnFinalReview: true }),
     payoff: { participations: [{ direction: 'downside', barrier: { level: 0.5, observation: 'final' }, rate: 1 }] },
   })
 

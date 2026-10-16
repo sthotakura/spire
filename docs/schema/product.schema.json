@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://sthotakura.github.io/spire/product.schema.json",
   "title": "SPIRe product",
-  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- An autocall needs a review schedule, and a schedule is used by an autocall only. The term must hold a whole number of review periods, and at least two.\n- An autocall cannot be combined with lookback, or with a barrier observed on every close.\n- An autocall trigger stays above zero on the last review that is tested, after its step-down.",
+  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- An autocall needs a review schedule, and a schedule is used by an autocall only. The term must hold a whole number of review periods, and at least two.\n- An autocall cannot be combined with lookback, or with a barrier observed on every close.\n- An autocall trigger stays above zero, and at most 200% of the initial level, on every review that is tested, after its step.",
   "type": "object",
   "properties": {
     "wrapper": {
@@ -757,7 +757,7 @@
       "redemption": {
         "kind": "autocall",
         "trigger": 1,
-        "triggerStepDown": 0.05,
+        "triggerStep": -0.05,
         "callAmount": 0.1,
         "callAmountBasis": "per-year",
         "callOnFinalReview": true
@@ -888,10 +888,9 @@
           "exclusiveMinimum": 0,
           "maximum": 2
         },
-        "triggerStepDown": {
+        "triggerStep": {
           "type": "number",
-          "description": "How far the trigger falls on each review after the first, as a fraction of the initial level. A trigger of 1 stepping down by 0.05 is 100% on review 1, 95% on review 2, and so on. Absent or zero keeps the trigger the same on every review. The trigger must stay above zero on the last review that is tested.",
-          "minimum": 0
+          "description": "How much the trigger changes on each review after the first, as a fraction of the initial level. A negative step lowers the trigger: a trigger of 1 with a step of -0.05 is 100% on review 1, 95% on review 2, and so on. A positive step raises it. Absent or zero keeps the trigger the same on every review. The trigger must stay above zero, and at most 2, on every review that is tested."
         },
         "callAmount": {
           "type": "number",

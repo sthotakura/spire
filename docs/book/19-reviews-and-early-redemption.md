@@ -41,9 +41,9 @@ The call amount is the same whenever the product is called, so being called on r
 
 The payoff chart for a product with an autocall shows what it would pay if held to the end of its term, since that is what is read from the final level. The review table shows when it ends early.
 
-## A trigger that steps down
+## A trigger that steps
 
-A trigger can fall as the product ages, so that a product that has not recovered becomes easier to call. The **trigger step-down** is how far the trigger falls on each review after the first, as a share of the initial level. A trigger of 100% with a step-down of 5% is 100% on review 1, 95% on review 2, 90% on review 3, and 75% on review 6. A step-down of zero keeps one trigger for every review. The trigger must stay above zero on the last review that is tested.
+A trigger can change as the product ages. The **trigger step** is how much the trigger changes on each review after the first, as a share of the initial level. A negative step lowers it, so that a product that has not recovered becomes easier to call: a trigger of 100% with a step of −5% is 100% on review 1, 95% on review 2, 90% on review 3, and 75% on review 6. A positive step raises it, so each review asks for more than the one before: 100% with a step of +5% is 105% on review 2 and 110% on review 3. A step of zero keeps one trigger for every review. The trigger must stay above zero, and at most 200% of the initial level, on every review that is tested. The public note read for this chapter steps down; the reference allows a step up as the same idea in the other direction.
 
 ## A call amount for each year
 
@@ -57,7 +57,7 @@ This makes the end of the product pay differently from a product without it. A f
 
 ### A second worked example
 
-A synthetic note with principal of 1,000, a term of 3 years and reviews every six months, so six reviews. The trigger starts at 100% and steps down 5% a review, to 75% on review 6, which is also a call. A call pays 10% for each year elapsed. The payoff is a downside barrier at 50% of the initial level, read on the final date with 100% downside participation: it repays principal unless the final level is below 50%, and then it pays the fall. The initial level is 100.
+A synthetic note with principal of 1,000, a term of 3 years and reviews every six months, so six reviews. The trigger starts at 100% and steps down by 5% a review (a step of −5%), to 75% on review 6, which is also a call. A call pays 10% for each year elapsed. The payoff is a downside barrier at 50% of the initial level, read on the final date with 100% downside participation: it repays principal unless the final level is below 50%, and then it pays the fall. The initial level is 100.
 
 | Scenario | What happens | Months | Payment |
 | :--- | :--- | ---: | ---: |
@@ -83,7 +83,7 @@ The payoff chart for a product whose last review is a call shows the payoff alon
 - The Swiss Structured Products Association describes an autocall as an obligation to repay early when the underlyings are above the trigger on a predetermined observation date, and a softcall as an issuer option on such dates ([SSPA](https://sspa.ch/en/lab/)).
 - The reviews are evenly spaced whole numbers of months. Public notes list dates that shift with weekends and holidays.
 - The call amount is either one flat amount, or an amount for each year elapsed. Public notes that pay more the longer they last state it as a rate and a table of call prices; the reference states the rate, and works out the price for each review.
-- The trigger falls by the same step on each review. Public notes list a threshold for each date, which can step by uneven amounts.
+- The trigger moves by the same step on each review. Public notes list a threshold for each date, which can step by uneven amounts.
 - A final review that is a call is tested on the final level the payoff reads.
 - Postponement for market disruptions is not modelled.
 
