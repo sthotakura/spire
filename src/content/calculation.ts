@@ -9,6 +9,8 @@ export interface CalculationStep {
   muted?: boolean
   result?: boolean
   concept?: ConceptId
+  // A heading is not a step: it introduces the steps after it, has no number or value, and is not counted.
+  heading?: boolean
 }
 
 const formatAmount = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 })

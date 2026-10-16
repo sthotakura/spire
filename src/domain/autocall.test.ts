@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { finalCallLevel, paymentAtEnd, redemptionOutcome } from './autocall'
-import { basketLevelFrom, productIssues, reviewCount, suggestedFrequency, validateProduct, type Autocall, type BasketUnderlier, type Product, type Schedule } from './note'
+import { annualisedReturn, basketLevelFrom, productIssues, reviewCount, suggestedFrequency, validateProduct, type Autocall, type BasketUnderlier, type Product, type Schedule } from './note'
 import { startingProduct } from './starting-note'
 
 // Synthetic: a 12-month note on one index, reviewed monthly, called when the index is at or above its initial level.
@@ -358,6 +358,11 @@ describe('the second book example', () => {
 
 describe('the book example', () => {
   const note = callable({ payoff: { participations: [{ direction: 'downside', rate: 1 }] } })
+
+  it('annualises a call over the months it lasted', () => {
+    expect(annualisedReturn(1080, 1000, 7)).toBeCloseTo(0.141, 3)
+    expect(annualisedReturn(1080, 1000, 1)).toBeCloseTo(1.518, 3)
+  })
   const below = flat(11, 99)
 
   it.each<[string, number[], number, number | undefined, number, number]>([

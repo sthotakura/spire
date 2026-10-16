@@ -1,5 +1,5 @@
 import type { RedemptionOutcome } from '../domain/autocall'
-import { barrierLevelAt, reviewCount, triggerAtReview, type Product } from '../domain/note'
+import { annualisedReturn, barrierLevelAt, reviewCount, triggerAtReview, type Product } from '../domain/note'
 import type { CalculationStep } from './calculation'
 import type { FormulaLine } from './formula'
 
@@ -42,8 +42,11 @@ export function redemptionFormula(note: Product): FormulaLine[] {
   }]
 }
 
+const twoDecimalPercent = (fraction: number) => `${(fraction * 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
+
 // One step for each review that was tested, and one for how the product ended. Reviews after a call are not shown: the product had
-// already ended.
+// already ended. A product that was called also gets its annualised return, over the months it actually lasted, and a heading before
+// the payoff steps that follow, which say what it would have paid at maturity.
 export function redemptionSteps(note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> {
   if (note.redemption === 'bullet') return []
   const { redemption } = note
@@ -58,6 +61,12 @@ export function redemptionSteps(note: Product, outcome: RedemptionOutcome): Arra
   steps.push(outcome.calledAtReview === undefined
     ? { title: 'Redemption', how: `No review${callOnFinalReview ? ', including the last,' : ' before the last'} reached the trigger, so the product runs to the end of its ${monthsPhrase(outcome.months)} term`, value: 'At maturity', concept: 'redemption' }
     : { title: 'Redemption', how: `Called on review ${outcome.calledAtReview}, after ${monthsPhrase(outcome.months)}: principal × (1 + ${callAmountBasis === 'per-year' ? `${percent(callAmount)} a year × ${yearsPhrase(outcome.months)} = ${percent(outcome.tests[outcome.calledAtReview - 1].callAmount)}` : percent(callAmount)})`, value: units(outcome.payment), result: true, concept: 'redemption' })
+  if (outcome.calledAtReview !== undefined) {
+    steps.push(
+      { title: 'Annualised return', how: `(${units(outcome.payment)} ÷ ${units(note.principalAmount)})^(12 ÷ ${monthsPhrase(outcome.months)}) − 1, over the time it lasted`, value: `${twoDecimalPercent(annualisedReturn(outcome.payment, note.principalAmount, outcome.months))} a year`, concept: 'redemption' },
+      { title: 'If it had run to maturity', how: 'It was called, so none of this is paid. The steps below are what the payoff would have paid at maturity.', value: '', heading: true },
+    )
+  }
   return steps
 }
 

@@ -83,8 +83,16 @@ describe('what a call says and does', () => {
 
   it('shows each review up to the call and then the redemption', () => {
     const steps = redemptionSteps(callable, redemptionOutcome(callable, [90, 100, ...Array(9).fill(90)], levels))
-    expect(steps.map(({ title, value }) => [title, value])).toEqual([['Review 1 of 12', 'Not called'], ['Review 2 of 12', 'Called'], ['Redemption', '1,080']])
+    expect(steps.map(({ title, value }) => [title, value])).toEqual([['Review 1 of 12', 'Not called'], ['Review 2 of 12', 'Called'], ['Redemption', '1,080'], ['Annualised return', '58.69% a year'], ['If it had run to maturity', '']])
     expect(steps[2].result).toBe(true)
+    // The annualised return reads the 2 months it lasted, not the term, and the heading says the steps after it were not paid.
+    expect(steps[3].how).toBe('(1,080 ÷ 1,000)^(12 ÷ 2 months) − 1, over the time it lasted')
+    expect(steps[4].heading).toBe(true)
+  })
+
+  it('gives no annualised return and no heading when it is not called: the payoff steps carry their own', () => {
+    const steps = redemptionSteps(callable, redemptionOutcome(callable, Array(11).fill(90), levels))
+    expect(steps.some(({ title, heading }) => title === 'Annualised return' || heading)).toBe(false)
   })
 
   it('shows every review before the last, then that it runs to maturity, when it is not called', () => {
@@ -120,9 +128,9 @@ describe('a trigger that steps down, a call amount for each year and a call on t
   it('shows the trigger of each review and the call amount for the years elapsed', () => {
     const outcome = redemptionOutcome(stepped, [90, 80, 85, 70, 60], { initial: 100, final: 100 })
     const steps = redemptionSteps(stepped, outcome)
-    expect(steps.map(({ value }) => value)).toEqual(['Not called', 'Not called', 'Not called', 'Not called', 'Not called', 'Called', '1,300'])
+    expect(steps.map(({ value }) => value)).toEqual(['Not called', 'Not called', 'Not called', 'Not called', 'Not called', 'Called', '1,300', '9.14% a year', ''])
     expect(steps[1].how).toBe('80 is below the trigger, 95% × initial level = 95')
-    expect(steps.at(-1)?.how).toBe('Called on review 6, after 36 months: principal × (1 + 10% a year × 3 years = 30%)')
+    expect(steps[6].how).toBe('Called on review 6, after 36 months: principal × (1 + 10% a year × 3 years = 30%)')
   })
 
   it('explains a call on the final review', () => {

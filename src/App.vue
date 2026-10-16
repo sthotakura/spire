@@ -470,8 +470,12 @@ const note = computed<Product>(() => ({
   },
 }))
 const jsonLines = computed(() => structureLines(note.value))
-const formula = computed(() => [...paymentFormula(note.value), ...redemptionFormula(note.value)])
-const formulaWords = computed(() => paymentInWords(note.value))
+// With an autocall the payment rule is what is paid at maturity, when the product has not been called.
+const formula = computed(() => [...paymentFormula(note.value).map((line) => autocalled.value && line.lead === 'Payment' ? { ...line, lead: 'At maturity' } : line), ...redemptionFormula(note.value)])
+const formulaWords = computed(() => {
+  const words = paymentInWords(note.value)
+  return autocalled.value ? `If it is not called, ${words.startsWith('The ') ? `the ${words.slice(4)}` : words}` : words
+})
 // What the final level on the chart belongs to: the asset, or the basket.
 const underlierLabel = computed(() => isBasket.value ? 'the basket' : assetName.value.trim() || 'the underlier')
 // Copies the JSON exactly as shown. The label says whether it worked, then returns to "Copy" after a moment.
@@ -649,9 +653,13 @@ const calculation = computed(() => {
   const maturity = calculationSteps(note.value, b, observations.value, initialObservations.value, basketMeasure.value ?? undefined)
   if (!redemption.value) return maturity
   // Reviews come first. When the product was called its payoff steps are what it would have paid at maturity, so they are muted.
-  const early = redemptionSteps(note.value, redemption.value).map((step, index) => ({ ...step, n: index + 1 }))
+  const early = redemptionSteps(note.value, redemption.value)
   const called = redemption.value.calledAtReview !== undefined
-  return [...early, ...maturity.map((step) => ({ ...step, n: step.n + early.length, muted: step.muted || called, result: step.result && !called }))]
+  // A called product's annualised return is the one over the months it lasted, in the early steps, so the maturity one is left out.
+  const payoff = maturity.filter((step) => !(called && step.title === 'Annualised return')).map((step) => ({ ...step, muted: step.muted || called, result: step.result && !called }))
+  // A heading has no number, so the steps are numbered without it.
+  let n = 0
+  return [...early, ...payoff].map((step) => ({ ...step, n: step.heading ? 0 : ++n }))
 })
 
 // The chart. Its vertical axis is fitted to the payoff (see chart/geometry.ts), and handles on it edit the same values the outline fields edit.
@@ -1330,7 +1338,7 @@ const chart = computed(() => {
                 <p v-if="reviewError" class="errors" role="alert">{{ reviewError }}</p>
               </div>
               <div class="formula" role="group" aria-label="Payment rule"><div v-for="(line, index) in formula" :key="index" :class="['fline', { limit: !line.lead }]"><span class="flead">{{ line.lead }}</span><span class="feq">{{ line.lead ? '=' : '' }}</span><span class="fexpr"><template v-for="(segment, part) in line.segments" :key="part"><span v-if="segment.concept" :class="['fterm', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)">{{ segment.text }}</span><template v-else>{{ segment.text }}</template></template></span></div><p class="fwords"><b>In words:</b> {{ formulaWords }}</p></div>
-              <ol class="calc-steps" aria-live="polite"><li v-for="step in calculation" :key="step.n" :class="{ hl: step.concept && highlighted(step.concept), muted: step.muted, result: step.result }"><span class="calc-n">{{ step.n }}</span><b>{{ step.title }}</b><span class="calc-value">{{ step.value }}</span><span class="calc-how">{{ step.how }}</span></li></ol>
+              <ol class="calc-steps" aria-live="polite"><li v-for="step in calculation" :key="`${step.n}-${step.title}`" :class="{ hl: !step.heading && step.concept && highlighted(step.concept), muted: step.muted, result: step.result, heading: step.heading }"><template v-if="step.heading"><b>{{ step.title }}</b><span class="calc-how">{{ step.how }}</span></template><template v-else><span class="calc-n">{{ step.n }}</span><b>{{ step.title }}</b><span class="calc-value">{{ step.value }}</span><span class="calc-how">{{ step.how }}</span></template></li></ol>
               <p v-if="outcomeSentence" class="outcome" aria-live="polite">{{ outcomeSentence }}</p>
             </template>
             <template #scenarios>

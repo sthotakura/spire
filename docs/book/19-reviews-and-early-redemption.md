@@ -37,6 +37,8 @@ A synthetic note with principal of 1,000, a term of 12 months, monthly reviews, 
 | Below 100 on every review, then ends at 110 | Not called. The payoff pays principal on a rise | 12 | 1,000 |
 | Below 100 on every review, then ends at 70 | Not called. Downside participation: 1,000 × (1 − 30%) | 12 | 700 |
 
+The calculation also states the annualised return, which reads the months the product lasted and not the term. Called on review 7 after 7 months, the 8% is (1,080 ÷ 1,000)^(12 ÷ 7) − 1, or 14.1% a year. Called on review 1 it is the same 8% earned in one month, which annualises to 151.8% a year. A product that ran to the end of its term annualises over the whole term. The steps for the payoff are still shown after a call, under a heading that says they are what it would have paid at maturity, and none of it is paid.
+
 The call amount is the same whenever the product is called, so being called on review 7 pays no more than being called on review 1. A flat amount is a simplification. Some public notes pay more the longer they last, and the reference does not model that.
 
 The payoff chart for a product with an autocall shows what it would pay if held to the end of its term, since that is what is read from the final level. The review table shows when it ends early.
