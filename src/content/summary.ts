@@ -119,8 +119,8 @@ export function summarize(note: Product): SummarySegment[] {
         { text: ' that is called early if ' },
         ...underlier,
         { text: ' ' },
-        { text: `is at or above ${percent(note.redemption.trigger)} of its initial level on any ${note.schedule?.frequency ?? 'monthly'} review before maturity`, concept: 'redemption' },
-        { text: note.redemption.callAmount > 0 ? `, paying ${percent(note.redemption.callAmount)} above principal,` : ', repaying principal,', concept: 'redemption' },
+        { text: `is at or above ${percent(note.redemption.trigger)} of its initial level on any ${note.schedule?.frequency ?? 'monthly'} review ${note.redemption.callOnFinalReview ? 'including the last' : 'before maturity'}${note.redemption.triggerStepDown ? `, the trigger falling ${percent(note.redemption.triggerStepDown)} on each later review` : ''}`, concept: 'redemption' },
+        { text: note.redemption.callAmount > 0 ? `, paying ${percent(note.redemption.callAmount)}${note.redemption.callAmountBasis === 'per-year' ? ' for each year elapsed' : ''} above principal,` : ', repaying principal,', concept: 'redemption' },
         { text: ' and otherwise redeems ' },
         { text: 'at maturity', concept: 'redemption' },
       ]

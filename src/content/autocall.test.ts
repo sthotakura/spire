@@ -94,6 +94,55 @@ describe('what a call says and does', () => {
   })
 })
 
+// The same synthetic product as the domain tests: three years reviewed every six months, a trigger stepping down 5% a review, a call
+// amount of 10% for each year elapsed, and a call on the final review too.
+const stepped: Product = {
+  ...callable,
+  term: { months: 36 },
+  schedule: { frequency: 'semi-annual' },
+  redemption: { kind: 'autocall', trigger: 1, triggerStepDown: 0.05, callAmount: 0.1, callAmountBasis: 'per-year', callOnFinalReview: true },
+}
+
+describe('a trigger that steps down, a call amount for each year and a call on the final review', () => {
+  it('says all three in the summary', () => {
+    expect(text(stepped)).toContain('is called early if Synthetic Index is at or above 100% of its initial level on any semi-annual review including the last, the trigger falling 5% on each later review, paying 10% for each year elapsed above principal, and otherwise redeems at maturity')
+  })
+
+  it('writes the rule with the trigger on that review, the years elapsed and every review', () => {
+    const [line] = redemptionFormula(stepped)
+    expect(line.segments.map(({ text }) => text).join('')).toBe('On every review, if Level ≥ Trigger on that review × Initial level, pay Principal × (1 + Call amount × Years elapsed) and end')
+  })
+
+  it('shows the trigger of each review and the call amount for the years elapsed', () => {
+    const outcome = redemptionOutcome(stepped, [90, 80, 85, 70, 60], { initial: 100, final: 100 })
+    const steps = redemptionSteps(stepped, outcome)
+    expect(steps.map(({ value }) => value)).toEqual(['Not called', 'Not called', 'Not called', 'Not called', 'Not called', 'Called', '1,300'])
+    expect(steps[1].how).toBe('80 is below the trigger, 95% × initial level = 95')
+    expect(steps.at(-1)?.how).toBe('Called on review 6, after 36 months: principal × (1 + 10% a year × 3 years = 30%)')
+  })
+
+  it('explains a call on the final review', () => {
+    const outcome = redemptionOutcome(stepped, [90, 80, 85, 70, 60], { initial: 100, final: 100 })
+    expect(explainRedemption(stepped, outcome)).toBe('The level was 100 on review 6 of 6, at or above the 75 trigger, so the product was called after 36 months and pays 1,300, 300 more than principal.')
+  })
+
+  it('explains a product no review called, including the last', () => {
+    const outcome = redemptionOutcome(stepped, [90, 80, 85, 70, 60], { initial: 100, final: 60 })
+    expect(explainRedemption(stepped, outcome)).toBe('No review, including the last, was at or above its trigger, so the product ran to the end of its term.')
+  })
+
+  it('gives paths that end the way their names say', () => {
+    expect(validateProduct(stepped)).toEqual([])
+    const results = Object.fromEntries(pathScenarios(stepped, 100).map(({ name, reviewLevels, finalLevel }) => [name, redemptionOutcome(stepped, reviewLevels, { initial: 100, final: finalLevel }).calledAtReview]))
+    expect(results).toEqual({
+      'Called on the first review': 1,
+      'Called on review 5': 5,
+      'Called on the final review': 6,
+      'Never called, ends 40% down': undefined,
+    })
+  })
+})
+
 describe('named path scenarios', () => {
   it('give a valid path for each name, which ends the way the name says', () => {
     for (const trigger of [1, 0.8, 1.2]) {
