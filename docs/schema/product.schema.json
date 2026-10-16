@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://sthotakura.github.io/spire/product.schema.json",
   "title": "SPIRe product",
-  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- An autocall needs a review schedule, and a schedule is used by an autocall only. The term must hold a whole number of review periods, and at least two.\n- An autocall cannot be combined with lookback, or with a barrier observed on every close.\n- An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The non-call period leaves at least one review that can call.",
+  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- An autocall or an issuer call needs a review schedule, and a schedule is used by them only. The term must hold a whole number of review periods, and at least two.\n- An autocall cannot be combined with lookback. An autocall or an issuer call cannot be combined with a barrier observed on every close.\n- An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The non-call period of an autocall or an issuer call leaves at least one review that can call.",
   "type": "object",
   "properties": {
     "wrapper": {
@@ -22,7 +22,7 @@
           "$ref": "#/definitions/Schedule"
         }
       ],
-      "description": "The reviews through the term. Required by an autocall, and only by an autocall."
+      "description": "The reviews through the term. Required by an autocall or an issuer call, and only by them."
     },
     "redemption": {
       "oneOf": [
@@ -33,9 +33,12 @@
         },
         {
           "$ref": "#/definitions/Autocall"
+        },
+        {
+          "$ref": "#/definitions/IssuerCall"
         }
       ],
-      "description": "Bullet redemption pays once, at maturity. An autocall can end the product earlier, on a review."
+      "description": "Bullet redemption pays once, at maturity. An autocall or an issuer call can end the product earlier, on a review."
     },
     "underlier": {
       "$ref": "#/definitions/Underlier"
@@ -756,6 +759,71 @@
         "months": 36
       },
       "redemption": {
+        "kind": "issuer-call",
+        "nonCallReviews": 2,
+        "callAmount": 0.02
+      },
+      "underlier": {
+        "kind": "basket",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Index A"
+            }
+          },
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Index B"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "levels": [
+              {
+                "asset": "Index A",
+                "level": 100
+              },
+              {
+                "asset": "Index B",
+                "level": 50
+              }
+            ]
+          },
+          "final": {
+            "kind": "final-date"
+          },
+          "basketReturn": {
+            "kind": "worst-of"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "barrier": {
+              "level": 0.7,
+              "observation": "final"
+            },
+            "rate": 1
+          }
+        ]
+      },
+      "schedule": {
+        "frequency": "quarterly"
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": {
         "kind": "autocall",
         "trigger": 1,
         "triggerStep": -0.05,
@@ -927,6 +995,41 @@
       ],
       "additionalProperties": false,
       "description": "Automatic early redemption. On each review before the last, if the underlier's level is at or above the trigger, the product ends and repays principal plus the call amount. The last review is the end of the term and pays the payoff as a bullet product does, unless the final review is also a call."
+    },
+    "IssuerCall": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "issuer-call"
+        },
+        "nonCallReviews": {
+          "type": "integer",
+          "description": "The number of reviews at the start on which the issuer cannot call: a non-call period. 0 lets the issuer call from the first review. It must leave at least one review that can call, which is any review before the last.",
+          "minimum": 0,
+          "default": 0
+        },
+        "callAmount": {
+          "type": "number",
+          "description": "What a call pays above principal, as a fraction of principal. Zero repays principal only. With the basis 'flat' it is the same amount whenever the issuer calls; with 'per-year' it is the amount for each year the product has lasted.",
+          "minimum": 0
+        },
+        "callAmountBasis": {
+          "type": "string",
+          "enum": [
+            "flat",
+            "per-year"
+          ],
+          "description": "Whether the call amount is the same on every review ('flat', when absent) or accrues for each year elapsed ('per-year').",
+          "default": "flat"
+        }
+      },
+      "required": [
+        "kind",
+        "callAmount"
+      ],
+      "additionalProperties": false,
+      "description": "An early redemption at the issuer's option. On a review that can call, the issuer may redeem the product in whole, which then ends and repays principal plus the call amount. Nothing tests the underlier: whether the issuer calls is the issuer's choice, which a scenario states. The last review is the end of the term and is not a call."
     },
     "Underlier": {
       "oneOf": [

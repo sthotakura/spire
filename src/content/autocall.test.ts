@@ -224,6 +224,69 @@ describe('a non-call period', () => {
   })
 })
 
+// An issuer call on twelve monthly reviews, the first two of which cannot be called.
+const issuer: Product = { ...callable, redemption: { kind: 'issuer-call', nonCallReviews: 2, callAmount: 0.02 } }
+
+describe('an issuer call', () => {
+  it('says when the issuer may call, with no level, and what it pays', () => {
+    expect(text(issuer)).toBe('A 1-year note that the issuer may call early on any monthly review from the 3rd before maturity, paying 2% above principal, and otherwise redeems at maturity and repays its principal, linked to Synthetic Index, measured point-to-point from 100.')
+    expect(text({ ...issuer, redemption: { kind: 'issuer-call', callAmount: 0 } })).toContain('on any monthly review before maturity, repaying principal, and otherwise')
+    expect(text({ ...issuer, redemption: { kind: 'issuer-call', callAmount: 0.1, callAmountBasis: 'per-year' } })).toContain('paying 10% for each year elapsed above principal')
+  })
+
+  it('tags each term with its own concept', () => {
+    const tagged = (concept: string) => summarize(issuer).filter((segment) => segment.concept === concept).map(({ text }) => text)
+    expect(tagged('schedule')).toEqual(['monthly'])
+    expect(tagged('non-call')).toEqual([' from the 3rd'])
+    expect(tagged('call-amount')).toEqual(['paying 2% above principal'])
+    expect(tagged('trigger')).toEqual([])
+  })
+
+  it('tags the structure JSON by term', () => {
+    const lines = structureLines(issuer)
+    expect(lines.map(({ text }) => text).join('\n')).toBe(JSON.stringify(issuer, null, 2))
+    const tagged = (concept: string) => lines.filter((line) => line.concept === concept).map(({ text }) => text.trim())
+    expect(tagged('non-call')).toEqual(['"nonCallReviews": 2,'])
+    expect(tagged('call-amount')).toEqual(['"callAmount": 0.02'])
+  })
+
+  it('writes the call rule with no level in it', () => {
+    const [line] = redemptionFormula(issuer)
+    expect(line.segments.map(({ text }) => text).join('')).toBe('On a review from review 3 before the last, if the issuer calls, pay Principal × (1 + Call amount) and end')
+    expect(redemptionFormula({ ...issuer, redemption: { kind: 'issuer-call', callAmount: 0.02 } })[0].segments[0].text).toBe('On a review before the last, if the issuer calls, pay ')
+  })
+
+  it('explains a call and a product the issuer left alone', () => {
+    expect(explainRedemption(issuer, redemptionOutcome(issuer, [], levels, 5))).toBe('The issuer called the product on review 5 of 12, after 5 months, and it pays 1,020, 20 more than principal.')
+    expect(explainRedemption(issuer, redemptionOutcome(issuer, [], levels))).toBe('The issuer did not call, so the product ran to the end of its term.')
+    expect(explainRedemption({ ...issuer, redemption: { kind: 'issuer-call', callAmount: 0 } }, redemptionOutcome({ ...issuer, redemption: { kind: 'issuer-call', callAmount: 0 } }, [], levels, 5))).toContain('pays 1,000, the same as principal')
+  })
+
+  it('shows the non-call period, the call, its annualised return and the comparison', () => {
+    const steps = redemptionSteps(issuer, redemptionOutcome(issuer, [], levels, 5))
+    expect(steps.map(({ title, value }) => [title, value])).toEqual([['Non-call period', '2 reviews'], ['Issuer call', '1,020'], ['Annualised return', '4.87% a year'], ['If it had run to maturity', '']])
+    expect(steps[1].how).toBe('The issuer called on review 5, after 5 months: principal × (1 + 2%)')
+    expect(steps[1].result).toBe(true)
+    expect(steps[3].heading).toBe(true)
+  })
+
+  it('shows only that the issuer did not call when it ran to maturity', () => {
+    const steps = redemptionSteps(issuer, redemptionOutcome(issuer, [], levels))
+    expect(steps.map(({ title, value }) => [title, value])).toEqual([['Non-call period', '2 reviews'], ['Issuer call', 'Not called']])
+  })
+
+  it('has no step for the period when there is none, and says one review in the singular', () => {
+    const none = { ...issuer, redemption: { kind: 'issuer-call', callAmount: 0.02 } } as Product
+    expect(redemptionSteps(none, redemptionOutcome(none, [], levels)).map(({ title }) => title)).toEqual(['Issuer call'])
+    const one = { ...issuer, redemption: { kind: 'issuer-call', nonCallReviews: 1, callAmount: 0.02 } } as Product
+    expect(redemptionSteps(one, redemptionOutcome(one, [], levels))[0]).toMatchObject({ how: 'The first 1 review cannot be called', value: '1 review' })
+  })
+
+  it('has no paths of levels', () => {
+    expect(pathScenarios(issuer, 100)).toEqual([])
+  })
+})
+
 describe('named path scenarios', () => {
   it('leave the final level alone when the product is called before it gets there', () => {
     const paths = Object.fromEntries(pathScenarios(callable, 100).map(({ name, finalLevel }) => [name, finalLevel]))

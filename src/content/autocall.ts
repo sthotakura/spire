@@ -1,5 +1,5 @@
 import type { RedemptionOutcome } from '../domain/autocall'
-import { annualisedReturn, barrierLevelAt, firstCallReview, reviewCount, triggerAtReview, type Product } from '../domain/note'
+import { annualisedReturn, barrierLevelAt, callAmountAtReview, firstCallReview, reviewCount, triggerAtReview, type Product } from '../domain/note'
 import type { CalculationStep } from './calculation'
 import type { FormulaLine } from './formula'
 
@@ -14,6 +14,7 @@ const yearsPhrase = (months: number) => `${(months / 12).toLocaleString('en-US',
 // pays; one that ran to the end of its term says no review reached the trigger, and the maturity payment follows in the outcome.
 export function explainRedemption(note: Product, outcome: RedemptionOutcome): string {
   if (note.redemption === 'bullet') return ''
+  if (note.redemption.kind === 'issuer-call') return explainIssuerCall(note, outcome)
   const { calledAtReview, tests, reviews, months, payment } = outcome
   const test = calledAtReview === undefined ? undefined : tests[calledAtReview - 1]
   if (test === undefined) {
@@ -34,6 +35,17 @@ export function explainRedemption(note: Product, outcome: RedemptionOutcome): st
 // is a call too. A trigger that steps and a call amount for each year say so in the rule.
 export function redemptionFormula(note: Product): FormulaLine[] {
   if (note.redemption === 'bullet') return []
+  if (note.redemption.kind === 'issuer-call') {
+    const first = firstCallReview(note.redemption)
+    return [{
+      lead: 'Call',
+      segments: [
+        { text: `On a review ${first > 1 ? `from review ${first} ` : ''}before the last, if the issuer calls, pay ` },
+        { text: note.redemption.callAmountBasis === 'per-year' ? 'Principal × (1 + Call amount × Years elapsed)' : 'Principal × (1 + Call amount)', concept: 'call-amount' },
+        { text: ' and end' },
+      ],
+    }]
+  }
   const { triggerStep, callAmountBasis, callOnFinalReview } = note.redemption
   const firstCall = firstCallReview(note.redemption)
   const reviews = callOnFinalReview
@@ -58,6 +70,7 @@ const twoDecimalPercent = (fraction: number) => `${(fraction * 100).toLocaleStri
 // the payoff steps that follow, which say what it would have paid at maturity.
 export function redemptionSteps(note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> {
   if (note.redemption === 'bullet') return []
+  if (note.redemption.kind === 'issuer-call') return issuerCallSteps(note, outcome)
   const { redemption } = note
   const { callAmount, callAmountBasis, callOnFinalReview } = redemption
   const firstCall = firstCallReview(redemption)
@@ -73,12 +86,40 @@ export function redemptionSteps(note: Product, outcome: RedemptionOutcome): Arra
   steps.push(outcome.calledAtReview === undefined
     ? { title: 'Redemption', how: `No review${firstCall > 1 ? ' that could call' : ''}${callOnFinalReview ? ', including the last,' : firstCall > 1 ? '' : ' before the last'} reached the trigger, so the product runs to the end of its ${monthsPhrase(outcome.months)} term`, value: 'At maturity', concept: 'redemption' }
     : { title: 'Redemption', how: `Called on review ${outcome.calledAtReview}, after ${monthsPhrase(outcome.months)}: principal × (1 + ${callAmountBasis === 'per-year' ? `${percent(callAmount)} a year × ${yearsPhrase(outcome.months)} = ${percent(outcome.tests[outcome.calledAtReview - 1].callAmount)}` : percent(callAmount)})`, value: units(outcome.payment), result: true, concept: 'call-amount' })
-  if (outcome.calledAtReview !== undefined) {
-    steps.push(
-      { title: 'Annualised return', how: `(${units(outcome.payment)} ÷ ${units(note.principalAmount)})^(12 ÷ ${monthsPhrase(outcome.months)}) − 1, over the time it lasted`, value: `${twoDecimalPercent(annualisedReturn(outcome.payment, note.principalAmount, outcome.months))} a year`, concept: 'call-amount' },
-      { title: 'If it had run to maturity', how: 'It was called, so none of this is paid. The steps below are what the payoff would have paid at maturity.', value: '', heading: true },
-    )
+  if (outcome.calledAtReview !== undefined) steps.push(...calledSteps(note, outcome))
+  return steps
+}
+
+// After a call: the annualised return over the months the product lasted, and a heading before the payoff steps, which say what it
+// would have paid at maturity.
+const calledSteps = (note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> => [
+  { title: 'Annualised return', how: `(${units(outcome.payment)} ÷ ${units(note.principalAmount)})^(12 ÷ ${monthsPhrase(outcome.months)}) − 1, over the time it lasted`, value: `${twoDecimalPercent(annualisedReturn(outcome.payment, note.principalAmount, outcome.months))} a year`, concept: 'call-amount' },
+  { title: 'If it had run to maturity', how: 'It was called, so none of this is paid. The steps below are what the payoff would have paid at maturity.', value: '', heading: true },
+]
+
+const moreThanPrincipal = (note: Product, payment: number) => {
+  const difference = Math.round((payment - note.principalAmount) * 100) / 100
+  return difference > 0 ? `${units(difference)} more than principal` : 'the same as principal'
+}
+
+// An issuer call: the issuer's choice, so the sentence says which review it called on, or that it did not.
+function explainIssuerCall(note: Product, outcome: RedemptionOutcome): string {
+  if (outcome.calledAtReview === undefined) return 'The issuer did not call, so the product ran to the end of its term.'
+  return `The issuer called the product on review ${outcome.calledAtReview} of ${outcome.reviews}, after ${monthsPhrase(outcome.months)}, and it pays ${units(outcome.payment)}, ${moreThanPrincipal(note, outcome.payment)}.`
+}
+
+// The non-call period when there is one, then the call, then what follows a call. No level is read on a review, so there is no step for each review.
+function issuerCallSteps(note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> {
+  if (note.redemption === 'bullet' || note.redemption.kind !== 'issuer-call') return []
+  const { callAmount, callAmountBasis, nonCallReviews = 0 } = note.redemption
+  const steps: Array<Omit<CalculationStep, 'n'>> = []
+  if (nonCallReviews > 0) steps.push({ title: 'Non-call period', how: `The first ${nonCallReviews} ${nonCallReviews === 1 ? 'review' : 'reviews'} cannot be called`, value: `${nonCallReviews} ${nonCallReviews === 1 ? 'review' : 'reviews'}`, muted: true, concept: 'non-call' })
+  if (outcome.calledAtReview === undefined) {
+    steps.push({ title: 'Issuer call', how: `The issuer did not call, so the product runs to the end of its ${monthsPhrase(outcome.months)} term`, value: 'Not called', concept: 'redemption' })
+    return steps
   }
+  const amount = callAmountBasis === 'per-year' ? `${percent(callAmount)} a year × ${yearsPhrase(outcome.months)} = ${percent(callAmountAtReview(note.redemption, outcome.months))}` : percent(callAmount)
+  steps.push({ title: 'Issuer call', how: `The issuer called on review ${outcome.calledAtReview}, after ${monthsPhrase(outcome.months)}: principal × (1 + ${amount})`, value: units(outcome.payment), result: true, concept: 'call-amount' }, ...calledSteps(note, outcome))
   return steps
 }
 
@@ -94,7 +135,8 @@ export interface PathScenario {
 // called and ending up, flat, or falling. Each is built from the trigger on each review so it means the same whatever the trigger is. When the
 // final review is a call too, there is also a path called only on it, and the paths that are never called end below its trigger.
 export function pathScenarios(note: Product, initialLevel: number): PathScenario[] {
-  if (note.redemption === 'bullet') return []
+  // An issuer call reads no level, so there is no path of levels to load: the issuer's choice is a single review.
+  if (note.redemption === 'bullet' || note.redemption.kind === 'issuer-call') return []
   const reviews = reviewCount(note)!
   const before = reviews - 1
   const { redemption } = note

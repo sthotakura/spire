@@ -1,6 +1,6 @@
 # Issuer call
 
-This is a proposal, not built. An issuer call is the issuer's option to redeem a note early. It is distinct from the autocall ([observation-dates.md](observation-dates.md), [book chapter 19](book/19-reviews-and-early-redemption.md)), which is an obligation that follows from the underlier's level.
+Built, without coupons: the thin version recommended below. The model is `{ "kind": "issuer-call", "nonCallReviews", "callAmount", "callAmountBasis" }`, with the issuer's choice as a scenario input (a select of the review it calls on, or that it does not). The interface's call amount for an issuer call starts at 0, apart from the autocall's. Coupons remain the next piece, since both public notes price a call as principal plus that review's coupon. An issuer call is the issuer's option to redeem a note early. It is distinct from the autocall ([observation-dates.md](observation-dates.md), [book chapter 19](book/19-reviews-and-early-redemption.md)), which is an obligation that follows from the underlier's level.
 
 ## Established concepts
 

@@ -1,6 +1,6 @@
 # Reviews and early redemption
 
-Some products are tested on a series of dates through their life, not only at the end. A **review** is one of those dates: the underlier is read, a condition is checked, and something may happen. The simplest thing that can happen is that the product ends early. This chapter explains the reviews of a product and the automatic early redemption, the autocall, that the reference models.
+Some products are tested on a series of dates through their life, not only at the end. A **review** is one of those dates: the underlier is read, a condition is checked, and something may happen. The simplest thing that can happen is that the product ends early. This chapter explains the reviews of a product, the automatic early redemption, the autocall, and the early redemption at the issuer's option, the issuer call, that the reference models.
 
 ## Reviews
 
@@ -94,6 +94,36 @@ When the last review is the only call, the chart is a shark fin. Take a note wit
 
 This is the same shape as an upside barrier with a rebate, where the call amount plays the part of the rebate. The difference is in the earlier reviews. An upside barrier is read once, so it is the whole story, while reviews before the last can also call the note, and a note that was never called on those reviews can still end at any level. The chart shows only the end of the term.
 
+## An issuer call
+
+An **issuer call** is the issuer's option to redeem a product early. An autocall is an obligation that follows from the underlier's level. An issuer call has no level test: on a review that can be called, the issuer may redeem the product in whole, and nothing in the terms says when it will. The Swiss Structured Products Association calls this a softcall ([SSPA](https://sspa.ch/en/lab/)).
+
+The reference models it with three terms: the review frequency, a non-call period (the number of reviews at the start on which the issuer cannot call), and a call amount, paid above principal and stated as for an autocall, flat or for each year elapsed. The last review is the end of the term and is not a call. Because the issuer's decision is not a term of the product, a scenario states it: the review the issuer calls on, or that it does not call.
+
+Two public notes show the shape. In a callable contingent interest note on three indices, "We, at our election, may redeem the notes early", on any interest payment date except the first five and the last, with no condition on the index level ([JPMorgan Financial, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390023083784/ea165015_424b2.htm)). In an issuer callable yield note on the S&P 500, the issuer may call quarterly from a first call date, at its "sole option", and the call right is not tied to the index level ([BofA Finance, 424B2](https://www.sec.gov/Archives/edgar/data/1682472/000148105724004907/form424b2.htm)). Both have a non-call period at the start, which is why the reference reuses the one it has for an autocall.
+
+### An example
+
+A synthetic note with principal of 1,000, a term of 12 months, monthly reviews, a non-call period of 2 reviews, a call amount of 2%, an initial level of 100 and 100% downside participation. The issuer can call on reviews 3 to 11.
+
+| Scenario | What happens | Months | Payment |
+| :--- | :--- | ---: | ---: |
+| The issuer does not call, and the level ends at 110 | The note runs to the end of its term. The payoff pays principal on a rise | 12 | 1,000 |
+| The issuer does not call, and the level ends at 70 | Downside participation: 1,000 × (1 − 30%) | 12 | 700 |
+| The issuer calls on review 5, and the level is 70 | Called: principal plus 2%. The level does not matter | 5 | 1,020 |
+
+A call after 5 months that pays 2% above principal annualises to 4.87% a year, because the return is read over the months the product lasted, as for an autocall. With no call amount a call repays principal only and annualises to 0%.
+
+### What the reference does not say
+
+- **Why the issuer would call.** Neither public note says. The decision is the issuer's, outside the terms, so the reference leaves it to the reader to state and suggests no reason.
+- **A premium.** Neither note pays one above principal and the coupon, so the call amount starts at zero. A call price above principal is coherent, and the reference allows it, but no public note read for this chapter states one.
+- **Coupons.** The call price in both notes is principal plus that review's coupon when it was earned, and a call stops the remaining coupons. The reference has no coupons, so a call here repays principal and any call amount.
+- **Notice and dates.** Both notes state a notice period and a payment date after the review. The reference has no calendar dates.
+- **An issuer call and an autocall together** are not modelled. A product has one or the other.
+
+An issuer call is not available with a barrier observed on every close or with barrier absolute return, for the reason an autocall is not: a called product ends before the observation period does. Lookback is allowed, since nothing is read on the reviews. Averaging is allowed, and the final level is read only if the issuer does not call.
+
 ## Underliers and other features
 
 - **A basket** is read as its basket level. For a worst-of basket that is the worst performing asset's level, so one asset below the trigger holds the call back. The reader states the level of each asset on each review, and the basket level is worked out from them by the basket's rule.
@@ -114,7 +144,7 @@ This is the same shape as an upside barrier with a rebate, where the call amount
 
 ## What is not modelled
 
-Contingent coupons, memory, a trigger that steps by uneven amounts, an issuer call and a schedule of payments. Each would be added on top of the reviews described here.
+Contingent coupons, memory, a trigger that steps by uneven amounts, a premium on an issuer call that a source states, notice periods, and a schedule of payments. Each would be added on top of the reviews described here.
 
 ## Related concepts
 

@@ -71,7 +71,7 @@ export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, s
   // A final review that is also a call pays principal plus the call amount at and above its trigger, in place of the payoff.
   const { redemption } = product
   const reviews = reviewCount(product)
-  if (redemption !== 'bullet' && redemption.callOnFinalReview && reviews !== undefined) {
+  if (redemption !== 'bullet' && redemption.kind === 'autocall' && redemption.callOnFinalReview && reviews !== undefined) {
     labels['final-call'] = `At or above ${percent(triggerAtReview(redemption, reviews))} of the initial level the final review calls it, paying ${amount(principal * (1 + callAmountAtReview(redemption, product.term.months)))}`
   }
   if (principalProtection !== undefined) labels.protection = `Never below ${amount(principal * principalProtection)}`

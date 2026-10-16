@@ -44,6 +44,15 @@ of `"flat"` (the same call amount on every call) and `callOnFinalReview` of
 the shortest form. The reference's own structure states all three, so what the
 outline shows is also what the JSON says.
 
+An issuer call is a redemption of another kind. It needs a schedule too, and it has no trigger, because nothing tests a level. Its terms are `nonCallReviews`, `callAmount` and `callAmountBasis`:
+
+```json
+"schedule": { "frequency": "quarterly" },
+"redemption": { "kind": "issuer-call", "nonCallReviews": 2, "callAmount": 0.02, "callAmountBasis": "flat" }
+```
+
+Which review the issuer calls on is not in the structure. It is a scenario, like the final level.
+
 ```json
 {
   "wrapper": "note",

@@ -366,6 +366,34 @@ export interface Autocall {
 }
 
 /**
+ * An early redemption at the issuer's option. On a review that can call, the issuer may redeem the product in whole, which then ends
+ * and repays principal plus the call amount. Nothing tests the underlier: whether the issuer calls is the issuer's choice, which a
+ * scenario states. The last review is the end of the term and is not a call.
+ */
+export interface IssuerCall {
+  kind: 'issuer-call'
+  /**
+   * The number of reviews at the start on which the issuer cannot call: a non-call period. 0 lets the issuer call from the first
+   * review. It must leave at least one review that can call, which is any review before the last.
+   * @asType integer
+   * @minimum 0
+   * @default 0
+   */
+  nonCallReviews?: number
+  /**
+   * What a call pays above principal, as a fraction of principal. Zero repays principal only. With the basis 'flat' it is the same
+   * amount whenever the issuer calls; with 'per-year' it is the amount for each year the product has lasted.
+   * @minimum 0
+   */
+  callAmount: number
+  /**
+   * Whether the call amount is the same on every review ('flat', when absent) or accrues for each year elapsed ('per-year').
+   * @default "flat"
+   */
+  callAmountBasis?: 'flat' | 'per-year'
+}
+
+/**
  * The legal form. A note is a debt security of its issuer. A deposit is held by a bank and repaid in full at the end of its
  * term, so it cannot pay less than principal: it has no downside participation and no principal protection term.
  */
@@ -380,10 +408,10 @@ export interface Product {
    */
   principalAmount: number
   term: Term
-  /** The reviews through the term. Required by an autocall, and only by an autocall. */
+  /** The reviews through the term. Required by an autocall or an issuer call, and only by them. */
   schedule?: Schedule
-  /** Bullet redemption pays once, at maturity. An autocall can end the product earlier, on a review. */
-  redemption: 'bullet' | Autocall
+  /** Bullet redemption pays once, at maturity. An autocall or an issuer call can end the product earlier, on a review. */
+  redemption: 'bullet' | Autocall | IssuerCall
   underlier: Underlier
   /** The rules that turn the underlier's change into the maturity payment. With no features the product repays principal. */
   payoff: {
@@ -506,10 +534,10 @@ export const triggerAtReview = (redemption: Autocall, review: number): number =>
 const triggerAllowed = (trigger: number) => Number.isFinite(trigger) && trigger > 0 && trigger <= 2
 
 // The number of the first review that can call, after the non-call period.
-export const firstCallReview = (redemption: Autocall): number => (redemption.nonCallReviews ?? 0) + 1
+export const firstCallReview = (redemption: Autocall | IssuerCall): number => (redemption.nonCallReviews ?? 0) + 1
 
 // The last review that can call: the last but one, or the last when the final review is a call too.
-export const lastCallReview = (redemption: Autocall, reviews: number): number => (redemption.callOnFinalReview ? reviews : reviews - 1)
+export const lastCallReview = (redemption: Autocall | IssuerCall, reviews: number): number => (redemption.kind === 'autocall' && redemption.callOnFinalReview ? reviews : reviews - 1)
 
 // Whether the trigger stays within what this reference accepts on every review that can call, from the first call to the last. The
 // trigger moves in a straight line, so those two reviews are the extremes. It is counted from review 1, as public notes state it.
@@ -520,7 +548,7 @@ const triggersAllowed = (redemption: Autocall, reviews: number): boolean => {
 }
 
 // What a call on a review pays above principal, as a fraction of principal.
-export const callAmountAtReview = (redemption: Autocall, monthsElapsed: number): number =>
+export const callAmountAtReview = (redemption: Autocall | IssuerCall, monthsElapsed: number): number =>
   redemption.callAmountBasis === 'per-year' ? (redemption.callAmount * monthsElapsed) / 12 : redemption.callAmount
 
 // The months between reviews, as each frequency names them.
@@ -550,28 +578,31 @@ function redemptionIssues(note: Product): ProductIssue[] {
   const issues: ProductIssue[] = []
   const { redemption, schedule } = note
   if (redemption === 'bullet') {
-    if (schedule !== undefined) issues.push({ field: 'schedule', message: 'A review schedule is used by an autocall, and this product has none.' })
+    if (schedule !== undefined) issues.push({ field: 'schedule', message: 'A review schedule is used by an autocall or an issuer call, and this product has none.' })
     return issues
   }
-  if (schedule === undefined) issues.push({ field: 'schedule', message: 'An autocall needs a review schedule.' })
-  else {
-    const count = reviewCount(note)
-    if (count === undefined) issues.push({ field: 'schedule', message: 'The term must hold a whole number of review periods.' })
-    else if (count < 2) issues.push({ field: 'schedule', message: 'An autocall needs at least two reviews, so the product can be called before the last.' })
+  const named = redemption.kind === 'autocall' ? 'An autocall' : 'An issuer call'
+  const count = reviewCount(note)
+  if (schedule === undefined) issues.push({ field: 'schedule', message: `${named} needs a review schedule.` })
+  else if (count === undefined) issues.push({ field: 'schedule', message: 'The term must hold a whole number of review periods.' })
+  else if (count < 2) issues.push({ field: 'schedule', message: `${named} needs at least two reviews, so the product can be called before the last.` })
+  if (redemption.kind === 'autocall') {
+    if (!Number.isFinite(redemption.trigger) || redemption.trigger <= 0 || redemption.trigger > 2) issues.push({ field: 'trigger', message: 'Call trigger must be greater than 0% and at most 200% of the initial level.' })
   }
-  if (!Number.isFinite(redemption.trigger) || redemption.trigger <= 0 || redemption.trigger > 2) issues.push({ field: 'trigger', message: 'Call trigger must be greater than 0% and at most 200% of the initial level.' })
   if (redemption.nonCallReviews !== undefined) {
-    const count = reviewCount(note)
     if (!Number.isInteger(redemption.nonCallReviews) || redemption.nonCallReviews < 0) issues.push({ field: 'nonCallReviews', message: 'The non-call period must be a whole number of reviews, 0 or more.' })
     else if (count !== undefined && redemption.nonCallReviews > lastCallReview(redemption, count) - 1) issues.push({ field: 'nonCallReviews', message: `The non-call period must leave a review that can call: from 0 to ${lastCallReview(redemption, count) - 1} reviews.` })
   }
-  if (redemption.triggerStep !== undefined && !Number.isFinite(redemption.triggerStep)) issues.push({ field: 'triggerStep', message: 'Trigger step must be a number.' })
-  else if (triggerAllowed(redemption.trigger) && reviewCount(note) !== undefined && !triggersAllowed(redemption, reviewCount(note)!)) issues.push({ field: 'triggerStep', message: 'The trigger must stay above 0% and at most 200% of the initial level on every review that is tested.' })
+  if (redemption.kind === 'autocall') {
+    if (redemption.triggerStep !== undefined && !Number.isFinite(redemption.triggerStep)) issues.push({ field: 'triggerStep', message: 'Trigger step must be a number.' })
+    else if (triggerAllowed(redemption.trigger) && count !== undefined && !triggersAllowed(redemption, count)) issues.push({ field: 'triggerStep', message: 'The trigger must stay above 0% and at most 200% of the initial level on every review that can call, after its step.' })
+  }
   if (!Number.isFinite(redemption.callAmount) || redemption.callAmount < 0) issues.push({ field: 'callAmount', message: 'Call amount must be zero or greater.' })
   const { underlier, payoff } = note
-  if (underlier.kind === 'single' && underlier.determination.initial.kind === 'lookback') issues.push({ field: 'schedule', message: 'An autocall cannot be combined with lookback: the lookback dates are not tied to the review schedule.' })
+  // An issuer call reads no level on a review, so lookback does not conflict with it; an autocall reads the review levels.
+  if (redemption.kind === 'autocall' && underlier.kind === 'single' && underlier.determination.initial.kind === 'lookback') issues.push({ field: 'schedule', message: 'An autocall cannot be combined with lookback: the lookback dates are not tied to the review schedule.' })
   const observations = [downsideOf(note)?.barrier, upsideOf(note)?.barrier, payoff.barrierAbsoluteReturn?.lowerBarrier, payoff.barrierAbsoluteReturn?.upperBarrier]
-  if (observations.some((barrier) => barrier?.observation === 'daily-close')) issues.push({ field: 'schedule', message: 'A barrier observed on every close cannot be combined with an autocall: a called product ends before the observation period does.' })
+  if (observations.some((barrier) => barrier?.observation === 'daily-close')) issues.push({ field: 'schedule', message: `A barrier observed on every close cannot be combined with ${named.toLowerCase()}: a called product ends before the observation period does.` })
   return issues
 }
 

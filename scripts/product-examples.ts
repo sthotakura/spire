@@ -85,6 +85,19 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     }),
   ],
   [
+    'an issuer call on a quarterly review, with a non-call period of two reviews and a 2% call amount, on a worst-of basket with a barrier',
+    note({ participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }] }, {
+      term: { months: 36 },
+      schedule: { frequency: 'quarterly' },
+      redemption: { kind: 'issuer-call', nonCallReviews: 2, callAmount: 0.02 },
+      underlier: {
+        kind: 'basket',
+        components: [{ asset: asset('Index A') }, { asset: asset('Index B') }],
+        determination: { initial: { kind: 'given', levels: [{ asset: 'Index A', level: 100 }, { asset: 'Index B', level: 50 }] }, final: { kind: 'final-date' }, basketReturn: { kind: 'worst-of' } },
+      },
+    }),
+  ],
+  [
     'an autocall reviewed every six months whose trigger steps down, whose call amount grows each year, and whose final review is also a call',
     note({ participations: [{ direction: 'downside', barrier: { level: 0.5, observation: 'final' }, rate: 1 }] }, {
       term: { months: 36 },

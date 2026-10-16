@@ -113,27 +113,36 @@ export function summarize(note: Product): SummarySegment[] {
   const features: SummarySegment[] = clauses.flatMap((clause, index) => [{ text: index === 0 ? ', with ' : index === clauses.length - 1 ? ' and ' : ', ' }, clause])
 
   // An autocall says when it is called and what it pays, then that it otherwise redeems at maturity. The trigger is a share of the
-  // initial level of what the payoff reads, so the underlier is named again.
-  const redemption: SummarySegment[] = note.redemption === 'bullet'
-    ? [{ text: ' that redeems ' }, { text: 'at maturity', concept: 'redemption' }]
-    : [
-        { text: ' that is called early if ' },
-        ...underlier,
-        { text: ' ' },
-        { text: `is at or above ${percent(note.redemption.trigger)} of its initial level`, concept: 'trigger' },
-        { text: ' on any ' },
-        { text: note.schedule?.frequency ?? 'monthly', concept: 'schedule' },
-        { text: ' review' },
-        ...(firstCallReview(note.redemption) > 1 ? [{ text: ` from the ${ordinal(firstCallReview(note.redemption))}`, concept: 'non-call' as const }] : []),
-        { text: ' ' },
-        { text: note.redemption.callOnFinalReview ? 'including the last' : 'before maturity', concept: 'final-call' },
-        ...(note.redemption.triggerStep ? [{ text: ', the trigger ' }, { text: `${note.redemption.triggerStep < 0 ? 'falling' : 'rising'} ${percent(Math.abs(note.redemption.triggerStep))} on each later review`, concept: 'trigger-step' as const }] : []),
-        { text: ', ' },
-        { text: note.redemption.callAmount > 0 ? `paying ${percent(note.redemption.callAmount)}${note.redemption.callAmountBasis === 'per-year' ? ' for each year elapsed' : ''} above principal` : 'repaying principal', concept: 'call-amount' },
-        { text: ',' },
-        { text: ' and otherwise redeems ' },
-        { text: 'at maturity', concept: 'redemption' },
-      ]
+  // initial level of what the payoff reads, so the underlier is named again. An issuer call says when the issuer may call, with no level.
+  const redemption: SummarySegment[] = (() => {
+    const { redemption: terms } = note
+    if (terms === 'bullet') return [{ text: ' that redeems ' }, { text: 'at maturity', concept: 'redemption' }]
+    const reviewing: SummarySegment[] = [
+      { text: ' on any ' },
+      { text: note.schedule?.frequency ?? 'monthly', concept: 'schedule' },
+      { text: ' review' },
+      ...(firstCallReview(terms) > 1 ? [{ text: ` from the ${ordinal(firstCallReview(terms))}`, concept: 'non-call' as const }] : []),
+    ]
+    const paying: SummarySegment[] = [
+      { text: ', ' },
+      { text: terms.callAmount > 0 ? `paying ${percent(terms.callAmount)}${terms.callAmountBasis === 'per-year' ? ' for each year elapsed' : ''} above principal` : 'repaying principal', concept: 'call-amount' },
+      { text: ',' },
+    ]
+    const otherwise: SummarySegment[] = [{ text: ' and otherwise redeems ' }, { text: 'at maturity', concept: 'redemption' }]
+    if (terms.kind === 'issuer-call') return [{ text: ' that the issuer may call early' }, ...reviewing, { text: ' before maturity' }, ...paying, ...otherwise]
+    return [
+      { text: ' that is called early if ' },
+      ...underlier,
+      { text: ' ' },
+      { text: `is at or above ${percent(terms.trigger)} of its initial level`, concept: 'trigger' },
+      ...reviewing,
+      { text: ' ' },
+      { text: terms.callOnFinalReview ? 'including the last' : 'before maturity', concept: 'final-call' },
+      ...(terms.triggerStep ? [{ text: ', the trigger ' }, { text: `${terms.triggerStep < 0 ? 'falling' : 'rising'} ${percent(Math.abs(terms.triggerStep))} on each later review`, concept: 'trigger-step' as const }] : []),
+      ...paying,
+      ...otherwise,
+    ]
+  })()
 
   const term = termPhrase(note.term.months)
   return [

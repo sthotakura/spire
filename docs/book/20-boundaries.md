@@ -22,11 +22,13 @@ dates and business-day conventions are not calculated. A term is a whole
 number of months, from 1 to 120 in this reference.
 
 The products illustrated pay once, at scheduled maturity or when an autocall
-ends them early. Reviews are numbered and evenly spaced, not dated.
-Coupon schedules and issuer calls need additional terms and observations before
-their payments can be calculated. A barrier can be observed on every close, but
-only through the one lowest or highest close a scenario states. It is not
-combined with an autocall. Conditions observed on calendar dates would need
+or an issuer call ends them early. Reviews are numbered and evenly spaced, not
+dated. An issuer call is the issuer's choice, stated by a scenario, and pays
+principal and any call amount, with no coupon in it. Coupon schedules need
+additional terms and observations before their payments can be calculated. A
+barrier can be observed on every close, but only through the one lowest or
+highest close a scenario states. It is not combined with an autocall or an
+issuer call. Conditions observed on calendar dates would need
 dated observations, which are not modelled.
 
 ## Reading other contracts

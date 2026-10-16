@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import Ajv, { type ValidateFunction } from 'ajv'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { productIssues, type Autocall, type BarrierAbsoluteReturn, type DownsideParticipation, type Product, type UpsideParticipation } from '../src/domain/note'
+import { productIssues, type Autocall, type BarrierAbsoluteReturn, type IssuerCall, type DownsideParticipation, type Product, type UpsideParticipation } from '../src/domain/note'
 import { startingProduct } from '../src/domain/starting-note'
 import { productExamples } from './product-examples'
 import { productSchemaText, schemaId } from './product-schema'
@@ -57,6 +57,7 @@ const bothWays = (terms: Partial<BarrierAbsoluteReturn>, payoff: Partial<Product
   ...payoff,
 }, overrides)
 const deposit = (minimumReturn: number) => withPayoff({ participations: [{ direction: 'upside', rate: 1 }], minimumReturn }, { wrapper: 'deposit' })
+const issuerCallable = (terms: Partial<IssuerCall>): Product => ({ ...base, term: { months: 12 }, schedule: { frequency: 'monthly' }, redemption: { kind: 'issuer-call', callAmount: 0.02, ...terms } })
 const callable = (terms: Partial<Autocall>): Product => ({ ...base, term: { months: 12 }, schedule: { frequency: 'monthly' }, redemption: { kind: 'autocall', trigger: 1, callAmount: 0.08, ...terms } })
 const determined = (determination: Extract<Product['underlier'], { kind: 'single' }>['determination']) => ({ ...base, underlier: { ...(base.underlier as object), determination } }) as Product
 const basket = (levels: number[], names = ['Index A', 'Index B'], weights?: number[]): Product => ({
@@ -141,6 +142,8 @@ describe('product schema', () => {
       ['a note with a minimum return', withPayoff({ participations: [], minimumReturn: 0.05 }), false],
       ...[[0, false], [0.01, true], [2, true], [2.01, false]].map(([value, ok]): [string, Product, boolean] => [`autocall trigger ${value}`, callable({ trigger: value as number }), ok as boolean]),
       ...[[-1, false], [0, true], [1.5, false]].map(([value, ok]): [string, Product, boolean] => [`autocall non-call reviews ${value}`, callable({ nonCallReviews: value as number }), ok as boolean]),
+      ['issuer call call amount -0.01', issuerCallable({ callAmount: -0.01 }), false], ['issuer call call amount 0', issuerCallable({ callAmount: 0 }), true],
+      ...[[-1, false], [0, true], [1.5, false]].map(([value, ok]): [string, Product, boolean] => [`issuer call non-call reviews ${value}`, issuerCallable({ nonCallReviews: value as number }), ok as boolean]),
       ['autocall trigger step -0.05', callable({ triggerStep: -0.05 }), true], ['autocall trigger step 0.05', callable({ triggerStep: 0.05 }), true],
       ['autocall call amount -0.01', callable({ callAmount: -0.01 }), false], ['autocall call amount 0', callable({ callAmount: 0 }), true],
     ]

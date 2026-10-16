@@ -16,7 +16,7 @@ import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
 import { finalCallLevel, paymentAtEnd, redemptionOutcome } from './domain/autocall'
-import { barrierLevelAt, basketBreakdown, basketLevelFrom, suggestedFrequency, triggerAtReview, reviewCount, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
+import { barrierLevelAt, basketBreakdown, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
@@ -31,7 +31,8 @@ const hints = {
   underlier: 'What the payoff reads: the asset it tracks and how its change is measured, from where it starts. A single underlier tracks one asset. A basket tracks several and combines their changes into one return.',
   schedule: 'How often the product is reviewed through its term. Reviews are evenly spaced and numbered from 1, and the last is the end of the term. The term must hold a whole number of periods. It starts at semi-annual for a term over a year, quarterly from six months to a year, and monthly below that, and follows the term until you choose one. Notes can be reviewed more often, even weekly or daily; this reference offers monthly to annual. Public notes call these dates observation dates or review dates; here they are reviews, to keep them apart from the observations that set the initial and final levels.',
   trigger: 'The level, as a share of the initial level, at or above which the product is called on the first review. A later review has the same trigger unless it steps down.',
-  'non-call': 'The number of reviews at the start on which the product cannot be called, even when the level meets that review’s trigger: a non-call period. 0 lets it be called from the first review. A trigger that steps still moves from review 1.',
+  'non-call': 'The number of reviews at the start on which the product cannot be called: a non-call period. For an autocall, a review in it cannot call even when its level meets the trigger. 0 lets it be called from the first review. A trigger that steps still moves from review 1.',
+  'issuer-choice': 'Whether and when the issuer calls is its own choice, so a scenario states it. The issuer can call on any review after the non-call period except the last, which is the end of the term. A call ends the product and pays principal plus the call amount.',
   'trigger-step': 'How much the trigger changes on each review after the first, as a share of the initial level. −5% on a trigger of 100% steps it down to 95% on review 2, 90% on review 3, and so on. A positive value steps it up. Zero keeps one trigger for every review.',
   'call-amount': 'What a call pays above principal, as a share of principal. It is paid in full whenever the product is called, or for each year the product has lasted, as the choice below says.',
   'call-basis': 'Each call pays the call amount whenever the product is called. Each year elapsed pays it for every year the product has lasted, so a call after six months pays half of it and a call after three years pays three times it.',
@@ -72,7 +73,7 @@ const wrapperOptions = [
 const redemptionOptions = [
   { id: 'autocall', label: 'Autocallable', description: 'The product is called early when the underlier is at or above a trigger on a review.', available: true },
   { id: 'bullet', label: 'Bullet', description: 'One payment at scheduled maturity; no early call.', available: true },
-  { id: 'issuer-callable', label: 'Issuer callable', description: 'The issuer may redeem the note early under defined terms.', available: false },
+  { id: 'issuer-call', label: 'Issuer callable', description: 'The issuer may redeem the product early, on a review it chooses.', available: true },
   { id: 'puttable', label: 'Puttable', description: 'The holder may require redemption under defined terms.', available: false },
 ] as const
 const reviewFrequencyOptions: ReadonlyArray<{ id: ReviewFrequency; label: string }> = [
@@ -110,7 +111,7 @@ const principal = ref(startingProduct.principalAmount)
 const wrapper = ref<Wrapper>(startingProduct.wrapper)
 const termMonths = ref(startingProduct.term.months)
 // An autocall tests the underlier on the reviews of a schedule. The level on each review before the last is a scenario input.
-const redemptionKind = ref<'bullet' | 'autocall'>('bullet')
+const redemptionKind = ref<'bullet' | 'autocall' | 'issuer-call'>('bullet')
 // The reviews start at a frequency that suits the term, and follow it as the term changes until the reader chooses one.
 const chosenFrequency = ref<ReviewFrequency | null>(null)
 const reviewFrequency = computed<ReviewFrequency>({
@@ -119,15 +120,27 @@ const reviewFrequency = computed<ReviewFrequency>({
 })
 const triggerPercent = ref(100)
 const callAmountPercent = ref(8)
+// An issuer call has its own call amount, which starts at zero: the two public notes read pay no premium on a call, and an autocall's
+// starting amount is a teaching choice that should not carry over to it.
+const issuerAmountPercent = ref(0)
+const callAmountField = computed({
+  get: () => (issuerCalled.value ? issuerAmountPercent.value : callAmountPercent.value),
+  set: (percent: number) => { if (issuerCalled.value) issuerAmountPercent.value = percent; else callAmountPercent.value = percent },
+})
 const nonCallReviewCount = ref(0)
 const triggerStepPercent = ref(0)
 const callAmountBasis = ref<'flat' | 'per-year'>('flat')
 const callOnFinal = ref(false)
 const autocalled = computed(() => redemptionKind.value === 'autocall')
+const issuerCalled = computed(() => redemptionKind.value === 'issuer-call')
+// Both read the reviews of a schedule: an autocall tests a level on each, and an issuer call is the issuer's choice of one.
+const scheduled = computed(() => autocalled.value || issuerCalled.value)
+// The issuer's choice in a scenario: the number of the review it calls on, or null when it does not call.
+const issuerCallsOn = ref<number | null>(null)
 const reviewLevelInputs = ref<number[]>([])
 // A schedule with many reviews is allowed, but each review is a level to set, so the reader is told what a coarser one would give.
 const reviewNudge = computed(() => {
-  const count = autocalled.value ? reviewCount({ term: { months: termMonths.value }, schedule: { frequency: reviewFrequency.value } }) : undefined
+  const count = scheduled.value ? reviewCount({ term: { months: termMonths.value }, schedule: { frequency: reviewFrequency.value } }) : undefined
   if (count === undefined || count <= 24) return ''
   const suggested = suggestedFrequency(termMonths.value)
   const suggestedCount = reviewCount({ term: { months: termMonths.value }, schedule: { frequency: suggested } })
@@ -272,7 +285,7 @@ const highestCloseWanted = computed(() => dailyUpside.value || (bothWaysSelected
 const dailySelected = computed(() => lowestCloseWanted.value || highestCloseWanted.value)
 // Why a barrier cannot be observed daily, or null when it can: the same rules productIssues enforces.
 const dailyBlockedReason = (direction: ParticipationDirection) => {
-  if (autocalled.value) return 'Not with an autocall'
+  if (scheduled.value) return autocalled.value ? 'Not with an autocall' : 'Not with an issuer call'
   if (lookingBack.value || isBasket.value) return 'Not with lookback or a basket'
   if (direction === 'downside' && absoluteSelected.value) return 'Not with absolute return'
   return null
@@ -295,13 +308,19 @@ const isAdded = (id: FeatureId) => id === 'absolute-both' ? bothWaysSelected.val
 // and absolute return pays the falls a buffer or barrier keeps from downside participation, so it needs one of them.
 // A deposit is repaid in full, so it takes nothing that could pay less than principal; a minimum return is on deposits only.
 const depositExcludes: ReadonlyArray<FeatureId> = ['downside', 'buffer', 'barrier', 'protection']
+// Why a redemption cannot be chosen, or null: the same rules productIssues enforces. The one already chosen stays available.
+const redemptionBlockedReason = (id: string) => {
+  if (id === 'autocall' && !autocalled.value && lookingBack.value) return 'not with lookback'
+  if (((id === 'autocall' && !autocalled.value) || (id === 'issuer-call' && !issuerCalled.value)) && (dailySelected.value || bothWaysSelected.value)) return 'not with a daily barrier'
+  return null
+}
 const blockedReason = (id: FeatureId) => {
   if (wrapper.value === 'deposit' && depositExcludes.includes(id)) return 'Not on a deposit'
   if (wrapper.value !== 'deposit' && id === 'minimum') return 'Deposits only'
   // Barrier absolute return is a payoff of its own: it replaces participation, and has no minimum return, lookback, basket or averaging beside it.
   if (id === 'absolute-both' && selectedDirections.value.length) return 'Not with participation'
   if (id === 'absolute-both' && minimumSelected.value) return 'Not with a minimum return'
-  if (id === 'absolute-both' && autocalled.value) return 'Not with an autocall'
+  if (id === 'absolute-both' && scheduled.value) return autocalled.value ? 'Not with an autocall' : 'Not with an issuer call'
   if (id === 'absolute-both' && (lookingBack.value || isBasket.value || averaging.value)) return 'Not with lookback, a basket or averaging'
   if (id === 'conditional' && !bothWaysSelected.value) return 'Needs absolute return in both directions'
   if (bothWaysSelected.value && (id === 'downside' || id === 'upside' || id === 'minimum')) return 'Not with absolute return in both directions'
@@ -441,8 +460,10 @@ const note = computed<Product>(() => ({
   wrapper: wrapper.value,
   principalAmount: principal.value,
   term: { months: termMonths.value },
-  schedule: autocalled.value ? { frequency: reviewFrequency.value } : undefined,
-  redemption: autocalled.value
+  schedule: scheduled.value ? { frequency: reviewFrequency.value } : undefined,
+  redemption: issuerCalled.value
+    ? { kind: 'issuer-call', nonCallReviews: nonCallReviewCount.value, callAmount: fractionFrom(issuerAmountPercent.value), callAmountBasis: callAmountBasis.value }
+    : autocalled.value
     ? {
         kind: 'autocall',
         trigger: fractionFrom(triggerPercent.value),
@@ -475,10 +496,10 @@ const note = computed<Product>(() => ({
 }))
 const jsonLines = computed(() => structureLines(note.value))
 // With an autocall the payment rule is what is paid at maturity, when the product has not been called.
-const formula = computed(() => [...paymentFormula(note.value).map((line) => autocalled.value && line.lead === 'Payment' ? { ...line, lead: 'At maturity' } : line), ...redemptionFormula(note.value)])
+const formula = computed(() => [...paymentFormula(note.value).map((line) => scheduled.value && line.lead === 'Payment' ? { ...line, lead: 'At maturity' } : line), ...redemptionFormula(note.value)])
 const formulaWords = computed(() => {
   const words = paymentInWords(note.value)
-  return autocalled.value ? `If it is not called, ${words.startsWith('The ') ? `the ${words.slice(4)}` : words}` : words
+  return scheduled.value ? `If it is not called, ${words.startsWith('The ') ? `the ${words.slice(4)}` : words}` : words
 })
 // What the final level on the chart belongs to: the asset, or the basket.
 const underlierLabel = computed(() => isBasket.value ? 'the basket' : assetName.value.trim() || 'the underlier')
@@ -562,7 +583,7 @@ const reviewsBeforeLast = computed(() => {
 // The trigger of a review moves with the step, so each review's default is its own trigger less a tenth.
 const defaultReviewFraction = (index: number) => {
   const { redemption: terms } = note.value
-  const trigger = terms === 'bullet' ? 1 : triggerAtReview(terms, index + 1)
+  const trigger = terms === 'bullet' || terms.kind !== 'autocall' ? 1 : triggerAtReview(terms, index + 1)
   return (Number.isFinite(trigger) ? Math.max(trigger, 0) : 1) * 0.9
 }
 const defaultReviewLevel = (index: number) => (Number.isFinite(determinedInitialLevel.value) ? determinedInitialLevel.value : 100) * defaultReviewFraction(index)
@@ -576,9 +597,21 @@ const reviewLevels = computed(() => {
 const setReviewLevel = (index: number, level: number) => { reviewLevelInputs.value = reviewLevels.value.map((current, i) => i === index ? level : current) }
 const setReviewAssetLevel = (review: number, asset: number, level: number) => { reviewAssetInputs.value = reviewAssetLevels.value.map((levels, r) => r === review ? levels.map((current, a) => a === asset ? level : current) : levels) }
 const reviewError = computed(() => (isBasket.value ? reviewAssetLevels.value.flat() : reviewLevels.value).every((level) => Number.isFinite(level) && level >= 0) ? '' : 'Each review level must be zero or greater.')
-const redemption = computed(() => autocalled.value && valid.value && !reviewError.value && breakdown.value
-  ? redemptionOutcome(note.value, reviewLevels.value, { initial: determinedInitialLevel.value, final: finalLevel.value })
-  : null)
+// The review the issuer calls on in the scenario, when it is one the issuer can call on. A choice that the schedule or the non-call
+// period has since ruled out is no call, so the outcome never reads a review that cannot call.
+const issuerCallableReviews = computed(() => {
+  const count = reviewCount({ term: { months: termMonths.value }, schedule: { frequency: reviewFrequency.value } })
+  const first = nonCallReviewCount.value + 1
+  return issuerCalled.value && count !== undefined && Number.isInteger(first) && first >= 1 ? Array.from({ length: Math.max(0, count - first) }, (_, index) => first + index) : []
+})
+const issuerCallChoice = computed(() => issuerCallsOn.value !== null && issuerCallableReviews.value.includes(issuerCallsOn.value) ? issuerCallsOn.value : undefined)
+const redemption = computed(() => issuerCalled.value && valid.value && breakdown.value
+  ? redemptionOutcome(note.value, [], { initial: determinedInitialLevel.value, final: finalLevel.value }, issuerCallChoice.value)
+  : autocalled.value && valid.value && !reviewError.value && breakdown.value
+    ? redemptionOutcome(note.value, reviewLevels.value, { initial: determinedInitialLevel.value, final: finalLevel.value })
+    : null)
+const issuerCallSelection = computed({ get: () => issuerCallChoice.value ?? null, set: (review: number | null) => { issuerCallsOn.value = review } })
+const issuerCallMonths = (review: number) => review * monthsPerReview[reviewFrequency.value]
 const pathOptions = computed(() => autocalled.value && initialValid.value ? pathScenarios(note.value, determinedInitialLevel.value) : [])
 const loadPath = (event: Event) => {
   const choice = event.target as HTMLSelectElement
@@ -593,7 +626,7 @@ const loadPath = (event: Event) => {
 // The level each review needs, as the call reads it: the trigger of that review, as a share of the initial level.
 const reviewTrigger = (index: number) => {
   const { redemption: terms } = note.value
-  return terms === 'bullet' || index + 1 <= nonCallReviewCount.value || !Number.isFinite(determinedInitialLevel.value) ? Number.NaN : barrierLevelAt(triggerAtReview(terms, index + 1), determinedInitialLevel.value)
+  return terms === 'bullet' || terms.kind !== 'autocall' || index + 1 <= nonCallReviewCount.value || !Number.isFinite(determinedInitialLevel.value) ? Number.NaN : barrierLevelAt(triggerAtReview(terms, index + 1), determinedInitialLevel.value)
 }
 const reviewTest = (index: number) => !redemption.value ? null : index + 1 <= nonCallReviewCount.value ? 'No call' : redemption.value.calledAtReview !== undefined && index + 1 > redemption.value.calledAtReview ? 'Ended' : redemption.value.tests[index]?.called ? 'Called' : 'Not called'
 // A product called before the last review never reaches its final date, so the final level does not set its payment. It is still
@@ -1027,9 +1060,9 @@ const chart = computed(() => {
                 <li :class="['node', { sel: highlighted('redemption') }]" :style="conceptStyle('redemption')">
                   <div class="nrow" @click="select('redemption')" @focusin="focusRow('redemption')">
                     <span class="nlabel">Redemption<HintToggle id="redemption" about="redemption" :text="hints.redemption" :active="activeHint === 'redemption'" @toggle="toggleHint('redemption')" /></span>
-                    <span class="ctrl pick"><select id="redemption-kind" aria-label="Redemption" :value="redemptionKind" @change="redemptionKind = ($event.target as HTMLSelectElement).value as 'bullet' | 'autocall'"><option v-for="option in redemptionOptions" :key="option.id" :value="option.id" :disabled="!option.available || (option.id === 'autocall' && !autocalled && (lookingBack || dailySelected || bothWaysSelected))">{{ option.label }}{{ !option.available ? ' (unavailable)' : option.id === 'autocall' && !autocalled && lookingBack ? ' (not with lookback)' : option.id === 'autocall' && !autocalled && (dailySelected || bothWaysSelected) ? ' (not with a daily barrier)' : '' }}</option></select></span>
+                    <span class="ctrl pick"><select id="redemption-kind" aria-label="Redemption" :value="redemptionKind" @change="redemptionKind = ($event.target as HTMLSelectElement).value as 'bullet' | 'autocall' | 'issuer-call'"><option v-for="option in redemptionOptions" :key="option.id" :value="option.id" :disabled="!option.available || !!redemptionBlockedReason(option.id)">{{ option.label }}{{ !option.available ? ' (unavailable)' : redemptionBlockedReason(option.id) ? ` (${redemptionBlockedReason(option.id)})` : '' }}</option></select></span>
                   </div>
-                  <ul v-if="autocalled">
+                  <ul v-if="scheduled">
                     <li :class="['node', { sel: highlighted('schedule') }]" :style="conceptStyle('schedule')">
                       <div class="nrow" @click="select('schedule')" @focusin="focusRow('schedule')">
                         <span class="nlabel">Reviews<HintToggle id="schedule" about="the review schedule" :text="hints.schedule" :active="activeHint === 'schedule'" @toggle="toggleHint('schedule')" /></span>
@@ -1045,14 +1078,14 @@ const chart = computed(() => {
                       </div>
                       <ul v-if="issuesFor('nonCallReviews').length" class="errors" role="alert"><li v-for="message in issuesFor('nonCallReviews')" :key="message">{{ message }}</li></ul>
                     </li>
-                    <li :class="['node', { sel: highlighted('trigger') }]" :style="conceptStyle('trigger')">
+                    <li v-if="autocalled" :class="['node', { sel: highlighted('trigger') }]" :style="conceptStyle('trigger')">
                       <div class="nrow" @click="select('trigger')" @focusin="focusRow('trigger')">
                         <span class="nlabel">Call trigger<HintToggle id="trigger" about="the call trigger" :text="hints.trigger" :active="activeHint === 'trigger'" @toggle="toggleHint('trigger')" /></span>
                         <span class="ctrl"><NumberInput id="call-trigger" v-model="triggerPercent" class="num rate" aria-label="Call trigger: level (% of the initial level)" /><span class="unit">%</span></span>
                       </div>
                       <ul v-if="issuesFor('trigger').length" class="errors" role="alert"><li v-for="message in issuesFor('trigger')" :key="message">{{ message }}</li></ul>
                     </li>
-                    <li :class="['node', { sel: highlighted('trigger-step') }]" :style="conceptStyle('trigger-step')">
+                    <li v-if="autocalled" :class="['node', { sel: highlighted('trigger-step') }]" :style="conceptStyle('trigger-step')">
                       <div class="nrow" @click="select('trigger-step')" @focusin="focusRow('trigger-step')">
                         <span class="nlabel">Trigger step<HintToggle id="trigger-step" about="the trigger step" :text="hints['trigger-step']" :active="activeHint === 'trigger-step'" @toggle="toggleHint('trigger-step')" /></span>
                         <span class="ctrl"><NumberInput id="trigger-step" v-model="triggerStepPercent" class="num rate" aria-label="Trigger step: change on each later review (% of the initial level, negative steps down)" /><span class="unit">%</span></span>
@@ -1062,7 +1095,7 @@ const chart = computed(() => {
                     <li :class="['node', { sel: highlighted('call-amount') }]" :style="conceptStyle('call-amount')">
                       <div class="nrow" @click="select('call-amount')" @focusin="focusRow('call-amount')">
                         <span class="nlabel">Call amount<HintToggle id="call-amount" about="the call amount" :text="hints['call-amount']" :active="activeHint === 'call-amount'" @toggle="toggleHint('call-amount')" /></span>
-                        <span class="ctrl"><NumberInput id="call-amount-input" v-model="callAmountPercent" class="num rate" aria-label="Call amount: paid above principal (% of principal)" /><span class="unit">%</span></span>
+                        <span class="ctrl"><NumberInput id="call-amount-input" v-model="callAmountField" class="num rate" aria-label="Call amount: paid above principal (% of principal)" /><span class="unit">%</span></span>
                       </div>
                       <ul v-if="issuesFor('callAmount').length" class="errors" role="alert"><li v-for="message in issuesFor('callAmount')" :key="message">{{ message }}</li></ul>
                     </li>
@@ -1072,7 +1105,7 @@ const chart = computed(() => {
                         <span class="ctrl pick"><select id="call-basis" v-model="callAmountBasis" aria-label="Call amount for"><option value="flat">Each call</option><option value="per-year">Each year elapsed</option></select></span>
                       </div>
                     </li>
-                    <li :class="['node', { sel: highlighted('final-call') }]" :style="conceptStyle('final-call')">
+                    <li v-if="autocalled" :class="['node', { sel: highlighted('final-call') }]" :style="conceptStyle('final-call')">
                       <div class="nrow" @click="select('final-call')" @focusin="focusRow('final-call')">
                         <span class="nlabel">Final review<HintToggle id="final-call" about="the final review" :text="hints['final-call']" :active="activeHint === 'final-call'" @toggle="toggleHint('final-call')" /></span>
                         <span class="ctrl pick"><select id="final-call" v-model="callOnFinal" aria-label="Final review"><option :value="false">Pays the payoff</option><option :value="true">Is a call too</option></select></span>
@@ -1279,7 +1312,7 @@ const chart = computed(() => {
         </section>
 
         <section class="panel preview" aria-label="Payoff preview">
-          <header class="panel-head"><h2>Payoff at {{ wrapper === 'deposit' ? 'maturity' : 'redemption' }}</h2><p>{{ autocalled ? (callOnFinal ? 'What it pays at the end of its term for each hypothetical final level, if no earlier review called it. At or above the last trigger, the final review calls it' : 'What it pays if held to the end of its term, for each hypothetical final level') : 'What it pays for each hypothetical final level' }}</p></header>
+          <header class="panel-head"><h2>Payoff at {{ wrapper === 'deposit' ? 'maturity' : 'redemption' }}</h2><p>{{ scheduled ? (autocalled && callOnFinal ? 'What it pays at the end of its term for each hypothetical final level, if no earlier review called it. At or above the last trigger, the final review calls it' : 'What it pays if held to the end of its term, for each hypothetical final level') : 'What it pays for each hypothetical final level' }}</p></header>
           <template v-if="chart">
             <svg ref="chartSvg" :class="['chart', { 'feature-selected': featureSelected }]" viewBox="0 0 620 350" role="group" :aria-label="chartDescription" :style="{ '--label': `${11 * labelScale}px` }">
               <defs><clipPath id="plot-clip"><rect :x="plot.left" :y="plot.top" :width="plot.right - plot.left" :height="plot.bottom - plot.top"/></clipPath></defs>
@@ -1356,6 +1389,9 @@ const chart = computed(() => {
                 <div class="field-heading"><span id="review-levels-label" class="observed-heading">Reviews: hypothetical level of {{ underlierLabel }} on each review before the last</span><select class="path-select" aria-label="Load a path" @change="loadPath($event)"><option value="">Load a path…</option><option v-for="(path, index) in pathOptions" :key="path.name" :value="index">{{ path.name }}</option></select></div>
                 <div class="table-wrap basket-levels review-levels" :style="conceptStyle('trigger')"><table aria-labelledby="review-levels-label"><thead><tr><th scope="col">Review</th><th scope="col" class="review-trigger">Trigger</th><template v-if="isBasket"><th v-for="(asset, a) in basketAssets" :key="a" scope="col">{{ asset.name.trim() || `Asset ${a + 1}` }}</th><th scope="col">Basket level</th></template><th v-else scope="col">Level</th><th scope="col">Test</th></tr></thead><tbody><tr v-for="(level, index) in reviewLevels" :key="index"><th scope="row">{{ index + 1 }} of {{ reviewsBeforeLast + 1 }}</th><td class="review-trigger">{{ Number.isFinite(reviewTrigger(index)) ? formatAmount(reviewTrigger(index)) : '—' }}</td><template v-if="isBasket"><td v-for="(assetLevel, a) in reviewAssetLevels[index]" :key="a"><NumberInput :model-value="assetLevel" class="observed-input" :aria-label="`${basketAssets[a].name.trim() || `Asset ${a + 1}`}, review ${index + 1}`" @update:model-value="setReviewAssetLevel(index, a, $event)" /></td><td><output class="observed-result" aria-live="polite">{{ Number.isFinite(level) ? formatAmount(level) : '—' }}</output></td></template><td v-else><NumberInput :model-value="level" class="observed-input" :aria-label="`Level on review ${index + 1}`" @update:model-value="setReviewLevel(index, $event)" /></td><td class="review-test-cell"><span :class="['review-test', { called: reviewTest(index) === 'Called', ended: reviewTest(index) === 'Ended' || reviewTest(index) === 'No call' }]">{{ reviewTest(index) ?? '—' }}</span></td></tr></tbody></table></div>
                 <p v-if="reviewError" class="errors" role="alert">{{ reviewError }}</p>
+              </div>
+              <div v-if="issuerCalled && issuerCallableReviews.length" class="hint-field">
+                <div class="field-heading"><label for="issuer-call-review" class="observed-heading">The issuer’s choice in this scenario</label><HintToggle id="issuer-choice" about="the issuer’s choice" :text="hints['issuer-choice']" :active="activeHint === 'issuer-choice'" @toggle="toggleHint('issuer-choice')" /><select id="issuer-call-review" v-model="issuerCallSelection" class="path-select"><option :value="null">The issuer does not call</option><option v-for="review in issuerCallableReviews" :key="review" :value="review">Calls on review {{ review }} of {{ issuerCallableReviews.length + nonCallReviewCount + 1 }}, after {{ issuerCallMonths(review) }} {{ issuerCallMonths(review) === 1 ? 'month' : 'months' }}</option></select></div>
               </div>
               <div class="formula" role="group" aria-label="Payment rule"><div v-for="(line, index) in formula" :key="index" :class="['fline', { limit: !line.lead }]"><span class="flead">{{ line.lead }}</span><span class="feq">{{ line.lead ? '=' : '' }}</span><span class="fexpr"><template v-for="(segment, part) in line.segments" :key="part"><span v-if="segment.concept" :class="['fterm', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)">{{ segment.text }}</span><template v-else>{{ segment.text }}</template></template></span></div><p class="fwords"><b>In words:</b> {{ formulaWords }}</p></div>
               <ol class="calc-steps" aria-live="polite"><li v-for="step in calculation" :key="`${step.n}-${step.title}`" :class="{ hl: !step.heading && step.concept && highlighted(step.concept), muted: step.muted, result: step.result, heading: step.heading }"><template v-if="step.heading"><b>{{ step.title }}</b><span class="calc-how">{{ step.how }}</span></template><template v-else><span class="calc-n">{{ step.n }}</span><b>{{ step.title }}</b><span class="calc-value">{{ step.value }}</span><span class="calc-how">{{ step.how }}</span></template></li></ol>

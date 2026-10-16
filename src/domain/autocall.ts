@@ -1,11 +1,11 @@
-import { barrierLevelAt, callAmountAtReview, maturityPayment, monthsPerReview, triggerAtReview, paymentBreakdown, reviewCount, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
+import { barrierLevelAt, callAmountAtReview, firstCallReview, lastCallReview, maturityPayment, monthsPerReview, triggerAtReview, paymentBreakdown, reviewCount, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
 
 // The level at or above which the final review calls the product, from the determined initial level. Undefined when the final review
 // is not a call.
 export function finalCallLevel(note: Product, initialLevel: number): number | undefined {
   const { redemption } = note
   const reviews = reviewCount(note)
-  if (redemption === 'bullet' || !redemption.callOnFinalReview || reviews === undefined) return undefined
+  if (redemption === 'bullet' || redemption.kind !== 'autocall' || !redemption.callOnFinalReview || reviews === undefined) return undefined
   return barrierLevelAt(triggerAtReview(redemption, reviews), initialLevel)
 }
 
@@ -38,7 +38,8 @@ export interface ReviewTest {
 
 // How the product ends. A bullet product ends at maturity; an autocall ends on the first review that calls it, or at maturity.
 export interface RedemptionOutcome {
-  // The number of the review the product was called on, or undefined when it ran to the end of the term.
+  // The number of the review the product was called on, or undefined when it ran to the end of the term. An issuer call has no
+  // tests: nothing reads a level on its reviews.
   calledAtReview?: number
   // The number of reviews, the last of which is the end of the term.
   reviews: number
@@ -55,21 +56,35 @@ export interface RedemptionOutcome {
 
 // How a product with a schedule ends in a scenario. `reviewLevels` are the levels of the underlier on each review before the last, in
 // order: the asset's level, or for a basket its level from basketLevelFrom. `levels` are the determined levels the payoff reads at
-// the end of the term, as for paymentBreakdown. The product is called on the first review at or above the trigger, which is then
+// the end of the term, as for paymentBreakdown. An autocall is called on the first review at or above the trigger, which is then
 // not tested again. The last review is the end of the term: it pays the payoff, unless the product also calls on the final review,
 // in which case the final level is tested against the trigger like any other review.
-export function redemptionOutcome(note: Product, reviewLevels: number[], levels: DeterminedLevels): RedemptionOutcome {
+//
+// An issuer call reads no level on a review, so it takes no review levels. The issuer's choice is a scenario input,
+// `issuerCallsOnReview`: the number of the review it calls on, or undefined when it does not call, and the product runs to maturity.
+export function redemptionOutcome(note: Product, reviewLevels: number[], levels: DeterminedLevels, issuerCallsOnReview?: number): RedemptionOutcome {
   const errors = validateProduct(note)
   if (errors.length) throw new Error(errors.join(' '))
   const maturity = paymentBreakdown(note, levels)
   const reviews = reviewCount(note)!
   if (note.redemption === 'bullet') {
     if (reviewLevels.length > 0) throw new Error('A product with no autocall has no reviews before the last.')
+    if (issuerCallsOnReview !== undefined) throw new Error('Only an issuer call is called by the issuer.')
     return { reviews, tests: [], months: note.term.months, payment: maturity.payment, maturity }
   }
+  const { redemption } = note
+  if (redemption.kind === 'issuer-call') {
+    if (reviewLevels.length > 0) throw new Error('An issuer call reads no review levels.')
+    if (issuerCallsOnReview === undefined) return { reviews, tests: [], months: note.term.months, payment: maturity.payment, maturity }
+    const first = firstCallReview(redemption)
+    const last = lastCallReview(redemption, reviews)
+    if (!Number.isInteger(issuerCallsOnReview) || issuerCallsOnReview < first || issuerCallsOnReview > last) throw new Error(`The issuer can call on reviews ${first} to ${last}.`)
+    const months = issuerCallsOnReview * monthsPerReview[note.schedule!.frequency]
+    return { calledAtReview: issuerCallsOnReview, reviews, tests: [], months, payment: note.principalAmount * (1 + callAmountAtReview(redemption, months)), maturity }
+  }
+  if (issuerCallsOnReview !== undefined) throw new Error('Only an issuer call is called by the issuer.')
   if (reviewLevels.length !== reviews - 1) throw new Error(`Expected a level for each of ${reviews - 1} reviews before the last.`)
   if (reviewLevels.some((level) => !Number.isFinite(level) || level < 0)) throw new Error('Review levels must be zero or greater.')
-  const { redemption } = note
   const tested = redemption.callOnFinalReview ? [...reviewLevels, levels.final] : reviewLevels
   const tests: ReviewTest[] = []
   for (const [index, level] of tested.entries()) {

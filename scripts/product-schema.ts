@@ -21,9 +21,9 @@ const rulesInValidator = [
   'A minimum return is less than any cap.',
   'A basket needs unique asset names and one initial level for each asset and no other.',
   'A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.',
-  'An autocall needs a review schedule, and a schedule is used by an autocall only. The term must hold a whole number of review periods, and at least two.',
-  'An autocall cannot be combined with lookback, or with a barrier observed on every close.',
-  'An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The non-call period leaves at least one review that can call.',
+  'An autocall or an issuer call needs a review schedule, and a schedule is used by them only. The term must hold a whole number of review periods, and at least two.',
+  'An autocall cannot be combined with lookback. An autocall or an issuer call cannot be combined with a barrier observed on every close.',
+  'An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The non-call period of an autocall or an issuer call leaves at least one review that can call.',
 ]
 
 // Names for the variants a union spells out inline, keyed by the value of the key that tells them apart. A variant that is a named
