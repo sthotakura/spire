@@ -15,8 +15,8 @@ import { breachClose, scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
-import { redemptionOutcome } from './domain/autocall'
-import { barrierLevelAt, basketBreakdown, basketLevelFrom, suggestedFrequency, triggerAtReview, reviewCount, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
+import { finalCallLevel, paymentAtEnd, redemptionOutcome } from './domain/autocall'
+import { barrierLevelAt, basketBreakdown, basketLevelFrom, suggestedFrequency, triggerAtReview, reviewCount, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
@@ -541,6 +541,9 @@ const lowestClose = computed(() => lowestCloseWanted.value && initialValid.value
 const highestClose = computed(() => highestCloseWanted.value && initialValid.value ? Math.max(Number.isFinite(highestCloseInput.value) ? highestCloseInput.value as number : -Infinity, determinedInitialLevel.value, ...observations.value) : undefined)
 const breakdown = computed(() => valid.value ? paymentBreakdown(note.value, { initial: determinedInitialLevel.value, final: finalLevel.value, lowestClose: lowestClose.value, highestClose: highestClose.value }) : null)
 const payment = computed(() => breakdown.value?.payment ?? null)
+// What the product pays at the end of its term from the final level, if no earlier review called it. It is the payment the chart
+// draws, and differs from the payment only when the final review is a call.
+const endPayment = computed(() => valid.value ? paymentAtEnd(note.value, { initial: determinedInitialLevel.value, final: finalLevel.value, lowestClose: lowestClose.value, highestClose: highestClose.value }) : null)
 // An autocall that was called says so and what it paid. One that ran to the end of its term says no review reached the trigger, and
 // then how the payoff paid.
 const reviewsBeforeLast = computed(() => {
@@ -766,9 +769,9 @@ const chartHighlight = computed(() => ({
 // A feature is selected when the reader picks one part of the payoff rather than the whole of it, which is selected at rest.
 const featureSelected = computed(() => selected.value !== 'payoff')
 // Each regime is drawn in its concept's colour and labelled with what that concept does.
-const regimeConcept = computed<Record<Regime, ConceptId>>(() => ({ principal: 'payoff', buffer: 'buffer', barrier: 'barrier', 'upside-barrier': 'barrier', 'event-below': 'barrier', 'event-above': 'barrier', absolute: 'absolute-return', downside: 'downside', upside: 'upside', floor: floorConcept.value, cap: 'cap' }))
+const regimeConcept = computed<Record<Regime, ConceptId>>(() => ({ principal: 'payoff', buffer: 'buffer', barrier: 'barrier', 'upside-barrier': 'barrier', 'event-below': 'barrier', 'event-above': 'barrier', absolute: 'absolute-return', downside: 'downside', upside: 'upside', floor: floorConcept.value, cap: 'cap', call: 'redemption' }))
 // The order labels claim space in, after the selected feature's: the features that bend the line first, principal last.
-const labelPriority: ReadonlyArray<PayoffLabelKey> = ['cap', 'absolute-return', 'buffer', 'barrier', 'upside-barrier', 'event-below', 'event-above', 'breach', 'upside-breach', 'protection', 'minimum-return', 'downside', 'upside', 'lowest', 'payoff']
+const labelPriority: ReadonlyArray<PayoffLabelKey> = ['redemption', 'cap', 'absolute-return', 'buffer', 'barrier', 'upside-barrier', 'event-below', 'event-above', 'breach', 'upside-breach', 'protection', 'minimum-return', 'downside', 'upside', 'lowest', 'payoff']
 // A change of the underlier, as the axis and the bubble show it: +30%, −5%, 0%.
 const changeText = (change: number) => Math.abs(change) < 5e-4 ? '0%' : signedPercent(change)
 const chart = computed(() => {
@@ -794,7 +797,10 @@ const chart = computed(() => {
   const jumpList = jumpsOf(note.value, initial)
   const levels = levelsFor(jumpList)
   const breakdowns = levels.map((level) => paymentBreakdown(note.value, at(level)))
-  const values = breakdowns.map((b) => b.payment)
+  // At and above the trigger of a final review that is a call, the product is called instead of paying the payoff.
+  const finalCall = finalCallLevel(note.value, initial)
+  const isCall = (level: number) => finalCall !== undefined && level >= finalCall
+  const values = levels.map((level, i) => isCall(level) ? paymentAtEnd(note.value, at(level)) : breakdowns[i].payment)
   const jumps = jumpsIn(levels, values)
   // A barrier observed on every close adds a dashed line: the payment had the barrier been reached on an earlier close. It is
   // drawn only where it differs from the line, which is the payment when the barrier was not reached.
@@ -810,7 +816,7 @@ const chart = computed(() => {
   const y = (amount: number) => amountToY(amount, axis.top, plot)
   const pinnedY = (amount: number) => clamp(y(amount), plot.top, plot.bottom)
   const point = (level: number, value: number) => `${x(level)},${y(value)}`
-  const samples: Sample[] = levels.map((level, i) => ({ point: point(level, values[i]), regime: regimeOf(breakdowns[i]), jump: jumps[i] }))
+  const samples: Sample[] = levels.map((level, i) => ({ point: point(level, values[i]), regime: isCall(level) ? 'call' : regimeOf(breakdowns[i]), jump: jumps[i] }))
   const pieces = splitAtJumps(samples)
   const branchPieces = branchRuns.map(({ start, end: last }) => levels.slice(start, last + 1).map((level, i) => point(level, branchValues[start + i])).join(' '))
   const segments = splitByRegime(samples)
@@ -834,12 +840,12 @@ const chart = computed(() => {
   const ghostInitial = !ghostDrawable ? Number.NaN : ghost.underlier.kind === 'basket' ? basketStartingLevel : initialLevelFrom(ghost.underlier.determination.initial, ghostObservations)
   const ghostOnAxis = ghostDrawable && ghostInitial === initial
   const ghostLevels = levelsFor(ghostOnAxis ? jumpsOf(ghost, ghostInitial) : [])
-  const ghostValues = ghostOnAxis ? ghostLevels.map((level) => maturityPayment(ghost, { initial: ghostInitial, final: level })) : []
+  const ghostValues = ghostOnAxis ? ghostLevels.map((level) => paymentAtEnd(ghost, { initial: ghostInitial, final: level })) : []
   const ghostJumps = jumpsIn(ghostLevels, ghostValues)
   const ghostPieces = ghostOnAxis ? splitAtJumps(ghostLevels.map((level, i) => ({ point: point(level, ghostValues[i]), jump: ghostJumps[i] }))) : []
-  const finalHandle = payment.value === null ? null : { x: x(clamp(finalLevel.value, 0, end)), y: pinnedY(payment.value) }
+  const finalHandle = endPayment.value === null ? null : { x: x(clamp(finalLevel.value, 0, end)), y: pinnedY(endPayment.value) }
   // The bubble gives the change, the final level it comes from, and the payment.
-  const bubbleText = payment.value === null ? '' : `${changeText(finalLevel.value / initial - 1)} (${formatAmount(finalLevel.value)}) → ${formatAmount(payment.value)}`
+  const bubbleText = endPayment.value === null ? '' : `${changeText(finalLevel.value / initial - 1)} (${formatAmount(finalLevel.value)}) → ${formatAmount(endPayment.value)}`
   const labelWidth = (text: string) => text.length * 6.4 * labelScale.value
   const bubbleWidth = 16 + labelWidth(bubbleText)
   // The cap handle sits where the line actually bends flat. When the upside rate is too low for that to be in view,
@@ -854,25 +860,25 @@ const chart = computed(() => {
   // there, and the handle sits on the end the buffer level pays, at the top of the jump.
   const bufferAt = bufferLevel(initial, bufferPercent.value / 100)
   const bufferX = bufferSelected.value ? x(bufferAt) : null
-  const bufferY = absoluteSelected.value ? pinnedY(maturityPayment(note.value, at(bufferAt))) : y(principalAmount)
+  const bufferY = absoluteSelected.value ? pinnedY(paymentAtEnd(note.value, at(bufferAt))) : y(principalAmount)
   // The barrier handle sits at the barrier on the principal line, where the payment is still principal. With absolute return
   // the payment there is the gain, at the top of the jump.
   const barrierX = barrierAt === undefined ? null : x(barrierAt)
-  const barrierY = barrierAt !== undefined && absoluteSelected.value ? pinnedY(maturityPayment(note.value, at(barrierAt))) : y(principalAmount)
+  const barrierY = barrierAt !== undefined && absoluteSelected.value ? pinnedY(paymentAtEnd(note.value, at(barrierAt))) : y(principalAmount)
   const ring = handleRadius.value + 5
   const slopeAt = slopeLevel(initial, capFraction.value, upsideBarrierFraction.value)
   // The upside barrier handle sits on the end the barrier level pays, as the buffer handle does with absolute return: the
   // rebate, or principal, which is where the line continues from the jump.
   const upsideBarrierX = upsideBarrierAt === undefined ? null : x(upsideBarrierAt)
-  const upsideBarrierY = upsideBarrierAt === undefined ? 0 : pinnedY(maturityPayment(note.value, at(upsideBarrierAt)))
+  const upsideBarrierY = upsideBarrierAt === undefined ? 0 : pinnedY(paymentAtEnd(note.value, at(upsideBarrierAt)))
   // Barrier absolute return's handles sit at each barrier, on the end the barrier level itself pays: the absolute return.
   const lowerBarrierAt = bothWaysSelected.value ? barrierLevelAt(fractionFrom(lowerBarrierPercent.value), initial) : undefined
   const upperBarrierAt = bothWaysSelected.value ? barrierLevelAt(fractionFrom(upperBarrierPercent.value), initial) : undefined
-  const lowerBarrierHandle = lowerBarrierAt === undefined ? null : { x: x(lowerBarrierAt), y: pinnedY(maturityPayment(note.value, at(lowerBarrierAt))) }
-  const upperBarrierHandle = upperBarrierAt === undefined ? null : { x: x(upperBarrierAt), y: pinnedY(maturityPayment(note.value, at(upperBarrierAt))) }
+  const lowerBarrierHandle = lowerBarrierAt === undefined ? null : { x: x(lowerBarrierAt), y: pinnedY(paymentAtEnd(note.value, at(lowerBarrierAt))) }
+  const upperBarrierHandle = upperBarrierAt === undefined ? null : { x: x(upperBarrierAt), y: pinnedY(paymentAtEnd(note.value, at(upperBarrierAt))) }
   const otherHandles = [
     capHandleX === null ? null : { x: capHandleX, y: pinnedY(capAmount) },
-    selectedParticipation.upside ? { x: x(slopeAt), y: pinnedY(maturityPayment(note.value, at(slopeAt))) } : null,
+    selectedParticipation.upside ? { x: x(slopeAt), y: pinnedY(paymentAtEnd(note.value, at(slopeAt))) } : null,
     upsideBarrierX === null ? null : { x: upsideBarrierX, y: upsideBarrierY },
   ]
   const coversHandle = finalHandle !== null && bubbleX !== null && otherHandles.some((handle) => handle !== null && bubbleX < handle.x + ring && bubbleX + bubbleWidth > handle.x - ring && finalHandle.y - 34 < handle.y + ring && finalHandle.y - 12 > handle.y - ring)
@@ -1000,7 +1006,7 @@ const chart = computed(() => {
                 <li :class="['node', { sel: highlighted('redemption') }]" :style="conceptStyle('redemption')">
                   <div class="nrow" @click="select('redemption')" @focusin="focusRow('redemption')">
                     <span class="nlabel">Redemption<HintToggle id="redemption" about="redemption" :text="hints.redemption" :active="activeHint === 'redemption'" @toggle="toggleHint('redemption')" /></span>
-                    <span class="ctrl pick"><select aria-label="Redemption" :value="redemptionKind" @change="redemptionKind = ($event.target as HTMLSelectElement).value as 'bullet' | 'autocall'"><option v-for="option in redemptionOptions" :key="option.id" :value="option.id" :disabled="!option.available || (option.id === 'autocall' && !autocalled && (lookingBack || dailySelected || bothWaysSelected))">{{ option.label }}{{ !option.available ? ' (unavailable)' : option.id === 'autocall' && !autocalled && lookingBack ? ' (not with lookback)' : option.id === 'autocall' && !autocalled && (dailySelected || bothWaysSelected) ? ' (not with a daily barrier)' : '' }}</option></select></span>
+                    <span class="ctrl pick"><select id="redemption-kind" aria-label="Redemption" :value="redemptionKind" @change="redemptionKind = ($event.target as HTMLSelectElement).value as 'bullet' | 'autocall'"><option v-for="option in redemptionOptions" :key="option.id" :value="option.id" :disabled="!option.available || (option.id === 'autocall' && !autocalled && (lookingBack || dailySelected || bothWaysSelected))">{{ option.label }}{{ !option.available ? ' (unavailable)' : option.id === 'autocall' && !autocalled && lookingBack ? ' (not with lookback)' : option.id === 'autocall' && !autocalled && (dailySelected || bothWaysSelected) ? ' (not with a daily barrier)' : '' }}</option></select></span>
                   </div>
                   <ul v-if="autocalled">
                     <li class="node" :style="conceptStyle('redemption')">
@@ -1245,7 +1251,7 @@ const chart = computed(() => {
         </section>
 
         <section class="panel preview" aria-label="Payoff preview">
-          <header class="panel-head"><h2>Payoff at {{ wrapper === 'deposit' ? 'maturity' : 'redemption' }}</h2><p>{{ autocalled ? (callOnFinal ? 'What the payoff pays at the end of its term for each hypothetical final level. At or above the last trigger, the final review calls it instead' : 'What it pays if held to the end of its term, for each hypothetical final level') : 'What it pays for each hypothetical final level' }}</p></header>
+          <header class="panel-head"><h2>Payoff at {{ wrapper === 'deposit' ? 'maturity' : 'redemption' }}</h2><p>{{ autocalled ? (callOnFinal ? 'What it pays at the end of its term for each hypothetical final level, if no earlier review called it. At or above the last trigger, the final review calls it' : 'What it pays if held to the end of its term, for each hypothetical final level') : 'What it pays for each hypothetical final level' }}</p></header>
           <template v-if="chart">
             <svg ref="chartSvg" :class="['chart', { 'feature-selected': featureSelected }]" viewBox="0 0 620 350" role="group" :aria-label="chartDescription" :style="{ '--label': `${11 * labelScale}px` }">
               <defs><clipPath id="plot-clip"><rect :x="plot.left" :y="plot.top" :width="plot.right - plot.left" :height="plot.bottom - plot.top"/></clipPath></defs>
@@ -1297,7 +1303,7 @@ const chart = computed(() => {
               <g v-if="chart.slopeHandle":class="['handle', { on: highlighted('upside') }]" :style="conceptStyle('upside')" :transform="`translate(${chart.slopeHandle.x} ${chart.slopeHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" aria-label="Upside participation rate" aria-valuemin="5" aria-valuemax="200" :aria-valuenow="participationPercent.upside" :aria-valuetext="`${participationPercent.upside}% upside participation`" @pointerdown="startDrag('slope', $event)" @pointermove="dragMove('slope', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('slope', $event)" @focus="focusHandle('slope')">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
-              <g v-if="chart.finalHandle" class="handle final-dot" :transform="`translate(${chart.finalHandle.x} ${chart.finalHandle.y})`" tabindex="0" role="slider" :aria-label="`Hypothetical final level of ${underlierLabel}`" aria-valuemin="0" :aria-valuemax="Math.floor(chart.end)" :aria-valuenow="finalLevel" :aria-valuetext="`Final level ${formatAmount(finalLevel)}, payment ${formatAmount(payment ?? 0)}`" @pointerdown="startDrag('final', $event)" @pointermove="dragMove('final', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('final', $event)">
+              <g v-if="chart.finalHandle" class="handle final-dot" :transform="`translate(${chart.finalHandle.x} ${chart.finalHandle.y})`" tabindex="0" role="slider" :aria-label="`Hypothetical final level of ${underlierLabel}`" aria-valuemin="0" :aria-valuemax="Math.floor(chart.end)" :aria-valuenow="finalLevel" :aria-valuetext="`Final level ${formatAmount(finalLevel)}, payment ${formatAmount(endPayment ?? 0)}`" @pointerdown="startDrag('final', $event)" @pointermove="dragMove('final', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('final', $event)">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
             </svg>

@@ -3,6 +3,7 @@
 // initial level sits at the centre. The vertical axis starts at zero and is fitted to the payoff. The page holds it still while the reader drags, so the line
 // does not move under the pointer, and refits it when the drag ends.
 
+import { finalCallLevel } from '../domain/autocall'
 import { barrierLevelAt, downsideOf, maturityPayment, upsideOf, type DeterminedLevels, type PaymentBreakdown, type Product } from '../domain/note'
 
 export interface Plot {
@@ -112,7 +113,7 @@ export const keyDelta = (key: string, shift: boolean, step: number): number | nu
 
 // The rule that sets the payment at a final level. The line is drawn in one colour per rule, so the reader can see which one binds where.
 // Barrier absolute return adds two: the fixed return paid when the final level is itself below the lower barrier, and above the upper one.
-export type Regime = 'principal' | 'buffer' | 'barrier' | 'upside-barrier' | 'absolute' | 'downside' | 'upside' | 'floor' | 'cap' | 'event-below' | 'event-above'
+export type Regime = 'call' | 'principal' | 'buffer' | 'barrier' | 'upside-barrier' | 'absolute' | 'downside' | 'upside' | 'floor' | 'cap' | 'event-below' | 'event-above'
 
 // A fall the buffer absorbs in full leaves principal unchanged, but it is the buffer, not the absence of participation, that holds the payment there.
 // A fall that ends at or above a barrier is held at principal by the barrier in the same way. A fall within the buffer that
@@ -146,6 +147,9 @@ export const jumpsOf = (product: Product, initialLevel: number): Jump[] => {
   if (bothWays !== undefined) {
     jumps.push({ level: barrierLevelAt(bothWays.lowerBarrier.level, initialLevel), paysAbove: true }, { level: barrierLevelAt(bothWays.upperBarrier.level, initialLevel), paysAbove: false })
   }
+  // A final review that is also a call pays the call at and above its trigger, so the payment jumps there and its level pays the call.
+  const finalCall = finalCallLevel(product, initialLevel)
+  if (finalCall !== undefined) jumps.push({ level: finalCall, paysAbove: true })
   return jumps
 }
 

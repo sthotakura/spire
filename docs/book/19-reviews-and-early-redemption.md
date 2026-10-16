@@ -67,7 +67,15 @@ A synthetic note with principal of 1,000, a term of 3 years and reviews every si
 | Below the trigger on reviews 1 to 5, then 70 on review 6 | Not called. Above the barrier, so the payoff repays principal | 36 | 1,000 |
 | Below the trigger on reviews 1 to 5, then 40 on review 6 | Not called. Below the barrier, so the payoff pays the fall: 1,000 × 40% | 36 | 400 |
 
-The payoff chart for a product whose last review is a call shows the payoff alone. Above the last trigger the final review calls the product instead, and the review table and the calculation show it.
+The payoff chart draws what the product pays at the end of its term against the final level. When the last review is a call, the line jumps at the last trigger to principal plus the call amount, and a label says so. The chart does not show an earlier call, which ends the product before the final level is read.
+
+### Seen against the final level: a shark fin
+
+When the last review is the only call, the chart is a shark fin. Take a note with 100% upside participation, a 24-month term, a trigger of 120% on the last review and a call amount of 10%, with the last review as a call. A final level below 120% pays the rise, up to 1,200. At 120% and above the final review calls the note and pays 1,100, so the line climbs to the trigger and then drops to the call amount.
+
+![A note with 100% upside participation whose final review calls it at 120% and pays 110%: the payment rises with the underlier, then drops to the call amount at the trigger](charts/final-review-call.svg)
+
+This is the same shape as an upside barrier with a rebate, where the call amount plays the part of the rebate. The difference is in the earlier reviews. An upside barrier is read once, so it is the whole story, while reviews before the last can also call the note, and a note that was never called on those reviews can still end at any level. The chart shows only the end of the term.
 
 ## Underliers and other features
 

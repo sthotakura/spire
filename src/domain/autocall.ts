@@ -1,4 +1,25 @@
-import { barrierLevelAt, callAmountAtReview, monthsPerReview, triggerAtReview, paymentBreakdown, reviewCount, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
+import { barrierLevelAt, callAmountAtReview, maturityPayment, monthsPerReview, triggerAtReview, paymentBreakdown, reviewCount, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
+
+// The level at or above which the final review calls the product, from the determined initial level. Undefined when the final review
+// is not a call.
+export function finalCallLevel(note: Product, initialLevel: number): number | undefined {
+  const { redemption } = note
+  const reviews = reviewCount(note)
+  if (redemption === 'bullet' || !redemption.callOnFinalReview || reviews === undefined) return undefined
+  return barrierLevelAt(triggerAtReview(redemption, reviews), initialLevel)
+}
+
+// What the product pays at the end of its term for a final level, if no earlier review called it: the payoff, or, when the final
+// review is a call and the final level is at or above its trigger, principal plus the call amount. This is the payment the payoff
+// chart draws against the final level. It equals the maturity payment when the final review is not a call.
+export function paymentAtEnd(note: Product, levels: DeterminedLevels): number {
+  const { redemption } = note
+  const call = finalCallLevel(note, levels.initial)
+  if (redemption !== 'bullet' && call !== undefined && levels.final >= call) {
+    return note.principalAmount * (1 + callAmountAtReview(redemption, note.term.months))
+  }
+  return maturityPayment(note, levels)
+}
 
 // One review at which the call is tested, as the call reads it.
 export interface ReviewTest {

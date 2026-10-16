@@ -25,6 +25,7 @@ const charts: BookChart[] = [
   { file: 'upside-barrier', title: 'Payoff with 80% upside participation, a 130% upside barrier and a 2% rebate', features: [/^Principal protection/, /^Upside participation/, /^Upside barrier/, /^Rebate/], values: { 'rate-upside': '80', 'rate-upside-barrier': '130', 'rate-rebate': '2', 'rate-protection': '100', 'final-level': '150' } },
   { file: 'absolute-return', title: 'Payoff with a 15% buffer and 100% absolute return on a fall', features: [/^Downside participation/, /^Buffer/, /^Absolute return Pays/], values: { 'rate-buffer': '15', 'final-level': '95' } },
   { file: 'barrier-absolute-return', title: 'Payoff of absolute return in both directions between barriers at 80% and 125%', features: [/^Absolute return \(both/, /^Conditional return/], values: { 'rate-lower-barrier': '80', 'rate-upper-barrier': '125', 'rate-conditional': '2', 'final-level': '110' } },
+  { file: 'final-review-call', title: 'Payoff with 100% upside participation and a final review that calls at 120% and pays 110%', features: [/^Upside participation/], values: { 'redemption-kind': 'autocall', term: '24', 'call-trigger': '120', 'call-amount-input': '10', 'final-call': 'true', 'final-level': '130' } },
   { file: 'deposit-minimum-return', title: 'Deposit payoff with 100% upside participation, a 30% cap and a 5.25% minimum return', wrapper: 'deposit', features: [/^Upside participation/, /^Cap/, /^Minimum return/], values: { term: '84', 'rate-cap': '30', 'rate-minimum': '5.25', 'final-level': '102' } },
 ]
 

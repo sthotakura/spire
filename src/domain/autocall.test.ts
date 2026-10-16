@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { redemptionOutcome } from './autocall'
+import { finalCallLevel, paymentAtEnd, redemptionOutcome } from './autocall'
 import { basketLevelFrom, productIssues, reviewCount, suggestedFrequency, validateProduct, type Autocall, type BasketUnderlier, type Product, type Schedule } from './note'
 import { startingProduct } from './starting-note'
 
@@ -267,6 +267,39 @@ describe('a trigger that steps down, a call amount for each year, and a call on 
     const flatNote = callable({ ...stepped, redemption: autocall({ callAmount: 0.1, callAmountBasis: 'flat' }) })
     expect(redemptionOutcome(flatNote, [100, ...never.slice(1)], levels).payment).toBe(1100)
     expect(redemptionOutcome(flatNote, [90, 90, 90, 90, 100], levels).payment).toBe(1100)
+  })
+})
+
+// A final review that is the only call: upside participation, a trigger above the initial level, and the call amount as what the note
+// pays at and above it. Against the final level, that is a shark fin.
+describe('a final review that calls, as the payment at the end of the term', () => {
+  const fin = callable({
+    redemption: autocall({ trigger: 1.2, callAmount: 0.1, callOnFinalReview: true }),
+    payoff: { participations: [{ direction: 'upside', rate: 1 }] },
+  })
+
+  it('has a final call level at the trigger of the last review', () => {
+    expect(finalCallLevel(fin, 100)).toBe(120)
+    expect(finalCallLevel(callable({ redemption: autocall({ trigger: 1, triggerStep: -0.05, callOnFinalReview: true }) }), 100)).toBeCloseTo(45, 9)
+  })
+
+  it('has none unless the final review is a call', () => {
+    expect(finalCallLevel(callable(), 100)).toBeUndefined()
+    expect(finalCallLevel(startingProduct, 100)).toBeUndefined()
+  })
+
+  it.each([[80, 1000], [100, 1000], [110, 1100], [119.99, 1199.9], [120, 1100], [150, 1100], [200, 1100]])('pays %s at a final level of %s', (final, payment) => {
+    expect(paymentAtEnd(fin, { initial: 100, final })).toBeCloseTo(payment, 6)
+  })
+
+  it('pays the maturity payment when the final review is not a call', () => {
+    const plain = callable({ payoff: { participations: [{ direction: 'upside', rate: 1 }] } })
+    for (const final of [60, 100, 130, 180]) expect(paymentAtEnd(plain, { initial: 100, final })).toBe(redemptionOutcome(plain, flat(11), { initial: 100, final }).maturity.payment)
+  })
+
+  it('uses the call amount for the whole term when it accrues for each year', () => {
+    const perYear = callable({ term: { months: 24 }, schedule: { frequency: 'semi-annual' }, redemption: autocall({ trigger: 1.2, callAmount: 0.1, callAmountBasis: 'per-year', callOnFinalReview: true }), payoff: { participations: [{ direction: 'upside', rate: 1 }] } })
+    expect(paymentAtEnd(perYear, { initial: 100, final: 130 })).toBeCloseTo(1200, 9)
   })
 })
 

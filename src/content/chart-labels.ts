@@ -1,4 +1,4 @@
-import { downsideOf, maturityPayment, upsideOf, type Product } from '../domain/note'
+import { callAmountAtReview, downsideOf, maturityPayment, reviewCount, triggerAtReview, upsideOf, type Product } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 const amount = (value: number) => Number.isFinite(value) ? value.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'
@@ -67,6 +67,12 @@ export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, s
     // The lowest payment is at a fall to zero. Without a floor it can still be above zero, as with a buffer.
     const lowest = maturityPayment(product, { initial: 1, final: 0 })
     if (principalProtection === undefined && lowest > 0) labels.lowest = `Lowest payment ${amount(lowest)}`
+  }
+  // A final review that is also a call pays principal plus the call amount at and above its trigger, in place of the payoff.
+  const { redemption } = product
+  const reviews = reviewCount(product)
+  if (redemption !== 'bullet' && redemption.callOnFinalReview && reviews !== undefined) {
+    labels.redemption = `At or above ${percent(triggerAtReview(redemption, reviews))} of the initial level the final review calls it, paying ${amount(principal * (1 + callAmountAtReview(redemption, product.term.months)))}`
   }
   if (principalProtection !== undefined) labels.protection = `Never below ${amount(principal * principalProtection)}`
   if (minimumReturn !== undefined) labels['minimum-return'] = `Never below ${amount(principal * (1 + minimumReturn))}`
