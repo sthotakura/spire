@@ -112,7 +112,7 @@ Each slice needs a public source, a book chapter, a schema example and tests, an
 | 3 | **Cash-flow result** | JPM contingent interest note | A payment per review, total paid, annualised return on actual length |
 | 4 | **Fixed coupon on the schedule** | [coupon.md](coupon.md) | A coupon always paid; the schedule replaces coupon.md's own frequency |
 | 5 | **Issuer call** | SSPA softcall | An issuer option on stated reviews, which tests no level |
-| — | **Non-call period** | JPM contingent interest note | Its own feature, planned in [non-call-period.md](non-call-period.md) |
+| — | **Non-call period** | JPM contingent interest note | Its own feature, built as `firstCall`: [non-call-period.md](non-call-period.md) |
 | — | **Call amount from a rate and elapsed time; trigger step-down; final review as a call** | UBS step-down note | Added to slice 1. The three together reproduce the UBS note's call schedule |
 
 Slice 1 is first because it needs no coupon logic and still forces the hard parts: the schedule, the path scenario, and a result that is not one payment.

@@ -1,4 +1,5 @@
 import { downsideOf, upsideOf, type Product } from '../domain/note'
+import { ordinal } from './autocall'
 import type { ConceptId } from './concepts'
 
 export interface SummarySegment {
@@ -122,7 +123,9 @@ export function summarize(note: Product): SummarySegment[] {
         { text: `is at or above ${percent(note.redemption.trigger)} of its initial level`, concept: 'trigger' },
         { text: ' on any ' },
         { text: note.schedule?.frequency ?? 'monthly', concept: 'schedule' },
-        { text: ' review ' },
+        { text: ' review' },
+        ...((note.redemption.firstCall ?? 1) > 1 ? [{ text: ` from the ${ordinal(note.redemption.firstCall!)}`, concept: 'first-call' as const }] : []),
+        { text: ' ' },
         { text: note.redemption.callOnFinalReview ? 'including the last' : 'before maturity', concept: 'final-call' },
         ...(note.redemption.triggerStep ? [{ text: ', the trigger ' }, { text: `${note.redemption.triggerStep < 0 ? 'falling' : 'rising'} ${percent(Math.abs(note.redemption.triggerStep))} on each later review`, concept: 'trigger-step' as const }] : []),
         { text: ', ' },

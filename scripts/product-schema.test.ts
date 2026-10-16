@@ -140,6 +140,7 @@ describe('product schema', () => {
       ['a deposit with upside participation', withPayoff({ participations: [{ direction: 'upside', rate: 1 }] }, { wrapper: 'deposit' }), true],
       ['a note with a minimum return', withPayoff({ participations: [], minimumReturn: 0.05 }), false],
       ...[[0, false], [0.01, true], [2, true], [2.01, false]].map(([value, ok]): [string, Product, boolean] => [`autocall trigger ${value}`, callable({ trigger: value as number }), ok as boolean]),
+      ...[[0, false], [1, true], [1.5, false]].map(([value, ok]): [string, Product, boolean] => [`autocall first call ${value}`, callable({ firstCall: value as number }), ok as boolean]),
       ['autocall trigger step -0.05', callable({ triggerStep: -0.05 }), true], ['autocall trigger step 0.05', callable({ triggerStep: 0.05 }), true],
       ['autocall call amount -0.01', callable({ callAmount: -0.01 }), false], ['autocall call amount 0', callable({ callAmount: 0 }), true],
     ]

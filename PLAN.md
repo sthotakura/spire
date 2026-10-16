@@ -424,9 +424,23 @@ Reviews are the dates on which a condition of the product is tested. A product m
 - **Unused final level.** When a product is called before the last review, the final level field is dimmed and says so in its tooltip and hint; it still sets the chart's dot and the comparison steps.
 - **Defaults in the structure.** The app writes every term of the redemption, including one at its default (`triggerStep: 0`, `callAmountBasis: "flat"`, `callOnFinalReview: false`), so the JSON reads as the outline does. The fields stay optional in the type and the schema, which states each default with `default`.
 - **Tables in the book.** The book view renders Markdown tables (`src/book-table.ts`); until then a table in a chapter ran together as text. A test checks that every block of table lines in every chapter renders, so a malformed table fails the build.
+- **Non-call period.** `firstCall` on the autocall: the number of the first review that can call, 1 by default, up to the last review that can call. A review before it shows "No call" and cannot call whatever its level; the trigger and its step are counted from review 1. It has its own row, concept and summary phrase, a path that shows it, and a schema example (12 monthly reviews, first call 6). Details are in [docs/non-call-period.md](docs/non-call-period.md).
 - **Default frequency:** `suggestedFrequency` starts the reviews at semi-annual above a year, quarterly from six months to a year and monthly below, and follows the term until the reader chooses one.
 - **Many reviews:** more than 24 reviews is allowed. A note under the Reviews row says how many reviews the suggested frequency would give. Nothing is capped.
-- **Not done:** uneven thresholds listed date by date, the non-call period ([docs/non-call-period.md](docs/non-call-period.md)), contingent coupons with memory, a cash-flow result, an issuer call, and keyboard and narrow-screen checks of the review table beyond overflow.
+- **Not done:** uneven thresholds listed date by date, contingent coupons with memory, a cash-flow result, an issuer call, and keyboard and screen-reader checks of the review table (narrow-screen overflow is checked).
+
+## 34. Next steps
+
+Where the reviews and autocall work stands, and what follows. The order is by what a learner gains.
+
+1. **Contingent coupon, then memory** ([docs/observation-dates.md](docs/observation-dates.md), slice 2). The one concept the reference still lacks that most public autocalls use: a coupon barrier tested on each review, a coupon paid or missed, and unpaid coupons carried forward by memory. Source: the JPM contingent interest note. Start with a proposal in the order the project asks for: meaning, smallest model, assumptions and open questions, before any code. It needs the first call (built) and per-asset review levels (built).
+2. **A cash-flow result** (slice 3). A payment on each review, the total paid, and the annualised return over the actual length. It is what makes coupons readable as money received over time, so it follows the coupon.
+3. **Fixed coupon on the schedule** (slice 4, [docs/coupon.md](docs/coupon.md)), which replaces the coupon's own frequency with the schedule.
+4. **Issuer call** (slice 5). Needs a public callable note read first, and a decision about how the issuer's choice is a scenario input. Not started.
+5. **Checks not done.** Keyboard use of the review table and the new redemption rows; screen-reader checks; how a 120-review monthly schedule behaves in the interface; the book's chapters 17 and 19 read in the running book at narrow width.
+6. **Smaller items.** Thresholds listed date by date with uneven steps; a rate-times-elapsed-time call price stated as a table; a hint or example menu so a learner can find the shark fin (a "Load an example" menu, proposed and not built).
+
+Push to `origin/main` only at milestones, since every push runs the Pages deploy.
 
 ## Later direction: a composable form
 

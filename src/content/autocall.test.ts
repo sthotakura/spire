@@ -164,6 +164,66 @@ describe('a trigger that steps down, a call amount for each year and a call on t
   })
 })
 
+// Twelve monthly reviews that cannot call before the sixth.
+const delayed: Product = { ...callable, redemption: { kind: 'autocall', trigger: 1, firstCall: 6, callAmount: 0.08 } }
+const delayedFrom = (firstCall: number): Product => ({ ...delayed, redemption: { kind: 'autocall', trigger: 1, firstCall, callAmount: 0.08 } })
+
+describe('a non-call period', () => {
+  it('says from which review the product can be called, in the summary', () => {
+    expect(text(delayed)).toContain('on any monthly review from the 6th before maturity')
+    expect(text(delayedFrom(2))).toContain('from the 2nd')
+    expect(text(delayedFrom(3))).toContain('from the 3rd')
+    expect(text(delayedFrom(11))).toContain('from the 11th')
+    expect(text(callable)).not.toContain(' from the ')
+  })
+
+  it('tags the phrase with its own concept', () => {
+    expect(summarize(delayed).filter(({ concept }) => concept === 'first-call').map(({ text }) => text)).toEqual([' from the 6th'])
+  })
+
+  it('writes the call rule from the first call review', () => {
+    const [line] = redemptionFormula(delayed)
+    expect(line.segments.map(({ text }) => text).join('')).toBe('On a review from review 6 to the last but one, if Level ≥ Trigger × Initial level, pay Principal × (1 + Call amount) and end')
+    const [withFinal] = redemptionFormula({ ...delayed, redemption: { kind: 'autocall', trigger: 1, firstCall: 6, callAmount: 0.08, callOnFinalReview: true } })
+    expect(withFinal.segments[0].text).toBe('On every review from review 6, if ')
+  })
+
+  it('shows a review before the first call as unable to call, whatever its level', () => {
+    const steps = redemptionSteps(delayed, redemptionOutcome(delayed, [150, 150, 90, 90, 90, 100, ...Array(5).fill(90)], levels))
+    expect(steps.slice(0, 3).map(({ title, value, how }) => [title, value, how])).toEqual([
+      ['Review 1 of 12', 'No call', '150: it cannot call, the first call is on review 6'],
+      ['Review 2 of 12', 'No call', '150: it cannot call, the first call is on review 6'],
+      ['Review 3 of 12', 'No call', '90: it cannot call, the first call is on review 6'],
+    ])
+    expect(steps[5].value).toBe('Called')
+  })
+
+  it('explains a product no review that could call called', () => {
+    const outcome = redemptionOutcome(delayed, [150, 150, 150, 150, 150, ...Array(6).fill(90)], levels)
+    expect(explainRedemption(delayed, outcome)).toBe('No review that could call was at or above the 100 trigger, so the product ran to the end of its term.')
+  })
+
+  it('gives paths that show the period: the early reviews are at the trigger and do not call', () => {
+    expect(validateProduct(delayed)).toEqual([])
+    const paths = pathScenarios(delayed, 100)
+    const results = Object.fromEntries(paths.map(({ name, reviewLevels, finalLevel }) => [name, redemptionOutcome(delayed, reviewLevels, { initial: 100, final: finalLevel ?? 100 }).calledAtReview]))
+    expect(results).toEqual({
+      'Called on the first review that can call': 6,
+      'Called on review 11': 11,
+      'Falls first, then recovers: called late': 11,
+      'Never called, ends 20% up': undefined,
+      'Never called, ends flat': undefined,
+      'Never called, ends 40% down': undefined,
+    })
+    // The first five reviews of the path called on review 6 are at the trigger, so they would call if they could.
+    expect(paths[0].reviewLevels.slice(0, 5)).toEqual([100, 100, 100, 100, 100])
+  })
+
+  it('tags the first call in the structure JSON with its own concept', () => {
+    expect(structureLines(delayed).filter(({ concept }) => concept === 'first-call').map(({ text }) => text.trim())).toEqual(['"firstCall": 6,'])
+  })
+})
+
 describe('named path scenarios', () => {
   it('leave the final level alone when the product is called before it gets there', () => {
     const paths = Object.fromEntries(pathScenarios(callable, 100).map(({ name, finalLevel }) => [name, finalLevel]))

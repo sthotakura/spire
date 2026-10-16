@@ -53,6 +53,19 @@ A trigger can change as the product ages. The **trigger step** is how much the t
 
 The call amount can be paid in one of two ways. **Each call** pays the same amount whenever the product is called, as in the table above. **Each year elapsed** pays the amount for every year the product has lasted, so the longer it runs, the more a call pays. With 10% for each year and semi-annual reviews, a call after six months pays 5% above principal, after a year 10%, and after three years 30%. The time elapsed is the number of months to the review, divided by 12.
 
+## A period with no calls
+
+Some notes cannot be called at the start, even if the condition holds. One public note is reviewed monthly for a year but allows an automatic call only from the sixth review ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)). The reference calls the number of the first review that can call the **first call**. A review before it is a review in the non-call period: its level is read, but it cannot call. A first call of 1 lets the product be called from the first review, as in the first example.
+
+Take the first example with a first call of 6, so reviews 1 to 5 cannot call.
+
+| Scenario | What happens | Months | Payment |
+| :--- | :--- | ---: | ---: |
+| The level is 120 on reviews 1 to 5, below 100 on every later review, then ends at 110 | Reviews 1 to 5 cannot call, whatever the level. No later review reaches the trigger, so it runs to the end and the payoff pays principal | 12 | 1,000 |
+| The level is 120 on reviews 1 to 5, then 100 on review 6 | Review 6 is the first that can call, and it is at the trigger: principal plus 8% | 6 | 1,080 |
+
+The trigger is counted from review 1, not from the first call, so a trigger that steps down by 5% from 100% is 85% on review 4 whatever the first call is. The first call can be at most the last review that can call, which is the last but one, or the last when the final review is a call too. The reference does not model coupons, which the public note pays on every review including those in the period.
+
 ## A call on the final review
 
 The last review is the end of the term. By default it pays the payoff. A product can instead treat it as a call too: a final level at or above the trigger on the last review pays principal plus the call amount, in place of the payoff, and a final level below it pays the payoff. The payment is made at maturity, so the product lasts the full term either way. The trigger on the last review is the trigger after any step, such as 75% after stepping down from 100%.
@@ -101,7 +114,7 @@ This is the same shape as an upside barrier with a rebate, where the call amount
 
 ## What is not modelled
 
-Contingent coupons, memory, a period at the start in which the product cannot be called, a trigger that steps by uneven amounts, an issuer call and a schedule of payments. Each would be added on top of the reviews described here.
+Contingent coupons, memory, a trigger that steps by uneven amounts, an issuer call and a schedule of payments. Each would be added on top of the reviews described here.
 
 ## Related concepts
 

@@ -20,6 +20,7 @@ export function structureLines(note: Product): StructureLine[] {
     // Each term of the redemption is its own part, and the reviews are the schedule it is tested on.
     if (top === 'schedule') return 'schedule'
     if (top === 'redemption') {
+      if (second === 'firstCall') return 'first-call'
       if (second === 'trigger') return 'trigger'
       if (second === 'triggerStep') return 'trigger-step'
       if (second === 'callAmount' || second === 'callAmountBasis') return 'call-amount'

@@ -1,6 +1,15 @@
 # Non-call period
 
-This is a plan, not built. It is a separate feature from the first autocall ([observation-dates.md](observation-dates.md), slice 1), which can call from the first review. It adds a stated number of reviews at the start on which the note cannot be called.
+Built, as `firstCall` on the autocall. It is a separate feature from the first autocall ([observation-dates.md](observation-dates.md), slice 1), which can call from the first review. It adds a stated number of reviews at the start on which the note cannot be called.
+
+## What was built
+
+- **`firstCall`**, a whole number from 1 to the last review that can call: the last but one, or the last when the final review is a call too. Omitted means 1. The structure written by the app states it, including at its default.
+- **The trigger is counted from review 1.** A trigger of 100% that steps down 5% is 85% on review 4 whether the first call is review 1 or review 4, because public notes state each date's threshold. The trigger is checked from the first call to the last review that can call.
+- **A review before the first call** is shown as unable to call, whatever its level. The review table shows "No call" and no trigger for it, the calculation says it cannot call, and the named paths put those reviews at the trigger, so a reader sees a level that would have called and did not.
+- **Summary and rule** say "from the 6th" and "from review 6".
+- **Example.** The schema's autocall on a worst-of basket is 12 monthly reviews that cannot call before the sixth, as in the public note below, without its coupons.
+- **Value for a learner.** Small. It changes no payoff and teaches one idea: early reviews are sometimes skipped. It is there so the reference can reproduce the public note's call schedule, and because contingent coupons will need it.
 
 ## Established concepts
 
@@ -33,7 +42,8 @@ Only which reviews can call. Coupons, the trigger and the maturity payment are u
 ## Decisions
 
 1. **Its own feature**, not part of slice 1: agreed.
-2. **Stated in review numbers.** Recommended; months are a display choice.
+2. **Stated in review numbers.** Agreed; months are a display choice.
+3. **Label: "First call".** The row is a review number. The book calls the period the non-call period.
 
 ## Open questions
 

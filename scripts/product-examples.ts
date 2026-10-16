@@ -72,11 +72,11 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     }),
   ],
   [
-    'an autocall reviewed monthly on a worst-of basket, with a buffer at the end of the term',
+    'an autocall reviewed monthly on a worst-of basket that cannot be called before the sixth review, with a buffer at the end of the term',
     note({ participations: [{ direction: 'downside', buffer: 0.2, rate: 1.25 }] }, {
       term: { months: 12 },
       schedule: { frequency: 'monthly' },
-      redemption: { kind: 'autocall', trigger: 1, callAmount: 0.08 },
+      redemption: { kind: 'autocall', trigger: 1, firstCall: 6, callAmount: 0.08 },
       underlier: {
         kind: 'basket',
         components: [{ asset: asset('Index A') }, { asset: asset('Index B') }],

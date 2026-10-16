@@ -29,6 +29,8 @@ export interface ReviewTest {
   level: number
   // The trigger as an underlier level on this review, and whether the review's level is at or above it.
   triggerLevel: number
+  // Whether the review can call. A review in the non-call period cannot, whatever its level.
+  callable: boolean
   called: boolean
   // What a call on this review would pay above principal, as a fraction of principal.
   callAmount: number
@@ -74,7 +76,8 @@ export function redemptionOutcome(note: Product, reviewLevels: number[], levels:
     const review = index + 1
     const months = review * monthsPerReview[note.schedule!.frequency]
     const triggerLevel = barrierLevelAt(triggerAtReview(redemption, review), levels.initial)
-    const test = { review, level, triggerLevel, called: level >= triggerLevel, callAmount: callAmountAtReview(redemption, months) }
+    const callable = review >= (redemption.firstCall ?? 1)
+    const test = { review, level, triggerLevel, callable, called: callable && level >= triggerLevel, callAmount: callAmountAtReview(redemption, months) }
     tests.push(test)
     if (test.called) return { calledAtReview: review, reviews, tests, months, payment: note.principalAmount * (1 + test.callAmount), maturity }
   }
