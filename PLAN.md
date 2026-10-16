@@ -414,11 +414,11 @@ Reviews are the dates on which a condition of the product is tested. A product m
 
 - **A schedule on the product, beside the term.** `"schedule": { "frequency": "monthly" }`: evenly spaced, numbered reviews derived from the term, the last at the end of the term. No calendar dates. This reverses the first proposal's placement of review dates on the concept that observes: the coupon, the call and the final level all read the same dates. Pricing and lookback dates stay with the initial level.
 - **`redemption: 'bullet' | Autocall`.** `{ "kind": "autocall", "trigger": 1, "callAmount": 0.08 }`. The trigger is a share of the determined initial level, read at or above. The call amount is flat, paid above principal whenever the product is called. The last review is the end of the term and pays the payoff; it is not a call. The maturity payment is the existing payment on the final level.
-- **Unavailable with an autocall:** lookback, a barrier observed on every close, and barrier absolute return. Averaging and a basket are allowed. A basket is read as its basket level, one level for each review.
+- **Unavailable with an autocall:** lookback, a barrier observed on every close, and barrier absolute return. Averaging and a basket are allowed. A basket is read as its basket level, which the review table builds from the level of each asset on each review, by the basket's own rule.
 - **Result.** `redemptionOutcome` returns the review the product was called on, the reviews tested, the months it lasted, what it paid, and what the payoff would pay at maturity. The calculation lists the review tests and the call, then the payoff steps, muted when the product was called. The chart still shows the payoff if held to the end of the term.
 - **Scenarios.** A table of the level on each review before the last, with named paths to load (called on the first review, called late, never called and flat, never called and falling).
 - **Book.** Chapter 19, Reviews and early redemption; boundaries moved to chapter 20.
-- **Not done:** review levels for each asset of a basket (one basket level is entered for each review), a rate-and-elapsed-time call amount, a trigger that steps down, the non-call period ([docs/non-call-period.md](docs/non-call-period.md)), contingent coupons with memory, a cash-flow result, an issuer call, and keyboard and narrow-screen checks of the review table beyond overflow.
+- **Not done:** a rate-and-elapsed-time call amount, a trigger that steps down, the non-call period ([docs/non-call-period.md](docs/non-call-period.md)), contingent coupons with memory, a cash-flow result, an issuer call, and keyboard and narrow-screen checks of the review table beyond overflow.
 
 ## Later direction: a composable form
 

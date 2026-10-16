@@ -41,7 +41,7 @@ The payoff chart for a product with an autocall shows what it would pay if held 
 
 ## Underliers and other features
 
-- **A basket** is read as its basket level. For a worst-of basket that is the worst performing asset's level, so one asset below the trigger holds the call back. The reference reads one level for each review.
+- **A basket** is read as its basket level. For a worst-of basket that is the worst performing asset's level, so one asset below the trigger holds the call back. The reader states the level of each asset on each review, and the basket level is worked out from them by the basket's rule.
 - **Averaging** is allowed. The averaging dates that set the final level are not tied to the review dates, so the final level is an average of the levels a reader states, not of the reviews.
 - **Lookback** is not available with an autocall, because the lookback dates are not tied to the review schedule.
 - **A barrier observed on every close** is not available with an autocall: a called product ends before the observation period does, and the single lowest or highest close a scenario states cannot say how far the product got. A barrier read on the final date is available.

@@ -144,14 +144,16 @@ Slice 1 is first because it needs no coupon logic and still forces the hard part
 3. **Keep counts and add no dates** until a payment depends on them. This was the first version's smallest option. It no longer holds, because calls and contingent coupons are now the intended next work.
 4. **A generic trigger type** shared by call, coupon barrier and buffer threshold. Held back: separate named types until a third copy appears ([contingent-autocall.md](contingent-autocall.md), open question 1).
 
-## Decisions to agree
+## Decisions agreed
 
-1. **Numbered periodic reviews, or explicit dates?** Recommended: numbered and periodic.
-2. **A shared review schedule on the product?** Recommended: yes, reversing the first version's co-location for review dates.
-3. **Which slice first?** Recommended: autocall without coupons. The alternative is the contingent coupon, the note that motivated the work.
-4. **The chart with an autocall.** Recommended: keep it as the payoff if held to the final review, and add a separate view of what happens on each review.
-5. **Averaging with a schedule.** Allow with a stated consequence (as with worst-of averaging), or leave unavailable at first.
-6. **Redemption dropdown.** Keep "Autocallable" unavailable until slice 1 lands.
+All six were settled by taking the recommended default, and slice 1 follows them.
+
+1. **Numbered periodic reviews, or explicit dates?** Numbered and periodic.
+2. **A shared review schedule on the product?** Yes, reversing the first version's co-location for review dates.
+3. **Which slice first?** Autocall without coupons.
+4. **The chart with an autocall.** Kept as the payoff if held to the end of the term. The review table shows what happens on each review.
+5. **Averaging with a schedule.** Allowed, with the consequence stated in the book.
+6. **Redemption dropdown.** "Autocallable" is selectable, and unavailable only with the features it cannot combine with.
 
 ## Resolved questions
 
