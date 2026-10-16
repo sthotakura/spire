@@ -508,6 +508,15 @@ export function reviewCount(note: Pick<Product, 'term' | 'schedule'>): number | 
   return note.term.months % months === 0 ? note.term.months / months : undefined
 }
 
+// The frequency a term starts with: semi-annual above a year, quarterly from six months to a year, and monthly below six months. A
+// frequency that does not divide the term into at least two whole periods is passed over for the next finer one, so a term that allows
+// reviews at all starts valid.
+export function suggestedFrequency(months: number): ReviewFrequency {
+  const finer: ReviewFrequency[] = ['semi-annual', 'quarterly', 'monthly']
+  const fits = (frequency: ReviewFrequency) => (reviewCount({ term: { months }, schedule: { frequency } }) ?? 0) >= 2
+  return finer.slice(months > 12 ? 0 : months >= 6 ? 1 : 2).find(fits) ?? 'monthly'
+}
+
 // An autocall reads the underlier on the review dates, so it needs a schedule that divides the term, and the observations that are
 // not tied to those dates are left out. A daily barrier reads the period to the final date, which a called product does not reach.
 function redemptionIssues(note: Product): ProductIssue[] {

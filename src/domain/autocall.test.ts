@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { redemptionOutcome } from './autocall'
-import { basketLevelFrom, productIssues, reviewCount, validateProduct, type Autocall, type BasketUnderlier, type Product, type Schedule } from './note'
+import { basketLevelFrom, productIssues, reviewCount, suggestedFrequency, validateProduct, type Autocall, type BasketUnderlier, type Product, type Schedule } from './note'
 import { startingProduct } from './starting-note'
 
 // Synthetic: a 12-month note on one index, reviewed monthly, called when the index is at or above its initial level.
@@ -26,6 +26,21 @@ describe('review count', () => {
 
   it('is one review, the final date, when there is no schedule', () => {
     expect(reviewCount({ term: { months: 36 } })).toBe(1)
+  })
+})
+
+describe('the frequency a term starts with', () => {
+  it.each<[number, Schedule['frequency']]>([
+    [120, 'semi-annual'], [36, 'semi-annual'], [24, 'semi-annual'], [18, 'semi-annual'], [13, 'monthly'], [15, 'quarterly'],
+    [12, 'quarterly'], [9, 'quarterly'], [6, 'quarterly'], [7, 'monthly'], [5, 'monthly'], [3, 'monthly'], [2, 'monthly'],
+  ])('%i months starts with %s', (months, expected) => {
+    expect(suggestedFrequency(months)).toBe(expected)
+  })
+
+  it('always starts valid when the term allows at least two reviews', () => {
+    for (let months = 2; months <= 120; months++) {
+      expect(fieldsOf(callable({ term: { months }, schedule: { frequency: suggestedFrequency(months) } })), `${months} months`).toEqual([])
+    }
   })
 })
 

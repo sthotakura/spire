@@ -8,6 +8,8 @@ A review schedule says how often a product is reviewed. In public pricing supple
 
 A 12-month term reviewed monthly has 12 reviews. A 36-month term reviewed quarterly has 12. The term must hold a whole number of periods: an 18-month term cannot be reviewed annually.
 
+The reference starts a term with a frequency that keeps the review table readable: semi-annual above a year, quarterly from six months to a year, and monthly below six months, passing over any that does not divide the term into whole periods. The reader can choose another. Public notes can be reviewed more often, even weekly or daily; the reference offers monthly to annual.
+
 Nothing is stated about calendar dates. The issue date, the dates payments are made and the maturity date belong to issuing the product, and the reference leaves them out.
 
 ## Autocall
