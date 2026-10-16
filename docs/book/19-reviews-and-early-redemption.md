@@ -18,11 +18,13 @@ An **autocall** is automatic early redemption. On each review before the last, i
 
 ![A product that can redeem early: if the stated condition is met on a review the product ends and pays then, otherwise it continues to scheduled maturity](diagrams/early-redemption.svg)
 
-Three terms describe it:
+Three terms describe it, and the sections below add three more:
 
 - the **trigger**, a level as a share of the initial level, such as 100%;
 - the **call amount**, paid above principal when the product is called, as a share of principal, such as 8%;
 - the **review frequency**, which sets how many reviews there are.
+
+The others are a **trigger step**, which moves the trigger on each review, whether the call amount is paid for each call or for each year elapsed, and whether the last review is a call too.
 
 The trigger is read at or above: a level exactly at it calls the product. By default the last review is not a call. It is the end of the term, so the payoff reads the final level there, as it does for any product. A product can also be set so that the last review is a call too, as described below.
 
@@ -39,9 +41,9 @@ A synthetic note with principal of 1,000, a term of 12 months, monthly reviews, 
 
 The calculation also states the annualised return, which reads the months the product lasted and not the term. Called on review 7 after 7 months, the 8% is (1,080 ÷ 1,000)^(12 ÷ 7) − 1, or 14.1% a year. Called on review 1 it is the same 8% earned in one month, which annualises to 151.8% a year. A product that ran to the end of its term annualises over the whole term. The steps for the payoff are still shown after a call, under a heading that says they are what it would have paid at maturity, and none of it is paid.
 
-The call amount is the same whenever the product is called, so being called on review 7 pays no more than being called on review 1. A flat amount is a simplification. Some public notes pay more the longer they last, and the reference does not model that.
+In this example the call amount is the same whenever the product is called, so being called on review 7 pays no more than being called on review 1. That is the flat form. Some public notes pay more the longer they last, which the section on a call amount for each year describes.
 
-The payoff chart for a product with an autocall shows what it would pay if held to the end of its term, since that is what is read from the final level. The review table shows when it ends early.
+The payoff chart for a product with an autocall shows what it would pay if held to the end of its term, since that is what is read from the final level. The review table shows when it ends early. In the reference, the table has a column for the level each review needs and one for each level the reader states. Named paths, such as called on the first review, called late after a fall, never called and ending up, or never called and ending down, fill the review levels in one step. A path called before the last review leaves the final level alone, because a product that ended early never reaches it. The final level is dimmed then, since it no longer sets the payment, but it still sets the dot on the chart and the comparison with what the payoff would have paid at maturity.
 
 ## A trigger that steps
 
@@ -53,9 +55,9 @@ The call amount can be paid in one of two ways. **Each call** pays the same amou
 
 ## A call on the final review
 
-The last review is the end of the term. By default it pays the payoff. A product can instead treat it as a call too: a final level at or above the trigger on the last review pays principal plus the call amount, in place of the payoff, and a final level below it pays the payoff. The payment is made at maturity, so the product lasts the full term either way. The trigger on the last review is the stepped-down trigger, such as 75%.
+The last review is the end of the term. By default it pays the payoff. A product can instead treat it as a call too: a final level at or above the trigger on the last review pays principal plus the call amount, in place of the payoff, and a final level below it pays the payoff. The payment is made at maturity, so the product lasts the full term either way. The trigger on the last review is the trigger after any step, such as 75% after stepping down from 100%.
 
-This makes the end of the product pay differently from a product without it. A final level between the last trigger and the initial level pays principal plus the call amount, where the payoff alone could pay only principal.
+This makes the end of the product pay differently from a product without it. With a trigger that has stepped down, a final level between the last trigger and the initial level pays principal plus the call amount, where the payoff alone could pay only principal.
 
 ### A second worked example
 

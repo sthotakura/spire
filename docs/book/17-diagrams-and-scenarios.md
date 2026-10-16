@@ -63,6 +63,10 @@ that close.
 
 ![Absolute return in both directions between barriers at 80% and 125%, with a 2% conditional return, at a final level of 110](charts/barrier-absolute-return.svg)
 
+## A product that can be called
+
+For a product with an autocall, the chart still plots payment against the final level, which is what the product pays if no earlier review called it. Reviews are shown in a table beside the calculation, not on the chart. When the last review is also a call, the line jumps at its trigger to principal plus the call amount, so an upside participation with a high trigger draws as a shark fin. [Reviews and early redemption](19-reviews-and-early-redemption.md) explains both.
+
 ## Choosing scenarios
 
 Include a rise, no change, a modest fall, and a large fall. At a threshold,
