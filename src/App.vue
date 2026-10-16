@@ -16,7 +16,7 @@ import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
 import { redemptionOutcome } from './domain/autocall'
-import { barrierLevelAt, basketBreakdown, basketLevelFrom, reviewCount, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
+import { barrierLevelAt, basketBreakdown, basketLevelFrom, triggerAtReview, reviewCount, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
@@ -30,8 +30,11 @@ const hints = {
   term: 'The length of the product, stated as a duration such as 3 years. Principal is repaid at the end of the term. The issue and maturity dates that put the term on a calendar are set when the product is issued.',
   underlier: 'What the payoff reads: the asset it tracks and how its change is measured, from where it starts. A single underlier tracks one asset. A basket tracks several and combines their changes into one return.',
   schedule: 'How often the product is reviewed through its term. Reviews are evenly spaced and numbered from 1, and the last is the end of the term. The term must hold a whole number of periods.',
-  trigger: 'The level, as a share of the initial level, at or above which the product is called on a review. The last review is the end of the term, so it is not a call.',
-  'call-amount': 'What a call pays above principal, as a share of principal. The same amount is paid whenever the product is called.',
+  trigger: 'The level, as a share of the initial level, at or above which the product is called on the first review. A later review has the same trigger unless it steps down.',
+  'trigger-step-down': 'How far the trigger falls on each review after the first, as a share of the initial level. 5% on a trigger of 100% makes it 95% on review 2, 90% on review 3, and so on. Zero keeps one trigger for every review.',
+  'call-amount': 'What a call pays above principal, as a share of principal. It is paid in full whenever the product is called, or for each year the product has lasted, as the choice below says.',
+  'call-basis': 'Each call pays the call amount whenever the product is called. Each year elapsed pays it for every year the product has lasted, so a call after six months pays half of it and a call after three years pays three times it.',
+  'final-call': 'The last review is the end of the term. It pays the payoff, or it is a call too: a level at or above the trigger on that review pays principal plus the call amount in place of the payoff.',
   asset: 'The equity or equity index the product tracks. Holding the product does not mean owning the asset.',
   determination: 'Sets which observed levels measure the underlier’s change: final ÷ initial − 1. The initial and final levels are each set on their own. Point-to-point uses the fixed initial level and the level on the final date; moves in between do not count. Lookback starts from the lowest of the levels on the pricing date and on several dates after it, so a fall soon after pricing lowers the starting point. Averaging takes the final level as the average of the levels observed on several dates before maturity, so a sharp move on the last date counts for less.',
   'lookback-observations': 'The number of dates after pricing whose levels can lower the starting point. The lowest of their levels and the level on the pricing date is the lookback level.',
@@ -110,6 +113,9 @@ const redemptionKind = ref<'bullet' | 'autocall'>('bullet')
 const reviewFrequency = ref<ReviewFrequency>('monthly')
 const triggerPercent = ref(100)
 const callAmountPercent = ref(8)
+const triggerStepDownPercent = ref(0)
+const callAmountBasis = ref<'flat' | 'per-year'>('flat')
+const callOnFinal = ref(false)
 const autocalled = computed(() => redemptionKind.value === 'autocall')
 const reviewLevelInputs = ref<number[]>([])
 // For a basket the level of each asset on each review, review by review, in the order of the assets.
@@ -419,7 +425,16 @@ const note = computed<Product>(() => ({
   principalAmount: principal.value,
   term: { months: termMonths.value },
   schedule: autocalled.value ? { frequency: reviewFrequency.value } : undefined,
-  redemption: autocalled.value ? { kind: 'autocall', trigger: fractionFrom(triggerPercent.value), callAmount: fractionFrom(callAmountPercent.value) } : 'bullet',
+  redemption: autocalled.value
+    ? {
+        kind: 'autocall',
+        trigger: fractionFrom(triggerPercent.value),
+        ...(triggerStepDownPercent.value !== 0 ? { triggerStepDown: fractionFrom(triggerStepDownPercent.value) } : {}),
+        callAmount: fractionFrom(callAmountPercent.value),
+        ...(callAmountBasis.value === 'per-year' ? { callAmountBasis: 'per-year' as const } : {}),
+        ...(callOnFinal.value ? { callOnFinalReview: true } : {}),
+      }
+    : 'bullet',
   underlier: underlier.value,
   payoff: {
     participations: withSubFeatures(selectedDirections.value.map((direction) => ({ direction, rate: participationPercent[direction] / 100 })), {
@@ -518,14 +533,19 @@ const reviewsBeforeLast = computed(() => {
   return autocalled.value && count !== undefined && count >= 2 ? count - 1 : 0
 })
 // Until the reader sets one, a review is a little below the trigger, so the product is not called and the payoff is what the chart shows.
-const defaultReviewFraction = computed(() => (Number.isFinite(triggerPercent.value) ? triggerPercent.value / 100 : 1) * 0.9)
-const defaultReviewLevel = computed(() => (Number.isFinite(determinedInitialLevel.value) ? determinedInitialLevel.value : 100) * defaultReviewFraction.value)
+// The trigger of a review falls with a step-down, so each review's default is its own trigger less a tenth.
+const defaultReviewFraction = (index: number) => {
+  const { redemption: terms } = note.value
+  const trigger = terms === 'bullet' ? 1 : triggerAtReview(terms, index + 1)
+  return (Number.isFinite(trigger) ? Math.max(trigger, 0) : 1) * 0.9
+}
+const defaultReviewLevel = (index: number) => (Number.isFinite(determinedInitialLevel.value) ? determinedInitialLevel.value : 100) * defaultReviewFraction(index)
 // A basket is read on each review as one level, from the level of each asset by the basket's own rule.
-const reviewAssetLevels = computed(() => Array.from({ length: reviewsBeforeLast.value }, (_, review) => basketAssets.value.map(({ initialLevel }, asset) => reviewAssetInputs.value[review]?.[asset] ?? initialLevel * defaultReviewFraction.value)))
+const reviewAssetLevels = computed(() => Array.from({ length: reviewsBeforeLast.value }, (_, review) => basketAssets.value.map(({ initialLevel }, asset) => reviewAssetInputs.value[review]?.[asset] ?? initialLevel * defaultReviewFraction(review))))
 const reviewLevels = computed(() => {
   const { underlier } = note.value
   if (underlier.kind === 'basket') return reviewAssetLevels.value.map((levels) => initialValid.value && levels.every((level) => Number.isFinite(level) && level >= 0) ? basketLevelFrom(underlier, levels) : Number.NaN)
-  return Array.from({ length: reviewsBeforeLast.value }, (_, index) => reviewLevelInputs.value[index] ?? defaultReviewLevel.value)
+  return Array.from({ length: reviewsBeforeLast.value }, (_, index) => reviewLevelInputs.value[index] ?? defaultReviewLevel(index))
 })
 const setReviewLevel = (index: number, level: number) => { reviewLevelInputs.value = reviewLevels.value.map((current, i) => i === index ? level : current) }
 const setReviewAssetLevel = (review: number, asset: number, level: number) => { reviewAssetInputs.value = reviewAssetLevels.value.map((levels, r) => r === review ? levels.map((current, a) => a === asset ? level : current) : levels) }
@@ -978,10 +998,29 @@ const chart = computed(() => {
                     </li>
                     <li class="node" :style="conceptStyle('redemption')">
                       <div class="nrow" @click="select('redemption')" @focusin="focusRow('redemption')">
+                        <span class="nlabel">Trigger step-down<HintToggle id="trigger-step-down" about="the trigger step-down" :text="hints['trigger-step-down']" :active="activeHint === 'trigger-step-down'" @toggle="toggleHint('trigger-step-down')" /></span>
+                        <span class="ctrl"><NumberInput id="trigger-step-down" v-model="triggerStepDownPercent" class="num rate" aria-label="Trigger step-down: fall on each later review (% of the initial level)" /><span class="unit">%</span></span>
+                      </div>
+                      <ul v-if="issuesFor('triggerStepDown').length" class="errors" role="alert"><li v-for="message in issuesFor('triggerStepDown')" :key="message">{{ message }}</li></ul>
+                    </li>
+                    <li class="node" :style="conceptStyle('redemption')">
+                      <div class="nrow" @click="select('redemption')" @focusin="focusRow('redemption')">
                         <span class="nlabel">Call amount<HintToggle id="call-amount" about="the call amount" :text="hints['call-amount']" :active="activeHint === 'call-amount'" @toggle="toggleHint('call-amount')" /></span>
                         <span class="ctrl"><NumberInput id="call-amount-input" v-model="callAmountPercent" class="num rate" aria-label="Call amount: paid above principal (% of principal)" /><span class="unit">%</span></span>
                       </div>
                       <ul v-if="issuesFor('callAmount').length" class="errors" role="alert"><li v-for="message in issuesFor('callAmount')" :key="message">{{ message }}</li></ul>
+                    </li>
+                    <li class="node" :style="conceptStyle('redemption')">
+                      <div class="nrow" @click="select('redemption')" @focusin="focusRow('redemption')">
+                        <span class="nlabel">Call amount for<HintToggle id="call-basis" about="what the call amount is for" :text="hints['call-basis']" :active="activeHint === 'call-basis'" @toggle="toggleHint('call-basis')" /></span>
+                        <span class="ctrl pick"><select id="call-basis" v-model="callAmountBasis" aria-label="Call amount for"><option value="flat">Each call</option><option value="per-year">Each year elapsed</option></select></span>
+                      </div>
+                    </li>
+                    <li class="node" :style="conceptStyle('redemption')">
+                      <div class="nrow" @click="select('redemption')" @focusin="focusRow('redemption')">
+                        <span class="nlabel">Final review<HintToggle id="final-call" about="the final review" :text="hints['final-call']" :active="activeHint === 'final-call'" @toggle="toggleHint('final-call')" /></span>
+                        <span class="ctrl pick"><select id="final-call" v-model="callOnFinal" aria-label="Final review"><option :value="false">Pays the payoff</option><option :value="true">Is a call too</option></select></span>
+                      </div>
                     </li>
                   </ul>
                 </li>
@@ -1184,7 +1223,7 @@ const chart = computed(() => {
         </section>
 
         <section class="panel preview" aria-label="Payoff preview">
-          <header class="panel-head"><h2>Payoff at {{ wrapper === 'deposit' ? 'maturity' : 'redemption' }}</h2><p>{{ autocalled ? 'What it pays if held to the end of its term, for each hypothetical final level' : 'What it pays for each hypothetical final level' }}</p></header>
+          <header class="panel-head"><h2>Payoff at {{ wrapper === 'deposit' ? 'maturity' : 'redemption' }}</h2><p>{{ autocalled ? (callOnFinal ? 'What the payoff pays at the end of its term for each hypothetical final level. At or above the last trigger, the final review calls it instead' : 'What it pays if held to the end of its term, for each hypothetical final level') : 'What it pays for each hypothetical final level' }}</p></header>
           <template v-if="chart">
             <svg ref="chartSvg" :class="['chart', { 'feature-selected': featureSelected }]" viewBox="0 0 620 350" role="group" :aria-label="chartDescription" :style="{ '--label': `${11 * labelScale}px` }">
               <defs><clipPath id="plot-clip"><rect :x="plot.left" :y="plot.top" :width="plot.right - plot.left" :height="plot.bottom - plot.top"/></clipPath></defs>
