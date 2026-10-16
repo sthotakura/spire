@@ -37,19 +37,27 @@ describe('summary', () => {
     expect(text(startingProduct)).toBe('A 3-year note that redeems at maturity and repays its principal, linked to Synthetic Index, measured point-to-point from 100.')
   })
 
-  it('tags the call clause with the redemption concept', () => {
-    const concepts = summarize(callable).filter(({ concept }) => concept === 'redemption').map(({ text }) => text)
-    expect(concepts.join('')).toContain('at or above 100%')
-    expect(concepts).toContain('at maturity')
+  it('tags each term of the call clause with its own concept', () => {
+    const tagged = (concept: string) => summarize(callable).filter((segment) => segment.concept === concept).map(({ text }) => text)
+    expect(tagged('trigger')).toEqual(['is at or above 100% of its initial level'])
+    expect(tagged('schedule')).toEqual(['monthly'])
+    expect(tagged('final-call')).toEqual(['before maturity'])
+    expect(tagged('call-amount')).toEqual(['paying 8% above principal'])
+    expect(tagged('redemption')).toEqual(['at maturity'])
+    expect(tagged('trigger-step')).toEqual([])
+    expect(summarize(stepped).filter(({ concept }) => concept === 'trigger-step').map(({ text }) => text)).toEqual(['falling 5% on each later review'])
   })
 })
 
 describe('structure JSON', () => {
-  it('tags the schedule and the autocall with the redemption concept, and keeps the shape of the product', () => {
+  it('tags the schedule, the trigger and the call amount with their own concepts, and keeps the shape of the product', () => {
     const lines = structureLines(callable)
     expect(lines.map(({ text }) => text).join('\n')).toBe(JSON.stringify(callable, null, 2))
-    const redemptionLines = lines.filter(({ concept }) => concept === 'redemption').map(({ text }) => text.trim())
-    expect(redemptionLines).toEqual(['"schedule": {', '"frequency": "monthly"', '},', '"redemption": {', '"kind": "autocall",', '"trigger": 1,', '"callAmount": 0.08', '},'])
+    const tagged = (concept: string) => lines.filter((line) => line.concept === concept).map(({ text }) => text.trim())
+    expect(tagged('schedule')).toEqual(['"schedule": {', '"frequency": "monthly"', '},'])
+    expect(tagged('redemption')).toEqual(['"redemption": {', '"kind": "autocall",', '},'])
+    expect(tagged('trigger')).toEqual(['"trigger": 1,'])
+    expect(tagged('call-amount')).toEqual(['"callAmount": 0.08'])
   })
 })
 

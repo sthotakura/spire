@@ -17,8 +17,15 @@ export function structureLines(note: Product): StructureLine[] {
     const [top, second, third, fourth] = path
     // The principal and the term are terms of the whole product, shown on the wrapper's row.
     if (top === 'wrapper' || top === 'principalAmount' || top === 'term') return 'wrapper'
-    // The reviews are how the redemption is tested, so they are shown and highlighted with it.
-    if (top === 'redemption' || top === 'schedule') return 'redemption'
+    // Each term of the redemption is its own part, and the reviews are the schedule it is tested on.
+    if (top === 'schedule') return 'schedule'
+    if (top === 'redemption') {
+      if (second === 'trigger') return 'trigger'
+      if (second === 'triggerStep') return 'trigger-step'
+      if (second === 'callAmount' || second === 'callAmountBasis') return 'call-amount'
+      if (second === 'callOnFinalReview') return 'final-call'
+      return 'redemption'
+    }
     if (top === 'underlier') {
       if (second === 'components' && typeof third === 'number') return 'asset'
       if (second === 'determination') return third === 'initial' ? 'initial-level' : third === 'final' ? 'final-level' : third === 'basketReturn' ? 'basket-return' : 'determination'

@@ -177,10 +177,10 @@ describe('a final review that calls', () => {
   const callable: Product = { ...startingProduct, term: { months: 12 }, schedule: { frequency: 'monthly' }, redemption: { kind: 'autocall', trigger: 1.2, callAmount: 0.1, callOnFinalReview: true } }
 
   it('says what it pays, from the trigger of the last review', () => {
-    expect(payoffLabels(callable).redemption).toBe('At or above 120% of the initial level the final review calls it, paying 1,100')
+    expect(payoffLabels(callable)['final-call']).toBe('At or above 120% of the initial level the final review calls it, paying 1,100')
   })
 
   it('says nothing when the final review is not a call', () => {
-    expect(payoffLabels({ ...callable, redemption: { kind: 'autocall', trigger: 1.2, callAmount: 0.1 } }).redemption).toBeUndefined()
+    expect(payoffLabels({ ...callable, redemption: { kind: 'autocall', trigger: 1.2, callAmount: 0.1 } })['final-call']).toBeUndefined()
   })
 })

@@ -1,8 +1,11 @@
 import type { ConceptId } from './concepts'
 
-// Selecting a part selects the parts nested under it, at any depth: the payoff its features, each participation its buffer,
+// Selecting a part selects the parts nested under it, at any depth: the redemption its reviews, trigger, call amount and final review,
+// the trigger its step, the payoff its features, each participation its buffer,
 // barrier, absolute return or cap, the underlier its assets and determination, and the determination its initial and final levels and a basket's return.
 const nestedConcepts: Partial<Record<ConceptId, readonly ConceptId[]>> = {
+  redemption: ['schedule', 'trigger', 'call-amount', 'final-call'],
+  trigger: ['trigger-step'],
   payoff: ['protection', 'minimum-return', 'upside', 'downside'],
   downside: ['buffer', 'barrier', 'absolute-return'],
   upside: ['barrier', 'cap'],

@@ -72,7 +72,7 @@ export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, s
   const { redemption } = product
   const reviews = reviewCount(product)
   if (redemption !== 'bullet' && redemption.callOnFinalReview && reviews !== undefined) {
-    labels.redemption = `At or above ${percent(triggerAtReview(redemption, reviews))} of the initial level the final review calls it, paying ${amount(principal * (1 + callAmountAtReview(redemption, product.term.months)))}`
+    labels['final-call'] = `At or above ${percent(triggerAtReview(redemption, reviews))} of the initial level the final review calls it, paying ${amount(principal * (1 + callAmountAtReview(redemption, product.term.months)))}`
   }
   if (principalProtection !== undefined) labels.protection = `Never below ${amount(principal * principalProtection)}`
   if (minimumReturn !== undefined) labels['minimum-return'] = `Never below ${amount(principal * (1 + minimumReturn))}`

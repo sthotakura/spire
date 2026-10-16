@@ -34,6 +34,19 @@ describe('selection', () => {
     for (const concept of ['wrapper', 'redemption', 'underlier', 'asset', 'determination'] as const) expect(isHighlighted('payoff', concept)).toBe(false)
   })
 
+  it('selects the reviews, trigger, trigger step, call amount and final review together with the redemption', () => {
+    for (const part of ['schedule', 'trigger', 'trigger-step', 'call-amount', 'final-call'] as const) expect(isHighlighted('redemption', part)).toBe(true)
+    for (const concept of ['wrapper', 'underlier', 'payoff', 'upside'] as const) expect(isHighlighted('redemption', concept)).toBe(false)
+  })
+
+  it('selects the trigger step with the trigger, and only the part that is selected otherwise', () => {
+    expect(isHighlighted('trigger', 'trigger-step')).toBe(true)
+    expect(isHighlighted('trigger-step', 'trigger')).toBe(false)
+    expect(isHighlighted('trigger', 'call-amount')).toBe(false)
+    expect(isHighlighted('call-amount', 'redemption')).toBe(false)
+    expect(isHighlighted('schedule', 'final-call')).toBe(false)
+  })
+
   it('selects the asset and determination together with the underlier', () => {
     expect(isHighlighted('underlier', 'asset')).toBe(true)
     expect(isHighlighted('underlier', 'determination')).toBe(true)
