@@ -270,6 +270,28 @@ describe('a worst-of basket as the underlier of an autocall', () => {
 })
 
 // The worked example of the book chapter on reviews and early redemption.
+describe('the second book example', () => {
+  const note = callable({
+    term: { months: 36 },
+    schedule: { frequency: 'semi-annual' },
+    redemption: autocall({ trigger: 1, triggerStepDown: 0.05, callAmount: 0.1, callAmountBasis: 'per-year', callOnFinalReview: true }),
+    payoff: { participations: [{ direction: 'downside', barrier: { level: 0.5, observation: 'final' }, rate: 1 }] },
+  })
+
+  it.each<[string, number[], number, number | undefined, number, number]>([
+    ['called on review 1', [100, 90, 85, 80, 75], 100, 1, 6, 1050],
+    ['called on review 3', [95, 89, 90, 80, 75], 100, 3, 18, 1150],
+    ['called on review 6', [95, 90, 85, 79, 75], 75, 6, 36, 1300],
+    ['not called, final level 70', [95, 90, 85, 79, 75], 70, undefined, 36, 1000],
+    ['not called, final level 40', [95, 90, 85, 79, 75], 40, undefined, 36, 400],
+  ])('%s', (_, reviews, final, calledAt, months, payment) => {
+    const outcome = redemptionOutcome(note, reviews, { initial: 100, final })
+    expect(outcome.calledAtReview).toBe(calledAt)
+    expect(outcome.months).toBe(months)
+    expect(outcome.payment).toBeCloseTo(payment, 9)
+  })
+})
+
 describe('the book example', () => {
   const note = callable({ payoff: { participations: [{ direction: 'downside', rate: 1 }] } })
   const below = flat(11, 99)

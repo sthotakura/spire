@@ -91,9 +91,9 @@ Autocall belongs with redemption behaviour, beside bullet ([feature-map.md](feat
 }
 ```
 
-- **Trigger.** The underlier level, as a fraction of the determined initial level, at or above which the note is called on a review. The comparison reads the basket level, so worst-of works already. A step-down is a later addition, deferred.
-- **Call amount.** A flat amount, the same on every call date, as a fraction of principal: the note repays principal plus this amount when it is called. The UBS note's amount rises with elapsed time (a rate times years); that form is recorded as a later addition ([Resolved questions](#resolved-questions)).
-- **Called on every review before the last.** The call is tested on reviews 1 to N−1. The final review is the maturity: it pays the payoff as it does today, so there is no call at the end. This is how both JPM notes treat their last review, and it keeps the final review's payment in one place.
+- **Trigger.** The underlier level, as a fraction of the determined initial level, at or above which the note is called on a review. The comparison reads the basket level, so worst-of works already. It can step down by the same amount on each review after the first (`triggerStepDown`), as in the UBS note's 100% to 75% over six dates.
+- **Call amount.** A fraction of principal: the note repays principal plus this amount when it is called. It is either the same on every call date (`flat`) or a rate for each year elapsed (`per-year`, the UBS form: 37.5% a year pays 18.75% after six months).
+- **Called on every review before the last.** The call is tested on reviews 1 to N−1. The final review is the maturity: it pays the payoff as it does today, so there is no call at the end. This is how both JPM notes treat their last review, and it keeps the final review's payment in one place. The UBS note also tests its final valuation date for a call, so the final review can be made a call too (`callOnFinalReview`); a final level at or above the last trigger then pays principal plus the call amount at maturity.
 - **No non-call period in slice 1.** The first review can call. A non-call period is its own feature ([non-call-period.md](non-call-period.md)).
 - **The maturity payment is unchanged.** It is `paymentBreakdown` on the final review's level, so the tests built so far should not change.
 
@@ -113,7 +113,7 @@ Each slice needs a public source, a book chapter, a schema example and tests, an
 | 4 | **Fixed coupon on the schedule** | [coupon.md](coupon.md) | A coupon always paid; the schedule replaces coupon.md's own frequency |
 | 5 | **Issuer call** | SSPA softcall | An issuer option on stated reviews, which tests no level |
 | — | **Non-call period** | JPM contingent interest note | Its own feature, planned in [non-call-period.md](non-call-period.md) |
-| — | **Call amount from a rate and elapsed time; trigger step-down** | UBS step-down note | Later additions to slice 1 |
+| — | **Call amount from a rate and elapsed time; trigger step-down; final review as a call** | UBS step-down note | Added to slice 1. The three together reproduce the UBS note's call schedule |
 
 Slice 1 is first because it needs no coupon logic and still forces the hard parts: the schedule, the path scenario, and a result that is not one payment.
 
@@ -134,7 +134,7 @@ Slice 1 is first because it needs no coupon logic and still forces the hard part
 - Reviews are evenly spaced whole numbers of months. Public notes list calendar dates, which are roughly monthly or quarterly but shift with weekends; the periodic form simplifies this.
 - Postponement for market disruption is described in words, not modelled.
 - A lookback period of every trading day is represented by a short list of stated dates, as the count already is.
-- **The call amount is flat, a simplification.** No source read pays the same extra amount on every call date with no coupon: the UBS note's rises with elapsed time, and the JPM notes pay principal plus that date's coupon. A flat amount is the smallest form that has a stated meaning. The UBS table cannot be reproduced exactly until the rate form is added.
+- **The call amount is flat, a simplification.** No source read pays the same extra amount on every call date with no coupon: the UBS note's rises with elapsed time, and the JPM notes pay principal plus that date's coupon. A flat amount is the smallest form that has a stated meaning. The rate form (`per-year`) reproduces the UBS table.
 - The call trigger is a level of the basket or underlier, measured from the determined initial level.
 
 ## Alternatives considered
@@ -161,13 +161,13 @@ Questions raised earlier in this proposal, and how they were settled.
 
 | Question | Answer |
 |---|---|
-| **Call amount** | A flat amount on each call date first. A rate times elapsed time (the UBS form) is a later addition. |
+| **Call amount** | A flat amount on each call date first. A rate times elapsed time (the UBS form) was added afterwards, as `callAmountBasis: 'per-year'`. |
 | **Non-call period** | A separate feature, planned in [non-call-period.md](non-call-period.md). Slice 1 can call from the first review. |
 | **Call test at the final review** | The last review is the schedule's last date, the final valuation date and the maturity. The call is tested only on earlier reviews, and the final review pays the payoff. |
 | **Strike date versus pricing date** | Not distinguished. The initial level is the initial level. Separate strike and pricing dates are issuance. |
 | **Term after a call** | The term is the scheduled length. A called note ends earlier, and the result states the actual length. See below. |
 | **Business-day and payment lags** | Out of scope. They are issuance concepts. |
-| **Trigger step-down** | Deferred. Slice 1 has a single trigger level. |
+| **Trigger step-down** | Added after slice 1 as one step-down for every review after the first. A threshold listed date by date, with uneven steps, is not modelled. |
 
 ### Term after a call
 

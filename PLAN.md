@@ -418,7 +418,8 @@ Reviews are the dates on which a condition of the product is tested. A product m
 - **Result.** `redemptionOutcome` returns the review the product was called on, the reviews tested, the months it lasted, what it paid, and what the payoff would pay at maturity. The calculation lists the review tests and the call, then the payoff steps, muted when the product was called. The chart still shows the payoff if held to the end of the term.
 - **Scenarios.** A table of the level on each review before the last, with named paths to load (called on the first review, called late, never called and flat, never called and falling).
 - **Book.** Chapter 19, Reviews and early redemption; boundaries moved to chapter 20.
-- **Not done:** a rate-and-elapsed-time call amount, a trigger that steps down, the non-call period ([docs/non-call-period.md](docs/non-call-period.md)), contingent coupons with memory, a cash-flow result, an issuer call, and keyboard and narrow-screen checks of the review table beyond overflow.
+- **Added afterwards:** a trigger that steps down by the same amount on each review (`triggerStepDown`), a call amount for each year elapsed (`callAmountBasis: 'per-year'`), and the final review as a call too (`callOnFinalReview`). Read against the UBS step-down note, whose final valuation date is also a call test, these reproduce its call schedule: 100% falling to 75% over six semi-annual reviews, a call return of a rate times the years elapsed, and a downside threshold on the final level. The chart still draws the payoff alone; the review table and the calculation show a call on the final review.
+- **Not done:** uneven thresholds listed date by date, the non-call period ([docs/non-call-period.md](docs/non-call-period.md)), contingent coupons with memory, a cash-flow result, an issuer call, and keyboard and narrow-screen checks of the review table beyond overflow.
 
 ## Later direction: a composable form
 

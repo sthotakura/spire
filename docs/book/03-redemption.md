@@ -24,7 +24,7 @@ automatically by a condition in the terms; an issuer call gives the issuer a
 right to redeem under stated terms. These are distinct from bullet redemption.
 Their payment amounts and observation conditions must be read from the contract.
 SPIRe models the autocall: [Reviews and early redemption](19-reviews-and-early-redemption.md)
-explains its reviews, trigger and call amount. An issuer call is not modelled.
+explains its reviews, trigger, call amount, a trigger that steps down and a call on the final review. An issuer call is not modelled.
 
 ![A note that can redeem early: if the stated condition is met on an observation date the note ends and pays then, otherwise it continues to scheduled maturity](diagrams/early-redemption.svg)
 
