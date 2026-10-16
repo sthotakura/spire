@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { renderTable } from './book-table'
 
 interface Chapter { slug: string; title: string; source: string }
 
@@ -42,7 +43,13 @@ const renderMarkdown = (source: string) => {
   let paragraph: string[] = []
   let list: string[] = []
   let code: string[] | null = null
+  let table: string[] = []
 
+  const flushTable = () => {
+    // Lines that are not a table, such as a stray row, are shown as text.
+    if (table.length) output.push(renderTable(table, inlineMarkdown) ?? `<p>${inlineMarkdown(table.join(' '))}</p>`)
+    table = []
+  }
   const flushParagraph = () => {
     if (paragraph.length) output.push(`<p>${inlineMarkdown(paragraph.join(' '))}</p>`)
     paragraph = []
@@ -57,6 +64,7 @@ const renderMarkdown = (source: string) => {
   }
 
   for (const line of lines) {
+    if (table.length && !/^\|/.test(line.trim())) flushTable()
     const image = line.trim().match(/^!\[([^\]]*)\]\(([^)]+)\)$/)
     if (!code && image) {
       flushParagraph(); flushList()
@@ -67,6 +75,8 @@ const renderMarkdown = (source: string) => {
       if (code) flushCode(); else code = []
     } else if (code) {
       code.push(line)
+    } else if (/^\|/.test(line.trim())) {
+      flushParagraph(); flushList(); table.push(line.trim())
     } else if (/^### /.test(line)) {
       flushParagraph(); flushList(); output.push(`<h3>${inlineMarkdown(line.slice(4))}</h3>`)
     } else if (/^## /.test(line)) {
@@ -83,7 +93,7 @@ const renderMarkdown = (source: string) => {
       paragraph.push(line.trim())
     }
   }
-  flushParagraph(); flushList(); flushCode()
+  flushParagraph(); flushList(); flushTable(); flushCode()
   return output.join('\n')
 }
 

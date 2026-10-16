@@ -4,7 +4,7 @@ Some products are tested on a series of dates through their life, not only at th
 
 ## Reviews
 
-A review schedule says how often a product is reviewed. In public pricing supplements the reviews are listed as dates, roughly monthly or quarterly. The reference models them as a frequency and a count: the reviews are evenly spaced through the term and numbered from 1, and the last review is the end of the term.
+A review schedule says how often a product is reviewed. Public notes call these dates "observation dates" or "review dates". The reference calls them reviews to keep them apart from the observations that set the initial and final levels, such as the dates averaged into a final level, and from a barrier observed on every close. In public pricing supplements the reviews are listed as dates, roughly monthly or quarterly. The reference models them as a frequency and a count: the reviews are evenly spaced through the term and numbered from 1, and the last review is the end of the term.
 
 A 12-month term reviewed monthly has 12 reviews. A 36-month term reviewed quarterly has 12. The term must hold a whole number of periods: an 18-month term cannot be reviewed annually.
 
