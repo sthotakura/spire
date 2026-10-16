@@ -123,6 +123,16 @@ const callAmountBasis = ref<'flat' | 'per-year'>('flat')
 const callOnFinal = ref(false)
 const autocalled = computed(() => redemptionKind.value === 'autocall')
 const reviewLevelInputs = ref<number[]>([])
+// A schedule with many reviews is allowed, but each review is a level to set, so the reader is told what a coarser one would give.
+const reviewNudge = computed(() => {
+  const count = autocalled.value ? reviewCount({ term: { months: termMonths.value }, schedule: { frequency: reviewFrequency.value } }) : undefined
+  if (count === undefined || count <= 24) return ''
+  const suggested = suggestedFrequency(termMonths.value)
+  const suggestedCount = reviewCount({ term: { months: termMonths.value }, schedule: { frequency: suggested } })
+  if (suggestedCount === undefined || suggestedCount >= count) return ''
+  const label = reviewFrequencyOptions.find(({ id }) => id === suggested)!.label.toLowerCase()
+  return `${count} reviews is a lot to set by hand. ${label[0].toUpperCase()}${label.slice(1)} reviews would give ${suggestedCount}.`
+})
 // For a basket the level of each asset on each review, review by review, in the order of the assets.
 const reviewAssetInputs = ref<number[][]>([])
 // A term of whole years is also shown in years, as term sheets often state it.
@@ -998,6 +1008,7 @@ const chart = computed(() => {
                         <span class="nlabel">Reviews<HintToggle id="schedule" about="the review schedule" :text="hints.schedule" :active="activeHint === 'schedule'" @toggle="toggleHint('schedule')" /></span>
                         <span class="ctrl pick"><select id="review-frequency" v-model="reviewFrequency" aria-label="Review frequency"><option v-for="option in reviewFrequencyOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
                       </div>
+                      <p v-if="reviewNudge && !issuesFor('schedule').length" class="nudge">{{ reviewNudge }}</p>
                       <ul v-if="issuesFor('schedule').length" class="errors" role="alert"><li v-for="message in issuesFor('schedule')" :key="message">{{ message }}</li></ul>
                     </li>
                     <li class="node" :style="conceptStyle('redemption')">

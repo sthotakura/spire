@@ -57,3 +57,4 @@
 .review-test{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:650;text-align:center;white-space:nowrap;background:#eef1f6;color:#44506a}
 .review-test.called{background:#dff3e6;color:#17612e}
 .review-test.ended{background:transparent;color:#8a94a6;font-weight:500}
+.nudge{color:#66758b;font-size:13px;line-height:1.45;margin:4px 0 0 18px}
