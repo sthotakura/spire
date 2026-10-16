@@ -16,7 +16,7 @@ import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
 import { redemptionOutcome } from './domain/autocall'
-import { barrierLevelAt, basketBreakdown, reviewCount, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
+import { barrierLevelAt, basketBreakdown, basketLevelFrom, reviewCount, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, maturityPayment, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
@@ -112,6 +112,8 @@ const triggerPercent = ref(100)
 const callAmountPercent = ref(8)
 const autocalled = computed(() => redemptionKind.value === 'autocall')
 const reviewLevelInputs = ref<number[]>([])
+// For a basket the level of each asset on each review, review by review, in the order of the assets.
+const reviewAssetInputs = ref<number[][]>([])
 // A term of whole years is also shown in years, as term sheets often state it.
 const termYears = computed(() => Number.isInteger(termMonths.value) && termMonths.value > 0 && termMonths.value % 12 === 0 ? `${termMonths.value / 12} year${termMonths.value === 12 ? '' : 's'}` : null)
 // The level on the pricing date. With a fixed initial level it is the stated term; with lookback it is the first observed
@@ -171,6 +173,7 @@ function removeAsset(index: number) {
   beginGesture()
   basketAssets.value = withEqualWeights(basketAssets.value.filter((_, i) => i !== index))
   basketLevels.value = basketObservations.value.filter((_, i) => i !== index)
+  reviewAssetInputs.value = reviewAssetInputs.value.map((levels) => levels.filter((_, i) => i !== index))
 }
 const determination = computed<Determination>(() => ({
   initial: initialKind.value === 'lookback' ? { kind: 'lookback', observationCount: lookbackCount.value } : { kind: 'given', level: initialLevel.value },
@@ -515,10 +518,18 @@ const reviewsBeforeLast = computed(() => {
   return autocalled.value && count !== undefined && count >= 2 ? count - 1 : 0
 })
 // Until the reader sets one, a review is a little below the trigger, so the product is not called and the payoff is what the chart shows.
-const defaultReviewLevel = computed(() => (Number.isFinite(determinedInitialLevel.value) ? determinedInitialLevel.value : 100) * (Number.isFinite(triggerPercent.value) ? triggerPercent.value / 100 : 1) * 0.9)
-const reviewLevels = computed(() => Array.from({ length: reviewsBeforeLast.value }, (_, index) => reviewLevelInputs.value[index] ?? defaultReviewLevel.value))
+const defaultReviewFraction = computed(() => (Number.isFinite(triggerPercent.value) ? triggerPercent.value / 100 : 1) * 0.9)
+const defaultReviewLevel = computed(() => (Number.isFinite(determinedInitialLevel.value) ? determinedInitialLevel.value : 100) * defaultReviewFraction.value)
+// A basket is read on each review as one level, from the level of each asset by the basket's own rule.
+const reviewAssetLevels = computed(() => Array.from({ length: reviewsBeforeLast.value }, (_, review) => basketAssets.value.map(({ initialLevel }, asset) => reviewAssetInputs.value[review]?.[asset] ?? initialLevel * defaultReviewFraction.value)))
+const reviewLevels = computed(() => {
+  const { underlier } = note.value
+  if (underlier.kind === 'basket') return reviewAssetLevels.value.map((levels) => initialValid.value && levels.every((level) => Number.isFinite(level) && level >= 0) ? basketLevelFrom(underlier, levels) : Number.NaN)
+  return Array.from({ length: reviewsBeforeLast.value }, (_, index) => reviewLevelInputs.value[index] ?? defaultReviewLevel.value)
+})
 const setReviewLevel = (index: number, level: number) => { reviewLevelInputs.value = reviewLevels.value.map((current, i) => i === index ? level : current) }
-const reviewError = computed(() => reviewLevels.value.every((level) => Number.isFinite(level) && level >= 0) ? '' : 'Each review level must be zero or greater.')
+const setReviewAssetLevel = (review: number, asset: number, level: number) => { reviewAssetInputs.value = reviewAssetLevels.value.map((levels, r) => r === review ? levels.map((current, a) => a === asset ? level : current) : levels) }
+const reviewError = computed(() => (isBasket.value ? reviewAssetLevels.value.flat() : reviewLevels.value).every((level) => Number.isFinite(level) && level >= 0) ? '' : 'Each review level must be zero or greater.')
 const redemption = computed(() => autocalled.value && valid.value && !reviewError.value && breakdown.value
   ? redemptionOutcome(note.value, reviewLevels.value, { initial: determinedInitialLevel.value, final: finalLevel.value })
   : null)
@@ -529,6 +540,8 @@ const loadPath = (event: Event) => {
   choice.value = ''
   if (!path) return
   reviewLevelInputs.value = path.reviewLevels
+  // A path is a basket level, so every asset moves by the same share of its initial level, which gives that level under any basket rule.
+  reviewAssetInputs.value = path.reviewLevels.map((level) => basketAssets.value.map(({ initialLevel }) => Math.round(initialLevel * level / basketStartingLevel * 100) / 100))
   setFinalLevel(path.finalLevel)
 }
 const outcomeSentence = computed(() => {
@@ -1246,7 +1259,7 @@ const chart = computed(() => {
               <div v-if="highestCloseWanted && highestClose !== undefined" class="hint-field"><div class="field-heading"><label for="highest-close">Highest close: hypothetical highest close of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About the highest close" aria-controls="highest-close-hint" :aria-expanded="activeHint === 'highest-close'" @click="toggleHint('highest-close')">ⓘ</button><p v-if="activeHint === 'highest-close'" id="highest-close-hint" class="hint-text" role="tooltip">{{ hints['highest-close'] }}</p></div><NumberInput id="highest-close" :model-value="highestClose" class="final-input" @update:model-value="highestCloseInput = $event" /></div>
               <div v-if="autocalled && reviewsBeforeLast" class="hint-field">
                 <div class="field-heading"><span id="review-levels-label" class="observed-heading">Reviews: hypothetical level of {{ underlierLabel }} on each review before the last</span><select class="path-select" aria-label="Load a path" @change="loadPath($event)"><option value="">Load a path…</option><option v-for="(path, index) in pathOptions" :key="path.name" :value="index">{{ path.name }}</option></select></div>
-                <div class="table-wrap basket-levels review-levels" :style="conceptStyle('redemption')"><table aria-labelledby="review-levels-label"><thead><tr><th scope="col">Review</th><th scope="col">{{ isBasket ? 'Basket level' : 'Level' }}</th><th scope="col">Test</th></tr></thead><tbody><tr v-for="(level, index) in reviewLevels" :key="index"><th scope="row">{{ index + 1 }} of {{ reviewsBeforeLast + 1 }}</th><td><NumberInput :model-value="level" class="observed-input" :aria-label="`Level on review ${index + 1}`" @update:model-value="setReviewLevel(index, $event)" /></td><td class="asset-return">{{ !redemption ? '—' : redemption.calledAtReview !== undefined && index + 1 > redemption.calledAtReview ? 'Ended' : redemption.tests[index]?.called ? 'Called' : 'Not called' }}</td></tr></tbody></table></div>
+                <div class="table-wrap basket-levels review-levels" :style="conceptStyle('redemption')"><table aria-labelledby="review-levels-label"><thead><tr><th scope="col">Review</th><template v-if="isBasket"><th v-for="(asset, a) in basketAssets" :key="a" scope="col">{{ asset.name.trim() || `Asset ${a + 1}` }}</th><th scope="col">Basket level</th></template><th v-else scope="col">Level</th><th scope="col">Test</th></tr></thead><tbody><tr v-for="(level, index) in reviewLevels" :key="index"><th scope="row">{{ index + 1 }} of {{ reviewsBeforeLast + 1 }}</th><template v-if="isBasket"><td v-for="(assetLevel, a) in reviewAssetLevels[index]" :key="a"><NumberInput :model-value="assetLevel" class="observed-input" :aria-label="`${basketAssets[a].name.trim() || `Asset ${a + 1}`}, review ${index + 1}`" @update:model-value="setReviewAssetLevel(index, a, $event)" /></td><td><output class="observed-result" aria-live="polite">{{ Number.isFinite(level) ? formatAmount(level) : '—' }}</output></td></template><td v-else><NumberInput :model-value="level" class="observed-input" :aria-label="`Level on review ${index + 1}`" @update:model-value="setReviewLevel(index, $event)" /></td><td class="asset-return">{{ !redemption ? '—' : redemption.calledAtReview !== undefined && index + 1 > redemption.calledAtReview ? 'Ended' : redemption.tests[index]?.called ? 'Called' : 'Not called' }}</td></tr></tbody></table></div>
                 <p v-if="reviewError" class="errors" role="alert">{{ reviewError }}</p>
               </div>
               <div class="formula" role="group" aria-label="Payment rule"><div v-for="(line, index) in formula" :key="index" :class="['fline', { limit: !line.lead }]"><span class="flead">{{ line.lead }}</span><span class="feq">{{ line.lead ? '=' : '' }}</span><span class="fexpr"><template v-for="(segment, part) in line.segments" :key="part"><span v-if="segment.concept" :class="['fterm', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)">{{ segment.text }}</span><template v-else>{{ segment.text }}</template></template></span></div><p class="fwords"><b>In words:</b> {{ formulaWords }}</p></div>
