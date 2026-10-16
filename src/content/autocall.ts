@@ -65,7 +65,8 @@ export interface PathScenario {
   name: string
   // The underlier's level on each review before the last, and on the final date.
   reviewLevels: number[]
-  finalLevel: number
+  // The level on the final date, for a path that gets that far. A path called earlier leaves it alone: the product ends before it.
+  finalLevel?: number
 }
 
 // Named paths a reader can load, since a path is not a grid of inputs: called at once, called late, never called and flat, and
@@ -82,7 +83,7 @@ export function pathScenarios(note: Product, initialLevel: number): PathScenario
   const called = (review: number): PathScenario => ({
     name: review === 1 ? 'Called on the first review' : review === reviews ? 'Called on the final review' : `Called on review ${review}`,
     reviewLevels: Array.from({ length: before }, (_, index) => (index + 1 < review ? below(index + 1) : triggerLevel(index + 1))),
-    finalLevel: triggerLevel(review),
+    ...(review === reviews ? { finalLevel: triggerLevel(review) } : {}),
   })
   const falling = Array.from({ length: before }, (_, index) => Math.min(below(index + 1), initialLevel * (1 - (0.4 * (index + 1)) / before)))
   // The final level of a path that is never called is below the trigger of the last review when that review is a call too.

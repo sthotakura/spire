@@ -133,7 +133,7 @@ describe('a trigger that steps down, a call amount for each year and a call on t
 
   it('gives paths that end the way their names say', () => {
     expect(validateProduct(stepped)).toEqual([])
-    const results = Object.fromEntries(pathScenarios(stepped, 100).map(({ name, reviewLevels, finalLevel }) => [name, redemptionOutcome(stepped, reviewLevels, { initial: 100, final: finalLevel }).calledAtReview]))
+    const results = Object.fromEntries(pathScenarios(stepped, 100).map(({ name, reviewLevels, finalLevel }) => [name, redemptionOutcome(stepped, reviewLevels, { initial: 100, final: finalLevel ?? 100 }).calledAtReview]))
     expect(results).toEqual({
       'Called on the first review': 1,
       'Called on review 5': 5,
@@ -144,11 +144,20 @@ describe('a trigger that steps down, a call amount for each year and a call on t
 })
 
 describe('named path scenarios', () => {
+  it('leave the final level alone when the product is called before it gets there', () => {
+    const paths = Object.fromEntries(pathScenarios(callable, 100).map(({ name, finalLevel }) => [name, finalLevel]))
+    expect(paths['Called on the first review']).toBeUndefined()
+    expect(paths['Called on review 11']).toBeUndefined()
+    expect(paths['Never called, ends flat']).toBe(100)
+    expect(paths['Never called, ends 40% down']).toBe(60)
+    expect(Object.fromEntries(pathScenarios(stepped, 100).map(({ name, finalLevel }) => [name, finalLevel]))['Called on the final review']).toBe(75)
+  })
+
   it('give a valid path for each name, which ends the way the name says', () => {
     for (const trigger of [1, 0.8, 1.2]) {
       const note: Product = { ...callable, redemption: { kind: 'autocall', trigger, callAmount: 0.08 } }
       expect(validateProduct(note)).toEqual([])
-      const results = Object.fromEntries(pathScenarios(note, 100).map(({ name, reviewLevels, finalLevel }) => [name, redemptionOutcome(note, reviewLevels, { initial: 100, final: finalLevel }).calledAtReview]))
+      const results = Object.fromEntries(pathScenarios(note, 100).map(({ name, reviewLevels, finalLevel }) => [name, redemptionOutcome(note, reviewLevels, { initial: 100, final: finalLevel ?? 100 }).calledAtReview]))
       expect(results).toEqual({
         'Called on the first review': 1,
         'Called on review 11': 11,

@@ -47,3 +47,13 @@
 .book-pagination{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:20px}.book-pagination a{text-decoration:none;border:1px solid #cdd8e7;border-radius:8px;background:#fff;color:#2369bd;padding:10px 14px;text-align:left;font-size:14px}.book-pagination a:hover{background:#edf5ff}.book-pagination a:focus-visible,.book-nav a:focus-visible{outline:2px solid #2a70c9;outline-offset:2px}.book-nav{max-height:calc(100vh - 48px);overflow-y:auto}@media(max-width:760px){.book-nav{max-height:none}}
 .book-figure{margin:22px 0}.book-figure img{display:block;width:100%;max-width:620px;height:auto;border:1px solid #e1e8f1;border-radius:8px}.book-figure figcaption{margin-top:8px;color:#66758b;font-size:13px;line-height:1.5}
 .review-levels{max-height:18rem;overflow-y:auto}.path-select{max-width:100%;font-size:13px}
+.basket-levels.review-levels{padding-right:4px}
+.basket-levels.review-levels table{width:100%}
+.basket-levels.review-levels thead th{position:sticky;top:0;z-index:1;background:#fff;font-size:12px;white-space:nowrap}
+.basket-levels.review-levels th,.basket-levels.review-levels td{padding:3px 8px 3px 0}
+.panel .basket-levels.review-levels input.observed-input{width:72px;height:32px;padding:2px 8px}
+.review-levels .review-trigger{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;color:#44506a}
+.review-levels .review-test-cell{text-align:right;padding-right:6px}
+.review-test{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:650;text-align:center;white-space:nowrap;background:#eef1f6;color:#44506a}
+.review-test.called{background:#dff3e6;color:#17612e}
+.review-test.ended{background:transparent;color:#8a94a6;font-weight:500}
