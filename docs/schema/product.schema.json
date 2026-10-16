@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://sthotakura.github.io/spire/product.schema.json",
   "title": "SPIRe product",
-  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- An autocall needs a review schedule, and a schedule is used by an autocall only. The term must hold a whole number of review periods, and at least two.\n- An autocall cannot be combined with lookback, or with a barrier observed on every close.",
+  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- An autocall needs a review schedule, and a schedule is used by an autocall only. The term must hold a whole number of review periods, and at least two.\n- An autocall cannot be combined with lookback, or with a barrier observed on every close.\n- An autocall trigger stays above zero on the last review that is tested, after its step-down.",
   "type": "object",
   "properties": {
     "wrapper": {
@@ -747,6 +747,84 @@
       "schedule": {
         "frequency": "monthly"
       }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": {
+        "kind": "autocall",
+        "trigger": 1,
+        "triggerStepDown": 0.05,
+        "callAmount": 0.1,
+        "callAmountBasis": "per-year",
+        "callOnFinalReview": true
+      },
+      "underlier": {
+        "kind": "basket",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Index A"
+            }
+          },
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Index B"
+            }
+          },
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Index C"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "levels": [
+              {
+                "asset": "Index A",
+                "level": 100
+              },
+              {
+                "asset": "Index B",
+                "level": 50
+              },
+              {
+                "asset": "Index C",
+                "level": 200
+              }
+            ]
+          },
+          "final": {
+            "kind": "final-date"
+          },
+          "basketReturn": {
+            "kind": "worst-of"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "barrier": {
+              "level": 0.5,
+              "observation": "final"
+            },
+            "rate": 1
+          }
+        ]
+      },
+      "schedule": {
+        "frequency": "semi-annual"
+      }
     }
   ],
   "definitions": {
@@ -806,14 +884,31 @@
         },
         "trigger": {
           "type": "number",
-          "description": "The level at or above which the product is called, as a fraction of the initial level. This reference accepts up to 2, a rise of 100%; that is a limit of this reference, not of the product type.",
+          "description": "The level at or above which the product is called on the first review, as a fraction of the initial level. This reference accepts up to 2, a rise of 100%; that is a limit of this reference, not of the product type.",
           "exclusiveMinimum": 0,
           "maximum": 2
         },
+        "triggerStepDown": {
+          "type": "number",
+          "description": "How far the trigger falls on each review after the first, as a fraction of the initial level. A trigger of 1 stepping down by 0.05 is 100% on review 1, 95% on review 2, and so on. Absent or zero keeps the trigger the same on every review. The trigger must stay above zero on the last review that is tested.",
+          "minimum": 0
+        },
         "callAmount": {
           "type": "number",
-          "description": "What a call pays above principal, as a fraction of principal: the same amount whenever the product is called. Zero repays principal only.",
+          "description": "What a call pays above principal, as a fraction of principal. Zero repays principal only. With the basis 'flat' it is the same amount whenever the product is called; with 'per-year' it is the amount for each year the product has lasted, so a call after six months pays half of it.",
           "minimum": 0
+        },
+        "callAmountBasis": {
+          "type": "string",
+          "enum": [
+            "flat",
+            "per-year"
+          ],
+          "description": "Whether the call amount is the same on every review ('flat', when absent) or accrues for each year elapsed ('per-year')."
+        },
+        "callOnFinalReview": {
+          "type": "boolean",
+          "description": "Whether the last review is also tested for a call. When true, a level at or above the trigger on the last review pays principal plus the call amount, in place of the payoff; below it, the payoff is paid. Absent or false pays the payoff on the last review whatever the level."
         }
       },
       "required": [
@@ -822,7 +917,7 @@
         "callAmount"
       ],
       "additionalProperties": false,
-      "description": "Automatic early redemption. On each review before the last, if the underlier's level is at or above the trigger, the product ends and repays principal plus the call amount. The last review is the end of the term and pays the payoff as a bullet product does."
+      "description": "Automatic early redemption. On each review before the last, if the underlier's level is at or above the trigger, the product ends and repays principal plus the call amount. The last review is the end of the term and pays the payoff as a bullet product does, unless the final review is also a call."
     },
     "Underlier": {
       "oneOf": [

@@ -315,23 +315,40 @@ export interface Schedule {
 
 /**
  * Automatic early redemption. On each review before the last, if the underlier's level is at or above the trigger, the product ends
- * and repays principal plus the call amount. The last review is the end of the term and pays the payoff as a bullet product does.
+ * and repays principal plus the call amount. The last review is the end of the term and pays the payoff as a bullet product does,
+ * unless the final review is also a call.
  */
 export interface Autocall {
   kind: 'autocall'
   /**
-   * The level at or above which the product is called, as a fraction of the initial level. This reference accepts up to 2, a rise of
-   * 100%; that is a limit of this reference, not of the product type.
+   * The level at or above which the product is called on the first review, as a fraction of the initial level. This reference
+   * accepts up to 2, a rise of 100%; that is a limit of this reference, not of the product type.
    * @exclusiveMinimum 0
    * @maximum 2
    */
   trigger: number
   /**
-   * What a call pays above principal, as a fraction of principal: the same amount whenever the product is called. Zero repays
-   * principal only.
+   * How far the trigger falls on each review after the first, as a fraction of the initial level. A trigger of 1 stepping down by
+   * 0.05 is 100% on review 1, 95% on review 2, and so on. Absent or zero keeps the trigger the same on every review. The trigger
+   * must stay above zero on the last review that is tested.
+   * @minimum 0
+   */
+  triggerStepDown?: number
+  /**
+   * What a call pays above principal, as a fraction of principal. Zero repays principal only. With the basis 'flat' it is the same
+   * amount whenever the product is called; with 'per-year' it is the amount for each year the product has lasted, so a call after six
+   * months pays half of it.
    * @minimum 0
    */
   callAmount: number
+  /** Whether the call amount is the same on every review ('flat', when absent) or accrues for each year elapsed ('per-year'). */
+  callAmountBasis?: 'flat' | 'per-year'
+  /**
+   * Whether the last review is also tested for a call. When true, a level at or above the trigger on the last review pays principal
+   * plus the call amount, in place of the payoff; below it, the payoff is paid. Absent or false pays the payoff on the last review
+   * whatever the level.
+   */
+  callOnFinalReview?: boolean
 }
 
 /**
@@ -387,7 +404,7 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
     ? { direction: 'downside', buffer, barrier, absoluteReturn, rate: participation.rate }
     : { direction: 'upside', barrier: upsideBarrier, rate: participation.rate, cap })
 
-export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'callAmount'
+export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'triggerStepDown' | 'callAmount'
 
 // A barrier as an underlier level: its fraction of the level the return is measured from. Rounded to nine decimals, because
 // 1.1 × 100 is 110.00000000000001 in floating point, which would put a final level of 110 on the wrong side of a barrier at 110%.
@@ -469,6 +486,16 @@ function finalIssues(final: FinalDetermination): ProductIssue[] {
 // Daily observation reads closes of the underlier from pricing. Lookback and a basket have no verified public note that settles how.
 const dailyCloseAllowedOn = (underlier: Underlier) => underlier.kind === 'single' && underlier.determination.initial.kind === 'given'
 
+// The trigger on one review, as a fraction of the initial level: it falls by the step-down on each review after the first.
+export const triggerAtReview = (redemption: Autocall, review: number): number => redemption.trigger - (redemption.triggerStepDown ?? 0) * (review - 1)
+
+// The trigger on the last review that is tested: the last, or the one before it when the last review is not a call.
+const lastTrigger = (redemption: Autocall, reviews: number): number => triggerAtReview(redemption, redemption.callOnFinalReview ? reviews : reviews - 1)
+
+// What a call on a review pays above principal, as a fraction of principal.
+export const callAmountAtReview = (redemption: Autocall, monthsElapsed: number): number =>
+  redemption.callAmountBasis === 'per-year' ? (redemption.callAmount * monthsElapsed) / 12 : redemption.callAmount
+
 // The months between reviews, as each frequency names them.
 export const monthsPerReview: Record<ReviewFrequency, number> = { monthly: 1, quarterly: 3, 'semi-annual': 6, annual: 12 }
 
@@ -497,6 +524,8 @@ function redemptionIssues(note: Product): ProductIssue[] {
     else if (count < 2) issues.push({ field: 'schedule', message: 'An autocall needs at least two reviews, so the product can be called before the last.' })
   }
   if (!Number.isFinite(redemption.trigger) || redemption.trigger <= 0 || redemption.trigger > 2) issues.push({ field: 'trigger', message: 'Call trigger must be greater than 0% and at most 200% of the initial level.' })
+  if (redemption.triggerStepDown !== undefined && (!Number.isFinite(redemption.triggerStepDown) || redemption.triggerStepDown < 0)) issues.push({ field: 'triggerStepDown', message: 'Trigger step-down must be zero or greater.' })
+  else if (Number.isFinite(redemption.trigger) && redemption.trigger > 0 && lastTrigger(redemption, reviewCount(note) ?? 0) <= 0) issues.push({ field: 'triggerStepDown', message: 'The trigger must stay above 0% on the last review that is tested.' })
   if (!Number.isFinite(redemption.callAmount) || redemption.callAmount < 0) issues.push({ field: 'callAmount', message: 'Call amount must be zero or greater.' })
   const { underlier, payoff } = note
   if (underlier.kind === 'single' && underlier.determination.initial.kind === 'lookback') issues.push({ field: 'schedule', message: 'An autocall cannot be combined with lookback: the lookback dates are not tied to the review schedule.' })

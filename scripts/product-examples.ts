@@ -84,4 +84,17 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
       },
     }),
   ],
+  [
+    'an autocall reviewed every six months whose trigger steps down, whose call amount grows each year, and whose final review is also a call',
+    note({ participations: [{ direction: 'downside', barrier: { level: 0.5, observation: 'final' }, rate: 1 }] }, {
+      term: { months: 36 },
+      schedule: { frequency: 'semi-annual' },
+      redemption: { kind: 'autocall', trigger: 1, triggerStepDown: 0.05, callAmount: 0.1, callAmountBasis: 'per-year', callOnFinalReview: true },
+      underlier: {
+        kind: 'basket',
+        components: [{ asset: asset('Index A') }, { asset: asset('Index B') }, { asset: asset('Index C') }],
+        determination: { initial: { kind: 'given', levels: [{ asset: 'Index A', level: 100 }, { asset: 'Index B', level: 50 }, { asset: 'Index C', level: 200 }] }, final: { kind: 'final-date' }, basketReturn: { kind: 'worst-of' } },
+      },
+    }),
+  ],
 ]

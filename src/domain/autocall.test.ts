@@ -59,6 +59,17 @@ describe('validation of a schedule and an autocall', () => {
     expect(fieldsOf(callable({ redemption: autocall({ callAmount }) }))).toEqual(ok ? [] : ['callAmount'])
   })
 
+  it.each([[0, true], [0.05, true], [-0.01, false], [Number.NaN, false]])('a trigger step-down of %s is accepted: %s', (triggerStepDown, ok) => {
+    expect(fieldsOf(callable({ redemption: autocall({ triggerStepDown }) }))).toEqual(ok ? [] : ['triggerStepDown'])
+  })
+
+  it('needs the trigger to stay above zero on the last review that is tested', () => {
+    // Twelve reviews: the last one tested is 11 unless the final review calls too.
+    expect(validateProduct(callable({ redemption: autocall({ triggerStepDown: 0.09 }) }))).toEqual([])
+    expect(fieldsOf(callable({ redemption: autocall({ triggerStepDown: 0.1 }) }))).toEqual(['triggerStepDown'])
+    expect(validateProduct(callable({ redemption: autocall({ triggerStepDown: 0.1, callOnFinalReview: true }) }))).not.toEqual([])
+  })
+
   it('cannot be combined with lookback', () => {
     const lookback = { ...startingProduct.underlier, determination: { initial: { kind: 'lookback', observationCount: 3 }, final: { kind: 'final-date' } } } as Product['underlier']
     expect(fieldsOf(callable({ underlier: lookback }))).toEqual(['schedule'])
@@ -158,6 +169,73 @@ describe('how an autocall ends', () => {
 
   it('rejects an invalid product', () => {
     expect(() => redemptionOutcome(callable({ schedule: undefined }), flat(11), levels)).toThrow(/review schedule/)
+  })
+})
+
+// Synthetic: three years reviewed every six months. The trigger starts at 100% and steps down 5% a review to 75% on the last, which is
+// also a call. A call pays 10% for each year the product has lasted, so 5% after six months and 30% after three years. A fall of more
+// than half at the end pays the loss.
+describe('a trigger that steps down, a call amount for each year, and a call on the final review', () => {
+  const stepped = callable({
+    term: { months: 36 },
+    schedule: { frequency: 'semi-annual' },
+    redemption: autocall({ trigger: 1, triggerStepDown: 0.05, callAmount: 0.1, callAmountBasis: 'per-year', callOnFinalReview: true }),
+    payoff: { participations: [{ direction: 'downside', barrier: { level: 0.5, observation: 'final' }, rate: 1 }] },
+  })
+  const never = [90, 85, 80, 70, 60]
+
+  it('is valid', () => {
+    expect(validateProduct(stepped)).toEqual([])
+  })
+
+  it('lowers the trigger level by the step-down on each review', () => {
+    const outcome = redemptionOutcome(stepped, never, { initial: 100, final: 60 })
+    expect(outcome.tests.map(({ triggerLevel }) => triggerLevel)).toEqual([100, 95, 90, 85, 80, 75])
+  })
+
+  it.each([[1, 100, 0.05, 6], [2, 95, 0.1, 12], [3, 90, 0.15, 18], [4, 85, 0.2, 24], [5, 80, 0.25, 30]])('is called on review %i at %s, paying %s above principal after %i months', (review, level, extra, months) => {
+    const reviews = [...never.map((value) => value - 40).slice(0, review - 1), level, ...never.slice(review)].slice(0, 5)
+    const outcome = redemptionOutcome(stepped, reviews, { initial: 100, final: 60 })
+    expect(outcome.calledAtReview).toBe(review)
+    expect(outcome.months).toBe(months)
+    expect(outcome.payment).toBeCloseTo(1000 * (1 + extra), 9)
+  })
+
+  it('is not called when a review is just below its own lowered trigger', () => {
+    expect(redemptionOutcome(stepped, [99.99, 94.99, 89.99, 84.99, 79.99], { initial: 100, final: 60 }).calledAtReview).toBeUndefined()
+  })
+
+  it('tests the final level on the last review, and pays the call price in place of the payoff', () => {
+    const outcome = redemptionOutcome(stepped, never, { initial: 100, final: 75 })
+    expect(outcome.calledAtReview).toBe(6)
+    expect(outcome.months).toBe(36)
+    expect(outcome.payment).toBeCloseTo(1300, 9)
+    // The payoff alone would have paid principal here, as the level is above the barrier.
+    expect(outcome.maturity.payment).toBe(1000)
+  })
+
+  it('pays the payoff when the final level is below the final trigger', () => {
+    const outcome = redemptionOutcome(stepped, never, { initial: 100, final: 74 })
+    expect(outcome.calledAtReview).toBeUndefined()
+    expect(outcome.payment).toBe(1000)
+    expect(outcome.tests).toHaveLength(6)
+  })
+
+  it('pays the payoff on a fall past the barrier', () => {
+    expect(redemptionOutcome(stepped, never, { initial: 100, final: 40 }).payment).toBe(400)
+  })
+
+  it('does not test the final review when it is not a call', () => {
+    const note = callable({ ...stepped, redemption: autocall({ trigger: 1, triggerStepDown: 0.05, callAmount: 0.1, callAmountBasis: 'per-year' }) })
+    const outcome = redemptionOutcome(note, never, { initial: 100, final: 100 })
+    expect(outcome.calledAtReview).toBeUndefined()
+    expect(outcome.tests).toHaveLength(5)
+  })
+
+  it('pays the same call amount on every review when the basis is flat', () => {
+    const flatNote = callable({ ...stepped, redemption: autocall({ callAmount: 0.1, callAmountBasis: 'flat' }) })
+    expect(redemptionOutcome(flatNote, [100, ...never.slice(1)], levels).payment).toBe(1100)
+    expect(redemptionOutcome(flatNote, [90, 90, 90, 90, 100], levels).payment).toBe(1100)
   })
 })
 
