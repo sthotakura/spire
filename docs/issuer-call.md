@@ -15,7 +15,7 @@ This is a proposal, not built. An issuer call is the issuer's option to redeem a
 
 - **The decision is not a rule.** There is no level to test. Whether and when the issuer calls is a scenario input, the same kind of input as the level on a review, and it is the reader's to set. The reference does not model why an issuer would call, and should not suggest a reason the notes do not give.
 - **The call price in both notes is principal plus that review's coupon.** The reference has no coupon yet. A call price above principal is coherent and common in callable notes generally, but neither note read states one, so a call amount is allowed with a default of zero, and the reference says that no source read pays a premium.
-- **Coupons are what make the notes interesting.** A learner can see why an issuer's option matters when a coupon is being paid and the call stops the remaining coupons ("No further payments are made after an early redemption"). Without a coupon, a call is the product ending early at par.
+- **Coupons are what make the notes interesting.** A learner can see why an issuer's option matters when a coupon is being paid and the call stops the remaining coupons ("No further payments are made after an early redemption"). Without a coupon, a call is the product ending early, paying principal and any call amount.
 
 ## Smallest model
 
@@ -36,11 +36,11 @@ This is a proposal, not built. An issuer call is the issuer's option to redeem a
 
 1. **A flag on the autocall** (an issuer call as well as a level-triggered one). No public note read has both, so this multiplies the cases for no source. Not recommended.
 2. **Par only, with no call amount.** Neither note read pays a premium, but a premium is coherent and callable notes commonly state a call price above 100%. Leaving it out would be a restriction with no reason. Not recommended; the call amount defaults to zero instead.
-3. **Waiting for coupons.** The issuer call is thin without them and natural with them, since both public notes are coupon notes. Recommended, with a thin slice available if a par call is wanted sooner.
+3. **Waiting for coupons.** The issuer call is thin without them and natural with them, since both public notes are coupon notes. Recommended, with a thin slice, a call with a call amount and no coupon, available if it is wanted sooner.
 
 ## Decisions to agree
 
-1. **When?** Now, as a par call without coupons, or after the contingent coupon, where it reproduces both notes. Recommended: after.
+1. **When?** Now, as a call with a call amount and no coupons, or after the contingent coupon, where it reproduces both notes. Recommended: after.
 2. **A separate redemption kind**, not a flag on the autocall. Recommended.
 3. **The decision as a scenario input** on the review table, with named paths. Recommended.
 4. **A call amount, defaulting to 0**, as on the autocall, with the book saying that the two notes read pay none. Recommended.
