@@ -444,10 +444,11 @@ const note = computed<Product>(() => ({
     ? {
         kind: 'autocall',
         trigger: fractionFrom(triggerPercent.value),
-        ...(triggerStepPercent.value !== 0 ? { triggerStep: fractionFrom(triggerStepPercent.value) } : {}),
+        // Every term the outline shows is stated, including one at its default, so the structure reads as the outline does.
+        triggerStep: fractionFrom(triggerStepPercent.value),
         callAmount: fractionFrom(callAmountPercent.value),
-        ...(callAmountBasis.value === 'per-year' ? { callAmountBasis: 'per-year' as const } : {}),
-        ...(callOnFinal.value ? { callOnFinalReview: true } : {}),
+        callAmountBasis: callAmountBasis.value,
+        callOnFinalReview: callOnFinal.value,
       }
     : 'bullet',
   underlier: underlier.value,

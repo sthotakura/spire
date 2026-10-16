@@ -332,6 +332,7 @@ export interface Autocall {
    * trigger: a trigger of 1 with a step of -0.05 is 100% on review 1, 95% on review 2, and so on. A positive step raises it. Absent
    * or zero keeps the trigger the same on every review. The trigger must stay above zero, and at most 2, on every review that is
    * tested.
+   * @default 0
    */
   triggerStep?: number
   /**
@@ -341,12 +342,16 @@ export interface Autocall {
    * @minimum 0
    */
   callAmount: number
-  /** Whether the call amount is the same on every review ('flat', when absent) or accrues for each year elapsed ('per-year'). */
+  /**
+   * Whether the call amount is the same on every review ('flat', when absent) or accrues for each year elapsed ('per-year').
+   * @default "flat"
+   */
   callAmountBasis?: 'flat' | 'per-year'
   /**
    * Whether the last review is also tested for a call. When true, a level at or above the trigger on the last review pays principal
    * plus the call amount, in place of the payoff; below it, the payoff is paid. Absent or false pays the payoff on the last review
    * whatever the level.
+   * @default false
    */
   callOnFinalReview?: boolean
 }
