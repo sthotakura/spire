@@ -35,7 +35,7 @@ describe('selection', () => {
   })
 
   it('selects the reviews, trigger, trigger step, call amount and final review together with the redemption', () => {
-    for (const part of ['schedule', 'first-call', 'trigger', 'trigger-step', 'call-amount', 'final-call'] as const) expect(isHighlighted('redemption', part)).toBe(true)
+    for (const part of ['schedule', 'non-call', 'trigger', 'trigger-step', 'call-amount', 'final-call'] as const) expect(isHighlighted('redemption', part)).toBe(true)
     for (const concept of ['wrapper', 'underlier', 'payoff', 'upside'] as const) expect(isHighlighted('redemption', concept)).toBe(false)
   })
 

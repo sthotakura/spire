@@ -55,16 +55,16 @@ The call amount can be paid in one of two ways. **Each call** pays the same amou
 
 ## A period with no calls
 
-Some notes cannot be called at the start, even if the condition holds. One public note is reviewed monthly for a year but allows an automatic call only from the sixth review ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)). The reference calls the number of the first review that can call the **first call**. A review before it is a review in the non-call period: its level is read, but it cannot call. A first call of 1 lets the product be called from the first review, as in the first example.
+Some notes cannot be called at the start, even if the condition holds. One public note is reviewed monthly for a year but allows an automatic call only from the sixth review ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)). The reference states it as a **non-call period**, a number of reviews at the start. A review in the period is read, but it cannot call, even when its level meets the trigger. A period of 0 reviews lets the product be called from the first review, as in the first example.
 
-Take the first example with a first call of 6, so reviews 1 to 5 cannot call.
+Take the first example with a non-call period of 5 reviews, so reviews 1 to 5 cannot call and the first call is on review 6.
 
 | Scenario | What happens | Months | Payment |
 | :--- | :--- | ---: | ---: |
 | The level is 120 on reviews 1 to 5, below 100 on every later review, then ends at 110 | Reviews 1 to 5 cannot call, whatever the level. No later review reaches the trigger, so it runs to the end and the payoff pays principal | 12 | 1,000 |
 | The level is 120 on reviews 1 to 5, then 100 on review 6 | Review 6 is the first that can call, and it is at the trigger: principal plus 8% | 6 | 1,080 |
 
-The trigger is counted from review 1, not from the first call, so a trigger that steps down by 5% from 100% is 85% on review 4 whatever the first call is. The first call can be at most the last review that can call, which is the last but one, or the last when the final review is a call too. The reference does not model coupons, which the public note pays on every review including those in the period.
+The trigger is counted from review 1, not from the end of the period, so a trigger that steps down by 5% from 100% is 85% on review 4 whatever the period is. The period must leave at least one review that can call: at most the last but one, or the last when the final review is a call too. The reference does not model coupons, which the public note pays on every review including those in the period.
 
 ## A call on the final review
 

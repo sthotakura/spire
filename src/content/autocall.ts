@@ -1,5 +1,5 @@
 import type { RedemptionOutcome } from '../domain/autocall'
-import { annualisedReturn, barrierLevelAt, reviewCount, triggerAtReview, type Product } from '../domain/note'
+import { annualisedReturn, barrierLevelAt, firstCallReview, reviewCount, triggerAtReview, type Product } from '../domain/note'
 import type { CalculationStep } from './calculation'
 import type { FormulaLine } from './formula'
 
@@ -17,7 +17,8 @@ export function explainRedemption(note: Product, outcome: RedemptionOutcome): st
   const { calledAtReview, tests, reviews, months, payment } = outcome
   const test = calledAtReview === undefined ? undefined : tests[calledAtReview - 1]
   if (test === undefined) {
-    const { callOnFinalReview, firstCall = 1 } = note.redemption
+    const { callOnFinalReview } = note.redemption
+    const firstCall = firstCallReview(note.redemption)
     const some = firstCall > 1 ? 'that could call' : ''
     const reviewed = `No review${some ? ` ${some}` : ''}${callOnFinalReview ? ', including the last,' : some ? '' : ' before the last'} was`
     // The trigger is one level unless it steps, when each review has its own.
@@ -33,7 +34,8 @@ export function explainRedemption(note: Product, outcome: RedemptionOutcome): st
 // is a call too. A trigger that steps and a call amount for each year say so in the rule.
 export function redemptionFormula(note: Product): FormulaLine[] {
   if (note.redemption === 'bullet') return []
-  const { triggerStep, callAmountBasis, callOnFinalReview, firstCall = 1 } = note.redemption
+  const { triggerStep, callAmountBasis, callOnFinalReview } = note.redemption
+  const firstCall = firstCallReview(note.redemption)
   const reviews = callOnFinalReview
     ? firstCall > 1 ? `On every review from review ${firstCall}, if ` : 'On every review, if '
     : firstCall > 1 ? `On a review from review ${firstCall} to the last but one, if ` : 'On a review before the last, if '
@@ -57,7 +59,8 @@ const twoDecimalPercent = (fraction: number) => `${(fraction * 100).toLocaleStri
 export function redemptionSteps(note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> {
   if (note.redemption === 'bullet') return []
   const { redemption } = note
-  const { callAmount, callAmountBasis, callOnFinalReview, firstCall = 1 } = redemption
+  const { callAmount, callAmountBasis, callOnFinalReview } = redemption
+  const firstCall = firstCallReview(redemption)
   const steps: Array<Omit<CalculationStep, 'n'>> = outcome.tests.map((test) => test.callable
     ? {
         title: `Review ${test.review} of ${outcome.reviews}`,
@@ -66,7 +69,7 @@ export function redemptionSteps(note: Product, outcome: RedemptionOutcome): Arra
         muted: !test.called,
         concept: 'trigger' as const,
       }
-    : { title: `Review ${test.review} of ${outcome.reviews}`, how: `${units(test.level)}: it cannot call, the first call is on review ${firstCall}`, value: 'No call', muted: true, concept: 'first-call' as const })
+    : { title: `Review ${test.review} of ${outcome.reviews}`, how: `${units(test.level)}: in the non-call period, the first ${firstCall - 1} ${firstCall === 2 ? 'review' : 'reviews'} cannot call`, value: 'No call', muted: true, concept: 'non-call' as const })
   steps.push(outcome.calledAtReview === undefined
     ? { title: 'Redemption', how: `No review${firstCall > 1 ? ' that could call' : ''}${callOnFinalReview ? ', including the last,' : firstCall > 1 ? '' : ' before the last'} reached the trigger, so the product runs to the end of its ${monthsPhrase(outcome.months)} term`, value: 'At maturity', concept: 'redemption' }
     : { title: 'Redemption', how: `Called on review ${outcome.calledAtReview}, after ${monthsPhrase(outcome.months)}: principal × (1 + ${callAmountBasis === 'per-year' ? `${percent(callAmount)} a year × ${yearsPhrase(outcome.months)} = ${percent(outcome.tests[outcome.calledAtReview - 1].callAmount)}` : percent(callAmount)})`, value: units(outcome.payment), result: true, concept: 'call-amount' })
@@ -98,8 +101,8 @@ export function pathScenarios(note: Product, initialLevel: number): PathScenario
   const triggerLevel = (review: number) => barrierLevelAt(triggerAtReview(redemption, review), initialLevel)
   // Clearly below the trigger of a review, so the review cannot call.
   const below = (review: number) => triggerLevel(review) * 0.95
-  const firstCall = redemption.firstCall ?? 1
-  // A review before the first call cannot call, so its level is at its trigger to show that it does not.
+  const firstCall = firstCallReview(redemption)
+  // A review in the non-call period cannot call, so its level is at its trigger to show that it does not.
   const called = (review: number): PathScenario => ({
     name: review === reviews ? 'Called on the final review' : review === firstCall ? (firstCall === 1 ? 'Called on the first review' : 'Called on the first review that can call') : `Called on review ${review}`,
     reviewLevels: Array.from({ length: before }, (_, index) => (index + 1 < firstCall || index + 1 >= review ? triggerLevel(index + 1) : below(index + 1))),

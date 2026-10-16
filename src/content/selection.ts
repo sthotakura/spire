@@ -4,7 +4,7 @@ import type { ConceptId } from './concepts'
 // the trigger its step, the payoff its features, each participation its buffer,
 // barrier, absolute return or cap, the underlier its assets and determination, and the determination its initial and final levels and a basket's return.
 const nestedConcepts: Partial<Record<ConceptId, readonly ConceptId[]>> = {
-  redemption: ['schedule', 'first-call', 'trigger', 'call-amount', 'final-call'],
+  redemption: ['schedule', 'non-call', 'trigger', 'call-amount', 'final-call'],
   trigger: ['trigger-step'],
   payoff: ['protection', 'minimum-return', 'upside', 'downside'],
   downside: ['buffer', 'barrier', 'absolute-return'],

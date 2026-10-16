@@ -31,7 +31,7 @@ const hints = {
   underlier: 'What the payoff reads: the asset it tracks and how its change is measured, from where it starts. A single underlier tracks one asset. A basket tracks several and combines their changes into one return.',
   schedule: 'How often the product is reviewed through its term. Reviews are evenly spaced and numbered from 1, and the last is the end of the term. The term must hold a whole number of periods. It starts at semi-annual for a term over a year, quarterly from six months to a year, and monthly below that, and follows the term until you choose one. Notes can be reviewed more often, even weekly or daily; this reference offers monthly to annual. Public notes call these dates observation dates or review dates; here they are reviews, to keep them apart from the observations that set the initial and final levels.',
   trigger: 'The level, as a share of the initial level, at or above which the product is called on the first review. A later review has the same trigger unless it steps down.',
-  'first-call': 'The number of the first review on which the product can be called. A review before it cannot call, even at or above the trigger: a non-call period. 1 lets the product be called from the first review.',
+  'non-call': 'The number of reviews at the start on which the product cannot be called, even when the level meets that review’s trigger: a non-call period. 0 lets it be called from the first review. A trigger that steps still moves from review 1.',
   'trigger-step': 'How much the trigger changes on each review after the first, as a share of the initial level. −5% on a trigger of 100% steps it down to 95% on review 2, 90% on review 3, and so on. A positive value steps it up. Zero keeps one trigger for every review.',
   'call-amount': 'What a call pays above principal, as a share of principal. It is paid in full whenever the product is called, or for each year the product has lasted, as the choice below says.',
   'call-basis': 'Each call pays the call amount whenever the product is called. Each year elapsed pays it for every year the product has lasted, so a call after six months pays half of it and a call after three years pays three times it.',
@@ -119,7 +119,7 @@ const reviewFrequency = computed<ReviewFrequency>({
 })
 const triggerPercent = ref(100)
 const callAmountPercent = ref(8)
-const firstCallReview = ref(1)
+const nonCallReviewCount = ref(0)
 const triggerStepPercent = ref(0)
 const callAmountBasis = ref<'flat' | 'per-year'>('flat')
 const callOnFinal = ref(false)
@@ -216,7 +216,7 @@ const observedLevels = ref<number[]>([startingFinalLevel])
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
 const select = (concept: ConceptId) => { selected.value = concept }
-const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', schedule: '#2c8ea3', trigger: '#1f8a70', 'trigger-step': '#7a9a1e', 'call-amount': '#0f766e', 'final-call': '#3d7ea6', 'first-call': '#4d7c9b', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', 'minimum-return': '#4338ca', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa', 'absolute-return': '#d4a017' }
+const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', schedule: '#2c8ea3', trigger: '#1f8a70', 'trigger-step': '#7a9a1e', 'call-amount': '#0f766e', 'final-call': '#3d7ea6', 'non-call': '#4d7c9b', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', 'minimum-return': '#4338ca', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa', 'absolute-return': '#d4a017' }
 const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
@@ -447,7 +447,7 @@ const note = computed<Product>(() => ({
         kind: 'autocall',
         trigger: fractionFrom(triggerPercent.value),
         // Every term the outline shows is stated, including one at its default, so the structure reads as the outline does.
-        firstCall: firstCallReview.value,
+        nonCallReviews: nonCallReviewCount.value,
         triggerStep: fractionFrom(triggerStepPercent.value),
         callAmount: fractionFrom(callAmountPercent.value),
         callAmountBasis: callAmountBasis.value,
@@ -593,9 +593,9 @@ const loadPath = (event: Event) => {
 // The level each review needs, as the call reads it: the trigger of that review, as a share of the initial level.
 const reviewTrigger = (index: number) => {
   const { redemption: terms } = note.value
-  return terms === 'bullet' || index + 1 < firstCallReview.value || !Number.isFinite(determinedInitialLevel.value) ? Number.NaN : barrierLevelAt(triggerAtReview(terms, index + 1), determinedInitialLevel.value)
+  return terms === 'bullet' || index + 1 <= nonCallReviewCount.value || !Number.isFinite(determinedInitialLevel.value) ? Number.NaN : barrierLevelAt(triggerAtReview(terms, index + 1), determinedInitialLevel.value)
 }
-const reviewTest = (index: number) => !redemption.value ? null : index + 1 < firstCallReview.value ? 'No call' : redemption.value.calledAtReview !== undefined && index + 1 > redemption.value.calledAtReview ? 'Ended' : redemption.value.tests[index]?.called ? 'Called' : 'Not called'
+const reviewTest = (index: number) => !redemption.value ? null : index + 1 <= nonCallReviewCount.value ? 'No call' : redemption.value.calledAtReview !== undefined && index + 1 > redemption.value.calledAtReview ? 'Ended' : redemption.value.tests[index]?.called ? 'Called' : 'Not called'
 // A product called before the last review never reaches its final date, so the final level does not set its payment. It is still
 // what the chart's dot and the comparison steps read, so the field stays, dimmed, and says so.
 const finalUnused = computed(() => {
@@ -1038,12 +1038,12 @@ const chart = computed(() => {
                       <p v-if="reviewNudge && !issuesFor('schedule').length" class="nudge">{{ reviewNudge }}</p>
                       <ul v-if="issuesFor('schedule').length" class="errors" role="alert"><li v-for="message in issuesFor('schedule')" :key="message">{{ message }}</li></ul>
                     </li>
-                    <li :class="['node', { sel: highlighted('first-call') }]" :style="conceptStyle('first-call')">
-                      <div class="nrow" @click="select('first-call')" @focusin="focusRow('first-call')">
-                        <span class="nlabel">First call<HintToggle id="first-call" about="the first call" :text="hints['first-call']" :active="activeHint === 'first-call'" @toggle="toggleHint('first-call')" /></span>
-                        <span class="ctrl"><NumberInput id="first-call" v-model="firstCallReview" class="num count" aria-label="First call: number of the first review that can call" /></span>
+                    <li :class="['node', { sel: highlighted('non-call') }]" :style="conceptStyle('non-call')">
+                      <div class="nrow" @click="select('non-call')" @focusin="focusRow('non-call')">
+                        <span class="nlabel">Non-call period<HintToggle id="non-call" about="the non-call period" :text="hints['non-call']" :active="activeHint === 'non-call'" @toggle="toggleHint('non-call')" /></span>
+                        <span class="ctrl"><NumberInput id="non-call" v-model="nonCallReviewCount" class="num rate" aria-label="Non-call period: number of reviews at the start that cannot call" /><span class="unit">reviews</span></span>
                       </div>
-                      <ul v-if="issuesFor('firstCall').length" class="errors" role="alert"><li v-for="message in issuesFor('firstCall')" :key="message">{{ message }}</li></ul>
+                      <ul v-if="issuesFor('nonCallReviews').length" class="errors" role="alert"><li v-for="message in issuesFor('nonCallReviews')" :key="message">{{ message }}</li></ul>
                     </li>
                     <li :class="['node', { sel: highlighted('trigger') }]" :style="conceptStyle('trigger')">
                       <div class="nrow" @click="select('trigger')" @focusin="focusRow('trigger')">

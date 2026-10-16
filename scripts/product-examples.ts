@@ -76,7 +76,7 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     note({ participations: [{ direction: 'downside', buffer: 0.2, rate: 1.25 }] }, {
       term: { months: 12 },
       schedule: { frequency: 'monthly' },
-      redemption: { kind: 'autocall', trigger: 1, firstCall: 6, callAmount: 0.08 },
+      redemption: { kind: 'autocall', trigger: 1, nonCallReviews: 5, callAmount: 0.08 },
       underlier: {
         kind: 'basket',
         components: [{ asset: asset('Index A') }, { asset: asset('Index B') }],

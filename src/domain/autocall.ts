@@ -76,7 +76,7 @@ export function redemptionOutcome(note: Product, reviewLevels: number[], levels:
     const review = index + 1
     const months = review * monthsPerReview[note.schedule!.frequency]
     const triggerLevel = barrierLevelAt(triggerAtReview(redemption, review), levels.initial)
-    const callable = review >= (redemption.firstCall ?? 1)
+    const callable = review > (redemption.nonCallReviews ?? 0)
     const test = { review, level, triggerLevel, callable, called: callable && level >= triggerLevel, callAmount: callAmountAtReview(redemption, months) }
     tests.push(test)
     if (test.called) return { calledAtReview: review, reviews, tests, months, payment: note.principalAmount * (1 + test.callAmount), maturity }

@@ -328,14 +328,14 @@ export interface Autocall {
    */
   trigger: number
   /**
-   * The number of the first review on which the product can be called. A review before it cannot call, even at or above the
-   * trigger: a non-call period. 1 lets the product be called from the first review. It must be one of the reviews that can call: up
-   * to the last but one, or the last when the final review is a call too.
+   * The number of reviews at the start on which the product cannot be called, even when the level meets that review's trigger: a
+   * non-call period. 0 lets the product be called from the first review. It must leave at least one review that can call: the last
+   * but one, or the last when the final review is a call too.
    * @asType integer
-   * @minimum 1
-   * @default 1
+   * @minimum 0
+   * @default 0
    */
-  firstCall?: number
+  nonCallReviews?: number
   /**
    * How much the trigger changes on each review after the first, as a fraction of the initial level. A negative step lowers the
    * trigger: a trigger of 1 with a step of -0.05 is 100% on review 1, 95% on review 2, and so on. A positive step raises it. Absent
@@ -418,7 +418,7 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
     ? { direction: 'downside', buffer, barrier, absoluteReturn, rate: participation.rate }
     : { direction: 'upside', barrier: upsideBarrier, rate: participation.rate, cap })
 
-export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'firstCall' | 'triggerStep' | 'callAmount'
+export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'nonCallReviews' | 'triggerStep' | 'callAmount'
 
 // A barrier as an underlier level: its fraction of the level the return is measured from. Rounded to nine decimals, because
 // 1.1 × 100 is 110.00000000000001 in floating point, which would put a final level of 110 on the wrong side of a barrier at 110%.
@@ -505,15 +505,18 @@ export const triggerAtReview = (redemption: Autocall, review: number): number =>
 
 const triggerAllowed = (trigger: number) => Number.isFinite(trigger) && trigger > 0 && trigger <= 2
 
+// The number of the first review that can call, after the non-call period.
+export const firstCallReview = (redemption: Autocall): number => (redemption.nonCallReviews ?? 0) + 1
+
 // The last review that can call: the last but one, or the last when the final review is a call too.
 export const lastCallReview = (redemption: Autocall, reviews: number): number => (redemption.callOnFinalReview ? reviews : reviews - 1)
 
 // Whether the trigger stays within what this reference accepts on every review that can call, from the first call to the last. The
 // trigger moves in a straight line, so those two reviews are the extremes. It is counted from review 1, as public notes state it.
 const triggersAllowed = (redemption: Autocall, reviews: number): boolean => {
-  const first = redemption.firstCall ?? 1
-  // A first call that is not a review is its own issue, so the trigger is not also checked from it.
-  return triggerAllowed(redemption.trigger) && (!Number.isInteger(first) || first < 1 || triggerAllowed(triggerAtReview(redemption, first))) && triggerAllowed(triggerAtReview(redemption, lastCallReview(redemption, reviews)))
+  const skipped = redemption.nonCallReviews ?? 0
+  // A non-call period that is not a count of reviews is its own issue, so the trigger is not also checked from it.
+  return triggerAllowed(redemption.trigger) && (!Number.isInteger(skipped) || skipped < 0 || triggerAllowed(triggerAtReview(redemption, skipped + 1))) && triggerAllowed(triggerAtReview(redemption, lastCallReview(redemption, reviews)))
 }
 
 // What a call on a review pays above principal, as a fraction of principal.
@@ -557,10 +560,10 @@ function redemptionIssues(note: Product): ProductIssue[] {
     else if (count < 2) issues.push({ field: 'schedule', message: 'An autocall needs at least two reviews, so the product can be called before the last.' })
   }
   if (!Number.isFinite(redemption.trigger) || redemption.trigger <= 0 || redemption.trigger > 2) issues.push({ field: 'trigger', message: 'Call trigger must be greater than 0% and at most 200% of the initial level.' })
-  if (redemption.firstCall !== undefined) {
+  if (redemption.nonCallReviews !== undefined) {
     const count = reviewCount(note)
-    if (!Number.isInteger(redemption.firstCall) || redemption.firstCall < 1) issues.push({ field: 'firstCall', message: 'The first call review must be a whole number, 1 or more.' })
-    else if (count !== undefined && redemption.firstCall > lastCallReview(redemption, count)) issues.push({ field: 'firstCall', message: `The first call review must be one that can call: from 1 to ${lastCallReview(redemption, count)}.` })
+    if (!Number.isInteger(redemption.nonCallReviews) || redemption.nonCallReviews < 0) issues.push({ field: 'nonCallReviews', message: 'The non-call period must be a whole number of reviews, 0 or more.' })
+    else if (count !== undefined && redemption.nonCallReviews > lastCallReview(redemption, count) - 1) issues.push({ field: 'nonCallReviews', message: `The non-call period must leave a review that can call: from 0 to ${lastCallReview(redemption, count) - 1} reviews.` })
   }
   if (redemption.triggerStep !== undefined && !Number.isFinite(redemption.triggerStep)) issues.push({ field: 'triggerStep', message: 'Trigger step must be a number.' })
   else if (triggerAllowed(redemption.trigger) && reviewCount(note) !== undefined && !triggersAllowed(redemption, reviewCount(note)!)) issues.push({ field: 'triggerStep', message: 'The trigger must stay above 0% and at most 200% of the initial level on every review that is tested.' })

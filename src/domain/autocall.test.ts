@@ -78,21 +78,22 @@ describe('validation of a schedule and an autocall', () => {
     expect(fieldsOf(callable({ redemption: autocall({ triggerStep }) }))).toEqual(ok ? [] : ['triggerStep'])
   })
 
-  it.each([[1, true], [5, true], [11, true], [12, false], [0, false], [1.5, false], [Number.NaN, false]])('a first call of review %s is accepted: %s', (firstCall, ok) => {
-    // Twelve reviews: the last that can call is 11, unless the final review calls too.
-    expect(fieldsOf(callable({ redemption: autocall({ firstCall }) }))).toEqual(ok ? [] : ['firstCall'])
+  it.each([[0, true], [4, true], [10, true], [11, false], [-1, false], [1.5, false], [Number.NaN, false]])('a non-call period of %s reviews is accepted: %s', (nonCallReviews, ok) => {
+    // Twelve reviews: the last that can call is 11, so at most 10 can be skipped, unless the final review calls too.
+    expect(fieldsOf(callable({ redemption: autocall({ nonCallReviews }) }))).toEqual(ok ? [] : ['nonCallReviews'])
   })
 
-  it('accepts the last review as the first call only when the final review is a call too', () => {
-    expect(validateProduct(callable({ redemption: autocall({ firstCall: 12, callOnFinalReview: true }) }))).toEqual([])
+  it('leaves the last review to call when the final review is a call too', () => {
+    expect(validateProduct(callable({ redemption: autocall({ nonCallReviews: 11, callOnFinalReview: true }) }))).toEqual([])
+    expect(fieldsOf(callable({ redemption: autocall({ nonCallReviews: 12, callOnFinalReview: true }) }))).toEqual(['nonCallReviews'])
   })
 
   it('checks the trigger from the first call to the last, and counts the step from review 1', () => {
-    // From 100% by +10% a review, review 11 is 200%, so a larger step fails there whatever the first call is.
-    expect(validateProduct(callable({ redemption: autocall({ triggerStep: 0.1, firstCall: 6 }) }))).toEqual([])
-    expect(fieldsOf(callable({ redemption: autocall({ triggerStep: 0.11, firstCall: 6 }) }))).toEqual(['triggerStep'])
-    // A step down that reaches zero on review 11 is not rescued by a first call: the last review that can call still fails.
-    expect(fieldsOf(callable({ redemption: autocall({ triggerStep: -0.1, firstCall: 6 }) }))).toEqual(['triggerStep'])
+    // From 100% by +10% a review, review 11 is 200%, so a larger step fails there whatever the non-call period is.
+    expect(validateProduct(callable({ redemption: autocall({ triggerStep: 0.1, nonCallReviews: 5 }) }))).toEqual([])
+    expect(fieldsOf(callable({ redemption: autocall({ triggerStep: 0.11, nonCallReviews: 5 }) }))).toEqual(['triggerStep'])
+    // A step down that reaches zero on review 11 is not rescued by a non-call period: the last review that can call still fails.
+    expect(fieldsOf(callable({ redemption: autocall({ triggerStep: -0.1, nonCallReviews: 5 }) }))).toEqual(['triggerStep'])
   })
 
   it('needs the trigger to stay above zero on every review that is tested', () => {
@@ -320,10 +321,10 @@ describe('a final review that calls, as the payment at the end of the term', () 
   })
 })
 
-// A non-call period: reviews before the first call cannot call, even at or above the trigger. Twelve monthly reviews that can call from
+// A non-call period: its reviews cannot call, even at or above the trigger. Twelve monthly reviews that can call from
 // the sixth, as the public note read for the chapter does, without its coupons.
 describe('a non-call period', () => {
-  const note = callable({ redemption: autocall({ firstCall: 6 }), payoff: { participations: [{ direction: 'downside', rate: 1 }] } })
+  const note = callable({ redemption: autocall({ nonCallReviews: 5 }), payoff: { participations: [{ direction: 'downside', rate: 1 }] } })
 
   it('does not call a review in the period, even above the trigger', () => {
     const outcome = redemptionOutcome(note, [120, 120, 120, 120, 120, 90, ...flat(5)], levels)
@@ -345,20 +346,20 @@ describe('a non-call period', () => {
     expect(redemptionOutcome(callable(), [90, 90, 90, 90, 150, 90, ...flat(5)], levels).calledAtReview).toBe(5)
   })
 
-  it('is the same as no period when the first call is review 1', () => {
+  it('is the same as no period when the period is 0 reviews', () => {
     const early = [100, ...flat(10)]
-    expect(redemptionOutcome(callable({ redemption: autocall({ firstCall: 1 }) }), early, levels)).toEqual(redemptionOutcome(callable(), early, levels))
+    expect(redemptionOutcome(callable({ redemption: autocall({ nonCallReviews: 0 }) }), early, levels)).toEqual(redemptionOutcome(callable(), early, levels))
   })
 
   it('can leave the final review as the only call', () => {
-    const only = callable({ redemption: autocall({ firstCall: 12, callOnFinalReview: true }), payoff: { participations: [{ direction: 'downside', rate: 1 }] } })
+    const only = callable({ redemption: autocall({ nonCallReviews: 11, callOnFinalReview: true }), payoff: { participations: [{ direction: 'downside', rate: 1 }] } })
     const outcome = redemptionOutcome(only, Array(11).fill(150), { initial: 100, final: 100 })
     expect(outcome.calledAtReview).toBe(12)
     expect(outcome.tests.filter(({ callable }) => callable)).toHaveLength(1)
   })
 
-  it('moves the trigger from review 1, so the first call reads the trigger of its own review', () => {
-    const stepped = callable({ redemption: autocall({ trigger: 1, triggerStep: -0.05, firstCall: 3 }) })
+  it('moves the trigger from review 1, so the first review that can call reads the trigger of its own review', () => {
+    const stepped = callable({ redemption: autocall({ trigger: 1, triggerStep: -0.05, nonCallReviews: 2 }) })
     const outcome = redemptionOutcome(stepped, [100, 100, 89, 90, ...flat(7)], levels)
     expect(outcome.tests.map(({ triggerLevel }) => triggerLevel).slice(0, 4)).toEqual([100, 95, 90, 85])
     expect(outcome.calledAtReview).toBe(4)
@@ -397,7 +398,7 @@ describe('a worst-of basket as the underlier of an autocall', () => {
 
 // The worked example of the book chapter on reviews and early redemption.
 describe('the non-call period example in the book', () => {
-  const note = callable({ redemption: autocall({ firstCall: 6 }), payoff: { participations: [{ direction: 'downside', rate: 1 }] } })
+  const note = callable({ redemption: autocall({ nonCallReviews: 5 }), payoff: { participations: [{ direction: 'downside', rate: 1 }] } })
 
   it.each<[string, number[], number, number | undefined, number, number]>([
     ['120 on reviews 1 to 5, below 100 after, ends at 110', [120, 120, 120, 120, 120, ...flat(6, 99)], 110, undefined, 12, 1000],
