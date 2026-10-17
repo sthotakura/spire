@@ -210,3 +210,13 @@ describe('the coupon in the review table', () => {
     expect(couponCell(product({ memory: false }), { ...outcome.coupons[0] })).toBe('Missed')
   })
 })
+
+describe('a product that ends before its first coupon review', () => {
+  it('says so in the outcome sentence, with the total paid and the total return', () => {
+    // An issuer call on review 1 of a quarterly call, month 3, beside semi-annual coupons: no coupon review is reached.
+    const issuer: Product = { ...product({ schedule: { frequency: 'semi-annual' } }), redemption: { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0.01 } }
+    const outcome = redemptionOutcome(issuer, [90], { initial: 100, final: 90 }, 1)
+    expect(outcome.coupons).toEqual([])
+    expect(explainCoupons(issuer, outcome)).toBe('It ended before its first coupon review, so it paid no coupon. In all it paid 1,010, a total return of +1% over 3 months.')
+  })
+})

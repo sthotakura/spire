@@ -202,10 +202,13 @@ export function couponClosingSteps(note: Product, outcome: RedemptionOutcome): A
   ]
 }
 
-// How the coupons went: how many reviews met the barrier, what they paid, and what was not paid. Empty without a coupon.
+// How the coupons went: how many reviews met the barrier, what they paid, and what was not paid, then the total paid and the total
+// return. A product called before its first coupon review says so. Empty without a coupon.
 export function explainCoupons(note: Product, outcome: RedemptionOutcome): string {
   const { coupon } = note
-  if (coupon === undefined || !outcome.coupons.length) return ''
+  if (coupon === undefined) return ''
+  const total = ` In all it paid ${units(outcome.totalPaid)}, a total return of ${signedTwoDecimalPercent(totalReturn(note, outcome))} over ${monthsPhrase(outcome.months)}.`
+  if (!outcome.coupons.length) return `It ended before its first coupon review, so it paid no coupon.${total}`
   const tested = outcome.coupons.length
   const met = outcome.coupons.filter((test) => test.met).length
   const paid = outcome.coupons.reduce((sum, test) => sum + test.paid, 0)
@@ -217,7 +220,7 @@ export function explainCoupons(note: Product, outcome: RedemptionOutcome): strin
   const lost = unpaid === 0 ? ''
     : coupon.memory ? ` ${coupons(unpaid)} remembered from reviews below the barrier ${unpaid === 1 ? 'was' : 'were'} never paid, since no later review met it.`
       : ` ${coupons(unpaid)} missed below the barrier ${unpaid === 1 ? 'was' : 'were'} not paid, since it has no memory.`
-  return `${opening}${lost} In all it paid ${units(outcome.totalPaid)}, a total return of ${signedTwoDecimalPercent(totalReturn(note, outcome))} over ${monthsPhrase(outcome.months)}.`
+  return `${opening}${lost}${total}`
 }
 
 const moreThanPrincipal = (note: Product, payment: number) => {
