@@ -315,7 +315,7 @@ export interface Schedule {
 
 /**
  * Automatic early redemption. On each review before the last, if the underlier's level is at or above the trigger, the product ends
- * and repays principal plus the call amount. The last review is the end of the term and pays the payoff as a bullet product does,
+ * and repays principal plus the call amount. The last review is the end of the term and pays the maturity payoff as a bullet product does,
  * unless the final review is also a call.
  */
 export interface Autocall {
@@ -358,7 +358,7 @@ export interface Autocall {
   callAmountBasis?: 'flat' | 'per-year'
   /**
    * Whether the last review is also tested for a call. When true, a level at or above the trigger on the last review pays principal
-   * plus the call amount, in place of the payoff; below it, the payoff is paid. Absent or false pays the payoff on the last review
+   * plus the call amount, in place of the maturity payoff; below it, the maturity payoff is paid. Absent or false pays it on the last review
    * whatever the level.
    * @default false
    */
