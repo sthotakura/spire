@@ -1,4 +1,5 @@
-import { barrierLevelAt, downsideOf, paymentBreakdown, upsideOf, type PaymentBreakdown, type Product } from '../domain/note'
+import { couponBarrierLevel, paymentAtEnd } from '../domain/autocall'
+import { barrierLevelAt, couponPerReview, downsideOf, paymentBreakdown, upsideOf, type PaymentBreakdown, type Product } from '../domain/note'
 
 // Underlier returns the scenario table shows, from a fall to a strong rise.
 export const scenarioReturns = [-0.4, 0, 0.1, 0.3]
@@ -19,7 +20,14 @@ export interface ScenarioRow {
   // True for the row a barrier observed on every close adds to show a path: the barrier was reached on an earlier close and the
   // underlier then moved back, so the final level alone would not have shown it.
   afterBreach: boolean
+  // True for the row a coupon adds at its barrier, the lowest final level that pays the last coupon. Another row just below it misses it.
+  atCouponBarrier: boolean
   breakdown: PaymentBreakdown
+  // With a coupon, the last review's own coupon when the final level is at or above its barrier, and zero otherwise. Zero without one.
+  lastCoupon: number
+  // What the product pays at the end of its term, if no earlier review called it: the payoff, plus the last coupon, or the call when
+  // the final review calls it. It is the payment the chart draws.
+  endPayment: number
 }
 
 // The close that reached a barrier in a row where one was reached on an earlier close, to say beside the final level. With barrier
@@ -37,13 +45,13 @@ export function breachClose(breakdown: PaymentBreakdown): { kind: 'lowest' | 'hi
 // so the table cannot disagree with the calculation.
 // A barrier adds a row at its level, so the table shows where a fall stops repaying principal wherever the barrier is, and an
 // upside barrier adds another just above its level, where the payment drops.
-// Absolute return adds one at the buffer level, where a fall stops paying a gain. Each row's level is computed as the
+// Absolute return adds one at the buffer level, where a fall stops paying a gain. A coupon adds one at its barrier and one just below. Each row's level is computed as the
 // payment computes it, so rounding cannot move it to the other side, and a fixed row at the same level gives way to it.
 export function scenarioRows(note: Product, initialLevel: number, returns: number[] = scenarioReturns): ScenarioRow[] {
-  type Point = { returnValue: number; finalLevel: number; atBarrier: boolean; pastBarrier: 'above' | 'below' | null; atBuffer: boolean; afterBreach: boolean; lowestClose?: number; highestClose?: number }
-  let points: Point[] = returns.map((returnValue) => ({ returnValue, finalLevel: initialLevel * (1 + returnValue), atBarrier: false, pastBarrier: null, atBuffer: false, afterBreach: false }))
-  const added = (finalLevel: number, returnValue: number, marks: Partial<Pick<Point, 'atBarrier' | 'pastBarrier' | 'atBuffer'>>) => {
-    points = [...points.filter((point) => Math.abs(point.finalLevel - finalLevel) > 1e-9 * initialLevel), { returnValue, finalLevel, atBarrier: false, pastBarrier: null, atBuffer: false, afterBreach: false, ...marks }]
+  type Point = { returnValue: number; finalLevel: number; atBarrier: boolean; pastBarrier: 'above' | 'below' | null; atBuffer: boolean; afterBreach: boolean; atCouponBarrier: boolean; lowestClose?: number; highestClose?: number }
+  let points: Point[] = returns.map((returnValue) => ({ returnValue, finalLevel: initialLevel * (1 + returnValue), atBarrier: false, pastBarrier: null, atBuffer: false, afterBreach: false, atCouponBarrier: false }))
+  const added = (finalLevel: number, returnValue: number, marks: Partial<Pick<Point, 'atBarrier' | 'pastBarrier' | 'atBuffer' | 'atCouponBarrier'>>) => {
+    points = [...points.filter((point) => Math.abs(point.finalLevel - finalLevel) > 1e-9 * initialLevel), { returnValue, finalLevel, atBarrier: false, pastBarrier: null, atBuffer: false, afterBreach: false, atCouponBarrier: false, ...marks }]
       .sort((a, b) => a.finalLevel - b.finalLevel)
   }
   const { barrier, buffer, absoluteReturn } = downsideOf(note) ?? {}
@@ -66,10 +74,16 @@ export function scenarioRows(note: Product, initialLevel: number, returns: numbe
     added(upperLevel, bothWays.upperBarrier.level - 1, { atBarrier: true })
     added(upperLevel + 0.05 * initialLevel, bothWays.upperBarrier.level - 1 + 0.05, { pastBarrier: 'above' })
   }
+  // A coupon adds a row at its barrier, where the last coupon is paid, and one a percent of the initial level below it, where it is not.
+  const couponLevel = couponBarrierLevel(note, initialLevel)
+  if (note.coupon !== undefined && couponLevel !== undefined) {
+    added(couponLevel, note.coupon.barrier - 1, { atCouponBarrier: true })
+    if (note.coupon.barrier > 0.01) added(couponLevel - 0.01 * initialLevel, note.coupon.barrier - 1.01, {})
+  }
   // A barrier observed daily also gets a row where it was reached and the underlier then moved back to halfway between the
   // barrier and the initial level. It stays beside the row at that final level that never reached the barrier.
   const afterBreach = (finalLevel: number, close: { lowestClose: number } | { highestClose: number }) => {
-    points = [...points, { returnValue: finalLevel / initialLevel - 1, finalLevel, atBarrier: false, pastBarrier: null, atBuffer: false, afterBreach: true, ...close }].sort((a, b) => a.finalLevel - b.finalLevel)
+    points = [...points, { returnValue: finalLevel / initialLevel - 1, finalLevel, atBarrier: false, pastBarrier: null, atBuffer: false, afterBreach: true, atCouponBarrier: false, ...close }].sort((a, b) => a.finalLevel - b.finalLevel)
   }
   if (barrier?.observation === 'daily-close') afterBreach(initialLevel * (1 + barrier.level) / 2, { lowestClose: Math.max(0, initialLevel * (barrier.level - 0.05)) })
   if (upsideBarrier?.observation === 'daily-close') afterBreach(initialLevel * (1 + upsideBarrier.level) / 2, { highestClose: initialLevel * (upsideBarrier.level + 0.05) })
@@ -77,5 +91,9 @@ export function scenarioRows(note: Product, initialLevel: number, returns: numbe
   // return where a flat note that never went beyond would pay principal.
   if (bothWays?.lowerBarrier.observation === 'daily-close') afterBreach(initialLevel, { lowestClose: Math.max(0, initialLevel * (bothWays.lowerBarrier.level - 0.05)) })
   if (bothWays?.upperBarrier.observation === 'daily-close') afterBreach(initialLevel, { highestClose: initialLevel * (bothWays.upperBarrier.level + 0.05) })
-  return points.map(({ lowestClose, highestClose, ...point }) => ({ ...point, breakdown: paymentBreakdown(note, { initial: initialLevel, final: point.finalLevel, lowestClose, highestClose }) }))
+  return points.map(({ lowestClose, highestClose, ...point }) => {
+    const levels = { initial: initialLevel, final: point.finalLevel, lowestClose, highestClose }
+    const lastCoupon = couponLevel !== undefined && point.finalLevel >= couponLevel ? couponPerReview(note) : 0
+    return { ...point, breakdown: paymentBreakdown(note, levels), lastCoupon, endPayment: paymentAtEnd(note, levels) }
+  })
 }

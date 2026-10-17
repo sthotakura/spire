@@ -233,3 +233,34 @@ describe('the close that reached a barrier', () => {
     expect(breachClose(scenarioRows(startingProduct, 100)[0].breakdown)).toBeNull()
   })
 })
+
+describe('scenario rows with a coupon', () => {
+  // Synthetic: a 1,000 bullet note with a 12% coupon reviewed monthly (10 a review) at a 70% barrier, and 100% downside participation.
+  const couponed: Product = {
+    ...startingProduct,
+    term: { months: 12 },
+    coupon: { schedule: { frequency: 'monthly' }, rate: 0.12, barrier: 0.7 },
+    payoff: { participations: [{ direction: 'downside', rate: 1 }] },
+  }
+
+  it('pays the last coupon with the payoff at and above the coupon barrier, as the chart and the calculation do', () => {
+    const rows = scenarioRows(couponed, 100)
+    const at = (level: number) => rows.find((row) => Math.abs(row.finalLevel - level) < 1e-9)!
+    expect(at(110)).toMatchObject({ lastCoupon: 10, endPayment: 1010 })
+    expect(at(110).breakdown.payment).toBe(1000)
+    expect(at(60)).toMatchObject({ lastCoupon: 0, endPayment: 600 })
+  })
+
+  it('adds a row at the coupon barrier and one just below it, where the last coupon is missed', () => {
+    const rows = scenarioRows(couponed, 100)
+    expect(rows.find((row) => row.finalLevel === 70)).toMatchObject({ atCouponBarrier: true, lastCoupon: 10, endPayment: 710 })
+    expect(rows.find((row) => row.finalLevel === 69)).toMatchObject({ lastCoupon: 0, endPayment: 690 })
+  })
+
+  it('has no last coupon without a coupon, and the end payment is the payoff', () => {
+    for (const row of scenarioRows({ ...couponed, coupon: undefined }, 100)) {
+      expect(row.lastCoupon).toBe(0)
+      expect(row.endPayment).toBe(row.breakdown.payment)
+    }
+  })
+})
