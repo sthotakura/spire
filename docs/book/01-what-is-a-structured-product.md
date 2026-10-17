@@ -51,13 +51,17 @@ A **category** is a broad class. The Swiss Structured Products Association
 groups products into Capital Protection, Yield Enhancement, Participation and
 Leverage. A product falls in at most one. SPIRe shows a category only when the
 terms place the note in it: any principal protection above 0% is Capital
-Protection, and an unprotected note that follows the underlier is
-Participation. The model does not place a product in Yield Enhancement or
-Leverage, so neither is shown, even for a note with a contingent coupon.
+Protection, and an unprotected bullet note with no coupon that follows the
+underlier is Participation. The model does not place a product in Yield
+Enhancement or Leverage, so neither is shown, and an unprotected note with an
+autocall, an issuer call or a contingent coupon shows no category.
 
 A **marketing name**, such as “principal-protected note”, is the label a seller
 puts on a product. Several can apply to one note, and no single authority
-defines them.
+defines them. Names such as “tracker” describe a note that only follows the
+underlier, so a call or a coupon rules them out. Names that describe the
+payment at maturity, such as “buffered note”, still apply, and their reason
+says that a call can end the product earlier or that a coupon is paid as well.
 
 Both are hints. The structure remains the authoritative description of what the
 product pays.

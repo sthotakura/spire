@@ -25,8 +25,17 @@ export function productCategory(note: Product): ProductCategory | undefined {
 
   if (protection !== undefined && Number.isFinite(protection) && protection > 0) return 'Capital Protection'
   if (note.wrapper === 'deposit' && isRate(upside)) return 'Capital Protection'
-  if (note.wrapper === 'note' && (isRate(upside) || isRate(downside))) return 'Participation'
+  // A call or a coupon on an unprotected note could place it in Yield Enhancement, which is unverified, so it gets no category.
+  if (note.wrapper === 'note' && note.redemption === 'bullet' && note.coupon === undefined && (isRate(upside) || isRate(downside))) return 'Participation'
   return undefined
+}
+
+// The names below describe the payment at maturity. A call or a coupon changes what the product pays, so the reason says so.
+function maturityOnlyNote(note: Product): string {
+  const parts: string[] = []
+  if (note.redemption !== 'bullet') parts.push(`The name describes the payment at maturity; ${note.redemption.kind === 'autocall' ? 'an autocall' : 'an issuer call'} can end the product earlier.`)
+  if (note.coupon !== undefined) parts.push('The name does not cover the contingent coupon, paid on the reviews that meet its barrier.')
+  return parts.join(' ')
 }
 
 // Names a structure like this one is commonly sold under. They are hints, not definitions, and several can apply at once.
@@ -80,9 +89,10 @@ export function marketingNames(note: Product): MarketingName[] {
   }
 
   // Without protection, a buffer, a barrier (on either direction) or a cap. A value that is present but invalid is not absent, so a draft with one gets no name here.
-  // These names describe notes, so a deposit gets none of them.
+  // These names describe notes, so a deposit gets none of them. They describe a note that only follows the underlier to maturity,
+  // so a call or a coupon rules them out.
   const unprotected = protection === undefined || protection === 0
-  if (note.wrapper === 'note' && unprotected && buffer === undefined && barrier === undefined && upsideBarrier === undefined && cap === undefined && isRate(upside) && (downside === undefined || isRate(downside))) {
+  if (note.wrapper === 'note' && note.redemption === 'bullet' && note.coupon === undefined && unprotected && buffer === undefined && barrier === undefined && upsideBarrier === undefined && cap === undefined && isRate(upside) && (downside === undefined || isRate(downside))) {
     if (downside === 1 && upside === 1) {
       names.push({ name: 'Tracker', vocabulary: 'SSPA', reason: 'The payment follows the underlier one for one, up and down.', concepts: ['upside', 'downside'] })
     } else if (downside === 1 && upside > 1) {
@@ -138,5 +148,6 @@ export function marketingNames(note: Product): MarketingName[] {
     names.push({ name: 'Capped participation', vocabulary: 'US descriptive', reason: 'Upside participation stops at a maximum return, so the payment cannot rise past the cap.', concepts: ['upside', 'cap'] })
   }
 
-  return names
+  const caveat = maturityOnlyNote(note)
+  return caveat ? names.map((name) => ({ ...name, reason: `${name.reason} ${caveat}` })) : names
 }

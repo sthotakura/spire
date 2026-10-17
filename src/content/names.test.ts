@@ -237,3 +237,40 @@ describe('product category', () => {
     expect(productCategory(deposit)).toBe('Capital Protection')
   })
 })
+
+describe('marketing names with a call or a coupon', () => {
+  const autocall: Product['redemption'] = { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0 }
+  const issuerCall: Product['redemption'] = { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0 }
+  const coupon: Product['coupon'] = { schedule: { frequency: 'quarterly' }, rate: 0.08, barrier: 0.7 }
+  const withTerms = (payoff: Parameters<typeof noteWith>[0], terms: Partial<Product>): Product => ({ ...noteWith(payoff), ...terms })
+  const namesWith = (payoff: Parameters<typeof noteWith>[0], terms: Partial<Product>) => marketingNames(withTerms(payoff, terms)).map(({ name }) => name)
+
+  it('gives no tracker, outperformance or participation note name when a call or a coupon is added', () => {
+    for (const terms of [{ redemption: autocall }, { redemption: issuerCall }, { coupon }]) {
+      expect(namesWith({ participations: [up(1), down(1)] }, terms)).toEqual([])
+      expect(namesWith({ participations: [up(1.5), down(1)] }, terms)).toEqual([])
+      expect(namesWith({ participations: [up(1)] }, terms)).toEqual([])
+    }
+  })
+
+  it('keeps a name that describes the maturity payment, and says what the call and the coupon add', () => {
+    const [protectedNote] = marketingNames(withTerms({ principalProtection: 1, participations: [up(1)] }, { redemption: autocall }))
+    expect(protectedNote.name).toBe('Principal-protected note')
+    expect(protectedNote.reason).toContain('an autocall can end the product earlier')
+    const [buffered] = marketingNames(withTerms({ participations: [down(1)], buffer: 0.1 }, { redemption: issuerCall, coupon }))
+    expect(buffered.name).toBe('Buffered note')
+    expect(buffered.reason).toContain('an issuer call can end the product earlier')
+    expect(buffered.reason).toContain('contingent coupon')
+  })
+
+  it('adds nothing to the reason on a bullet product with no coupon', () => {
+    const [name] = marketingNames(noteWith({ principalProtection: 1 }))
+    expect(name.reason).not.toContain('The name describes')
+  })
+
+  it('places no Participation category on an unprotected product with a call or a coupon, and lets protection still decide', () => {
+    expect(productCategory(withTerms({ participations: [down(1)] }, { redemption: autocall }))).toBeUndefined()
+    expect(productCategory(withTerms({ participations: [up(1)] }, { coupon }))).toBeUndefined()
+    expect(productCategory(withTerms({ principalProtection: 1, participations: [up(1)] }, { redemption: autocall, coupon }))).toBe('Capital Protection')
+  })
+})
