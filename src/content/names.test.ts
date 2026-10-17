@@ -311,7 +311,9 @@ describe('names for a call and a coupon', () => {
   })
 
   it('calls an unprotected autocall with a coupon and a downside barrier, and no upside, an Express certificate', () => {
-    expect(namesWith({ participations: [barrierDown] }, { redemption: autocall, coupon })).toEqual(['Autocallable note', 'Contingent coupon note', 'Express certificate'])
+    const names = marketingNames(withTerms({ participations: [barrierDown] }, { redemption: autocall, coupon }))
+    expect(names.map(({ name }) => name)).toEqual(['Autocallable note', 'Contingent coupon note', 'Express certificate'])
+    expect(names[2].concepts).toEqual(['redemption'])
   })
 
   it('gives no Express name without the autocall, the coupon or the barrier, with a buffer, upside or protection', () => {

@@ -197,7 +197,8 @@ function callAndCouponNames(note: Product): MarketingName[] {
       name: 'Express certificate',
       vocabulary: 'SSPA',
       reason: 'The return is the coupons, with no share in a rise. The product is called early when the underlier is at or above the trigger on a review, and below the downside barrier at maturity the holder bears the fall. The Swiss taxonomy calls this an Express-Barrier-Certificate.',
-      concepts: ['redemption', 'coupon', 'barrier'],
+      // The autocall is what makes it an Express certificate, so the chip highlights the redemption, not the whole payoff.
+      concepts: ['redemption'],
     })
   }
 
