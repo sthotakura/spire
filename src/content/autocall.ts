@@ -170,11 +170,15 @@ export function couponCell(note: Product, test: CouponTest): string {
 
 // The coupons a review pays, worked out: the number of coupons × principal × the rate a year × the months between coupon reviews ÷ 12.
 // Only the result is rounded. A coupon rounded first and then multiplied would show a false sum: 11.5% a year reviewed monthly is
-// 9.5833 a review, and 2 × 9.58 is 19.16, not the 19.17 paid. The rate is shown as stated, to six decimals of a percent. The review
-// table and the calculation both show it, so they read the same.
+// 9.5833 a review, and 2 × 9.58 is 19.16, not the 19.17 paid. The rate is shown to eight decimals of a percent, every decimal the
+// interface accepts; a finer rate, which only a structure can state, is marked as approximate. The review table and the calculation
+// both show it, so they read the same.
 function couponWorking(note: Product, count: number): string {
   if (note.coupon === undefined) return ''
-  const rate = `${(note.coupon.rate * 100).toLocaleString('en-US', { maximumFractionDigits: 6 })}%`
+  const percent = note.coupon.rate * 100
+  const shown = Math.round(percent * 1e8) / 1e8
+  // A difference below a billionth of a percent is floating-point noise, as in 0.1735 × 100 = 17.349999999999998.
+  const rate = `${Math.abs(shown - percent) > 1e-9 ? '≈' : ''}${shown.toLocaleString('en-US', { maximumFractionDigits: 8 })}%`
   return `${count > 1 ? `${count} × ` : ''}${units(note.principalAmount)} × ${rate} × ${monthsPerReview[note.coupon.schedule.frequency]}/12 = ${units(count * couponPerReview(note))}`
 }
 

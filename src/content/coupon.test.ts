@@ -237,3 +237,22 @@ describe('the coupon working shows no rounded operand', () => {
     expect(couponCell(precise, redemptionOutcome(precise, called, { initial: 100, final: 90 }).coupons[0])).toBe('1,000 × 17.355% × 1/12 = 14.46')
   })
 })
+
+describe('the coupon rate in the working', () => {
+  // An annual coupon on a large principal shows any rounding of the rate in the result.
+  const large = (rate: number): Product => ({ ...product({ schedule: { frequency: 'annual' }, rate }), principalAmount: 10_000_000, redemption: 'bullet' })
+  const cell = (note: Product) => couponCell(note, redemptionOutcome(note, [], { initial: 100, final: 90 }).coupons[0])
+
+  it('shows every decimal the interface accepts, eight decimals of a percent', () => {
+    expect(cell(large(0.1234567891))).toBe('10,000,000 × 12.34567891% × 12/12 = 1,234,567.89')
+  })
+
+  it('marks a finer rate, from the structure, as approximate', () => {
+    expect(cell(large(0.123456789123))).toBe('10,000,000 × ≈12.34567891% × 12/12 = 1,234,567.89')
+  })
+
+  it('does not mark a rate whose only difference is floating-point noise', () => {
+    // 0.1735 × 100 is 17.349999999999998 in floating point.
+    expect(cell(large(0.1735))).toBe('10,000,000 × 17.35% × 12/12 = 1,735,000')
+  })
+})
