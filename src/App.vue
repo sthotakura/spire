@@ -5,7 +5,7 @@ import { payoffLabels, type PayoffLabelKey } from './content/chart-labels'
 import HintToggle from './components/HintToggle.vue'
 import NumberInput from './components/NumberInput.vue'
 import TabGroup from './components/TabGroup.vue'
-import { couponClosingSteps, couponFormula, explainCoupons, explainRedemption, pathScenarios, redemptionFormula, redemptionSteps } from './content/autocall'
+import { couponCell, couponClosingSteps, couponFormula, explainCoupons, explainRedemption, pathScenarios, redemptionFormula, redemptionSteps } from './content/autocall'
 import { calculationSteps } from './content/calculation'
 import type { ConceptId } from './content/concepts'
 import { marketingNames, productCategory, type MarketingName } from './content/names'
@@ -658,15 +658,13 @@ const reviewTest = (date: ReviewDate) => {
   if (date.call <= nonCallReviewCount.value) return 'No call'
   return redemption.value.tests.find((test) => test.review === date.call)?.called ? 'Called' : 'Not called'
 }
-// What a coupon review paid, for the review table: the amount, how many coupons it was with memory, or that it missed. A review after
+// What a coupon review paid, for the review table, worked out from the rate, or that it missed. A review after
 // a call is not tested.
 const reviewCoupon = (date: ReviewDate) => {
   if (!redemption.value || !note.value.coupon || date.coupon === undefined) return ''
   if (ended(date)) return 'Ended'
   const test = redemption.value.coupons.find((candidate) => candidate.review === date.coupon)
-  if (!test) return '—'
-  if (!test.met) return note.value.coupon.memory ? 'Missed · remembered' : 'Missed'
-  return test.coupons > 1 ? `${formatAmount(test.paid)} · ${test.coupons} coupons` : formatAmount(test.paid)
+  return test ? couponCell(note.value, test) : '—'
 }
 // A product called before the last review never reaches its final date, so the final level does not set its payment. It is still
 // what the chart's dot and the comparison steps read, so the field stays, dimmed, and says so.

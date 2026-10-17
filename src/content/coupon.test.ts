@@ -3,7 +3,7 @@ import { redemptionOutcome } from '../domain/autocall'
 import type { Coupon, Product } from '../domain/note'
 import { startingProduct } from '../domain/starting-note'
 import { payoffLabels } from './chart-labels'
-import { couponClosingSteps, couponFormula, explainCoupons, pathScenarios, redemptionFormula, redemptionSteps } from './autocall'
+import { couponCell, couponClosingSteps, couponFormula, explainCoupons, pathScenarios, redemptionFormula, redemptionSteps } from './autocall'
 import { isHighlighted } from './selection'
 import { structureLines } from './structure-json'
 import { summarize } from './summary'
@@ -191,5 +191,22 @@ describe('a coupon on its own schedule in the calculation', () => {
   it('gives a bullet note with a coupon the coupon paths', () => {
     const bullet: Product = { ...product({ schedule: { frequency: 'quarterly' } }), redemption: 'bullet' }
     expect(pathScenarios(bullet, 100).map(({ name, reviewLevels }) => [name, reviewLevels.length])).toEqual([['Misses coupons, then pays them by memory', 3], ['Below the coupon barrier throughout', 3]])
+  })
+})
+
+describe('the coupon in the review table', () => {
+  it('works out the coupon from the rate, and multiplies it by the coupons a review pays with memory', () => {
+    const quarterly = product({ schedule: { frequency: 'quarterly' }, rate: 0.1 })
+    const outcome = redemptionOutcome(quarterly, [90, 65, 90, 90, 90, 90, 90, 90, 90, 90, 90], { initial: 100, final: 90 })
+    const cells = outcome.coupons.map((test) => couponCell(quarterly, test))
+    expect(cells[0]).toBe('1,000 × 10% × 3/12 = 25')
+  })
+
+  it('shows remembered coupons paid together, and a miss', () => {
+    const quarterly = product({ schedule: { frequency: 'quarterly' }, rate: 0.1 })
+    // Month 3 at 65 misses; month 6 at 90 pays its own coupon and the one remembered.
+    const outcome = redemptionOutcome({ ...quarterly, redemption: 'bullet' }, [65, 90, 90], { initial: 100, final: 90 })
+    expect(outcome.coupons.map((test) => couponCell(quarterly, test)).slice(0, 2)).toEqual(['Missed · remembered', '2 × 25 = 50'])
+    expect(couponCell(product({ memory: false }), { ...outcome.coupons[0] })).toBe('Missed')
   })
 })

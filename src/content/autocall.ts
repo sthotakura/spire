@@ -1,5 +1,5 @@
-import type { RedemptionOutcome, ReviewTest } from '../domain/autocall'
-import { annualisedReturn, barrierLevelAt, callAmountAtReview, callReviewCount, couponPerReview, firstCallReview, reviewCount, reviewDates, triggerAtReview, type Autocall, type Product, type ReviewDate } from '../domain/note'
+import type { CouponTest, RedemptionOutcome, ReviewTest } from '../domain/autocall'
+import { annualisedReturn, barrierLevelAt, callAmountAtReview, callReviewCount, couponPerReview, firstCallReview, monthsPerReview, reviewCount, reviewDates, triggerAtReview, type Autocall, type Product, type ReviewDate } from '../domain/note'
 import type { CalculationStep } from './calculation'
 import type { FormulaLine } from './formula'
 
@@ -158,6 +158,17 @@ const callCouponText = (note: Product, outcome: RedemptionOutcome): string => {
   if (note.coupon === undefined || outcome.calledAtReview === undefined) return ''
   const onCall = outcome.coupons.find((test) => test.month === outcome.months)
   return onCall === undefined ? ', no coupon review on this date' : ` + coupon ${units(onCall.paid)}`
+}
+
+// A coupon review's cell in the review table, with its working: principal × the rate a year × the months between coupon reviews ÷ 12,
+// or with memory that many coupons times one. A review below the barrier says it missed, and with memory that its coupon is remembered.
+export function couponCell(note: Product, test: CouponTest): string {
+  const { coupon } = note
+  if (coupon === undefined) return ''
+  if (!test.met) return coupon.memory ? 'Missed · remembered' : 'Missed'
+  const each = couponPerReview(note)
+  if (test.coupons > 1) return `${test.coupons} × ${units(each)} = ${units(test.paid)}`
+  return `${units(note.principalAmount)} × ${twoDecimalPercent(coupon.rate)} × ${monthsPerReview[coupon.schedule.frequency]}/12 = ${units(each)}`
 }
 
 // Everything paid over the product's life: the coupons on the reviews before it ended, and the payment on the review it ended on.
