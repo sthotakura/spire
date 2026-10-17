@@ -54,7 +54,9 @@ If the note is never called, the last review decides two things at once. Say the
 
 ## Seen against the final level
 
-The payoff chart draws what the product pays at the end of its term, if no earlier review called it, against the final level. With a coupon the line steps up at the coupon barrier by one coupon, the last review's own. The remembered coupons depend on the path, so they are not drawn; the review table and the calculation show them.
+The payoff chart draws what the product pays at the end of its term, if no earlier review called it, against the final level. With a coupon the line steps up at the coupon barrier by one coupon, the last review's own. The remembered coupons depend on the path, so they are not drawn; the review table and the calculation show them. The review table works each coupon out, such as 1,000 × 10% × 3/12 = 25 for a quarterly review, or 2 × 25 = 50 when a remembered coupon is paid with it.
+
+The scenario table shows the same payment at the end of the term as the chart, with a column for the last coupon, and adds a row at the coupon barrier and one just below it, where the last coupon is missed. When the coupon barrier is at the level of a payoff barrier, the one row is marked as both.
 
 When the coupon barrier equals the downside barrier, the two steps are at the same level and add up. With quarterly reviews over a year, an 11.50% coupon (28.75 a review) and both barriers at 70%, a final level just below 70 pays 699.90 and a final level of 70 pays 1,028.75, as the 70% note's table of payments shows.
 

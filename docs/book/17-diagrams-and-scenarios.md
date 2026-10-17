@@ -61,6 +61,11 @@ just past each, and a row for each barrier observed on every close where the
 underlier returned to the initial level after a close beyond it, labelled with
 that close.
 
+With a [coupon](20-coupons.md), the chart and the scenario table show the
+payment at the end of the term, which includes the last review's coupon when the
+final level is at or above the coupon barrier. The table adds a column for that
+coupon, and a row at the coupon barrier and one just below it.
+
 ![Absolute return in both directions between barriers at 80% and 125%, with a 2% conditional return, at a final level of 110](charts/barrier-absolute-return.svg)
 
 ## A product that can be called

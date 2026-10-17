@@ -10,7 +10,8 @@ to it.
 ## Bullet redemption
 
 In this book's synthetic bullet note, there is one payment at scheduled
-maturity and no early call. There are no coupons along the way. The payment
+maturity and no early call. This example pays no coupons along the way, though
+a bullet note can ([Coupons](20-coupons.md)). The payment
 can be above, at, or below principal, depending on the maturity payoff rules.
 
 For example, a three-year note with principal of 1,000 and 100% upside
