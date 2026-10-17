@@ -1081,20 +1081,20 @@ const chart = computed(() => {
               </div>
               <ul v-if="issuesFor('principalAmount', 'term').length" class="errors" role="alert"><li v-for="message in issuesFor('principalAmount', 'term')" :key="message">{{ message }}</li></ul>
               <ul>
+                <li v-if="scheduled" :class="['node', { sel: highlighted('schedule') }]" :style="conceptStyle('schedule')">
+                  <div class="nrow" @click="select('schedule')" @focusin="focusRow('schedule')">
+                    <span class="nlabel">Reviews<HintToggle id="schedule" about="the review schedule" :text="hints.schedule" :active="activeHint === 'schedule'" @toggle="toggleHint('schedule')" /></span>
+                    <span class="ctrl pick"><select id="review-frequency" v-model="reviewFrequency" aria-label="Review frequency"><option v-for="option in reviewFrequencyOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
+                  </div>
+                  <p v-if="reviewNudge && !issuesFor('schedule').length" class="nudge">{{ reviewNudge }}</p>
+                  <ul v-if="issuesFor('schedule').length" class="errors" role="alert"><li v-for="message in issuesFor('schedule')" :key="message">{{ message }}</li></ul>
+                </li>
                 <li :class="['node', { sel: highlighted('redemption') }]" :style="conceptStyle('redemption')">
                   <div class="nrow" @click="select('redemption')" @focusin="focusRow('redemption')">
                     <span class="nlabel">Redemption<HintToggle id="redemption" about="redemption" :text="hints.redemption" :active="activeHint === 'redemption'" @toggle="toggleHint('redemption')" /></span>
                     <span class="ctrl pick"><select id="redemption-kind" aria-label="Redemption" :value="redemptionKind" @change="redemptionKind = ($event.target as HTMLSelectElement).value as 'bullet' | 'autocall' | 'issuer-call'"><option v-for="option in redemptionOptions" :key="option.id" :value="option.id" :disabled="!option.available || !!redemptionBlockedReason(option.id)">{{ option.label }}{{ !option.available ? ' (unavailable)' : redemptionBlockedReason(option.id) ? ` (${redemptionBlockedReason(option.id)})` : '' }}</option></select></span>
                   </div>
                   <ul v-if="scheduled">
-                    <li :class="['node', { sel: highlighted('schedule') }]" :style="conceptStyle('schedule')">
-                      <div class="nrow" @click="select('schedule')" @focusin="focusRow('schedule')">
-                        <span class="nlabel">Reviews<HintToggle id="schedule" about="the review schedule" :text="hints.schedule" :active="activeHint === 'schedule'" @toggle="toggleHint('schedule')" /></span>
-                        <span class="ctrl pick"><select id="review-frequency" v-model="reviewFrequency" aria-label="Review frequency"><option v-for="option in reviewFrequencyOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
-                      </div>
-                      <p v-if="reviewNudge && !issuesFor('schedule').length" class="nudge">{{ reviewNudge }}</p>
-                      <ul v-if="issuesFor('schedule').length" class="errors" role="alert"><li v-for="message in issuesFor('schedule')" :key="message">{{ message }}</li></ul>
-                    </li>
                     <li :class="['node', { sel: highlighted('non-call') }]" :style="conceptStyle('non-call')">
                       <div class="nrow" @click="select('non-call')" @focusin="focusRow('non-call')">
                         <span class="nlabel">Non-call period<HintToggle id="non-call" about="the non-call period" :text="hints['non-call']" :active="activeHint === 'non-call'" @toggle="toggleHint('non-call')" /></span>
@@ -1135,7 +1135,9 @@ const chart = computed(() => {
                         <span class="ctrl pick"><select id="final-call" v-model="callOnFinal" aria-label="Final review"><option :value="false">Pays the maturity payoff</option><option :value="true">Is a call too</option></select></span>
                       </div>
                     </li>
-                    <li v-if="autocalled" :class="['node', { sel: highlighted('coupon') }]" :style="conceptStyle('coupon')">
+                  </ul>
+                </li>
+                <li v-if="autocalled" :class="['node', { sel: highlighted('coupon') }]" :style="conceptStyle('coupon')">
                       <div class="nrow" @click="select('coupon')" @focusin="focusRow('coupon')">
                         <span class="nlabel">Coupon<HintToggle id="coupon" about="the coupon" :text="hints.coupon" :active="activeHint === 'coupon'" @toggle="toggleHint('coupon')" /></span>
                         <span class="ctrl pick"><select id="coupon-kind" v-model="couponSelected" aria-label="Coupon"><option :value="false">None</option><option :value="true">Contingent</option></select></span>
@@ -1161,8 +1163,6 @@ const chart = computed(() => {
                         </li>
                       </ul>
                       <ul v-if="issuesFor('coupon').length" class="errors" role="alert"><li v-for="message in issuesFor('coupon')" :key="message">{{ message }}</li></ul>
-                    </li>
-                  </ul>
                 </li>
                 <li :class="['node', { sel: highlighted('underlier') }]" :style="conceptStyle('underlier')">
                   <div class="nrow" @click="select('underlier')" @focusin="focusRow('underlier')">

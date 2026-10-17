@@ -253,20 +253,22 @@ export function pathScenarios(note: Product, initialLevel: number): PathScenario
     ...(endsUp ? [{ name: 'Never called, ends 20% up', reviewLevels: Array.from({ length: before }, (_, index) => below(index + 1)), finalLevel: endsUpLevel }] : []),
     ...(endsFlat ? [{ name: 'Never called, ends flat', reviewLevels: Array.from({ length: before }, (_, index) => below(index + 1)), finalLevel: initialLevel }] : []),
     { name: 'Never called, ends 40% down', reviewLevels: falling, finalLevel: endsBelow(initialLevel * 0.6) },
-    ...couponPaths(note, initialLevel, below, endsBelow),
+    ...couponPaths(note, initialLevel, below, endsBelow, (review, level) => review >= firstCall && (review < reviews || redemption.callOnFinalReview === true) && level >= triggerLevel(review)),
   ]
 }
 
 // With a coupon, two paths that are never called: one below the coupon barrier on the first half of the reviews and at it after, so
-// memory shows, and one below it throughout. The first needs the barrier below every review's trigger, so a level at it does not call.
-function couponPaths(note: Product, initialLevel: number, below: (review: number) => number, endsBelow: (level: number) => number): PathScenario[] {
+// memory shows, and one below it throughout. The first is left out when a level at the barrier would call on some review, as the
+// call reads it: at or above that review's trigger, outside the non-call period, and on the last review only when it is a call too.
+function couponPaths(note: Product, initialLevel: number, below: (review: number) => number, endsBelow: (level: number) => number, calls: (review: number, level: number) => boolean): PathScenario[] {
   if (note.coupon === undefined) return []
-  const before = reviewCount(note)! - 1
+  const reviews = reviewCount(note)!
+  const before = reviews - 1
   const barrier = barrierLevelAt(note.coupon.barrier, initialLevel)
   const missing = (review: number) => Math.min(below(review), barrier * 0.9)
   const half = Math.ceil(before / 2)
   const recovers = Array.from({ length: before }, (_, index) => (index < half ? missing(index + 1) : barrier))
-  const recoveryCalls = recovers.some((level, index) => level > below(index + 1)) || endsBelow(barrier) < barrier
+  const recoveryCalls = recovers.some((level, index) => calls(index + 1, level)) || calls(reviews, barrier)
   return [
     ...(recoveryCalls ? [] : [{ name: note.coupon.memory ? 'Misses coupons, then pays them by memory' : 'Misses coupons, then meets the coupon barrier', reviewLevels: recovers, finalLevel: barrier }]),
     { name: 'Below the coupon barrier throughout', reviewLevels: Array.from({ length: before }, (_, index) => missing(index + 1)), finalLevel: endsBelow(barrier * 0.9) },

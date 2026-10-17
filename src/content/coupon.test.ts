@@ -103,6 +103,22 @@ describe('the coupon paths', () => {
     expect(redemptionOutcome(product(), below.reviewLevels, { initial: 100, final: below.finalLevel! }).coupons.every((test) => !test.met)).toBe(true)
   })
 
+  it('keeps the memory path when the barrier is just below the trigger, since a level at the barrier does not call', () => {
+    const near = product({ barrier: 0.97 })
+    const memory = pathScenarios(near, 100).find((path) => path.name === 'Misses coupons, then pays them by memory')
+    expect(memory).toBeDefined()
+    const outcome = redemptionOutcome(near, memory!.reviewLevels, { initial: 100, final: memory!.finalLevel! })
+    expect(outcome.calledAtReview).toBeUndefined()
+    expect(outcome.coupons.find((test) => test.coupons > 1)).toBeDefined()
+  })
+
+  it('keeps the memory path with a final review that calls, when the barrier is below the last trigger', () => {
+    const near: Product = { ...product({ barrier: 0.97 }), redemption: { kind: 'autocall', trigger: 1, nonCallReviews: 3, callAmount: 0, callOnFinalReview: true } }
+    const memory = pathScenarios(near, 100).find((path) => path.name === 'Misses coupons, then pays them by memory')
+    expect(memory).toBeDefined()
+    expect(redemptionOutcome(near, memory!.reviewLevels, { initial: 100, final: memory!.finalLevel! }).calledAtReview).toBeUndefined()
+  })
+
   it('leaves out the memory path when a level at the barrier would call the product', () => {
     expect(pathScenarios(product({ barrier: 1 }), 100).map((path) => path.name)).not.toContain('Misses coupons, then pays them by memory')
   })
