@@ -136,7 +136,6 @@ const coupons = (n: number) => `${n} ${n === 1 ? 'coupon' : 'coupons'}`
 function couponEntries(note: Product, outcome: RedemptionOutcome): Array<{ month: number; step: Omit<CalculationStep, 'n'> }> {
   const { coupon } = note
   if (coupon === undefined) return []
-  const each = units(couponPerReview(note))
   const count = reviewCount({ term: note.term, schedule: coupon.schedule })
   return outcome.coupons.map((test) => {
     const title = `Coupon on review ${test.review} of ${count}, month ${test.month}`
@@ -146,9 +145,7 @@ function couponEntries(note: Product, outcome: RedemptionOutcome): Array<{ month
       const after = coupon.memory ? `, so its coupon is remembered: ${coupons(test.remembered)} unpaid` : ', so its coupon is missed and not paid later'
       return { month: test.month, step: { title, how: `${level} is below ${barrier}${after}`, value: '0', muted: true, concept: 'coupon' as const } }
     }
-    const paid = test.coupons > 1
-      ? `: ${test.coupons} × ${each} = ${units(test.paid)}, this review’s coupon and ${coupons(test.coupons - 1)} remembered, each ${couponWorking(note)}`
-      : `: ${couponWorking(note)}`
+    const paid = `: ${couponWorking(note, test.coupons)}${test.coupons > 1 ? `, this review’s coupon and ${coupons(test.coupons - 1)} remembered` : ''}`
     return { month: test.month, step: { title, how: `${level} is at or above ${barrier}${paid}`, value: units(test.paid), concept: 'coupon' as const } }
   })
 }
@@ -168,15 +165,17 @@ export function couponCell(note: Product, test: CouponTest): string {
   const { coupon } = note
   if (coupon === undefined) return ''
   if (!test.met) return coupon.memory ? 'Missed · remembered' : 'Missed'
-  if (test.coupons > 1) return `${test.coupons} × ${units(couponPerReview(note))} = ${units(test.paid)}`
-  return couponWorking(note)
+  return couponWorking(note, test.coupons)
 }
 
-// One coupon worked out: principal × the rate a year × the months between coupon reviews ÷ 12. The review table and the calculation
-// both show it, so they read the same.
-function couponWorking(note: Product): string {
+// The coupons a review pays, worked out: the number of coupons × principal × the rate a year × the months between coupon reviews ÷ 12.
+// Only the result is rounded. A coupon rounded first and then multiplied would show a false sum: 11.5% a year reviewed monthly is
+// 9.5833 a review, and 2 × 9.58 is 19.16, not the 19.17 paid. The rate is shown as stated, to six decimals of a percent. The review
+// table and the calculation both show it, so they read the same.
+function couponWorking(note: Product, count: number): string {
   if (note.coupon === undefined) return ''
-  return `${units(note.principalAmount)} × ${twoDecimalPercent(note.coupon.rate)} × ${monthsPerReview[note.coupon.schedule.frequency]}/12 = ${units(couponPerReview(note))}`
+  const rate = `${(note.coupon.rate * 100).toLocaleString('en-US', { maximumFractionDigits: 6 })}%`
+  return `${count > 1 ? `${count} × ` : ''}${units(note.principalAmount)} × ${rate} × ${monthsPerReview[note.coupon.schedule.frequency]}/12 = ${units(count * couponPerReview(note))}`
 }
 
 // Everything paid over the product's life: the coupons on the reviews before it ended, and the payment on the review it ended on.

@@ -62,7 +62,7 @@ describe('the coupon in the calculation', () => {
   it('lists a coupon step for each review up to the call, then the call, its coupon and the total paid', () => {
     const steps = redemptionSteps(product(), redemptionOutcome(product(), called, { initial: 100, final: 90 }))
     expect(steps.filter((step) => step.concept === 'coupon' && step.title.startsWith('Coupon on')).map((step) => step.value)).toEqual(['10', '0', '20', '0', '20'])
-    expect(steps.find((step) => step.title === 'Coupon on review 3 of 12, month 3')?.how).toBe('102 is at or above the coupon barrier, 70% × initial level = 70: 2 × 10 = 20, this review’s coupon and 1 coupon remembered, each 1,000 × 12% × 1/12 = 10')
+    expect(steps.find((step) => step.title === 'Coupon on review 3 of 12, month 3')?.how).toBe('102 is at or above the coupon barrier, 70% × initial level = 70: 2 × 1,000 × 12% × 1/12 = 20, this review’s coupon and 1 coupon remembered')
     expect(steps.find((step) => step.title === 'Coupon on review 1 of 12, month 1')?.how).toBe('95 is at or above the coupon barrier, 70% × initial level = 70: 1,000 × 12% × 1/12 = 10')
     // In order of month, the coupon before the call on a month that is both.
     expect(steps.slice(0, 4).map(({ title }) => title)).toEqual(['Coupon on review 1 of 12, month 1', 'Review 1 of 12, month 1', 'Coupon on review 2 of 12, month 2', 'Review 2 of 12, month 2'])
@@ -207,7 +207,7 @@ describe('the coupon in the review table', () => {
     const quarterly = product({ schedule: { frequency: 'quarterly' }, rate: 0.1 })
     // Month 3 at 65 misses; month 6 at 90 pays its own coupon and the one remembered.
     const outcome = redemptionOutcome({ ...quarterly, redemption: 'bullet' }, [65, 90, 90], { initial: 100, final: 90 })
-    expect(outcome.coupons.map((test) => couponCell(quarterly, test)).slice(0, 2)).toEqual(['Missed · remembered', '2 × 25 = 50'])
+    expect(outcome.coupons.map((test) => couponCell(quarterly, test)).slice(0, 2)).toEqual(['Missed · remembered', '2 × 1,000 × 10% × 3/12 = 50'])
     expect(couponCell(product({ memory: false }), { ...outcome.coupons[0] })).toBe('Missed')
   })
 })
@@ -219,5 +219,21 @@ describe('a product that ends before its first coupon review', () => {
     const outcome = redemptionOutcome(issuer, [90], { initial: 100, final: 90 }, 1)
     expect(outcome.coupons).toEqual([])
     expect(explainCoupons(issuer, outcome)).toBe('It ended before its first coupon review, so it paid no coupon. In all it paid 1,010, a total return of +1% over 3 months.')
+  })
+})
+
+describe('the coupon working shows no rounded operand', () => {
+  // 11.5% a year reviewed monthly is 9.58333… a review, so two coupons are 19.1666…, shown 19.17. 2 × 9.58 would read as 19.16.
+  const awkward = product({ rate: 0.115 })
+  const outcome = redemptionOutcome({ ...awkward, redemption: 'bullet' }, [65, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90], { initial: 100, final: 90 })
+
+  it('multiplies the whole expression when a review pays remembered coupons', () => {
+    expect(couponCell(awkward, outcome.coupons[1])).toBe('2 × 1,000 × 11.5% × 1/12 = 19.17')
+    expect(redemptionSteps({ ...awkward, redemption: 'bullet' }, outcome)[1].how).toBe('90 is at or above the coupon barrier, 70% × initial level = 70: 2 × 1,000 × 11.5% × 1/12 = 19.17, this review’s coupon and 1 coupon remembered')
+  })
+
+  it('shows the rate as stated, not rounded to two decimals of a percent', () => {
+    const precise = product({ rate: 0.17355 })
+    expect(couponCell(precise, redemptionOutcome(precise, called, { initial: 100, final: 90 }).coupons[0])).toBe('1,000 × 17.355% × 1/12 = 14.46')
   })
 })
