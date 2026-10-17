@@ -121,11 +121,12 @@ export function redemptionSteps(note: Product, outcome: RedemptionOutcome): Arra
 
 // After a call: the annualised return over the months the product lasted, and a heading before the payoff steps, which say what it
 // would have paid at maturity. With a coupon the product paid on several reviews, and a return a year from one payment would ignore
-// when the others were paid, so the total paid is shown in its place.
+// when the others were paid, so the total paid and the total return are shown in its place.
 const calledSteps = (note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> => [
   note.coupon === undefined
     ? { title: 'Annualised return', how: `(${units(outcome.payment)} ÷ ${units(note.principalAmount)})^(12 ÷ ${monthsPhrase(outcome.months)}) − 1, over the time it lasted`, value: `${twoDecimalPercent(annualisedReturn(outcome.payment, note.principalAmount, outcome.months))} a year`, concept: 'call-amount' }
     : totalPaidStep(outcome),
+  ...(note.coupon === undefined ? [] : [totalReturnStep(note, outcome)]),
   { title: 'If it had run to maturity', how: 'It was called, so none of this is paid. The steps below are what the payoff would have paid at maturity.', value: '', heading: true },
 ]
 
@@ -167,14 +168,26 @@ const totalPaidStep = (outcome: RedemptionOutcome): Omit<CalculationStep, 'n'> =
   concept: 'coupon',
 })
 
+// The return on principal over the product's life, from the total paid: not a return a year, which would need to read when each
+// payment was made.
+const totalReturn = (note: Product, outcome: RedemptionOutcome) => outcome.totalPaid / note.principalAmount - 1
+const signedTwoDecimalPercent = (fraction: number) => `${fraction < 0 ? '−' : fraction > 0 ? '+' : ''}${twoDecimalPercent(Math.abs(fraction))}`
+const totalReturnStep = (note: Product, outcome: RedemptionOutcome): Omit<CalculationStep, 'n'> => ({
+  title: 'Total return',
+  how: `(${units(outcome.totalPaid)} − ${units(note.principalAmount)}) ÷ ${units(note.principalAmount)}, over ${monthsPhrase(outcome.months)}`,
+  value: signedTwoDecimalPercent(totalReturn(note, outcome)),
+  concept: 'coupon',
+})
+
 // The steps after the payoff for a product with a coupon that ran to the end of its term: the payoff payment plus the last review's
-// coupons, then the total paid. A called product states its total with the call, so it has none here.
+// coupons, then the total paid and the total return. A called product states them with the call, so it has none here.
 export function couponClosingSteps(note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> {
   if (note.coupon === undefined || outcome.calledAtReview !== undefined) return []
   const last = outcome.coupons.at(-1)?.paid ?? 0
   return [
     { title: 'Paid at maturity', how: `${units(outcome.maturity.payment)} from the payoff + coupon ${units(last)} on the last review`, value: units(outcome.payment), result: true, concept: 'coupon' },
     totalPaidStep(outcome),
+    totalReturnStep(note, outcome),
   ]
 }
 
@@ -193,7 +206,7 @@ export function explainCoupons(note: Product, outcome: RedemptionOutcome): strin
   const lost = unpaid === 0 ? ''
     : coupon.memory ? ` ${coupons(unpaid)} remembered from reviews below the barrier ${unpaid === 1 ? 'was' : 'were'} never paid, since no later review met it.`
       : ` ${coupons(unpaid)} missed below the barrier ${unpaid === 1 ? 'was' : 'were'} not paid, since it has no memory.`
-  return `${opening}${lost} In all it paid ${units(outcome.totalPaid)}.`
+  return `${opening}${lost} In all it paid ${units(outcome.totalPaid)}, a total return of ${signedTwoDecimalPercent(totalReturn(note, outcome))} over ${monthsPhrase(outcome.months)}.`
 }
 
 const moreThanPrincipal = (note: Product, payment: number) => {

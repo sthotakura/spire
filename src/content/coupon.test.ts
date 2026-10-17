@@ -74,12 +74,24 @@ describe('the coupon in the calculation', () => {
     expect(steps.some((step) => step.title === 'Annualised return')).toBe(false)
   })
 
-  it('closes a product that ran to the end with the payoff, the last coupon and the total', () => {
+  it('closes a product that ran to the end with the payoff, the last coupon, the total and the total return', () => {
     const outcome = redemptionOutcome(product(), neverCalled, { initial: 100, final: 75 })
     expect(couponClosingSteps(product(), outcome)).toMatchObject([
       { title: 'Paid at maturity', how: '1,000 from the payoff + coupon 20 on the last review', value: '1,020', result: true },
       { title: 'Total paid', value: '1,120' },
+      { title: 'Total return', how: '(1,120 − 1,000) ÷ 1,000, over 12 months', value: '+12%' },
     ])
+  })
+
+  it('gives a total return below zero when the coupons do not make up a loss', () => {
+    // The 60% downside barrier is reached at 55, so the payoff pays 550; the coupons paid before add 100.
+    const outcome = redemptionOutcome(product(), neverCalled, { initial: 100, final: 55 })
+    expect(couponClosingSteps(product(), outcome).at(-1)).toMatchObject({ title: 'Total return', value: '−35%' })
+  })
+
+  it('gives a called product with a coupon its total return over the months it lasted, and no annualised return', () => {
+    const steps = redemptionSteps(product(), redemptionOutcome(product(), called, { initial: 100, final: 90 }))
+    expect(steps.find((step) => step.title === 'Total return')).toMatchObject({ how: '(1,050 − 1,000) ÷ 1,000, over 5 months', value: '+5%' })
   })
 
   it('has no closing steps for a called product, or without a coupon', () => {
@@ -91,7 +103,7 @@ describe('the coupon in the calculation', () => {
 
 describe('the coupon in the outcome sentence', () => {
   it('counts the reviews that paid and what they paid', () => {
-    expect(explainCoupons(product(), redemptionOutcome(product(), called, { initial: 100, final: 90 }))).toBe('3 of the 5 coupon reviews it lasted for were at or above the 70 coupon barrier, paying 50 in coupons. In all it paid 1,050.')
+    expect(explainCoupons(product(), redemptionOutcome(product(), called, { initial: 100, final: 90 }))).toBe('3 of the 5 coupon reviews it lasted for were at or above the 70 coupon barrier, paying 50 in coupons. In all it paid 1,050, a total return of +5% over 5 months.')
   })
 
   it('says when remembered coupons were never paid', () => {
@@ -173,7 +185,7 @@ describe('a coupon on its own schedule in the calculation', () => {
     expect(redemptionSteps(bullet, outcome).map(({ title, value }) => [title, value])).toEqual([
       ['Coupon on review 1 of 4, month 3', '30'], ['Coupon on review 2 of 4, month 6', '0'], ['Coupon on review 3 of 4, month 9', '30'], ['Coupon on review 4 of 4, month 12', '30'],
     ])
-    expect(couponClosingSteps(bullet, outcome).map(({ value }) => value)).toEqual(['1,030', '1,090'])
+    expect(couponClosingSteps(bullet, outcome).map(({ value }) => value)).toEqual(['1,030', '1,090', '+9%'])
   })
 
   it('gives a bullet note with a coupon the coupon paths', () => {

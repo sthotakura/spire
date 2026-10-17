@@ -64,7 +64,7 @@ When the coupon barrier equals the downside barrier, the two steps are at the sa
 
 The calculation lists the coupon on each review the product reached, then the call tests, then how it ended. A called product's total is what it paid on earlier reviews plus the call. A product that ran to the end adds the last coupon to the payoff payment, and then gives the total.
 
-It does not give an annualised return when the product pays coupons. The return a year the reference gives for a single payment reads one amount at one date. Coupons arrive on many dates, and a figure that ignored when would mislead. The total paid and the months the product lasted are shown instead.
+It does not give an annualised return when the product pays coupons. The return a year the reference gives for a single payment reads one amount at one date. Coupons arrive on many dates, and a figure that ignored when would mislead. The total paid and the **total return** are shown instead: what was paid less principal, as a share of principal, over the months the product lasted. In the worked example, called after five months with memory, the note pays 1,050 in all, a total return of 5% over 5 months. The total return is not a return a year, and a total return over 5 months cannot be compared with one over 3 years without saying so.
 
 ## Underliers and other features
 
