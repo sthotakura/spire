@@ -76,10 +76,11 @@ export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, s
   }
   if (principalProtection !== undefined) labels.protection = `Never below ${amount(principal * principalProtection)}`
   if (minimumReturn !== undefined) labels['minimum-return'] = `Never below ${amount(principal * (1 + minimumReturn))}`
-  // The line at the end of the term adds the last review's coupon at and above the coupon barrier, so the pieces that repay principal say so.
+  // The line at the end of the term adds the last review's coupon at and above the coupon barrier, so the pieces that repay principal or
+  // state a fixed amount say so: a cap of 1,300 is drawn at 1,350 with a coupon of 50.
   if (product.coupon !== undefined) {
     const plus = `, plus the last coupon ${amount(couponPerReview(product))} at or above ${percent(product.coupon.barrier)}`
-    for (const key of ['payoff', 'buffer', 'barrier'] as const) if (labels[key] !== undefined) labels[key] += plus
+    for (const key of ['payoff', 'buffer', 'barrier', 'cap', 'upside-barrier', 'event-below', 'event-above'] as const) if (labels[key] !== undefined) labels[key] += plus
   }
   return labels
 }

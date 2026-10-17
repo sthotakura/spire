@@ -183,4 +183,14 @@ describe('a final review that calls', () => {
   it('says nothing when the final review is not a call', () => {
     expect(payoffLabels({ ...callable, redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1.2, callAmount: 0.1 } })['final-call']).toBeUndefined()
   })
+
+  it('adds the last coupon to the pieces that repay principal or state a fixed amount, as the line draws them', () => {
+    const coupon: Product['coupon'] = { schedule: { frequency: 'semi-annual' }, rate: 0.1, barrier: 0.7 }
+    const labels = payoffLabels({ ...productWith([down(), up(1.5)], { barrier: 0.7, cap: 0.3, principalProtection: 0.9 }), coupon })
+    expect(labels.payoff).toBe('Repays principal 1,000, plus the last coupon 50 at or above 70%')
+    expect(labels.barrier).toBe('A fall of up to 30% repays principal, plus the last coupon 50 at or above 70%')
+    expect(labels.cap).toBe('Capped at 1,300, plus the last coupon 50 at or above 70%')
+    expect(labels.upside).toBe('Each 1% rise adds 1.5%')
+    expect(labels.protection).toBe('Never below 900')
+  })
 })
