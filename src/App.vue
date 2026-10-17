@@ -43,7 +43,7 @@ const hints = {
   memory: 'With memory, a coupon missed on a review below the barrier is remembered, and paid with the coupon of the next review at or above it. Without memory a missed coupon is never paid. Remembered coupons that no later review pays are never paid either.',
   asset: 'The equity or equity index the product tracks. Holding the product does not mean owning the asset.',
   determination: 'Sets which observed levels measure the underlier’s change: final ÷ initial − 1. The initial and final levels are each set on their own. Point-to-point uses the fixed initial level and the level on the final date; moves in between do not count. Lookback starts from the lowest of the levels on the pricing date and on several dates after it, so a fall soon after pricing lowers the starting point. Averaging takes the final level as the average of the levels observed on several dates before maturity, so a sharp move on the last date counts for less.',
-  'lookback-observations': 'The number of dates after pricing whose levels can lower the starting point. The lowest of their levels and the level on the pricing date is the lookback level.',
+  'lookback-observations': 'The number of dates after pricing whose levels can lower the starting point. The lowest of their levels and the level on the pricing date is the lookback level. With an autocall or a coupon, the lookback period is taken to end before the first review, so every review is measured from the lookback level.',
   observations: 'The number of dates whose levels are averaged into the final level. Each observed level counts equally.',
   payoff: 'The rules that turn the underlier’s change into the maturity payment. With no features the product repays principal. Each feature adds a rule, such as a share of the gain or a minimum payment.',
   principal: 'The amount used as the base for the maturity payment.',
@@ -327,11 +327,10 @@ const isAdded = (id: FeatureId) => id === 'absolute-both' ? bothWaysSelected.val
 const depositExcludes: ReadonlyArray<FeatureId> = ['downside', 'buffer', 'barrier', 'protection']
 // Why a redemption cannot be chosen, or null: the same rules productIssues enforces. The one already chosen stays available.
 const redemptionBlockedReason = (id: string) => {
-  if (id === 'autocall' && !autocalled.value && lookingBack.value) return 'not with lookback'
   if (((id === 'autocall' && !autocalled.value) || (id === 'issuer-call' && !issuerCalled.value)) && (dailySelected.value || bothWaysSelected.value)) return 'not with a daily barrier'
   return null
 }
-const couponBlockedReason = computed(() => lookingBack.value ? 'not with lookback' : dailySelected.value || bothWaysSelected.value ? 'not with a daily barrier' : null)
+const couponBlockedReason = computed(() => dailySelected.value || bothWaysSelected.value ? 'not with a daily barrier' : null)
 const blockedReason = (id: FeatureId) => {
   if (wrapper.value === 'deposit' && depositExcludes.includes(id)) return 'Not on a deposit'
   if (wrapper.value !== 'deposit' && id === 'minimum') return 'Deposits only'
@@ -1232,7 +1231,7 @@ const chart = computed(() => {
                         <li :class="['node', { sel: highlighted('initial-level') }]" :style="conceptStyle('initial-level')">
                           <div class="nrow" @click="select('initial-level')" @focusin="focusRow('initial-level')">
                             <span class="nlabel">Initial level<HintToggle id="initial-level" about="initial level" :text="hints['initial-level']" :active="activeHint === 'initial-level'" @toggle="toggleHint('initial-level')" /></span>
-                            <span class="ctrl pick"><select id="initial-determination" v-model="initialKind" aria-label="Initial level"><option v-for="option in initialDeterminationOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="option.id === 'lookback' && (isBasket || autocalled || couponSelected || dailySelected || bothWaysSelected)">{{ option.label }}{{ option.id === 'lookback' ? (isBasket ? ' (single asset only)' : autocalled ? ' (not with an autocall)' : couponSelected ? ' (not with a coupon)' : bothWaysSelected ? ' (not with barrier absolute return)' : dailySelected ? ' (not with a daily barrier)' : '') : '' }}</option></select></span>
+                            <span class="ctrl pick"><select id="initial-determination" v-model="initialKind" aria-label="Initial level"><option v-for="option in initialDeterminationOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="option.id === 'lookback' && (isBasket || dailySelected || bothWaysSelected)">{{ option.label }}{{ option.id === 'lookback' ? (isBasket ? ' (single asset only)' : bothWaysSelected ? ' (not with barrier absolute return)' : dailySelected ? ' (not with a daily barrier)' : '') : '' }}</option></select></span>
                             <span v-if="lookingBack" class="ctrl block wraps"><label for="lookback-count">Observations after pricing</label><HintToggle id="lookback-count" about="observations after pricing" :text="hints['lookback-observations']" :active="activeHint === 'lookback-observations'" @toggle="toggleHint('lookback-observations')" /><NumberInput id="lookback-count" v-model="lookbackCount" class="num count" /></span>
                             <span v-if="lookingBack" class="ctrl block wraps"><span class="flabel">Observed levels</span><span class="unit">Hypothetical, set in the calculation</span></span>
                             <template v-else-if="isBasket"><span v-for="(asset, index) in basketAssets" :key="index" class="ctrl block"><label :for="`initial-level-${index}`">{{ asset.name.trim() || `Asset ${index + 1}` }}</label><NumberInput :id="`initial-level-${index}`" v-model="asset.initialLevel" class="num" /></span></template>

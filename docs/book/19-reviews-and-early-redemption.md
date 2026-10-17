@@ -128,7 +128,7 @@ An issuer call is not available with a barrier observed on every close or with b
 
 - **A basket** is read as its basket level. For a worst-of basket that is the worst performing asset's level, so one asset below the trigger holds the call back. The reader states the level of each asset on each review, and the basket level is worked out from them by the basket's rule.
 - **Averaging** is allowed. The averaging dates that set the final level are not tied to the review dates, so the final level is an average of the levels a reader states, not of the reviews. When the last review is a call, the averaged final level is the one tested on it.
-- **Lookback** is not available with an autocall, because the lookback dates are not tied to the review schedule.
+- **Lookback** is allowed with an autocall on one assumption: the lookback period ends before the first review. The trigger is a share of the lookback level, which is then known when the first review tests it. A real note would set its dates so; the reference counts the lookback dates without dating them, so it states the assumption rather than checking it.
 - **A barrier observed on every close** is not available with an autocall: a called product ends before the observation period does, and the single lowest or highest close a scenario states cannot say how far the product got. A barrier read on the final date is available.
 - **Barrier absolute return** is not available with an autocall, because its barriers are observed on every close.
 

@@ -45,9 +45,12 @@ describe('validation of a contingent coupon', () => {
     expect(validateProduct(withCoupon({ redemption: 'bullet', coupon: coupon({ schedule: { frequency: 'annual' } }) }))).toEqual([])
   })
 
-  it('cannot be combined with lookback or a barrier observed on every close', () => {
+  it('can be combined with lookback, measuring its barrier from the lookback level, but not with a barrier observed on every close', () => {
     const lookback: Product['underlier'] = { ...startingProduct.underlier, determination: { initial: { kind: 'lookback', observationCount: 3 }, final: { kind: 'final-date' } } }
-    expect(fieldsOf(withCoupon({ redemption: 'bullet', underlier: lookback }))).toEqual(['couponSchedule'])
+    const product = withCoupon({ redemption: 'bullet', underlier: lookback })
+    expect(fieldsOf(product)).toEqual([])
+    // A lookback level of 90: the 70% barrier is 63.
+    expect(redemptionOutcome(product, Array.from({ length: 11 }, () => 64), { initial: 90, final: 100 }).coupons[0]).toMatchObject({ barrierLevel: 63, met: true })
     expect(fieldsOf(withCoupon({ redemption: 'bullet', payoff: { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.6, observation: 'daily-close' } }] } }))).toEqual(['couponSchedule'])
   })
 

@@ -73,7 +73,8 @@ It does not give an annualised return when the product pays coupons. The return 
 - **A trigger that steps down** below the coupon barrier can call the product on a review that misses its coupon. The reference then pays principal and any call amount, with no coupon on that review, and remembered coupons are lost. No public note read states this case.
 - **A bullet note** with a coupon reads a level on each coupon review and nothing else, and pays the last coupon with its maturity payment.
 - **An issuer call** with a coupon reads a level on each coupon review; the issuer's decision reads none. A call on a coupon review pays principal, any call amount and that review's coupon, as the issuer call notes in [Reviews and early redemption](19-reviews-and-early-redemption.md) do.
-- **Lookback and a barrier observed on every close** are not available with a coupon, for the reason they are not with an autocall: the levels on the coupon reviews are not tied to the lookback dates, or to the one lowest or highest close a scenario states.
+- **Lookback** is allowed, on the assumption that the lookback period ends before the first coupon review, as with an autocall. The coupon barrier is then a share of the lookback level.
+- **A barrier observed on every close** is not available with a coupon, for the reason it is not with an autocall: the levels on the coupon reviews are closes that the one lowest or highest close a scenario states would have to agree with.
 
 ## Assumptions and sources
 

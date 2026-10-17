@@ -665,15 +665,15 @@ function redemptionIssues(note: Product): ProductIssue[] {
   }
   if (!Number.isFinite(redemption.callAmount) || redemption.callAmount < 0) issues.push({ field: 'callAmount', message: 'Call amount must be zero or greater.' })
   const { underlier, payoff } = note
-  // An issuer call reads no level on a review, so lookback does not conflict with it; an autocall reads the review levels.
-  if (redemption.kind === 'autocall' && underlier.kind === 'single' && underlier.determination.initial.kind === 'lookback') issues.push({ field: 'schedule', message: 'An autocall cannot be combined with lookback: the lookback dates are not tied to the review schedule.' })
+  // Lookback is allowed with an autocall on the assumption that the lookback period ends before the first review, so the trigger is a
+  // share of a level already known when it is first tested. Lookback dates are counted, not dated, so this is not checked.
   const observations = [downsideOf(note)?.barrier, upsideOf(note)?.barrier, payoff.barrierAbsoluteReturn?.lowerBarrier, payoff.barrierAbsoluteReturn?.upperBarrier]
   if (observations.some((barrier) => barrier?.observation === 'daily-close')) issues.push({ field: 'schedule', message: `A barrier observed on every close cannot be combined with ${named.toLowerCase()}: a called product ends before the observation period does.` })
   return issues
 }
 
 // A contingent coupon reads the underlier on the reviews of its own schedule, with any redemption. Like an autocall, it reads levels on
-// dates that the lookback dates and the closes of a daily barrier are not tied to, so it is not combined with them.
+// dates that the closes of a daily barrier are not tied to, so it is not combined with one.
 function couponIssues(note: Product): ProductIssue[] {
   const { coupon } = note
   if (coupon === undefined) return []
@@ -683,7 +683,7 @@ function couponIssues(note: Product): ProductIssue[] {
   if (!Number.isFinite(coupon.rate) || coupon.rate <= 0) issues.push({ field: 'coupon', message: 'Coupon rate must be greater than zero.' })
   if (!Number.isFinite(coupon.barrier) || coupon.barrier <= 0 || coupon.barrier > 2) issues.push({ field: 'coupon', message: 'Coupon barrier must be greater than 0% and at most 200% of the initial level.' })
   const { underlier, payoff } = note
-  if (underlier.kind === 'single' && underlier.determination.initial.kind === 'lookback') issues.push({ field: 'couponSchedule', message: 'A coupon cannot be combined with lookback: the lookback dates are not tied to the coupon reviews.' })
+  // Lookback is allowed on the assumption that the lookback period ends before the first coupon review, as for an autocall.
   const observations = [downsideOf(note)?.barrier, upsideOf(note)?.barrier, payoff.barrierAbsoluteReturn?.lowerBarrier, payoff.barrierAbsoluteReturn?.upperBarrier]
   if (observations.some((barrier) => barrier?.observation === 'daily-close')) issues.push({ field: 'couponSchedule', message: 'A barrier observed on every close cannot be combined with a coupon: the levels on the coupon reviews are closes that the lowest and highest close would have to agree with.' })
   return issues

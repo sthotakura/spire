@@ -114,9 +114,17 @@ describe('validation of a schedule and an autocall', () => {
     expect(fieldsOf(callable({ redemption: autocall({ triggerStep: 0.1, callOnFinalReview: true }) }))).toEqual(['triggerStep'])
   })
 
-  it('cannot be combined with lookback', () => {
+  it('can be combined with lookback, on the assumption that the lookback period ends before the first review', () => {
     const lookback = { ...startingProduct.underlier, determination: { initial: { kind: 'lookback', observationCount: 3 }, final: { kind: 'final-date' } } } as Product['underlier']
-    expect(fieldsOf(callable({ underlier: lookback }))).toEqual(['schedule'])
+    expect(fieldsOf(callable({ underlier: lookback }))).toEqual([])
+  })
+
+  it('reads the trigger as a share of the lookback level', () => {
+    const lookback = { ...startingProduct.underlier, determination: { initial: { kind: 'lookback', observationCount: 3 }, final: { kind: 'final-date' } } } as Product['underlier']
+    // A lookback level of 92: a level of 93 on review 1 is at or above the 100% trigger, measured from it.
+    const outcome = redemptionOutcome(callable({ underlier: lookback }), [93, ...flat(10)], { initial: 92, final: 100 })
+    expect(outcome.calledAtReview).toBe(1)
+    expect(outcome.tests[0].triggerLevel).toBe(92)
   })
 
   it('cannot be combined with a barrier observed on every close, on either side', () => {

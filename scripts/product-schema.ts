@@ -22,7 +22,7 @@ const rulesInValidator = [
   'A basket needs unique asset names and one initial level for each asset and no other.',
   'A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.',
   'The term must hold a whole number of periods of each schedule: at least two for an autocall or an issuer call, and at least one for a coupon.',
-  'An autocall or a coupon cannot be combined with lookback. An autocall, an issuer call or a coupon cannot be combined with a barrier observed on every close.',
+  'An autocall, an issuer call or a coupon cannot be combined with a barrier observed on every close.',
   'An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The non-call period of an autocall or an issuer call leaves at least one review that can call.',
 ]
 
