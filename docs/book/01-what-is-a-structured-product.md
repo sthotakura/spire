@@ -12,10 +12,10 @@ payment.
 SPIRe describes a product as several separate concepts:
 
 - **Wrapper:** the contractual form, such as a note or deposit.
-- **Redemption:** when the product ends and the payment is made.
+- **Redemption:** when the product ends, and whether it pays the maturity payoff or a call amount.
 - **Term:** the scheduled length of the product, as a duration.
 - **Underlier:** what the product reads, and how its change is determined.
-- **Payoff:** the rules that turn that change into a contractual payment.
+- **Payoff:** the rules that turn that change into the contractual maturity payment.
 
 Keeping these parts separate matters. A note can have bullet redemption and be
 linked to an equity index, but neither “note” nor “bullet” says whether a rise

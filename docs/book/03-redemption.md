@@ -1,14 +1,17 @@
 # Redemption behaviour
 
-Redemption describes how and when a note ends and its contractual redemption
-payment becomes due. It answers a different question from the payoff: the
-payoff determines the amount; redemption determines the event at which it is paid.
+Redemption describes how and when a note ends, and which amount it pays when it
+does: the maturity payoff, or the call amount. The maturity payoff is the amount
+the payoff rules give from the underlier's final level; a call amount is a fixed
+term of the early redemption itself. A call pays principal plus the call amount, and
+the payoff's features (participation, buffer, cap, floor, protection) do not apply
+to it.
 
 ## Bullet redemption
 
 In this book's synthetic bullet note, there is one payment at scheduled
 maturity and no early call. There are no coupons along the way. The payment
-can be above, at, or below principal, depending on the payoff rules.
+can be above, at, or below principal, depending on the maturity payoff rules.
 
 For example, a three-year note with principal of 1,000 and 100% upside
 participation pays 1,200 at maturity if its measured underlier return is +20%.
@@ -23,13 +26,15 @@ Some notes can end before scheduled maturity. An autocall is triggered
 automatically by a condition in the terms; an issuer call gives the issuer a
 right to redeem under stated terms. These are distinct from bullet redemption.
 Their payment amounts and observation conditions must be read from the contract.
-SPIRe models the autocall and the issuer call: [Reviews and early redemption](19-reviews-and-early-redemption.md)
+In SPIRe a call pays principal plus the call amount, and the reviews that can
+call come from the product's review schedule. If no review calls, the note
+reaches its end and pays the maturity payoff. SPIRe models the autocall and the issuer call: [Reviews and early redemption](19-reviews-and-early-redemption.md)
 explains the reviews, the trigger, the call amount, a trigger that steps, a call on the final review, and an issuer call, which is the issuer's choice in a scenario.
 
 ![A note that can redeem early: if the stated condition is met on an observation date the note ends and pays then, otherwise it continues to scheduled maturity](diagrams/early-redemption.svg)
 
-Apart from an autocall or an issuer call, SPIRe's examples calculate only scheduled maturity
-payments. They do not assume that an early sale or withdrawal would receive the
+Apart from an autocall or an issuer call, SPIRe's examples calculate only the scheduled maturity
+payoff. They do not assume that an early sale or withdrawal would receive the
 same amount.
 
 ## Related concepts

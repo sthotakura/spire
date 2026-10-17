@@ -14,7 +14,7 @@ Nothing is stated about calendar dates. The issue date, the dates payments are m
 
 ## Autocall
 
-An **autocall** is automatic early redemption. On each review before the last, if the underlier is at or above the **trigger**, the product ends at once. It repays principal plus the **call amount**, and nothing more is paid. If no review before the last reaches the trigger, the product runs to the end of its term and pays its payoff as a bullet product does.
+An **autocall** is automatic early redemption. On each review before the last, if the underlier is at or above the **trigger**, the product ends at once. It repays principal plus the **call amount**, and nothing more is paid. If no review before the last reaches the trigger, the product runs to the end of its term and pays its maturity payoff as a bullet product does. The payoff's features never apply to a call, which pays principal plus the call amount only.
 
 ![A product that can redeem early: if the stated condition is met on a review the product ends and pays then, otherwise it continues to scheduled maturity](diagrams/early-redemption.svg)
 
@@ -26,7 +26,7 @@ Three terms describe it, and the sections below add three more:
 
 The others are a **trigger step**, which moves the trigger on each review, whether the call amount is flat or a rate per year, and whether the last review is a call too.
 
-The trigger is read at or above: a level exactly at it calls the product. By default the last review is not a call. It is the end of the term, so the payoff reads the final level there, as it does for any product. A product can also be set so that the last review is a call too, as described below.
+The trigger is read at or above: a level exactly at it calls the product. By default the last review is not a call. It is the end of the term, so the maturity payoff reads the final level there, as it does for any product. A product can also be set so that the last review is a call too, as described below.
 
 ## Worked example
 
@@ -68,9 +68,9 @@ The trigger is counted from review 1, not from the end of the period, so a trigg
 
 ## A call on the final review
 
-The last review is the end of the term. By default it pays the payoff. A product can instead treat it as a call too: a final level at or above the trigger on the last review pays principal plus the call amount, in place of the payoff, and a final level below it pays the payoff. The payment is made at maturity, so the product lasts the full term either way. The trigger on the last review is the trigger after any step, such as 75% after stepping down from 100%.
+The last review is the end of the term. By default it pays the maturity payoff. A product can instead treat it as a call too: a final level at or above the trigger on the last review pays principal plus the call amount, in place of the maturity payoff, and a final level below it pays the maturity payoff. The payment is made at maturity, so the product lasts the full term either way. The trigger on the last review is the trigger after any step, such as 75% after stepping down from 100%.
 
-This makes the end of the product pay differently from a product without it. With a trigger that has stepped down, a final level between the last trigger and the initial level pays principal plus the call amount, where the payoff alone could pay only principal.
+This makes the end of the product pay differently from a product without it. With a trigger that has stepped down, a final level between the last trigger and the initial level pays principal plus the call amount, where the maturity payoff alone could pay only principal.
 
 ### A second worked example
 
