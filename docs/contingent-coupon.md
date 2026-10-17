@@ -1,6 +1,6 @@
 # Contingent coupon
 
-This is a proposal, not built. It is slice 2 of [observation-dates.md](observation-dates.md): a coupon tested on each review, paid only when the underlier is at or above a coupon barrier, and, with memory, a missed coupon paid later. It reads the review schedule the autocall already uses. The fixed coupon ([coupon.md](coupon.md)) and the cash-flow result are separate slices.
+Built, with the recommended decisions: memory in the same change, no `kind`, the autocall only, no annualised return with a coupon, and the last review's own coupon on the chart. It is slice 2 of [observation-dates.md](observation-dates.md): a coupon tested on each review, paid only when the underlier is at or above a coupon barrier, and, with memory, a missed coupon paid later. It reads the review schedule the autocall already uses. The fixed coupon ([coupon.md](coupon.md)) and the cash-flow result are separate slices.
 
 ## What it means
 
@@ -75,7 +75,7 @@ Two endings for the same note if it is never called, with the 11 earlier coupons
 
 ## Consequences
 
-- **Outline.** A Coupon row beside Redemption, with Rate (a percent a year), Coupon barrier (a percent of the initial level) and Memory (on or off). Added from the Add feature menu; unavailable with no review schedule.
+- **Outline.** A Coupon row under Redemption, beside the reviews it is tested on: None or Contingent, then Coupon rate (a percent a year), Coupon barrier (a percent of the initial level) and Memory. It is shown with an autocall only, and the other redemptions are unavailable while a coupon is chosen. It is not in the payoff feature menu, since it is not part of the payoff.
 - **Summary.** "…pays 12% a year, 1% a month, on each review at or above 70% of the initial level, with memory".
 - **Scenario.** The review table gains a coupon column for each review (paid, missed, or paid with remembered coupons). New named paths: coupons missed and then paid by memory; below the barrier to the end.
 - **Calculation.** The coupon steps for each review before the call steps, then the payoff steps. A called product lists principal, the call amount and the review's coupon.
@@ -98,7 +98,7 @@ Two endings for the same note if it is never called, with the 11 earlier coupons
 3. **A per-review rate** instead of an annual one. It is the amount paid, but the notes headline the annual rate and the period comes from the schedule. Not recommended.
 4. **A `kind: 'contingent'`** now, ready for `'fixed'`. It has one value until slice 4. Not recommended.
 
-## Decisions to agree
+## Decisions agreed
 
 1. **Memory in the same change** as the contingent coupon. Recommended.
 2. **No `kind`; the fixed coupon later is a coupon with no barrier**, so `barrier` is required now and becomes optional in slice 4. Recommended.

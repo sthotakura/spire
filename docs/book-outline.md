@@ -34,14 +34,14 @@ remain working research and design records. Reader-facing chapters belong in
 | 17. Payoff diagrams and scenarios | Draft | [Read chapter](book/17-diagrams-and-scenarios.md) | [Payoff chart](payoff-chart.md) |
 | 18. The structure as JSON | Draft | [Read chapter](book/18-structure-as-json.md) | [Underlier model](underlier-model.md) |
 | 19. Reviews and early redemption | Draft | [Read chapter](book/19-reviews-and-early-redemption.md) | [Observation dates](observation-dates.md), [Non-call period](non-call-period.md) |
-| 20. Boundaries of the reference | Draft | [Read chapter](book/20-boundaries.md) | [README](../README.md) |
-| Coupons | Planned | — | [Coupon](coupon.md) |
+| 20. Coupons | Draft | [Read chapter](book/20-coupons.md) | [Contingent coupon](contingent-coupon.md), [Coupon](coupon.md) |
+| 21. Boundaries of the reference | Draft | [Read chapter](book/21-boundaries.md) | [README](../README.md) |
 
 Draft means reader-facing text exists and is available in the book view; it
 does not mean editorial review is complete. Determination and deposits have
 their own chapters because each needs an explanation beyond the overview of
-underliers and wrappers. Coupons remain planned rather than
-being published from implementation proposals.
+underliers and wrappers. The Coupons chapter covers the contingent coupon only;
+a fixed coupon remains planned rather than being published from a proposal.
 
 ## Chapter standard
 

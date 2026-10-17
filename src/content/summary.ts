@@ -1,4 +1,4 @@
-import { downsideOf, firstCallReview, upsideOf, type Product } from '../domain/note'
+import { downsideOf, firstCallReview, monthsPerReview, upsideOf, type Product } from '../domain/note'
 import { ordinal } from './autocall'
 import type { ConceptId } from './concepts'
 
@@ -128,6 +128,18 @@ export function summarize(note: Product): SummarySegment[] {
       { text: terms.callAmount > 0 ? `paying ${percent(terms.callAmount)}${terms.callAmountBasis === 'per-year' ? ' for each year elapsed' : ''} above principal` : 'repaying principal', concept: 'call-amount' },
       { text: ',' },
     ]
+    // A coupon is paid on the reviews, so it is stated with them: its rate a year and on each review, the level it needs, and memory.
+    const { coupon } = note
+    const months = note.schedule ? monthsPerReview[note.schedule.frequency] : undefined
+    const couponing: SummarySegment[] = coupon === undefined ? [] : [
+      { text: ' pays ' },
+      { text: `a coupon of ${weightPercent(coupon.rate)} a year${months === undefined ? '' : ` (${weightPercent(coupon.rate * months / 12)} a review)`}`, concept: 'coupon' },
+      { text: ' on each review ' },
+      { text: `at or above ${percent(coupon.barrier)} of its initial level`, concept: 'coupon-barrier' },
+      { text: ', ' },
+      { text: coupon.memory ? 'with memory' : 'without memory', concept: 'memory' },
+      { text: ',' },
+    ]
     const otherwise: SummarySegment[] = [{ text: ' and otherwise redeems ' }, { text: 'at maturity', concept: 'redemption' }]
     if (terms.kind === 'issuer-call') return [{ text: ' that the issuer may call early' }, ...reviewing, { text: ' before maturity' }, ...paying, ...otherwise]
     return [
@@ -140,6 +152,7 @@ export function summarize(note: Product): SummarySegment[] {
       { text: terms.callOnFinalReview ? 'including the last' : 'before maturity', concept: 'final-call' },
       ...(terms.triggerStep ? [{ text: ', the trigger ' }, { text: `${terms.triggerStep < 0 ? 'falling' : 'rising'} ${percent(Math.abs(terms.triggerStep))} on each later review`, concept: 'trigger-step' as const }] : []),
       ...paying,
+      ...couponing,
       ...otherwise,
     ]
   })()

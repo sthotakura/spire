@@ -1,5 +1,5 @@
 import type { RedemptionOutcome } from '../domain/autocall'
-import { annualisedReturn, barrierLevelAt, callAmountAtReview, firstCallReview, reviewCount, triggerAtReview, type Product } from '../domain/note'
+import { annualisedReturn, barrierLevelAt, callAmountAtReview, couponPerReview, firstCallReview, reviewCount, triggerAtReview, type Product } from '../domain/note'
 import type { CalculationStep } from './calculation'
 import type { FormulaLine } from './formula'
 
@@ -51,17 +51,37 @@ export function redemptionFormula(note: Product): FormulaLine[] {
   const reviews = callOnFinalReview
     ? firstCall > 1 ? `On every review from review ${firstCall}, if ` : 'On every review, if '
     : firstCall > 1 ? `On a review from review ${firstCall} to the last but one, if ` : 'On a review before the last, if '
-  return [{
-    lead: 'Call',
-    segments: [
-      { text: reviews },
-      { text: triggerStep ? 'Level ≥ Trigger on that review × Initial level' : 'Level ≥ Trigger × Initial level', concept: 'trigger' },
-      { text: ', pay ' },
-      { text: callAmountBasis === 'per-year' ? 'Principal × (1 + Call amount × Years elapsed)' : 'Principal × (1 + Call amount)', concept: 'call-amount' },
-      { text: ' and end' },
-    ],
-  }]
+  const { coupon } = note
+  return [
+    ...(coupon === undefined ? [] : [couponFormula(coupon.memory === true)]),
+    {
+      lead: 'Call',
+      segments: [
+        { text: reviews },
+        { text: triggerStep ? 'Level ≥ Trigger on that review × Initial level' : 'Level ≥ Trigger × Initial level', concept: 'trigger' },
+        { text: ', pay ' },
+        { text: callAmountBasis === 'per-year' ? 'Principal × (1 + Call amount × Years elapsed)' : 'Principal × (1 + Call amount)', concept: 'call-amount' },
+        ...(coupon === undefined ? [] : [{ text: ' + ' }, { text: 'that review’s coupon', concept: 'coupon' as const }]),
+        { text: ' and end' },
+      ],
+    },
+  ]
 }
+
+// The coupon rule: tested on every review until the product ends, paid on its own before then and with the call or the maturity
+// payment on the review it ends on. Memory adds the coupons missed since the last one paid.
+const couponFormula = (memory: boolean): FormulaLine => ({
+  lead: 'Coupon',
+  segments: [
+    { text: 'On every review until it ends, if ' },
+    { text: 'Level ≥ Coupon barrier × Initial level', concept: 'coupon-barrier' },
+    { text: ', pay ' },
+    { text: 'Principal × Rate × Months between reviews ÷ 12', concept: 'coupon' },
+    memory
+      ? { text: ' for this review and for each review missed since the last coupon paid', concept: 'memory' }
+      : { text: '; a missed coupon is not paid later', concept: 'memory' },
+  ],
+})
 
 const twoDecimalPercent = (fraction: number) => `${(fraction * 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
 
@@ -74,7 +94,8 @@ export function redemptionSteps(note: Product, outcome: RedemptionOutcome): Arra
   const { redemption } = note
   const { callAmount, callAmountBasis, callOnFinalReview } = redemption
   const firstCall = firstCallReview(redemption)
-  const steps: Array<Omit<CalculationStep, 'n'>> = outcome.tests.map((test) => test.callable
+  const steps: Array<Omit<CalculationStep, 'n'>> = couponSteps(note, outcome)
+  steps.push(...outcome.tests.map((test) => test.callable
     ? {
         title: `Review ${test.review} of ${outcome.reviews}`,
         how: `${units(test.level)} ${test.called ? 'is at or above' : 'is below'} the trigger, ${percent(triggerAtReview(redemption, test.review))} × initial level = ${units(test.triggerLevel)}`,
@@ -82,20 +103,83 @@ export function redemptionSteps(note: Product, outcome: RedemptionOutcome): Arra
         muted: !test.called,
         concept: 'trigger' as const,
       }
-    : { title: `Review ${test.review} of ${outcome.reviews}`, how: `${units(test.level)}: in the non-call period, the first ${firstCall - 1} ${firstCall === 2 ? 'review' : 'reviews'} cannot call`, value: 'No call', muted: true, concept: 'non-call' as const })
+    : { title: `Review ${test.review} of ${outcome.reviews}`, how: `${units(test.level)}: in the non-call period, the first ${firstCall - 1} ${firstCall === 2 ? 'review' : 'reviews'} cannot call`, value: 'No call', muted: true, concept: 'non-call' as const }))
+  // The coupon of the review the product is called on is paid with the call.
+  const callCoupon = outcome.calledAtReview === undefined ? 0 : outcome.coupons[outcome.calledAtReview - 1]?.paid ?? 0
+  const withCoupon = note.coupon === undefined ? '' : ` + coupon ${units(callCoupon)}`
   steps.push(outcome.calledAtReview === undefined
     ? { title: 'Redemption', how: `No review${firstCall > 1 ? ' that could call' : ''}${callOnFinalReview ? ', including the last,' : firstCall > 1 ? '' : ' before the last'} reached the trigger, so the product runs to the end of its ${monthsPhrase(outcome.months)} term`, value: 'At maturity', concept: 'redemption' }
-    : { title: 'Redemption', how: `Called on review ${outcome.calledAtReview}, after ${monthsPhrase(outcome.months)}: principal × (1 + ${callAmountBasis === 'per-year' ? `${percent(callAmount)} a year × ${yearsPhrase(outcome.months)} = ${percent(outcome.tests[outcome.calledAtReview - 1].callAmount)}` : percent(callAmount)})`, value: units(outcome.payment), result: true, concept: 'call-amount' })
+    : { title: 'Redemption', how: `Called on review ${outcome.calledAtReview}, after ${monthsPhrase(outcome.months)}: principal × (1 + ${callAmountBasis === 'per-year' ? `${percent(callAmount)} a year × ${yearsPhrase(outcome.months)} = ${percent(outcome.tests[outcome.calledAtReview - 1].callAmount)}` : percent(callAmount)})${withCoupon}`, value: units(outcome.payment), result: true, concept: 'call-amount' })
   if (outcome.calledAtReview !== undefined) steps.push(...calledSteps(note, outcome))
   return steps
 }
 
 // After a call: the annualised return over the months the product lasted, and a heading before the payoff steps, which say what it
-// would have paid at maturity.
+// would have paid at maturity. With a coupon the product paid on several reviews, and a return a year from one payment would ignore
+// when the others were paid, so the total paid is shown in its place.
 const calledSteps = (note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> => [
-  { title: 'Annualised return', how: `(${units(outcome.payment)} ÷ ${units(note.principalAmount)})^(12 ÷ ${monthsPhrase(outcome.months)}) − 1, over the time it lasted`, value: `${twoDecimalPercent(annualisedReturn(outcome.payment, note.principalAmount, outcome.months))} a year`, concept: 'call-amount' },
+  note.coupon === undefined
+    ? { title: 'Annualised return', how: `(${units(outcome.payment)} ÷ ${units(note.principalAmount)})^(12 ÷ ${monthsPhrase(outcome.months)}) − 1, over the time it lasted`, value: `${twoDecimalPercent(annualisedReturn(outcome.payment, note.principalAmount, outcome.months))} a year`, concept: 'call-amount' }
+    : totalPaidStep(outcome),
   { title: 'If it had run to maturity', how: 'It was called, so none of this is paid. The steps below are what the payoff would have paid at maturity.', value: '', heading: true },
 ]
+
+const coupons = (n: number) => `${n} ${n === 1 ? 'coupon' : 'coupons'}`
+
+// One step for each review on which the coupon is tested, up to the one the product ends on, which reads the final level when it is the last.
+function couponSteps(note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> {
+  const { coupon } = note
+  if (coupon === undefined) return []
+  const each = units(couponPerReview(note))
+  return outcome.coupons.map((test) => {
+    const title = `Coupon on review ${test.review} of ${outcome.reviews}`
+    const level = test.review === outcome.reviews ? `Final level ${units(test.level)}` : units(test.level)
+    const barrier = `the coupon barrier, ${percent(coupon.barrier)} × initial level = ${units(test.barrierLevel)}`
+    if (!test.met) {
+      const after = coupon.memory ? `, so its coupon is remembered: ${coupons(test.remembered)} unpaid` : ', so its coupon is missed and not paid later'
+      return { title, how: `${level} is below ${barrier}${after}`, value: '0', muted: true, concept: 'coupon' as const }
+    }
+    const paid = test.coupons > 1 ? `: ${test.coupons} × ${each}, this review’s coupon and ${coupons(test.coupons - 1)} remembered` : `: ${each}`
+    return { title, how: `${level} is at or above ${barrier}${paid}`, value: units(test.paid), concept: 'coupon' as const }
+  })
+}
+
+// Everything paid over the product's life: the coupons on the reviews before it ended, and the payment on the review it ended on.
+const totalPaidStep = (outcome: RedemptionOutcome): Omit<CalculationStep, 'n'> => ({
+  title: 'Total paid',
+  how: `${units(outcome.totalPaid - outcome.payment)} in coupons on earlier reviews + ${units(outcome.payment)}, over ${monthsPhrase(outcome.months)}`,
+  value: units(outcome.totalPaid),
+  concept: 'coupon',
+})
+
+// The steps after the payoff for a product with a coupon that ran to the end of its term: the payoff payment plus the last review's
+// coupons, then the total paid. A called product states its total with the call, so it has none here.
+export function couponClosingSteps(note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> {
+  if (note.coupon === undefined || outcome.calledAtReview !== undefined) return []
+  const last = outcome.coupons.at(-1)?.paid ?? 0
+  return [
+    { title: 'Paid at maturity', how: `${units(outcome.maturity.payment)} from the payoff + coupon ${units(last)} on the last review`, value: units(outcome.payment), result: true, concept: 'coupon' },
+    totalPaidStep(outcome),
+  ]
+}
+
+// How the coupons went: how many reviews met the barrier, what they paid, and what was not paid. Empty without a coupon.
+export function explainCoupons(note: Product, outcome: RedemptionOutcome): string {
+  const { coupon } = note
+  if (coupon === undefined || !outcome.coupons.length) return ''
+  const tested = outcome.coupons.length
+  const met = outcome.coupons.filter((test) => test.met).length
+  const paid = outcome.coupons.reduce((sum, test) => sum + test.paid, 0)
+  const barrier = units(outcome.coupons[0].barrierLevel)
+  const opening = met === 0
+    ? `None of the ${tested} reviews it lasted for was at or above the ${barrier} coupon barrier, so it paid no coupon.`
+    : `${met} of the ${tested} reviews it lasted for ${met === 1 ? 'was' : 'were'} at or above the ${barrier} coupon barrier, paying ${units(paid)} in coupons.`
+  const unpaid = coupon.memory ? outcome.coupons.at(-1)!.remembered : tested - met
+  const lost = unpaid === 0 ? ''
+    : coupon.memory ? ` ${coupons(unpaid)} remembered from reviews below the barrier ${unpaid === 1 ? 'was' : 'were'} never paid, since no later review met it.`
+      : ` ${coupons(unpaid)} missed below the barrier ${unpaid === 1 ? 'was' : 'were'} not paid, since it has no memory.`
+  return `${opening}${lost} In all it paid ${units(outcome.totalPaid)}.`
+}
 
 const moreThanPrincipal = (note: Product, payment: number) => {
   const difference = Math.round((payment - note.principalAmount) * 100) / 100
@@ -169,5 +253,22 @@ export function pathScenarios(note: Product, initialLevel: number): PathScenario
     ...(endsUp ? [{ name: 'Never called, ends 20% up', reviewLevels: Array.from({ length: before }, (_, index) => below(index + 1)), finalLevel: endsUpLevel }] : []),
     ...(endsFlat ? [{ name: 'Never called, ends flat', reviewLevels: Array.from({ length: before }, (_, index) => below(index + 1)), finalLevel: initialLevel }] : []),
     { name: 'Never called, ends 40% down', reviewLevels: falling, finalLevel: endsBelow(initialLevel * 0.6) },
+    ...couponPaths(note, initialLevel, below, endsBelow),
+  ]
+}
+
+// With a coupon, two paths that are never called: one below the coupon barrier on the first half of the reviews and at it after, so
+// memory shows, and one below it throughout. The first needs the barrier below every review's trigger, so a level at it does not call.
+function couponPaths(note: Product, initialLevel: number, below: (review: number) => number, endsBelow: (level: number) => number): PathScenario[] {
+  if (note.coupon === undefined) return []
+  const before = reviewCount(note)! - 1
+  const barrier = barrierLevelAt(note.coupon.barrier, initialLevel)
+  const missing = (review: number) => Math.min(below(review), barrier * 0.9)
+  const half = Math.ceil(before / 2)
+  const recovers = Array.from({ length: before }, (_, index) => (index < half ? missing(index + 1) : barrier))
+  const recoveryCalls = recovers.some((level, index) => level > below(index + 1)) || endsBelow(barrier) < barrier
+  return [
+    ...(recoveryCalls ? [] : [{ name: note.coupon.memory ? 'Misses coupons, then pays them by memory' : 'Misses coupons, then meets the coupon barrier', reviewLevels: recovers, finalLevel: barrier }]),
+    { name: 'Below the coupon barrier throughout', reviewLevels: Array.from({ length: before }, (_, index) => missing(index + 1)), finalLevel: endsBelow(barrier * 0.9) },
   ]
 }

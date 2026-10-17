@@ -146,6 +146,8 @@ describe('product schema', () => {
       ...[[-1, false], [0, true], [1.5, false]].map(([value, ok]): [string, Product, boolean] => [`issuer call non-call reviews ${value}`, issuerCallable({ nonCallReviews: value as number }), ok as boolean]),
       ['autocall trigger step -0.05', callable({ triggerStep: -0.05 }), true], ['autocall trigger step 0.05', callable({ triggerStep: 0.05 }), true],
       ['autocall call amount -0.01', callable({ callAmount: -0.01 }), false], ['autocall call amount 0', callable({ callAmount: 0 }), true],
+      ...[[0, false], [0.0001, true]].map(([value, ok]): [string, Product, boolean] => [`coupon rate ${value}`, { ...callable({}), coupon: { rate: value as number, barrier: 0.7 } }, ok as boolean]),
+      ...[[0, false], [0.01, true], [2, true], [2.01, false]].map(([value, ok]): [string, Product, boolean] => [`coupon barrier ${value}`, { ...callable({}), coupon: { rate: 0.1, barrier: value as number } }, ok as boolean]),
     ]
 
     it.each(cases)('%s', (_, product, expected) => {
@@ -164,6 +166,7 @@ describe('product schema', () => {
       ['basket weights that do not add up to 1', basket([100, 100], ['Index A', 'Index B'], [5, 5])],
       ['an autocall with no schedule', { ...callable({}), schedule: undefined } as Product],
       ['a schedule on a bullet product', { ...callable({}), redemption: 'bullet' } as Product],
+      ['a coupon on an issuer call', { ...callable({}), redemption: { kind: 'issuer-call', callAmount: 0 }, coupon: { rate: 0.1, barrier: 0.7 } } as Product],
       ['a quarterly schedule over a term of 10 months', { ...callable({}), term: { months: 10 }, schedule: { frequency: 'quarterly' } } as Product],
       ['barrier absolute return with lookback', { ...bothWays({}), underlier: determined({ initial: { kind: 'lookback', observationCount: 3 }, final: { kind: 'final-date' } }).underlier } as Product],
     ])('%s', (_, product) => {

@@ -430,16 +430,28 @@ Reviews are the dates on which a condition of the product is tested. A product m
 - **Many reviews:** more than 24 reviews is allowed. A note under the Reviews row says how many reviews the suggested frequency would give. Nothing is capped.
 - **Not done:** uneven thresholds listed date by date, contingent coupons with memory, a cash-flow result, a coupon in the issuer call's price, and keyboard and screen-reader checks of the review table (narrow-screen overflow is checked).
 
-## 34. Next steps
+## 34. Add a contingent coupon
 
-Where the reviews and autocall work stands, and what follows. The order is by what a learner gains.
+A coupon tested on each review of an autocall, paid when the underlier is at or above a coupon barrier, with an optional memory. The proposal, its three public sources and the decisions are in [docs/contingent-coupon.md](docs/contingent-coupon.md).
 
-1. **Contingent coupon, then memory** ([docs/observation-dates.md](docs/observation-dates.md), slice 2). The one concept the reference still lacks that most public autocalls use: a coupon barrier tested on each review, a coupon paid or missed, and unpaid coupons carried forward by memory. Sources: three JPM contingent interest notes, one with memory and one without. The proposal is in [docs/contingent-coupon.md](docs/contingent-coupon.md), with five decisions to agree before any code. It needs the first call (built) and per-asset review levels (built).
-2. **A cash-flow result** (slice 3). A payment on each review, the total paid, and the annualised return over the actual length. It is what makes coupons readable as money received over time, so it follows the coupon.
-3. **Fixed coupon on the schedule** (slice 4, [docs/coupon.md](docs/coupon.md)), which replaces the coupon's own frequency with the schedule.
-4. **Issuer call** (slice 5), built without coupons. Two public callable notes were read and the proposal is in [docs/issuer-call.md](docs/issuer-call.md): both pay principal plus that review's coupon on a call with no level condition, and neither states a premium; the model allows a call amount, defaulting to 0. It was built before the coupon as a thin version; the coupon in its price follows the contingent coupon. The decision is a scenario input.
-5. **Checks not done.** Keyboard use of the review table and the new redemption rows; screen-reader checks; how a 120-review monthly schedule behaves in the interface; the book's chapters 17 and 19 read in the running book at narrow width.
-6. **Smaller items.** Thresholds listed date by date with uneven steps; a rate-times-elapsed-time call price stated as a table; a hint or example menu so a learner can find the shark fin (a "Load an example" menu, proposed and not built).
+- **`coupon: { rate, barrier, memory }` on the product**, beside the redemption, reading the shared schedule. The rate is a year's rate; each review pays principal × rate × months between reviews ÷ 12. The barrier is a share of the initial level, met at or above. Memory defaults to false. No `kind`: a fixed coupon can later be a coupon with no barrier.
+- **Autocall only.** A coupon on a bullet note or an issuer call is coherent, and both issuer call notes pay one, but it is a named validation issue here.
+- **Tested on every review** up to the one the product ends on, including the non-call period, and the last on the final level. A call pays principal, the call amount and that review's coupon. A call on a review below the coupon barrier, possible once the trigger steps below it, pays no coupon and loses what was remembered.
+- **Result.** `redemptionOutcome` returns each review's coupon test and the total paid; `payment` includes the coupon of the review the product ended on. With a coupon the calculation gives the total paid, not an annualised return.
+- **Interface.** A Coupon row under Redemption (None or Contingent) with the rate, the coupon barrier and memory, each its own concept. The review table has a coupon column, two paths show memory and a miss throughout, and the chart's payment at the end of the term adds the last review's own coupon, with labels that say so. The unavailable Coupon entry in the payoff feature menu is removed.
+- **Book.** Chapter 20, Coupons, with a chart reproducing the shape of the 70% note's table; boundaries moved to chapter 21.
+
+## 35. Next steps
+
+Where the reviews, autocall and coupon work stands, and what follows. The order is by what a learner gains.
+
+1. **A cash-flow result** (slice 3). A payment on each review and an annualised return that reads when each was paid. The total paid is shown now; a return a year is left out with a coupon until this exists.
+2. **The coupon in the issuer call's price.** Both callable notes read pay principal plus that review's coupon. It needs the issuer call to read review levels.
+3. **Fixed coupon on the schedule** (slice 4, [docs/coupon.md](docs/coupon.md)): a coupon with no barrier. The BofA fixed coupon autocall note is a source; it lists its coupon payment dates apart from its call observation dates.
+4. **A coupon on a bullet note**, which needs a schedule on a product with no call.
+5. **The category of a coupon note.** The Swiss taxonomy may place an autocall that pays a coupon in Yield Enhancement; the reference still places it by its payoff alone. To verify before changing.
+6. **Checks not done.** Keyboard use of the review table and the redemption and coupon rows; screen-reader checks; how a 120-review monthly schedule behaves in the interface; the book's chapters 17, 19 and 20 read in the running book at narrow width.
+7. **Smaller items.** Thresholds listed date by date with uneven steps; a rate-times-elapsed-time call price stated as a table; a hint or example menu so a learner can find the shark fin (a "Load an example" menu, proposed and not built).
 
 Push to `origin/main` only at milestones, since every push runs the Pages deploy.
 

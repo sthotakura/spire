@@ -393,6 +393,34 @@ export interface IssuerCall {
   callAmountBasis?: 'flat' | 'per-year'
 }
 
+// See docs/contingent-coupon.md.
+/**
+ * A contingent coupon: interest paid on a review only when the underlier's level is at or above the coupon barrier. It is tested on
+ * every review, including those in a non-call period and the last, until the product ends. A product called on a review pays that
+ * review's coupon with the call, if the review meets the barrier.
+ */
+export interface Coupon {
+  /**
+   * The coupon as a rate a year, as a fraction of principal. Each review that meets the barrier pays principal × rate × the months
+   * between reviews ÷ 12: 12% a year on monthly reviews is 1% of principal a review.
+   * @exclusiveMinimum 0
+   */
+  rate: number
+  /**
+   * The level at or above which a review pays its coupon, as a fraction of the initial level. This reference accepts up to 2, a rise
+   * of 100%; that is a limit of this reference, not of the product type.
+   * @exclusiveMinimum 0
+   * @maximum 2
+   */
+  barrier: number
+  /**
+   * Whether a coupon missed on a review below the barrier is paid later, with the coupon of the next review that meets it. Without
+   * memory a missed coupon is never paid. Remembered coupons that no later review pays are never paid either.
+   * @default false
+   */
+  memory?: boolean
+}
+
 /**
  * The legal form. A note is a debt security of its issuer. A deposit is held by a bank and repaid in full at the end of its
  * term, so it cannot pay less than principal: it has no downside participation and no principal protection term.
@@ -412,6 +440,8 @@ export interface Product {
   schedule?: Schedule
   /** Bullet redemption pays once, at maturity. An autocall or an issuer call can end the product earlier, on a review. */
   redemption: 'bullet' | Autocall | IssuerCall
+  /** A coupon tested on each review of the schedule. This reference offers it with an autocall only. */
+  coupon?: Coupon
   underlier: Underlier
   /** The rules that turn the underlier's change into the maturity payment. With no features the product repays principal. */
   payoff: {
@@ -446,7 +476,7 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
     ? { direction: 'downside', buffer, barrier, absoluteReturn, rate: participation.rate }
     : { direction: 'upside', barrier: upsideBarrier, rate: participation.rate, cap })
 
-export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'nonCallReviews' | 'triggerStep' | 'callAmount'
+export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'nonCallReviews' | 'triggerStep' | 'callAmount' | 'coupon'
 
 // A barrier as an underlier level: its fraction of the level the return is measured from. Rounded to nine decimals, because
 // 1.1 × 100 is 110.00000000000001 in floating point, which would put a final level of 110 on the wrong side of a barrier at 110%.
@@ -606,6 +636,22 @@ function redemptionIssues(note: Product): ProductIssue[] {
   return issues
 }
 
+// A contingent coupon reads the levels of an autocall's reviews. The three public notes read are all autocalls; a coupon on a bullet
+// note or an issuer call is coherent but not offered here (docs/contingent-coupon.md, decision 3).
+function couponIssues(note: Product): ProductIssue[] {
+  const { coupon, redemption } = note
+  if (coupon === undefined) return []
+  const issues: ProductIssue[] = []
+  if (!Number.isFinite(coupon.rate) || coupon.rate <= 0) issues.push({ field: 'coupon', message: 'Coupon rate must be greater than zero.' })
+  if (!Number.isFinite(coupon.barrier) || coupon.barrier <= 0 || coupon.barrier > 2) issues.push({ field: 'coupon', message: 'Coupon barrier must be greater than 0% and at most 200% of the initial level.' })
+  if (redemption === 'bullet' || redemption.kind !== 'autocall') issues.push({ field: 'coupon', message: 'A contingent coupon is tested on the reviews of an autocall, so it needs autocallable redemption.' })
+  return issues
+}
+
+// The coupon each review pays when it meets the barrier, as an amount: principal × rate × the months between reviews ÷ 12.
+export const couponPerReview = (note: Product): number =>
+  note.coupon === undefined || note.schedule === undefined ? 0 : note.principalAmount * note.coupon.rate * monthsPerReview[note.schedule.frequency] / 12
+
 export function productIssues(note: Product): ProductIssue[] {
   const issues: ProductIssue[] = underlierIssues(note.underlier)
   if (!Number.isFinite(note.principalAmount) || note.principalAmount <= 0) issues.push({ field: 'principalAmount', message: 'Principal must be greater than zero.' })
@@ -666,7 +712,7 @@ export function productIssues(note: Product): ProductIssue[] {
       issues.push({ field: 'barrierAbsoluteReturn', message: 'Absolute return in both directions needs a single underlier with a fixed initial level and a final level on the final date.' })
     }
   }
-  issues.push(...redemptionIssues(note))
+  issues.push(...redemptionIssues(note), ...couponIssues(note))
   // A deposit is repaid in full, so nothing may take the payment below principal, and principal needs no protection term.
   if (note.wrapper === 'deposit' && downsideOf(note)) issues.push({ field: 'participations', message: 'A deposit repays principal in full, so it cannot have downside participation.' })
   if (note.wrapper === 'deposit' && protection !== undefined) issues.push({ field: 'principalProtection', message: 'A deposit repays principal in full, so it has no principal protection term.' })

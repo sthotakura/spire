@@ -52,8 +52,8 @@ groups products into Capital Protection, Yield Enhancement, Participation and
 Leverage. A product falls in at most one. SPIRe shows a category only when the
 terms place the note in it: any principal protection above 0% is Capital
 Protection, and an unprotected note that follows the underlier is
-Participation. Yield Enhancement and Leverage need coupons or warrants, which the model does
-not have, so neither is shown.
+Participation. The model does not place a product in Yield Enhancement or
+Leverage, so neither is shown, even for a note with a contingent coupon.
 
 A **marketing name**, such as “principal-protected note”, is the label a seller
 puts on a product. Several can apply to one note, and no single authority

@@ -64,7 +64,7 @@ Take the first example with a non-call period of 5 reviews, so reviews 1 to 5 ca
 | The level is 120 on reviews 1 to 5, below 100 on every later review, then ends at 110 | Reviews 1 to 5 cannot call, whatever the level. No later review reaches the trigger, so it runs to the end and the payoff pays principal | 12 | 1,000 |
 | The level is 120 on reviews 1 to 5, then 100 on review 6 | Review 6 is the first that can call, and it is at the trigger: principal plus 8% | 6 | 1,080 |
 
-The trigger is counted from review 1, not from the end of the period, so a trigger that steps down by 5% from 100% is 85% on review 4 whatever the period is. The period must leave at least one review that can call: at most the last but one, or the last when the final review is a call too. The reference does not model coupons, which the public note pays on every review including those in the period.
+The trigger is counted from review 1, not from the end of the period, so a trigger that steps down by 5% from 100% is 85% on review 4 whatever the period is. The period must leave at least one review that can call: at most the last but one, or the last when the final review is a call too. The public note also pays a coupon on every review, including those in the period, as [Coupons](20-coupons.md) explains.
 
 ## A call on the final review
 
@@ -118,7 +118,7 @@ A call after 5 months that pays 2% above principal annualises to 4.87% a year, b
 
 - **Why the issuer would call.** Neither public note says. The decision is the issuer's, outside the terms, so the reference leaves it to the reader to state and suggests no reason.
 - **A premium.** Neither note pays one above principal and the coupon, so the call amount starts at zero. A call price above principal is coherent, and the reference allows it, but no public note read for this chapter states one.
-- **Coupons.** The call price in both notes is principal plus that review's coupon when it was earned, and a call stops the remaining coupons. The reference has no coupons, so a call here repays principal and any call amount.
+- **Coupons.** The call price in both notes is principal plus that review's coupon when it was earned, and a call stops the remaining coupons. The reference offers a coupon with an autocall only ([Coupons](20-coupons.md)), so an issuer call here repays principal and any call amount.
 - **Notice and dates.** Both notes state a notice period and a payment date after the review. The reference has no calendar dates.
 - **An issuer call and an autocall together** are not modelled. A product has one or the other.
 
@@ -144,7 +144,7 @@ An issuer call is not available with a barrier observed on every close or with b
 
 ## What is not modelled
 
-Contingent coupons, memory, a trigger that steps by uneven amounts, a premium on an issuer call that a source states, notice periods, and a schedule of payments. Each would be added on top of the reviews described here.
+A coupon on an issuer call, a trigger that steps by uneven amounts, a premium on an issuer call that a source states, notice periods, and a schedule of payments. Each would be added on top of the reviews described here.
 
 ## Related concepts
 

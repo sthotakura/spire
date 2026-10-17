@@ -108,7 +108,7 @@ Each slice needs a public source, a book chapter, a schema example and tests, an
 | # | Slice | Source | What it adds |
 |---|---|---|---|
 | 1 | **Autocall without coupons** | UBS step-down note (the call mechanism; its amount differs, see below) | Review schedule, path scenario, call trigger, flat call amount, early-redemption result |
-| 2 | **Contingent coupon, then memory** | JPM contingent interest notes | A coupon barrier tested on each review; unpaid coupons carried forward. Proposed: [contingent-coupon.md](contingent-coupon.md) |
+| 2 | **Contingent coupon, then memory** | JPM contingent interest notes | A coupon barrier tested on each review; unpaid coupons carried forward. Built: [contingent-coupon.md](contingent-coupon.md) |
 | 3 | **Cash-flow result** | JPM contingent interest note | A payment per review, total paid, annualised return on actual length |
 | 4 | **Fixed coupon on the schedule** | [coupon.md](coupon.md) | A coupon always paid; the schedule replaces coupon.md's own frequency |
 | 5 | **Issuer call** | SSPA softcall; two public callable notes | An issuer option on stated reviews, which tests no level. Built without coupons: [issuer-call.md](issuer-call.md) |

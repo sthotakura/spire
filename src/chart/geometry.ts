@@ -3,7 +3,7 @@
 // initial level sits at the centre. The vertical axis starts at zero and is fitted to the payoff. The page holds it still while the reader drags, so the line
 // does not move under the pointer, and refits it when the drag ends.
 
-import { finalCallLevel } from '../domain/autocall'
+import { couponBarrierLevel, finalCallLevel } from '../domain/autocall'
 import { barrierLevelAt, downsideOf, maturityPayment, upsideOf, type DeterminedLevels, type PaymentBreakdown, type Product } from '../domain/note'
 
 export interface Plot {
@@ -150,6 +150,9 @@ export const jumpsOf = (product: Product, initialLevel: number): Jump[] => {
   // A final review that is also a call pays the call at and above its trigger, so the payment jumps there and its level pays the call.
   const finalCall = finalCallLevel(product, initialLevel)
   if (finalCall !== undefined) jumps.push({ level: finalCall, paysAbove: true })
+  // A coupon adds the last review's coupon at and above its barrier, so the payment at the end of the term jumps there too.
+  const couponBarrier = couponBarrierLevel(product, initialLevel)
+  if (couponBarrier !== undefined) jumps.push({ level: couponBarrier, paysAbove: true })
   return jumps
 }
 

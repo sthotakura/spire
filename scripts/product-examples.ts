@@ -110,4 +110,13 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
       },
     }),
   ],
+  [
+    'an autocall reviewed monthly with a contingent coupon of 17.35% a year at a 50% barrier, with memory, that cannot be called before the sixth review, and a 40% downside barrier at the end of the term',
+    note({ participations: [{ direction: 'downside', barrier: { level: 0.4, observation: 'final' }, rate: 1 }] }, {
+      term: { months: 36 },
+      schedule: { frequency: 'monthly' },
+      redemption: { kind: 'autocall', trigger: 1, nonCallReviews: 5, callAmount: 0 },
+      coupon: { rate: 0.1735, barrier: 0.5, memory: true },
+    }),
+  ],
 ]

@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://sthotakura.github.io/spire/product.schema.json",
   "title": "SPIRe product",
-  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- An autocall or an issuer call needs a review schedule, and a schedule is used by them only. The term must hold a whole number of review periods, and at least two.\n- An autocall cannot be combined with lookback. An autocall or an issuer call cannot be combined with a barrier observed on every close.\n- An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The non-call period of an autocall or an issuer call leaves at least one review that can call.",
+  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- An autocall or an issuer call needs a review schedule, and a schedule is used by them only. The term must hold a whole number of review periods, and at least two.\n- An autocall cannot be combined with lookback. An autocall or an issuer call cannot be combined with a barrier observed on every close.\n- An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The non-call period of an autocall or an issuer call leaves at least one review that can call.\n- A contingent coupon needs an autocall.",
   "type": "object",
   "properties": {
     "wrapper": {
@@ -39,6 +39,14 @@
         }
       ],
       "description": "Bullet redemption pays once, at maturity. An autocall or an issuer call can end the product earlier, on a review."
+    },
+    "coupon": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/Coupon"
+        }
+      ],
+      "description": "A coupon tested on each review of the schedule. This reference offers it with an autocall only."
     },
     "underlier": {
       "$ref": "#/definitions/Underlier"
@@ -894,6 +902,59 @@
       "schedule": {
         "frequency": "semi-annual"
       }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": {
+        "kind": "autocall",
+        "trigger": 1,
+        "nonCallReviews": 5,
+        "callAmount": 0
+      },
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Synthetic Index"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "level": 100
+          },
+          "final": {
+            "kind": "final-date"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "barrier": {
+              "level": 0.4,
+              "observation": "final"
+            },
+            "rate": 1
+          }
+        ]
+      },
+      "schedule": {
+        "frequency": "monthly"
+      },
+      "coupon": {
+        "rate": 0.1735,
+        "barrier": 0.5,
+        "memory": true
+      }
     }
   ],
   "definitions": {
@@ -1030,6 +1091,33 @@
       ],
       "additionalProperties": false,
       "description": "An early redemption at the issuer's option. On a review that can call, the issuer may redeem the product in whole, which then ends and repays principal plus the call amount. Nothing tests the underlier: whether the issuer calls is the issuer's choice, which a scenario states. The last review is the end of the term and is not a call."
+    },
+    "Coupon": {
+      "type": "object",
+      "properties": {
+        "rate": {
+          "type": "number",
+          "description": "The coupon as a rate a year, as a fraction of principal. Each review that meets the barrier pays principal × rate × the months between reviews ÷ 12: 12% a year on monthly reviews is 1% of principal a review.",
+          "exclusiveMinimum": 0
+        },
+        "barrier": {
+          "type": "number",
+          "description": "The level at or above which a review pays its coupon, as a fraction of the initial level. This reference accepts up to 2, a rise of 100%; that is a limit of this reference, not of the product type.",
+          "exclusiveMinimum": 0,
+          "maximum": 2
+        },
+        "memory": {
+          "type": "boolean",
+          "description": "Whether a coupon missed on a review below the barrier is paid later, with the coupon of the next review that meets it. Without memory a missed coupon is never paid. Remembered coupons that no later review pays are never paid either.",
+          "default": false
+        }
+      },
+      "required": [
+        "rate",
+        "barrier"
+      ],
+      "additionalProperties": false,
+      "description": "A contingent coupon: interest paid on a review only when the underlier's level is at or above the coupon barrier. It is tested on every review, including those in a non-call period and the last, until the product ends. A product called on a review pays that review's coupon with the call, if the review meets the barrier."
     },
     "Underlier": {
       "oneOf": [

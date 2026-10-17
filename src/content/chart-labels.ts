@@ -1,4 +1,4 @@
-import { callAmountAtReview, downsideOf, maturityPayment, reviewCount, triggerAtReview, upsideOf, type Product } from '../domain/note'
+import { callAmountAtReview, couponPerReview, downsideOf, maturityPayment, reviewCount, triggerAtReview, upsideOf, type Product } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 const amount = (value: number) => Number.isFinite(value) ? value.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'
@@ -76,5 +76,10 @@ export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, s
   }
   if (principalProtection !== undefined) labels.protection = `Never below ${amount(principal * principalProtection)}`
   if (minimumReturn !== undefined) labels['minimum-return'] = `Never below ${amount(principal * (1 + minimumReturn))}`
+  // The line at the end of the term adds the last review's coupon at and above the coupon barrier, so the pieces that repay principal say so.
+  if (product.coupon !== undefined) {
+    const plus = `, plus the last coupon ${amount(couponPerReview(product))} at or above ${percent(product.coupon.barrier)}`
+    for (const key of ['payoff', 'buffer', 'barrier'] as const) if (labels[key] !== undefined) labels[key] += plus
+  }
   return labels
 }
