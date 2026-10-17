@@ -13,7 +13,7 @@ export interface MarketingName {
 const isRate = (rate: number | undefined): rate is number => rate !== undefined && Number.isFinite(rate) && rate > 0
 const percentText = (fraction: number) => `${(fraction * 100).toFixed(1).replace(/\.0$/, '')}%`
 
-export type ProductCategory = 'Capital Protection' | 'Participation'
+export type ProductCategory = 'Capital Protection' | 'Yield Enhancement' | 'Participation'
 
 // The Swiss taxonomy's broad category for the note, or none when the model's terms do not place it. One category at most.
 // Protection decides first: any protection above 0% is Capital Protection, so a buffer or a cap does not change it.
@@ -25,7 +25,9 @@ export function productCategory(note: Product): ProductCategory | undefined {
 
   if (protection !== undefined && Number.isFinite(protection) && protection > 0) return 'Capital Protection'
   if (note.wrapper === 'deposit' && isRate(upside)) return 'Capital Protection'
-  // A call or a coupon on an unprotected note could place it in Yield Enhancement, which is unverified, so it gets no category.
+  // A coupon in place of upside, as in the Swiss Express and reverse convertible types, with or without a call.
+  if (note.wrapper === 'note' && note.coupon !== undefined && upside === undefined) return 'Yield Enhancement'
+  // A call without a coupon, or a coupon beside upside participation, is not placed, so it gets no category.
   if (note.wrapper === 'note' && note.redemption === 'bullet' && note.coupon === undefined && (isRate(upside) || isRate(downside))) return 'Participation'
   return undefined
 }
@@ -56,7 +58,7 @@ export function marketingNames(note: Product): MarketingName[] {
     names.push({
       name: 'Principal-protected note',
       vocabulary: 'US descriptive',
-      reason: `The payment at maturity is at least the full principal, subject to the issuer's ability to pay.${upside ? ' In the Swiss taxonomy this is a Capital Protection Note with Participation.' : ''}`,
+      reason: `The payment at maturity is at least the full principal, subject to the issuer's ability to pay.${upside ? ' In the Swiss taxonomy this is a Capital Protection Note with Participation.' : note.coupon ? ' In the Swiss taxonomy this is a Capital Protection Certificate with Coupon.' : ''}`,
       concepts: ['protection'],
     })
   } else if (hasProtection && protection < 1) {
@@ -149,5 +151,55 @@ export function marketingNames(note: Product): MarketingName[] {
   }
 
   const caveat = maturityOnlyNote(note)
-  return caveat ? names.map((name) => ({ ...name, reason: `${name.reason} ${caveat}` })) : names
+  const maturityNames = caveat ? names.map((name) => ({ ...name, reason: `${name.reason} ${caveat}` })) : names
+  return [...maturityNames, ...callAndCouponNames(note)]
+}
+
+// Names for how the product ends and what it pays while it lasts. Each is its own chip, beside the names for the maturity payment.
+// The rules are recorded in docs/call-and-coupon-names.md.
+function callAndCouponNames(note: Product): MarketingName[] {
+  if (note.wrapper !== 'note') return []
+  const { redemption, coupon } = note
+  const names: MarketingName[] = []
+
+  if (redemption !== 'bullet' && redemption.kind === 'autocall') {
+    names.push({
+      name: 'Autocallable note',
+      vocabulary: 'US descriptive',
+      reason: 'The product ends early on the first review that can call where the underlier is at or above the call trigger, and repays principal plus the call amount. Otherwise it runs to maturity.',
+      concepts: ['redemption'],
+    })
+  }
+  if (redemption !== 'bullet' && redemption.kind === 'issuer-call') {
+    names.push({
+      name: 'Callable note',
+      vocabulary: 'US descriptive',
+      reason: 'The issuer may end the product early on a review that can call, and need not. Whether it does is the issuer’s choice, not a test of the underlier, so the scenario chooses the review.',
+      concepts: ['redemption'],
+    })
+  }
+  if (coupon !== undefined) {
+    names.push({
+      name: 'Contingent coupon note',
+      vocabulary: 'US descriptive',
+      reason: `A coupon is paid on each coupon review where the underlier is at or above the coupon barrier, and missed below it.${coupon.memory ? ' With memory, a missed coupon is paid later, with the next coupon that meets the barrier.' : ''} US offering documents call it contingent interest, contingent income or a contingent coupon; the Swiss taxonomy calls it a conditional coupon.`,
+      concepts: ['coupon'],
+    })
+  }
+
+  // The Swiss Express-Barrier-Certificate: coupons in place of upside, an autocall, and a barrier below which the holder bears the fall.
+  // Without a barrier the Swiss type's maturity payment is unverified, so a buffer or no downside feature gets no Express name.
+  const protection = note.payoff.principalProtection
+  const unprotected = protection === undefined || protection === 0
+  const downside = downsideOf(note)
+  if (redemption !== 'bullet' && redemption.kind === 'autocall' && coupon !== undefined && unprotected && upsideOf(note) === undefined && note.payoff.barrierAbsoluteReturn === undefined && downside?.barrier !== undefined && downside.buffer === undefined) {
+    names.push({
+      name: 'Express certificate',
+      vocabulary: 'SSPA',
+      reason: 'The return is the coupons, with no share in a rise. The product is called early when the underlier is at or above the trigger on a review, and below the downside barrier at maturity the holder bears the fall. The Swiss taxonomy calls this an Express-Barrier-Certificate.',
+      concepts: ['redemption', 'coupon', 'barrier'],
+    })
+  }
+
+  return names
 }

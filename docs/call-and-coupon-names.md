@@ -1,6 +1,6 @@
 # Names for calls and coupons
 
-Proposed, not built. Since the model gained an autocall, an issuer call and a contingent coupon, products with them show no marketing name and, when unprotected, no category ([marketing-names.md](marketing-names.md)). This document records what public sources say and proposes the smallest set of rules.
+Built, with the rules below as proposed and the recommended answer to each open question: FINRA's glossary is used, a buffer gets no Express name, a bullet note with a coupon is Yield Enhancement, and the maturity names keep their sentence for a call or a coupon. The rules are also listed in [marketing-names.md](marketing-names.md). This document records what public sources say and why the rules are as they are.
 
 ## Sources
 
@@ -22,7 +22,7 @@ Proposed, not built. Since the model gained an autocall, an issuer call and a co
 | Yield Enhancement | SSPA category holding the Express and reverse convertible types. FINRA describes a reverse convertible as a note with "an attractive periodic fixed coupon" and principal "generally at risk". |
 | Phoenix | Educational pages: an autocallable whose conditional coupons are paid on each observation date, often with memory, unlike a "classic" autocall that pays them together on the call. The sources disagree on whether memory is part of the name. |
 
-## Proposed rules
+## Rules
 
 Example-specific assumptions, as in [marketing-names.md](marketing-names.md). Each is a separate chip, since several names can apply.
 
@@ -43,13 +43,15 @@ An unprotected note with a call and no coupon, or a coupon beside upside partici
 
 With 100% protection and a coupon, the Principal-protected note reason would add that the Swiss taxonomy calls this a Capital Protection Certificate with Coupon, as it already names 1100 for participation.
 
-## Not proposed
+## Not shown
 
 - **Phoenix.** Market usage whose sources disagree on memory. It could be added later as market usage for an autocall with a coupon and memory, like the shark fin note.
 - **Reverse convertible.** FINRA and the SSPA describe a fixed coupon, paid whatever the underlier does, and the SSPA adds delivery of the underlier. The model has only a contingent coupon and pays cash.
 - **One combined name** such as "Autocallable contingent coupon note". The US titles combine the parts in different orders; separate chips say the same and match each part.
 
 ## Open questions
+
+Each was answered with the recommendation for the build; they stay open for a better source.
 
 1. Is FINRA's Risk Control Assessment glossary a strong enough source for a US descriptive name, given its stated purpose? The SSPA glossary supports the same word.
 2. Should the Express certificate rule also cover a buffer, as in the two-fund note ([contingent-autocall.md](contingent-autocall.md))? The SSPA's barrier version describes a barrier, so the proposal excludes it.

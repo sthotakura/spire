@@ -247,9 +247,9 @@ describe('marketing names with a call or a coupon', () => {
 
   it('gives no tracker, outperformance or participation note name when a call or a coupon is added', () => {
     for (const terms of [{ redemption: autocall }, { redemption: issuerCall }, { coupon }]) {
-      expect(namesWith({ participations: [up(1), down(1)] }, terms)).toEqual([])
-      expect(namesWith({ participations: [up(1.5), down(1)] }, terms)).toEqual([])
-      expect(namesWith({ participations: [up(1)] }, terms)).toEqual([])
+      for (const participations of [[up(1), down(1)], [up(1.5), down(1)], [up(1)]]) {
+        expect(namesWith({ participations }, terms)).not.toEqual(expect.arrayContaining([expect.stringMatching(/^(Tracker|Outperformance|Participation note)$/)]))
+      }
     }
   })
 
@@ -272,5 +272,74 @@ describe('marketing names with a call or a coupon', () => {
     expect(productCategory(withTerms({ participations: [down(1)] }, { redemption: autocall }))).toBeUndefined()
     expect(productCategory(withTerms({ participations: [up(1)] }, { coupon }))).toBeUndefined()
     expect(productCategory(withTerms({ principalProtection: 1, participations: [up(1)] }, { redemption: autocall, coupon }))).toBe('Capital Protection')
+  })
+})
+
+describe('names for a call and a coupon', () => {
+  const autocall: Product['redemption'] = { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0 }
+  const issuerCall: Product['redemption'] = { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0 }
+  const coupon: Product['coupon'] = { schedule: { frequency: 'quarterly' }, rate: 0.08, barrier: 0.7 }
+  const barrierDown: Participation = { direction: 'downside', rate: 1, barrier: { level: 0.6, observation: 'final' } }
+  // noteWith sets each downside feature from its own argument, so a barrier on the downside participation is put back here.
+  const withTerms = (payoff: Parameters<typeof noteWith>[0], terms: Partial<Product>): Product => {
+    const product = noteWith(payoff)
+    const barrier = payoff.participations?.find((participation) => participation.direction === 'downside')?.barrier
+    const participations = product.payoff.participations.map((participation) => participation.direction === 'downside' && barrier ? { ...participation, barrier } : participation)
+    return { ...product, payoff: { ...product.payoff, participations }, ...terms }
+  }
+  const namesWith = (payoff: Parameters<typeof noteWith>[0], terms: Partial<Product>) => marketingNames(withTerms(payoff, terms)).map(({ name }) => name)
+
+  it('calls a note with an autocall autocallable, whatever its payoff', () => {
+    expect(namesWith({}, { redemption: autocall })).toEqual(['Autocallable note'])
+    expect(namesWith({ principalProtection: 1, participations: [up(1)] }, { redemption: autocall })).toEqual(['Principal-protected note', 'Autocallable note'])
+  })
+
+  it('calls a note with an issuer call callable', () => {
+    expect(namesWith({ participations: [down(1)] }, { redemption: issuerCall })).toEqual(['Callable note'])
+  })
+
+  it('calls a note with a contingent coupon a contingent coupon note, and says when it has memory', () => {
+    expect(namesWith({ participations: [down(1)] }, { coupon })).toEqual(['Contingent coupon note'])
+    const [plain] = marketingNames(withTerms({}, { coupon }))
+    expect(plain.reason).not.toContain('With memory')
+    const [remembered] = marketingNames(withTerms({}, { coupon: { ...coupon!, memory: true } }))
+    expect(remembered.reason).toContain('With memory')
+  })
+
+  it('does not add the maturity caveat to the names for the call and the coupon', () => {
+    for (const { reason } of marketingNames(withTerms({}, { redemption: autocall, coupon }))) expect(reason).not.toContain('The name describes')
+  })
+
+  it('calls an unprotected autocall with a coupon and a downside barrier, and no upside, an Express certificate', () => {
+    expect(namesWith({ participations: [barrierDown] }, { redemption: autocall, coupon })).toEqual(['Autocallable note', 'Contingent coupon note', 'Express certificate'])
+  })
+
+  it('gives no Express name without the autocall, the coupon or the barrier, with a buffer, upside or protection', () => {
+    const express = (payoff: Parameters<typeof noteWith>[0], terms: Partial<Product>) => namesWith(payoff, terms).includes('Express certificate')
+    expect(express({ participations: [barrierDown] }, { redemption: issuerCall, coupon })).toBe(false)
+    expect(express({ participations: [barrierDown] }, { redemption: autocall })).toBe(false)
+    expect(express({ participations: [down(1)] }, { redemption: autocall, coupon })).toBe(false)
+    expect(express({ participations: [down(1)], buffer: 0.2 }, { redemption: autocall, coupon })).toBe(false)
+    expect(express({ participations: [barrierDown, up(1)] }, { redemption: autocall, coupon })).toBe(false)
+    expect(express({ participations: [barrierDown], principalProtection: 0.9 }, { redemption: autocall, coupon })).toBe(false)
+  })
+
+  it('names the Swiss Capital Protection Certificate with Coupon for a protected note with a coupon and no upside', () => {
+    const [protectedNote] = marketingNames(withTerms({ principalProtection: 1 }, { coupon }))
+    expect(protectedNote.reason).toContain('Capital Protection Certificate with Coupon')
+    const [withUpside] = marketingNames(withTerms({ principalProtection: 1, participations: [up(1)] }, { coupon }))
+    expect(withUpside.reason).toContain('Capital Protection Note with Participation')
+  })
+
+  it('gives a deposit none of these names', () => {
+    expect(marketingNames({ ...withTerms({ participations: [up(1)] }, { redemption: autocall, coupon }), wrapper: 'deposit' }).map(({ name }) => name)).toEqual(['Market-linked deposit'])
+  })
+
+  it('places an unprotected note with a coupon and no upside in Yield Enhancement, with or without a call', () => {
+    expect(productCategory(withTerms({ participations: [barrierDown] }, { redemption: autocall, coupon }))).toBe('Yield Enhancement')
+    expect(productCategory(withTerms({ participations: [down(1)] }, { coupon }))).toBe('Yield Enhancement')
+    expect(productCategory(withTerms({}, { redemption: issuerCall, coupon }))).toBe('Yield Enhancement')
+    expect(productCategory(withTerms({ participations: [up(1)] }, { coupon }))).toBeUndefined()
+    expect(productCategory(withTerms({ principalProtection: 1 }, { coupon }))).toBe('Capital Protection')
   })
 })
