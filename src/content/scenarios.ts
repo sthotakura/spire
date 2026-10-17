@@ -50,9 +50,21 @@ export function breachClose(breakdown: PaymentBreakdown): { kind: 'lowest' | 'hi
 export function scenarioRows(note: Product, initialLevel: number, returns: number[] = scenarioReturns): ScenarioRow[] {
   type Point = { returnValue: number; finalLevel: number; atBarrier: boolean; pastBarrier: 'above' | 'below' | null; atBuffer: boolean; afterBreach: boolean; atCouponBarrier: boolean; lowestClose?: number; highestClose?: number }
   let points: Point[] = returns.map((returnValue) => ({ returnValue, finalLevel: initialLevel * (1 + returnValue), atBarrier: false, pastBarrier: null, atBuffer: false, afterBreach: false, atCouponBarrier: false }))
+  // A row at the level of one already there takes its place, keeping its markers, so two features at one level, such as a coupon
+  // barrier and a downside barrier both at 70%, are both marked on the one row.
   const added = (finalLevel: number, returnValue: number, marks: Partial<Pick<Point, 'atBarrier' | 'pastBarrier' | 'atBuffer' | 'atCouponBarrier'>>) => {
-    points = [...points.filter((point) => Math.abs(point.finalLevel - finalLevel) > 1e-9 * initialLevel), { returnValue, finalLevel, atBarrier: false, pastBarrier: null, atBuffer: false, afterBreach: false, atCouponBarrier: false, ...marks }]
-      .sort((a, b) => a.finalLevel - b.finalLevel)
+    const same = (point: Point) => Math.abs(point.finalLevel - finalLevel) <= 1e-9 * initialLevel
+    const before = points.find(same)
+    const point: Point = {
+      returnValue,
+      finalLevel,
+      atBarrier: (before?.atBarrier ?? false) || (marks.atBarrier ?? false),
+      pastBarrier: marks.pastBarrier ?? before?.pastBarrier ?? null,
+      atBuffer: (before?.atBuffer ?? false) || (marks.atBuffer ?? false),
+      afterBreach: false,
+      atCouponBarrier: (before?.atCouponBarrier ?? false) || (marks.atCouponBarrier ?? false),
+    }
+    points = [...points.filter((candidate) => !same(candidate)), point].sort((a, b) => a.finalLevel - b.finalLevel)
   }
   const { barrier, buffer, absoluteReturn } = downsideOf(note) ?? {}
   if (barrier !== undefined) added(barrier.level * initialLevel, barrier.level - 1, { atBarrier: true })

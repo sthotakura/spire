@@ -264,3 +264,19 @@ describe('scenario rows with a coupon', () => {
     }
   })
 })
+
+describe('scenario rows with a coupon barrier at a payoff barrier', () => {
+  // Synthetic: as the Apple note, the coupon barrier and the downside barrier both at 70%.
+  const both: Product = {
+    ...startingProduct,
+    term: { months: 12 },
+    coupon: { schedule: { frequency: 'quarterly' }, rate: 0.115, barrier: 0.7 },
+    payoff: { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.7, observation: 'final' } }] },
+  }
+
+  it('keeps both markers on one row at the shared level', () => {
+    const rows = scenarioRows(both, 100).filter((row) => Math.abs(row.finalLevel - 70) < 1e-9)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ atBarrier: true, atCouponBarrier: true, lastCoupon: 28.75, endPayment: 1028.75 })
+  })
+})
