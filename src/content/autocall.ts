@@ -146,7 +146,9 @@ function couponEntries(note: Product, outcome: RedemptionOutcome): Array<{ month
       const after = coupon.memory ? `, so its coupon is remembered: ${coupons(test.remembered)} unpaid` : ', so its coupon is missed and not paid later'
       return { month: test.month, step: { title, how: `${level} is below ${barrier}${after}`, value: '0', muted: true, concept: 'coupon' as const } }
     }
-    const paid = test.coupons > 1 ? `: ${test.coupons} × ${each}, this review’s coupon and ${coupons(test.coupons - 1)} remembered` : `: ${each}`
+    const paid = test.coupons > 1
+      ? `: ${test.coupons} × ${each} = ${units(test.paid)}, this review’s coupon and ${coupons(test.coupons - 1)} remembered, each ${couponWorking(note)}`
+      : `: ${couponWorking(note)}`
     return { month: test.month, step: { title, how: `${level} is at or above ${barrier}${paid}`, value: units(test.paid), concept: 'coupon' as const } }
   })
 }
@@ -166,9 +168,15 @@ export function couponCell(note: Product, test: CouponTest): string {
   const { coupon } = note
   if (coupon === undefined) return ''
   if (!test.met) return coupon.memory ? 'Missed · remembered' : 'Missed'
-  const each = couponPerReview(note)
-  if (test.coupons > 1) return `${test.coupons} × ${units(each)} = ${units(test.paid)}`
-  return `${units(note.principalAmount)} × ${twoDecimalPercent(coupon.rate)} × ${monthsPerReview[coupon.schedule.frequency]}/12 = ${units(each)}`
+  if (test.coupons > 1) return `${test.coupons} × ${units(couponPerReview(note))} = ${units(test.paid)}`
+  return couponWorking(note)
+}
+
+// One coupon worked out: principal × the rate a year × the months between coupon reviews ÷ 12. The review table and the calculation
+// both show it, so they read the same.
+function couponWorking(note: Product): string {
+  if (note.coupon === undefined) return ''
+  return `${units(note.principalAmount)} × ${twoDecimalPercent(note.coupon.rate)} × ${monthsPerReview[note.coupon.schedule.frequency]}/12 = ${units(couponPerReview(note))}`
 }
 
 // Everything paid over the product's life: the coupons on the reviews before it ended, and the payment on the review it ended on.

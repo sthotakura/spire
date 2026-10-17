@@ -62,7 +62,8 @@ describe('the coupon in the calculation', () => {
   it('lists a coupon step for each review up to the call, then the call, its coupon and the total paid', () => {
     const steps = redemptionSteps(product(), redemptionOutcome(product(), called, { initial: 100, final: 90 }))
     expect(steps.filter((step) => step.concept === 'coupon' && step.title.startsWith('Coupon on')).map((step) => step.value)).toEqual(['10', '0', '20', '0', '20'])
-    expect(steps.find((step) => step.title === 'Coupon on review 3 of 12, month 3')?.how).toContain('2 × 10, this review’s coupon and 1 coupon remembered')
+    expect(steps.find((step) => step.title === 'Coupon on review 3 of 12, month 3')?.how).toBe('102 is at or above the coupon barrier, 70% × initial level = 70: 2 × 10 = 20, this review’s coupon and 1 coupon remembered, each 1,000 × 12% × 1/12 = 10')
+    expect(steps.find((step) => step.title === 'Coupon on review 1 of 12, month 1')?.how).toBe('95 is at or above the coupon barrier, 70% × initial level = 70: 1,000 × 12% × 1/12 = 10')
     // In order of month, the coupon before the call on a month that is both.
     expect(steps.slice(0, 4).map(({ title }) => title)).toEqual(['Coupon on review 1 of 12, month 1', 'Review 1 of 12, month 1', 'Coupon on review 2 of 12, month 2', 'Review 2 of 12, month 2'])
     expect(steps.find((step) => step.title === 'Redemption')).toMatchObject({ how: 'Called on review 5, after 5 months: principal × (1 + 0%) + coupon 20', value: '1,020' })
