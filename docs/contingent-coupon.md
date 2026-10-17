@@ -1,6 +1,11 @@
 # Contingent coupon
 
-Built, with the recommended decisions: memory in the same change, no `kind`, the autocall only, no annualised return with a coupon, and the last review's own coupon on the chart. It is slice 2 of [observation-dates.md](observation-dates.md): a coupon tested on each review, paid only when the underlier is at or above a coupon barrier, and, with memory, a missed coupon paid later. It reads the review schedule the autocall already uses. The fixed coupon ([coupon.md](coupon.md)) and the cash-flow result are separate slices.
+Built. Two of the decisions below were revised after the first build, at the reader's request:
+
+- **Its own schedule.** The coupon carries `schedule` beside its rate, and the call carries its own inside the redemption; the product has no shared schedule. A coupon can be reviewed monthly beside a quarterly call. The interface offers "Same as the calls", which copies the call's frequency once. The scenario reads a level on each date of either schedule, a date on both once; a coupon review on the date of a call pays with it, and a call on a date that is not a coupon review pays no coupon.
+- **Any redemption** (reversing decision 3). A bullet note reads a level on each coupon review only. An issuer call with a coupon reads the coupon reviews; a call on one of them pays that review's coupon, which closes open question 4 of [issuer-call.md](issuer-call.md).
+
+The rest of this document is the proposal as agreed; read "the reviews" in it as the coupon's own reviews.
 
 ## What it means
 

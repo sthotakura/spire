@@ -119,25 +119,13 @@ export function summarize(note: Product): SummarySegment[] {
     if (terms === 'bullet') return [{ text: ' that redeems ' }, { text: 'at maturity', concept: 'redemption' }]
     const reviewing: SummarySegment[] = [
       { text: ' on any ' },
-      { text: note.schedule?.frequency ?? 'monthly', concept: 'schedule' },
+      { text: terms.schedule?.frequency ?? 'monthly', concept: 'schedule' },
       { text: ' review' },
       ...(firstCallReview(terms) > 1 ? [{ text: ` from the ${ordinal(firstCallReview(terms))}`, concept: 'non-call' as const }] : []),
     ]
     const paying: SummarySegment[] = [
       { text: ', ' },
       { text: terms.callAmount > 0 ? `paying ${percent(terms.callAmount)}${terms.callAmountBasis === 'per-year' ? ' for each year elapsed' : ''} above principal` : 'repaying principal', concept: 'call-amount' },
-      { text: ',' },
-    ]
-    // A coupon is paid on the reviews, so it is stated with them: its rate a year and on each review, the level it needs, and memory.
-    const { coupon } = note
-    const months = note.schedule ? monthsPerReview[note.schedule.frequency] : undefined
-    const couponing: SummarySegment[] = coupon === undefined ? [] : [
-      { text: ' pays ' },
-      { text: `a coupon of ${weightPercent(coupon.rate)} a year${months === undefined ? '' : ` (${weightPercent(coupon.rate * months / 12)} a review)`}`, concept: 'coupon' },
-      { text: ' on each review ' },
-      { text: `at or above ${percent(coupon.barrier)} of its initial level`, concept: 'coupon-barrier' },
-      { text: ', ' },
-      { text: coupon.memory ? 'with memory' : 'without memory', concept: 'memory' },
       { text: ',' },
     ]
     const otherwise: SummarySegment[] = [{ text: ' and otherwise redeems ' }, { text: 'at maturity', concept: 'redemption' }]
@@ -152,10 +140,25 @@ export function summarize(note: Product): SummarySegment[] {
       { text: terms.callOnFinalReview ? 'including the last' : 'before maturity', concept: 'final-call' },
       ...(terms.triggerStep ? [{ text: ', the trigger ' }, { text: `${terms.triggerStep < 0 ? 'falling' : 'rising'} ${percent(Math.abs(terms.triggerStep))} on each later review`, concept: 'trigger-step' as const }] : []),
       ...paying,
-      ...couponing,
       ...otherwise,
     ]
   })()
+
+  // A coupon has its own reviews, whatever the redemption, so it is a sentence of its own: its rate a year and on each review, its
+  // reviews, the level it needs, and memory.
+  const { coupon } = note
+  const couponMonths = coupon?.schedule ? monthsPerReview[coupon.schedule.frequency] : undefined
+  const couponing: SummarySegment[] = coupon === undefined ? [] : [
+    { text: ' It pays ' },
+    { text: `a coupon of ${weightPercent(coupon.rate)} a year${couponMonths === undefined ? '' : ` (${weightPercent((coupon.rate * couponMonths) / 12)} a review)`}`, concept: 'coupon' },
+    { text: ' on each ' },
+    { text: coupon.schedule?.frequency ?? 'monthly', concept: 'coupon-schedule' },
+    { text: ' review ' },
+    { text: `at or above ${percent(coupon.barrier)} of the initial level`, concept: 'coupon-barrier' },
+    { text: ', ' },
+    { text: coupon.memory ? 'with memory' : 'without memory', concept: 'memory' },
+    { text: '.' },
+  ]
 
   const term = termPhrase(note.term.months)
   return [
@@ -168,5 +171,6 @@ export function summarize(note: Product): SummarySegment[] {
     ...measured,
     ...features,
     { text: '.' },
+    ...couponing,
   ]
 }

@@ -149,7 +149,7 @@ Slice 1 is first because it needs no coupon logic and still forces the hard part
 All six were settled by taking the recommended default, and slice 1 follows them.
 
 1. **Numbered periodic reviews, or explicit dates?** Numbered and periodic.
-2. **A shared review schedule on the product?** Yes, reversing the first version's co-location for review dates.
+2. **A shared review schedule on the product?** Yes, reversing the first version's co-location for review dates. **Reversed again with the coupon:** the call and the coupon each carry their own schedule (`redemption.schedule` and `coupon.schedule`), because a coupon can be reviewed on other dates than the call. The scenario reads a level on each date of either, a date on both once ([contingent-coupon.md](contingent-coupon.md)).
 3. **Which slice first?** Autocall without coupons.
 4. **The chart with an autocall.** Kept as the payoff if held to the end of the term. The review table shows what happens on each review.
 5. **Averaging with a schedule.** Allowed, with the consequence stated in the book.

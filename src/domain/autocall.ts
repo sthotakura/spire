@@ -1,10 +1,10 @@
-import { barrierLevelAt, callAmountAtReview, couponPerReview, firstCallReview, lastCallReview, maturityPayment, monthsPerReview, triggerAtReview, paymentBreakdown, reviewCount, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
+import { barrierLevelAt, callAmountAtReview, callReviewCount, couponPerReview, firstCallReview, lastCallReview, maturityPayment, monthsPerReview, reviewDates, triggerAtReview, paymentBreakdown, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
 
 // The level at or above which the final review calls the product, from the determined initial level. Undefined when the final review
 // is not a call.
 export function finalCallLevel(note: Product, initialLevel: number): number | undefined {
   const { redemption } = note
-  const reviews = reviewCount(note)
+  const reviews = callReviewCount(note)
   if (redemption === 'bullet' || redemption.kind !== 'autocall' || !redemption.callOnFinalReview || reviews === undefined) return undefined
   return barrierLevelAt(triggerAtReview(redemption, reviews), initialLevel)
 }
@@ -31,8 +31,10 @@ export function paymentAtEnd(note: Product, levels: DeterminedLevels): number {
 
 // One review at which the call is tested, as the call reads it.
 export interface ReviewTest {
-  // Numbered from 1.
+  // Numbered from 1, among the call's reviews.
   review: number
+  // Its month from the start of the term.
+  month: number
   // The level of the underlier on the review: the asset's, or the basket level for a basket.
   level: number
   // The trigger as an underlier level on this review, and whether the review's level is at or above it.
@@ -46,9 +48,11 @@ export interface ReviewTest {
 
 // One review on which the coupon is tested.
 export interface CouponTest {
-  // Numbered from 1.
+  // Numbered from 1, among the coupon's reviews.
   review: number
-  // The level of the underlier on the review, as the call reads it. The last review reads the determined final level.
+  // Its month from the start of the term.
+  month: number
+  // The level of the underlier on the review. The last review reads the determined final level.
   level: number
   // The coupon barrier as an underlier level, and whether the review's level is at or above it.
   barrierLevel: number
@@ -63,95 +67,99 @@ export interface CouponTest {
 
 // How the product ends. A bullet product ends at maturity; an autocall ends on the first review that calls it, or at maturity.
 export interface RedemptionOutcome {
-  // The number of the review the product was called on, or undefined when it ran to the end of the term. An issuer call has no
-  // tests: nothing reads a level on its reviews.
+  // The number of the call review the product was called on, or undefined when it ran to the end of the term.
   calledAtReview?: number
-  // The number of reviews, the last of which is the end of the term.
+  // The number of the call's reviews, the last of which is the end of the term: one for a bullet product.
   reviews: number
-  // The reviews up to and including the call, or every review that is tested when there is none.
+  // The call reviews up to and including the call, or every call review that is tested when there is none. An issuer call has no
+  // tests: nothing reads a level for it.
   tests: ReviewTest[]
   // How long the product lasted, in months: the term unless it was called.
   months: number
-  // What the product paid, on the review that called it or at maturity, including that review's coupon.
+  // What the product paid when it ended, on the review that called it or at maturity, including the coupon of a coupon review on that date.
   payment: number
-  // The coupon tests, from the first review to the one the product ended on. Empty without a coupon.
-  coupons: CouponTest[]
-  // Everything the product paid over its life: the coupons on the reviews before it ended, and the payment.
-  totalPaid: number
   // What the payoff pays at the end of the term from the final levels, whether or not the product got there: the payment if it is
   // held to maturity.
   maturity: PaymentBreakdown
+  // The coupon tests, from the first coupon review to the last one on or before the date the product ended. Empty without a coupon.
+  coupons: CouponTest[]
+  // Everything the product paid over its life: the coupons on the dates before it ended, and the payment.
+  totalPaid: number
 }
 
-// How a product with a schedule ends in a scenario. `reviewLevels` are the levels of the underlier on each review before the last, in
-// order: the asset's level, or for a basket its level from basketLevelFrom. `levels` are the determined levels the payoff reads at
-// the end of the term, as for paymentBreakdown. An autocall is called on the first review at or above the trigger, which is then
-// not tested again. The last review is the end of the term: it pays the payoff, unless the product also calls on the final review,
-// in which case the final level is tested against the trigger like any other review.
+// How a product ends in a scenario, and what its coupon pays. `reviewLevels` are the levels of the underlier on each date before the
+// last of reviewDates, in order: the dates an autocall or a coupon reads, a date on both once. Each is the asset's level, or for a
+// basket its level from basketLevelFrom. `levels` are the determined levels the payoff reads at the end of the term, as for
+// paymentBreakdown, and the last date reads the final level. An autocall is called on the first call review at or above the trigger,
+// after which no date is read. The last call review is the end of the term: it pays the payoff, unless the product also calls on the
+// final review, in which case the final level is tested against the trigger like any other review.
 //
-// An issuer call reads no level on a review, so it takes no review levels. The issuer's choice is a scenario input,
-// `issuerCallsOnReview`: the number of the review it calls on, or undefined when it does not call, and the product runs to maturity.
+// An issuer call reads no level. The issuer's choice is a scenario input, `issuerCallsOnReview`: the number of the call review it calls
+// on, or undefined when it does not call, and the product runs to maturity.
+//
+// A coupon is tested on each of its reviews up to the date the product ends. A coupon review on that date pays with the call or the
+// maturity payment; the ones before pay on their own.
 export function redemptionOutcome(note: Product, reviewLevels: number[], levels: DeterminedLevels, issuerCallsOnReview?: number): RedemptionOutcome {
   const errors = validateProduct(note)
   if (errors.length) throw new Error(errors.join(' '))
   const maturity = paymentBreakdown(note, levels)
-  const reviews = reviewCount(note)!
-  const atMaturity = { reviews, tests: [], months: note.term.months, payment: maturity.payment, maturity, coupons: [], totalPaid: maturity.payment }
-  if (note.redemption === 'bullet') {
-    if (reviewLevels.length > 0) throw new Error('A product with no autocall has no reviews before the last.')
-    if (issuerCallsOnReview !== undefined) throw new Error('Only an issuer call is called by the issuer.')
-    return atMaturity
-  }
+  const reviews = callReviewCount(note)!
+  const dates = reviewDates(note)
+  const before = Math.max(dates.length - 1, 0)
   const { redemption } = note
-  if (redemption.kind === 'issuer-call') {
-    if (reviewLevels.length > 0) throw new Error('An issuer call reads no review levels.')
-    if (issuerCallsOnReview === undefined) return atMaturity
+  if (reviewLevels.length !== before) {
+    if (!dates.length) throw new Error(redemption !== 'bullet' && redemption.kind === 'issuer-call' ? 'An issuer call with no coupon reads no review levels.' : 'A product with no autocall or coupon has no reviews before the last.')
+    throw new Error(`Expected a level for each of ${before} reviews before the last.`)
+  }
+  if (reviewLevels.some((level) => !Number.isFinite(level) || level < 0)) throw new Error('Review levels must be zero or greater.')
+  if (issuerCallsOnReview !== undefined && (redemption === 'bullet' || redemption.kind !== 'issuer-call')) throw new Error('Only an issuer call is called by the issuer.')
+  const levelOn = (index: number) => (index < before ? reviewLevels[index] : levels.final)
+
+  const tests: ReviewTest[] = []
+  let called: { review: number; month: number; callAmount: number } | undefined
+  if (redemption !== 'bullet' && redemption.kind === 'issuer-call' && issuerCallsOnReview !== undefined) {
     const first = firstCallReview(redemption)
     const last = lastCallReview(redemption, reviews)
     if (!Number.isInteger(issuerCallsOnReview) || issuerCallsOnReview < first || issuerCallsOnReview > last) throw new Error(`The issuer can call on reviews ${first} to ${last}.`)
-    const months = issuerCallsOnReview * monthsPerReview[note.schedule!.frequency]
-    const payment = note.principalAmount * (1 + callAmountAtReview(redemption, months))
-    return { calledAtReview: issuerCallsOnReview, reviews, tests: [], months, payment, maturity, coupons: [], totalPaid: payment }
+    const month = issuerCallsOnReview * monthsPerReview[redemption.schedule.frequency]
+    called = { review: issuerCallsOnReview, month, callAmount: callAmountAtReview(redemption, month) }
   }
-  if (issuerCallsOnReview !== undefined) throw new Error('Only an issuer call is called by the issuer.')
-  if (reviewLevels.length !== reviews - 1) throw new Error(`Expected a level for each of ${reviews - 1} reviews before the last.`)
-  if (reviewLevels.some((level) => !Number.isFinite(level) || level < 0)) throw new Error('Review levels must be zero or greater.')
-  const tested = redemption.callOnFinalReview ? [...reviewLevels, levels.final] : reviewLevels
-  const tests: ReviewTest[] = []
-  for (const [index, level] of tested.entries()) {
-    const review = index + 1
-    const months = review * monthsPerReview[note.schedule!.frequency]
-    const triggerLevel = barrierLevelAt(triggerAtReview(redemption, review), levels.initial)
-    const callable = review > (redemption.nonCallReviews ?? 0)
-    const test = { review, level, triggerLevel, callable, called: callable && level >= triggerLevel, callAmount: callAmountAtReview(redemption, months) }
-    tests.push(test)
-    if (test.called) break
+  if (redemption !== 'bullet' && redemption.kind === 'autocall') {
+    for (const [index, { call: review, month }] of dates.entries()) {
+      // The last review is the end of the term and is not tested, unless the final review is a call too.
+      if (review === undefined || (review === reviews && !redemption.callOnFinalReview)) continue
+      const level = levelOn(index)
+      const triggerLevel = barrierLevelAt(triggerAtReview(redemption, review), levels.initial)
+      const callable = review > (redemption.nonCallReviews ?? 0)
+      const test = { review, month, level, triggerLevel, callable, called: callable && level >= triggerLevel, callAmount: callAmountAtReview(redemption, month) }
+      tests.push(test)
+      if (test.called) {
+        called = test
+        break
+      }
+    }
   }
-  const called = tests.find((test) => test.called)
-  // The coupon is tested on every review up to the one the product ends on, the last reading the final level. The review that ends
-  // the product pays its coupon with the call or the maturity payment; the reviews before it pay theirs on their own.
-  const coupons = couponTests(note, [...reviewLevels, levels.final].slice(0, called?.review ?? reviews), levels.initial)
-  const ending = coupons.at(-1)?.paid ?? 0
-  const earlier = coupons.slice(0, -1).reduce((sum, { paid }) => sum + paid, 0)
-  if (called) {
-    const payment = note.principalAmount * (1 + called.callAmount) + ending
-    return { calledAtReview: called.review, reviews, tests, months: called.review * monthsPerReview[note.schedule!.frequency], payment, maturity, coupons, totalPaid: earlier + payment }
-  }
-  const payment = maturity.payment + ending
-  return { reviews, tests, months: note.term.months, payment, maturity, coupons, totalPaid: earlier + payment }
+
+  const months = called?.month ?? note.term.months
+  const coupons = couponTests(note, dates.flatMap((date, index) => (date.coupon !== undefined && date.month <= months ? [{ review: date.coupon, month: date.month, level: levelOn(index) }] : [])), levels.initial)
+  const ending = coupons.find((test) => test.month === months)?.paid ?? 0
+  const earlier = coupons.filter((test) => test.month < months).reduce((sum, { paid }) => sum + paid, 0)
+  const payment = (called ? note.principalAmount * (1 + called.callAmount) : maturity.payment) + ending
+  return { calledAtReview: called?.review, reviews, tests, months, payment, maturity, coupons, totalPaid: earlier + payment }
 }
 
-// The coupon on each review, in order, from its level. A review at or above the barrier pays its coupon and, with memory, every
+// The coupon on each of its reviews, in order, from its level. A review at or above the barrier pays its coupon and, with memory, every
 // coupon missed before it; a review below it pays nothing, and with memory its coupon is remembered.
-function couponTests(note: Product, levels: number[], initialLevel: number): CouponTest[] {
-  if (note.coupon === undefined) return []
-  const barrierLevel = barrierLevelAt(note.coupon.barrier, initialLevel)
+function couponTests(note: Product, reviews: Array<{ review: number; month: number; level: number }>, initialLevel: number): CouponTest[] {
+  const { coupon } = note
+  if (coupon === undefined) return []
+  const barrierLevel = barrierLevelAt(coupon.barrier, initialLevel)
   const each = couponPerReview(note)
   let remembered = 0
-  return levels.map((level, index) => {
+  return reviews.map(({ review, month, level }) => {
     const met = level >= barrierLevel
     const coupons = met ? 1 + remembered : 0
-    remembered = met ? 0 : note.coupon!.memory ? remembered + 1 : 0
-    return { review: index + 1, level, barrierLevel, met, coupons, paid: coupons * each, remembered }
+    remembered = met ? 0 : coupon.memory ? remembered + 1 : 0
+    return { review, month, level, barrierLevel, met, coupons, paid: coupons * each, remembered }
   })
 }

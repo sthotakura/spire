@@ -75,8 +75,7 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     'an autocall reviewed monthly on a worst-of basket that cannot be called before the sixth review, with a buffer at the end of the term',
     note({ participations: [{ direction: 'downside', buffer: 0.2, rate: 1.25 }] }, {
       term: { months: 12 },
-      schedule: { frequency: 'monthly' },
-      redemption: { kind: 'autocall', trigger: 1, nonCallReviews: 5, callAmount: 0.08 },
+      redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, nonCallReviews: 5, callAmount: 0.08 },
       underlier: {
         kind: 'basket',
         components: [{ asset: asset('Index A') }, { asset: asset('Index B') }],
@@ -88,8 +87,7 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     'an issuer call on a quarterly review, with a non-call period of two reviews and a 2% call amount, on a worst-of basket with a barrier',
     note({ participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }] }, {
       term: { months: 36 },
-      schedule: { frequency: 'quarterly' },
-      redemption: { kind: 'issuer-call', nonCallReviews: 2, callAmount: 0.02 },
+      redemption: { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, nonCallReviews: 2, callAmount: 0.02 },
       underlier: {
         kind: 'basket',
         components: [{ asset: asset('Index A') }, { asset: asset('Index B') }],
@@ -101,8 +99,7 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     'an autocall reviewed every six months whose trigger steps down, whose call amount grows each year, and whose final review is also a call',
     note({ participations: [{ direction: 'downside', barrier: { level: 0.5, observation: 'final' }, rate: 1 }] }, {
       term: { months: 36 },
-      schedule: { frequency: 'semi-annual' },
-      redemption: { kind: 'autocall', trigger: 1, triggerStep: -0.05, callAmount: 0.1, callAmountBasis: 'per-year', callOnFinalReview: true },
+      redemption: { kind: 'autocall', schedule: { frequency: 'semi-annual' }, trigger: 1, triggerStep: -0.05, callAmount: 0.1, callAmountBasis: 'per-year', callOnFinalReview: true },
       underlier: {
         kind: 'basket',
         components: [{ asset: asset('Index A') }, { asset: asset('Index B') }, { asset: asset('Index C') }],
@@ -114,9 +111,23 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     'an autocall reviewed monthly with a contingent coupon of 17.35% a year at a 50% barrier, with memory, that cannot be called before the sixth review, and a 40% downside barrier at the end of the term',
     note({ participations: [{ direction: 'downside', barrier: { level: 0.4, observation: 'final' }, rate: 1 }] }, {
       term: { months: 36 },
-      schedule: { frequency: 'monthly' },
-      redemption: { kind: 'autocall', trigger: 1, nonCallReviews: 5, callAmount: 0 },
-      coupon: { rate: 0.1735, barrier: 0.5, memory: true },
+      redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, nonCallReviews: 5, callAmount: 0 },
+      coupon: { schedule: { frequency: 'monthly' }, rate: 0.1735, barrier: 0.5, memory: true },
+    }),
+  ],
+  [
+    'an autocall reviewed quarterly with a contingent coupon reviewed monthly, on its own schedule',
+    note({ participations: [{ direction: 'downside', barrier: { level: 0.6, observation: 'final' }, rate: 1 }] }, {
+      term: { months: 24 },
+      redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, nonCallReviews: 1, callAmount: 0 },
+      coupon: { schedule: { frequency: 'monthly' }, rate: 0.12, barrier: 0.7 },
+    }),
+  ],
+  [
+    'a bullet note with a contingent coupon reviewed quarterly, at a 70% barrier, and a 70% downside barrier at the end of the term',
+    note({ participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }] }, {
+      term: { months: 24 },
+      coupon: { schedule: { frequency: 'quarterly' }, rate: 0.08, barrier: 0.7, memory: false },
     }),
   ],
 ]

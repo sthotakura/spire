@@ -4,7 +4,7 @@ Some products are tested on a series of dates through their life, not only at th
 
 ## Reviews
 
-A review schedule says how often a product is reviewed. Public notes call these dates "observation dates" or "review dates". The reference calls them reviews to keep them apart from the observations that set the initial and final levels, such as the dates averaged into a final level, and from a barrier observed on every close. In public pricing supplements the reviews are listed as dates, roughly monthly or quarterly. The reference models them as a frequency and a count: the reviews are evenly spaced through the term and numbered from 1, and the last review is the end of the term.
+A review schedule says how often a call is reviewed. A coupon has a schedule of its own ([Coupons](20-coupons.md)), which can be the same or not. Public notes call these dates "observation dates" or "review dates". The reference calls them reviews to keep them apart from the observations that set the initial and final levels, such as the dates averaged into a final level, and from a barrier observed on every close. In public pricing supplements the reviews are listed as dates, roughly monthly or quarterly. The reference models them as a frequency and a count: the reviews are evenly spaced through the term and numbered from 1, and the last review is the end of the term.
 
 A 12-month term reviewed monthly has 12 reviews. A 36-month term reviewed quarterly has 12. The term must hold a whole number of periods: an 18-month term cannot be reviewed annually.
 
@@ -118,7 +118,7 @@ A call after 5 months that pays 2% above principal annualises to 4.87% a year, b
 
 - **Why the issuer would call.** Neither public note says. The decision is the issuer's, outside the terms, so the reference leaves it to the reader to state and suggests no reason.
 - **A premium.** Neither note pays one above principal and the coupon, so the call amount starts at zero. A call price above principal is coherent, and the reference allows it, but no public note read for this chapter states one.
-- **Coupons.** The call price in both notes is principal plus that review's coupon when it was earned, and a call stops the remaining coupons. The reference offers a coupon with an autocall only ([Coupons](20-coupons.md)), so an issuer call here repays principal and any call amount.
+- **Coupons.** The call price in both notes is principal plus that review's coupon when it was earned, and a call stops the remaining coupons. With a coupon ([Coupons](20-coupons.md)), a call on a coupon review pays principal, any call amount and that review's coupon.
 - **Notice and dates.** Both notes state a notice period and a payment date after the review. The reference has no calendar dates.
 - **An issuer call and an autocall together** are not modelled. A product has one or the other.
 
@@ -144,7 +144,7 @@ An issuer call is not available with a barrier observed on every close or with b
 
 ## What is not modelled
 
-A coupon on an issuer call, a trigger that steps by uneven amounts, a premium on an issuer call that a source states, notice periods, and a schedule of payments. Each would be added on top of the reviews described here.
+A trigger that steps by uneven amounts, a premium on an issuer call that a source states, notice periods, and a schedule of payments. Each would be added on top of the reviews described here.
 
 ## Related concepts
 

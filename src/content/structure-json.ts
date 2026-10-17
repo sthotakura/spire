@@ -17,9 +17,9 @@ export function structureLines(note: Product): StructureLine[] {
     const [top, second, third, fourth] = path
     // The principal and the term are terms of the whole product, shown on the wrapper's row.
     if (top === 'wrapper' || top === 'principalAmount' || top === 'term') return 'wrapper'
-    // Each term of the redemption is its own part, and the reviews are the schedule it is tested on.
-    if (top === 'schedule') return 'schedule'
+    // Each term of the redemption is its own part, and its reviews are the schedule the call is tested on. The coupon has its own.
     if (top === 'redemption') {
+      if (second === 'schedule') return 'schedule'
       if (second === 'nonCallReviews') return 'non-call'
       if (second === 'trigger') return 'trigger'
       if (second === 'triggerStep') return 'trigger-step'
@@ -27,7 +27,7 @@ export function structureLines(note: Product): StructureLine[] {
       if (second === 'callOnFinalReview') return 'final-call'
       return 'redemption'
     }
-    if (top === 'coupon') return second === 'barrier' ? 'coupon-barrier' : second === 'memory' ? 'memory' : 'coupon'
+    if (top === 'coupon') return second === 'schedule' ? 'coupon-schedule' : second === 'barrier' ? 'coupon-barrier' : second === 'memory' ? 'memory' : 'coupon'
     if (top === 'underlier') {
       if (second === 'components' && typeof third === 'number') return 'asset'
       if (second === 'determination') return third === 'initial' ? 'initial-level' : third === 'final' ? 'final-level' : third === 'basketReturn' ? 'basket-return' : 'determination'

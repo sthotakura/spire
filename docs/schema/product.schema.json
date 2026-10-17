@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://sthotakura.github.io/spire/product.schema.json",
   "title": "SPIRe product",
-  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- An autocall or an issuer call needs a review schedule, and a schedule is used by them only. The term must hold a whole number of review periods, and at least two.\n- An autocall cannot be combined with lookback. An autocall or an issuer call cannot be combined with a barrier observed on every close.\n- An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The non-call period of an autocall or an issuer call leaves at least one review that can call.\n- A contingent coupon needs an autocall.",
+  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- The term must hold a whole number of periods of each schedule: at least two for an autocall or an issuer call, and at least one for a coupon.\n- An autocall or a coupon cannot be combined with lookback. An autocall, an issuer call or a coupon cannot be combined with a barrier observed on every close.\n- An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The non-call period of an autocall or an issuer call leaves at least one review that can call.",
   "type": "object",
   "properties": {
     "wrapper": {
@@ -15,14 +15,6 @@
     },
     "term": {
       "$ref": "#/definitions/Term"
-    },
-    "schedule": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/Schedule"
-        }
-      ],
-      "description": "The reviews through the term. Required by an autocall or an issuer call, and only by them."
     },
     "redemption": {
       "oneOf": [
@@ -46,7 +38,7 @@
           "$ref": "#/definitions/Coupon"
         }
       ],
-      "description": "A coupon tested on each review of the schedule. This reference offers it with an autocall only."
+      "description": "A coupon tested on each review of its own schedule, with any redemption."
     },
     "underlier": {
       "$ref": "#/definitions/Underlier"
@@ -705,6 +697,9 @@
       },
       "redemption": {
         "kind": "autocall",
+        "schedule": {
+          "frequency": "monthly"
+        },
         "trigger": 1,
         "nonCallReviews": 5,
         "callAmount": 0.08
@@ -755,9 +750,6 @@
             "rate": 1.25
           }
         ]
-      },
-      "schedule": {
-        "frequency": "monthly"
       }
     },
     {
@@ -768,6 +760,9 @@
       },
       "redemption": {
         "kind": "issuer-call",
+        "schedule": {
+          "frequency": "quarterly"
+        },
         "nonCallReviews": 2,
         "callAmount": 0.02
       },
@@ -820,9 +815,6 @@
             "rate": 1
           }
         ]
-      },
-      "schedule": {
-        "frequency": "quarterly"
       }
     },
     {
@@ -833,6 +825,9 @@
       },
       "redemption": {
         "kind": "autocall",
+        "schedule": {
+          "frequency": "semi-annual"
+        },
         "trigger": 1,
         "triggerStep": -0.05,
         "callAmount": 0.1,
@@ -898,9 +893,6 @@
             "rate": 1
           }
         ]
-      },
-      "schedule": {
-        "frequency": "semi-annual"
       }
     },
     {
@@ -911,6 +903,9 @@
       },
       "redemption": {
         "kind": "autocall",
+        "schedule": {
+          "frequency": "monthly"
+        },
         "trigger": 1,
         "nonCallReviews": 5,
         "callAmount": 0
@@ -947,13 +942,116 @@
           }
         ]
       },
-      "schedule": {
-        "frequency": "monthly"
-      },
       "coupon": {
+        "schedule": {
+          "frequency": "monthly"
+        },
         "rate": 0.1735,
         "barrier": 0.5,
         "memory": true
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 24
+      },
+      "redemption": {
+        "kind": "autocall",
+        "schedule": {
+          "frequency": "quarterly"
+        },
+        "trigger": 1,
+        "nonCallReviews": 1,
+        "callAmount": 0
+      },
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Synthetic Index"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "level": 100
+          },
+          "final": {
+            "kind": "final-date"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "barrier": {
+              "level": 0.6,
+              "observation": "final"
+            },
+            "rate": 1
+          }
+        ]
+      },
+      "coupon": {
+        "schedule": {
+          "frequency": "monthly"
+        },
+        "rate": 0.12,
+        "barrier": 0.7
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 24
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Synthetic Index"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "level": 100
+          },
+          "final": {
+            "kind": "final-date"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "barrier": {
+              "level": 0.7,
+              "observation": "final"
+            },
+            "rate": 1
+          }
+        ]
+      },
+      "coupon": {
+        "schedule": {
+          "frequency": "quarterly"
+        },
+        "rate": 0.08,
+        "barrier": 0.7,
+        "memory": false
       }
     }
   ],
@@ -982,35 +1080,20 @@
       "additionalProperties": false,
       "description": "The product's length, as a duration. It is part of the structure; the dates that put it on a calendar belong to issuance."
     },
-    "Schedule": {
-      "type": "object",
-      "properties": {
-        "frequency": {
-          "$ref": "#/definitions/ReviewFrequency"
-        }
-      },
-      "required": [
-        "frequency"
-      ],
-      "additionalProperties": false,
-      "description": "The reviews: the dates on which a condition of the product is tested. They are evenly spaced through the term and numbered from 1, and the last is the end of the term. The term must hold a whole number of periods, and at least two reviews."
-    },
-    "ReviewFrequency": {
-      "type": "string",
-      "enum": [
-        "monthly",
-        "quarterly",
-        "semi-annual",
-        "annual"
-      ],
-      "description": "How often the product is reviewed: the number of months between one review and the next."
-    },
     "Autocall": {
       "type": "object",
       "properties": {
         "kind": {
           "type": "string",
           "const": "autocall"
+        },
+        "schedule": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Schedule"
+            }
+          ],
+          "description": "The reviews on which the call is tested. There must be at least two, so the product can be called before the last."
         },
         "trigger": {
           "type": "number",
@@ -1051,11 +1134,35 @@
       },
       "required": [
         "kind",
+        "schedule",
         "trigger",
         "callAmount"
       ],
       "additionalProperties": false,
       "description": "Automatic early redemption. On each review before the last, if the underlier's level is at or above the trigger, the product ends and repays principal plus the call amount. The last review is the end of the term and pays the maturity payoff as a bullet product does, unless the final review is also a call."
+    },
+    "Schedule": {
+      "type": "object",
+      "properties": {
+        "frequency": {
+          "$ref": "#/definitions/ReviewFrequency"
+        }
+      },
+      "required": [
+        "frequency"
+      ],
+      "additionalProperties": false,
+      "description": "Reviews: the dates on which a condition of the product is tested. They are evenly spaced through the term and numbered from 1, and the last is the end of the term. The term must hold a whole number of periods. A call and a coupon each have their own."
+    },
+    "ReviewFrequency": {
+      "type": "string",
+      "enum": [
+        "monthly",
+        "quarterly",
+        "semi-annual",
+        "annual"
+      ],
+      "description": "How often the product is reviewed: the number of months between one review and the next."
     },
     "IssuerCall": {
       "type": "object",
@@ -1063,6 +1170,14 @@
         "kind": {
           "type": "string",
           "const": "issuer-call"
+        },
+        "schedule": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Schedule"
+            }
+          ],
+          "description": "The reviews on which the issuer may call. There must be at least two, so the product can be called before the last."
         },
         "nonCallReviews": {
           "type": "integer",
@@ -1087,6 +1202,7 @@
       },
       "required": [
         "kind",
+        "schedule",
         "callAmount"
       ],
       "additionalProperties": false,
@@ -1095,6 +1211,14 @@
     "Coupon": {
       "type": "object",
       "properties": {
+        "schedule": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Schedule"
+            }
+          ],
+          "description": "The reviews on which the coupon is tested. They need not be the call's: a coupon can be reviewed monthly and a call quarterly."
+        },
         "rate": {
           "type": "number",
           "description": "The coupon as a rate a year, as a fraction of principal. Each review that meets the barrier pays principal × rate × the months between reviews ÷ 12: 12% a year on monthly reviews is 1% of principal a review.",
@@ -1113,11 +1237,12 @@
         }
       },
       "required": [
+        "schedule",
         "rate",
         "barrier"
       ],
       "additionalProperties": false,
-      "description": "A contingent coupon: interest paid on a review only when the underlier's level is at or above the coupon barrier. It is tested on every review, including those in a non-call period and the last, until the product ends. A product called on a review pays that review's coupon with the call, if the review meets the barrier."
+      "description": "A contingent coupon: interest paid on a review only when the underlier's level is at or above the coupon barrier. It is tested on every review of its own schedule, including those in a call's non-call period and the last, until the product ends. A product called on a date that is also a coupon review pays that review's coupon with the call, if the review meets the barrier."
     },
     "Underlier": {
       "oneOf": [

@@ -33,8 +33,8 @@ payoff.
 
 ## A product with reviews
 
-An autocall adds a review schedule after the term, and the redemption becomes
-an object that carries the trigger and the call amount. The `payoff` is the
+An autocall makes the redemption an object that carries its own review schedule,
+the trigger and the call amount. The `payoff` is the
 maturity payoff, paid at the end of the term if the product is not called. It
 does not apply to a call, which pays principal plus the call amount.
 
@@ -45,11 +45,10 @@ of `"flat"` (the same call amount on every call) and `callOnFinalReview` of
 the shortest form. The reference's own structure states all three, so what the
 outline shows is also what the JSON says.
 
-An issuer call is a redemption of another kind. It needs a schedule too, and it has no trigger, because nothing tests a level. Its terms are `nonCallReviews`, `callAmount` and `callAmountBasis`:
+An issuer call is a redemption of another kind. It has a schedule too, and it has no trigger, because nothing tests a level. Its terms are `schedule`, `nonCallReviews`, `callAmount` and `callAmountBasis`:
 
 ```json
-"schedule": { "frequency": "quarterly" },
-"redemption": { "kind": "issuer-call", "nonCallReviews": 2, "callAmount": 0.02, "callAmountBasis": "flat" }
+"redemption": { "kind": "issuer-call", "schedule": { "frequency": "quarterly" }, "nonCallReviews": 2, "callAmount": 0.02, "callAmountBasis": "flat" }
 ```
 
 Which review the issuer calls on is not in the structure. It is a scenario, like the final level.
@@ -59,8 +58,7 @@ Which review the issuer calls on is not in the structure. It is a scenario, like
   "wrapper": "note",
   "principalAmount": 1000,
   "term": { "months": 12 },
-  "schedule": { "frequency": "monthly" },
-  "redemption": { "kind": "autocall", "trigger": 1, "callAmount": 0.08 },
+  "redemption": { "kind": "autocall", "schedule": { "frequency": "monthly" }, "trigger": 1, "callAmount": 0.08 },
   "underlier": {
     "kind": "single",
     "components": [
@@ -77,9 +75,19 @@ Which review the issuer calls on is not in the structure. It is a scenario, like
 }
 ```
 
-A product with no autocall has no `schedule`, and its `redemption` is the
-string `"bullet"`. The chapter on [reviews and early
-redemption](19-reviews-and-early-redemption.md) explains the terms.
+A bullet product's `redemption` is the string `"bullet"`, with no schedule. The
+chapter on [reviews and early redemption](19-reviews-and-early-redemption.md)
+explains the terms.
+
+A coupon is a key of its own, beside the redemption and the payoff, with its own
+schedule, so it can be reviewed on other dates than the call, and a bullet
+product can have one:
+
+```json
+"coupon": { "schedule": { "frequency": "monthly" }, "rate": 0.12, "barrier": 0.7, "memory": true }
+```
+
+The chapter on [coupons](20-coupons.md) explains the terms.
 
 ## Reading the terms
 

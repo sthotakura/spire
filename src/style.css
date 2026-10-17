@@ -58,6 +58,7 @@
 .review-test.called{background:#dff3e6;color:#17612e}
 .review-test.ended{background:transparent;color:#8a94a6;font-weight:500}
 .nudge{color:#66758b;font-size:13px;line-height:1.45;margin:4px 0 0 18px}
+.link-button{border:0;background:none;padding:0;color:#2369bd;font:inherit;font-weight:600;text-decoration:underline;text-underline-offset:2px;cursor:pointer}.link-button:disabled{color:#66758b;text-decoration:none;cursor:default}.link-button:focus-visible{outline:2px solid #2369bd;outline-offset:2px;border-radius:2px}
 .calc-steps li.heading{display:block;margin-top:10px;padding:10px 6px 4px;border-top:1px solid #dce4ee;border-radius:0}.calc-steps li.heading b{display:block;font-size:13px;color:#44506a;text-transform:none}.calc-steps li.heading .calc-how{display:block;font-size:12.5px;color:#66758b;margin-top:2px}
 .hint-field.unused .field-heading label,.hint-field.unused .observed-heading{color:#8794a8;font-weight:600}.hint-field.unused input,.hint-field.unused .table-wrap,.hint-field.unused .observed-levels{opacity:.55}
 .book-table-wrap{overflow-x:auto;margin:18px 0}

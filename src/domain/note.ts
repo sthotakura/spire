@@ -306,8 +306,8 @@ export interface Term {
 export type ReviewFrequency = 'monthly' | 'quarterly' | 'semi-annual' | 'annual'
 
 /**
- * The reviews: the dates on which a condition of the product is tested. They are evenly spaced through the term and numbered from 1,
- * and the last is the end of the term. The term must hold a whole number of periods, and at least two reviews.
+ * Reviews: the dates on which a condition of the product is tested. They are evenly spaced through the term and numbered from 1,
+ * and the last is the end of the term. The term must hold a whole number of periods. A call and a coupon each have their own.
  */
 export interface Schedule {
   frequency: ReviewFrequency
@@ -320,6 +320,8 @@ export interface Schedule {
  */
 export interface Autocall {
   kind: 'autocall'
+  /** The reviews on which the call is tested. There must be at least two, so the product can be called before the last. */
+  schedule: Schedule
   /**
    * The level at or above which the product is called on the first review, as a fraction of the initial level. This reference
    * accepts up to 2, a rise of 100%; that is a limit of this reference, not of the product type.
@@ -372,6 +374,8 @@ export interface Autocall {
  */
 export interface IssuerCall {
   kind: 'issuer-call'
+  /** The reviews on which the issuer may call. There must be at least two, so the product can be called before the last. */
+  schedule: Schedule
   /**
    * The number of reviews at the start on which the issuer cannot call: a non-call period. 0 lets the issuer call from the first
    * review. It must leave at least one review that can call, which is any review before the last.
@@ -396,10 +400,12 @@ export interface IssuerCall {
 // See docs/contingent-coupon.md.
 /**
  * A contingent coupon: interest paid on a review only when the underlier's level is at or above the coupon barrier. It is tested on
- * every review, including those in a non-call period and the last, until the product ends. A product called on a review pays that
- * review's coupon with the call, if the review meets the barrier.
+ * every review of its own schedule, including those in a call's non-call period and the last, until the product ends. A product called
+ * on a date that is also a coupon review pays that review's coupon with the call, if the review meets the barrier.
  */
 export interface Coupon {
+  /** The reviews on which the coupon is tested. They need not be the call's: a coupon can be reviewed monthly and a call quarterly. */
+  schedule: Schedule
   /**
    * The coupon as a rate a year, as a fraction of principal. Each review that meets the barrier pays principal × rate × the months
    * between reviews ÷ 12: 12% a year on monthly reviews is 1% of principal a review.
@@ -436,11 +442,9 @@ export interface Product {
    */
   principalAmount: number
   term: Term
-  /** The reviews through the term. Required by an autocall or an issuer call, and only by them. */
-  schedule?: Schedule
   /** Bullet redemption pays once, at maturity. An autocall or an issuer call can end the product earlier, on a review. */
   redemption: 'bullet' | Autocall | IssuerCall
-  /** A coupon tested on each review of the schedule. This reference offers it with an autocall only. */
+  /** A coupon tested on each review of its own schedule, with any redemption. */
   coupon?: Coupon
   underlier: Underlier
   /** The rules that turn the underlier's change into the maturity payment. With no features the product repays principal. */
@@ -476,7 +480,7 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
     ? { direction: 'downside', buffer, barrier, absoluteReturn, rate: participation.rate }
     : { direction: 'upside', barrier: upsideBarrier, rate: participation.rate, cap })
 
-export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'nonCallReviews' | 'triggerStep' | 'callAmount' | 'coupon'
+export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'nonCallReviews' | 'triggerStep' | 'callAmount' | 'coupon' | 'couponSchedule'
 
 // A barrier as an underlier level: its fraction of the level the return is measured from. Rounded to nine decimals, because
 // 1.1 × 100 is 110.00000000000001 in floating point, which would put a final level of 110 on the wrong side of a barrier at 110%.
@@ -584,13 +588,47 @@ export const callAmountAtReview = (redemption: Autocall | IssuerCall, monthsElap
 // The months between reviews, as each frequency names them.
 export const monthsPerReview: Record<ReviewFrequency, number> = { monthly: 1, quarterly: 3, 'semi-annual': 6, annual: 12 }
 
-// The number of reviews, the last of which is the end of the term. Undefined when the schedule does not divide the term into
-// whole periods. A product with no schedule has one review: the final date.
-export function reviewCount(note: Pick<Product, 'term' | 'schedule'>): number | undefined {
-  if (note.schedule === undefined) return 1
-  const months = monthsPerReview[note.schedule.frequency]
-  if (months === undefined || !Number.isInteger(note.term.months)) return undefined
-  return note.term.months % months === 0 ? note.term.months / months : undefined
+// The number of reviews of a schedule over a term, the last of which is the end of the term. Undefined when the schedule does not divide
+// the term into whole periods. With no schedule there is one review: the final date.
+export function reviewCount({ term, schedule }: { term: Term; schedule: Schedule | undefined }): number | undefined {
+  if (schedule === undefined) return 1
+  const months = monthsPerReview[schedule.frequency]
+  if (months === undefined || !Number.isInteger(term.months)) return undefined
+  return term.months % months === 0 ? term.months / months : undefined
+}
+
+// The call's schedule, or none for a bullet product.
+export const callScheduleOf = (note: Product): Schedule | undefined => (note.redemption === 'bullet' ? undefined : note.redemption.schedule)
+
+// The number of the call's reviews: one, the final date, for a bullet product.
+export const callReviewCount = (note: Product): number | undefined => reviewCount({ term: note.term, schedule: callScheduleOf(note) })
+
+// One date on which a level of the underlier is read, by its month from the start of the term, and the number of the call review and
+// the coupon review that fall on it. A date can be on both schedules.
+export interface ReviewDate {
+  month: number
+  call?: number
+  coupon?: number
+}
+
+// The dates on which a level is read, in order: the reviews of an autocall and those of a coupon, a date on both once. An issuer call
+// reads no level, so its reviews are not among them. The last is the end of the term, which reads the final level. Empty when nothing
+// reads a level, or when a schedule does not divide the term.
+export function reviewDates(note: Product): ReviewDate[] {
+  const dates = new Map<number, ReviewDate>()
+  const add = (schedule: Schedule, key: 'call' | 'coupon'): boolean => {
+    const count = reviewCount({ term: note.term, schedule })
+    if (count === undefined) return false
+    for (let review = 1; review <= count; review++) {
+      const month = review * monthsPerReview[schedule.frequency]
+      dates.set(month, { ...(dates.get(month) ?? { month }), [key]: review })
+    }
+    return true
+  }
+  const { redemption, coupon } = note
+  if (redemption !== 'bullet' && redemption.kind === 'autocall' && redemption.schedule !== undefined && !add(redemption.schedule, 'call')) return []
+  if (coupon?.schedule !== undefined && !add(coupon.schedule, 'coupon')) return []
+  return [...dates.values()].sort((a, b) => a.month - b.month)
 }
 
 // The frequency a term starts with: semi-annual above a year, quarterly from six months to a year, and monthly below six months. A
@@ -606,13 +644,11 @@ export function suggestedFrequency(months: number): ReviewFrequency {
 // not tied to those dates are left out. A daily barrier reads the period to the final date, which a called product does not reach.
 function redemptionIssues(note: Product): ProductIssue[] {
   const issues: ProductIssue[] = []
-  const { redemption, schedule } = note
-  if (redemption === 'bullet') {
-    if (schedule !== undefined) issues.push({ field: 'schedule', message: 'A review schedule is used by an autocall or an issuer call, and this product has none.' })
-    return issues
-  }
+  const { redemption } = note
+  if (redemption === 'bullet') return issues
+  const { schedule } = redemption
   const named = redemption.kind === 'autocall' ? 'An autocall' : 'An issuer call'
-  const count = reviewCount(note)
+  const count = schedule === undefined ? undefined : reviewCount({ term: note.term, schedule })
   if (schedule === undefined) issues.push({ field: 'schedule', message: `${named} needs a review schedule.` })
   else if (count === undefined) issues.push({ field: 'schedule', message: 'The term must hold a whole number of review periods.' })
   else if (count < 2) issues.push({ field: 'schedule', message: `${named} needs at least two reviews, so the product can be called before the last.` })
@@ -636,21 +672,26 @@ function redemptionIssues(note: Product): ProductIssue[] {
   return issues
 }
 
-// A contingent coupon reads the levels of an autocall's reviews. The three public notes read are all autocalls; a coupon on a bullet
-// note or an issuer call is coherent but not offered here (docs/contingent-coupon.md, decision 3).
+// A contingent coupon reads the underlier on the reviews of its own schedule, with any redemption. Like an autocall, it reads levels on
+// dates that the lookback dates and the closes of a daily barrier are not tied to, so it is not combined with them.
 function couponIssues(note: Product): ProductIssue[] {
-  const { coupon, redemption } = note
+  const { coupon } = note
   if (coupon === undefined) return []
   const issues: ProductIssue[] = []
+  if (coupon.schedule === undefined) issues.push({ field: 'couponSchedule', message: 'A coupon needs a review schedule.' })
+  else if (reviewCount({ term: note.term, schedule: coupon.schedule }) === undefined) issues.push({ field: 'couponSchedule', message: 'The term must hold a whole number of coupon periods.' })
   if (!Number.isFinite(coupon.rate) || coupon.rate <= 0) issues.push({ field: 'coupon', message: 'Coupon rate must be greater than zero.' })
   if (!Number.isFinite(coupon.barrier) || coupon.barrier <= 0 || coupon.barrier > 2) issues.push({ field: 'coupon', message: 'Coupon barrier must be greater than 0% and at most 200% of the initial level.' })
-  if (redemption === 'bullet' || redemption.kind !== 'autocall') issues.push({ field: 'coupon', message: 'A contingent coupon is tested on the reviews of an autocall, so it needs autocallable redemption.' })
+  const { underlier, payoff } = note
+  if (underlier.kind === 'single' && underlier.determination.initial.kind === 'lookback') issues.push({ field: 'couponSchedule', message: 'A coupon cannot be combined with lookback: the lookback dates are not tied to the coupon reviews.' })
+  const observations = [downsideOf(note)?.barrier, upsideOf(note)?.barrier, payoff.barrierAbsoluteReturn?.lowerBarrier, payoff.barrierAbsoluteReturn?.upperBarrier]
+  if (observations.some((barrier) => barrier?.observation === 'daily-close')) issues.push({ field: 'couponSchedule', message: 'A barrier observed on every close cannot be combined with a coupon: the levels on the coupon reviews are closes that the lowest and highest close would have to agree with.' })
   return issues
 }
 
-// The coupon each review pays when it meets the barrier, as an amount: principal × rate × the months between reviews ÷ 12.
+// The coupon each review pays when it meets the barrier, as an amount: principal × rate × the months between coupon reviews ÷ 12.
 export const couponPerReview = (note: Product): number =>
-  note.coupon === undefined || note.schedule === undefined ? 0 : note.principalAmount * note.coupon.rate * monthsPerReview[note.schedule.frequency] / 12
+  note.coupon?.schedule === undefined ? 0 : (note.principalAmount * note.coupon.rate * monthsPerReview[note.coupon.schedule.frequency]) / 12
 
 export function productIssues(note: Product): ProductIssue[] {
   const issues: ProductIssue[] = underlierIssues(note.underlier)

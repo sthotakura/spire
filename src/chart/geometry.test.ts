@@ -221,10 +221,10 @@ describe('payoff regimes', () => {
     expect(jumpLevelsOf(dualDirectional, 80)).toEqual([68])
     expect(jumpLevelsOf(buffered, 100)).toEqual([])
     expect(jumpLevelsOf(startingProduct, 100)).toEqual([])
-    const callable: Product = { ...startingProduct, term: { months: 12 }, schedule: { frequency: 'monthly' }, redemption: { kind: 'autocall', trigger: 1.2, callAmount: 0.1, callOnFinalReview: true }, payoff: { participations: [{ direction: 'upside', rate: 1 }] } }
+    const callable: Product = { ...startingProduct, term: { months: 12 }, redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1.2, callAmount: 0.1, callOnFinalReview: true }, payoff: { participations: [{ direction: 'upside', rate: 1 }] } }
     // A final review that calls pays the call at and above its trigger: a jump, and the trigger level pays the call.
     expect(jumpsOf(callable, 100)).toEqual([{ level: 120, paysAbove: true }])
-    expect(jumpsOf({ ...callable, redemption: { kind: 'autocall', trigger: 1.2, callAmount: 0.1 } }, 100)).toEqual([])
+    expect(jumpsOf({ ...callable, redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1.2, callAmount: 0.1 } }, 100)).toEqual([])
     // The level is where the payment computes the edge, so it pays the gain and the level just below does not.
     const [edge] = jumpLevelsOf(dualDirectional, 100)
     expect(paymentBreakdown(dualDirectional, { initial: 100, final: edge }).absoluteReturnApplies).toBe(true)

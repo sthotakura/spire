@@ -22,14 +22,13 @@ dates and business-day conventions are not calculated. A term is a whole
 number of months, from 1 to 120 in this reference.
 
 The products illustrated pay at scheduled maturity or when an autocall or an
-issuer call ends them early, and an autocall can also pay a contingent coupon on
-its reviews. Reviews are numbered and evenly spaced, not dated, and a payment is
-made at its review. An issuer call is the issuer's choice, stated by a scenario,
-and pays principal and any call amount, with no coupon in it. A fixed coupon, and
-a return a year over payments made on several dates, are not calculated. A
-barrier can be observed on every close, but only through the one lowest or
-highest close a scenario states. It is not combined with an autocall or an
-issuer call. Conditions observed on calendar dates would need
+issuer call ends them early, and can also pay a contingent coupon on reviews of
+its own. Reviews are numbered and evenly spaced, not dated, and a payment is made
+at its review. An issuer call is the issuer's choice, stated by a scenario. A
+fixed coupon, and a return a year over payments made on several dates, are not
+calculated. A barrier can be observed on every close, but only through the one
+lowest or highest close a scenario states. It is not combined with an autocall,
+an issuer call or a coupon. Conditions observed on calendar dates would need
 dated observations, which are not modelled.
 
 ## Reading other contracts

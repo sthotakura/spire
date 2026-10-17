@@ -1,4 +1,4 @@
-import { callAmountAtReview, couponPerReview, downsideOf, maturityPayment, reviewCount, triggerAtReview, upsideOf, type Product } from '../domain/note'
+import { callAmountAtReview, callReviewCount, couponPerReview, downsideOf, maturityPayment, triggerAtReview, upsideOf, type Product } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 const amount = (value: number) => Number.isFinite(value) ? value.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'
@@ -70,7 +70,7 @@ export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, s
   }
   // A final review that is also a call pays principal plus the call amount at and above its trigger, in place of the payoff.
   const { redemption } = product
-  const reviews = reviewCount(product)
+  const reviews = callReviewCount(product)
   if (redemption !== 'bullet' && redemption.kind === 'autocall' && redemption.callOnFinalReview && reviews !== undefined) {
     labels['final-call'] = `At or above ${percent(triggerAtReview(redemption, reviews))} of the initial level the final review calls it, paying ${amount(principal * (1 + callAmountAtReview(redemption, product.term.months)))}`
   }

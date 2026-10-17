@@ -4,14 +4,17 @@ import { annualisedReturn, basketLevelFrom, productIssues, type IssuerCall, revi
 import { startingProduct } from './starting-note'
 
 // Synthetic: a 12-month note on one index, reviewed monthly, called when the index is at or above its initial level.
-const autocall = (terms: Partial<Autocall> = {}): Autocall => ({ kind: 'autocall', trigger: 1, callAmount: 0.08, ...terms })
-const callable = (overrides: Partial<Product> = {}): Product => ({
-  ...startingProduct,
-  term: { months: 12 },
-  schedule: { frequency: 'monthly' },
-  redemption: autocall(),
-  ...overrides,
-})
+const autocall = (terms: Partial<Autocall> = {}): Autocall => ({ kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, callAmount: 0.08, ...terms })
+type Unscheduled<T> = Omit<T, 'schedule'> & { schedule?: Schedule }
+// The call's schedule belongs to the redemption. These examples state it beside the redemption, as a term of the example, and a
+// redemption that states none is reviewed monthly. A schedule given as undefined leaves the call without one.
+type Overrides = Omit<Partial<Product>, 'redemption'> & { redemption?: 'bullet' | Unscheduled<Autocall> | Unscheduled<IssuerCall>; schedule?: Schedule }
+const callable = (overrides: Overrides = {}): Product => {
+  const { schedule, redemption = autocall(), ...rest } = overrides
+  const product = { ...startingProduct, term: { months: 12 }, ...rest }
+  if (redemption === 'bullet') return { ...product, redemption }
+  return { ...product, redemption: { ...redemption, schedule: 'schedule' in overrides ? schedule : redemption.schedule ?? { frequency: 'monthly' } } as Autocall | IssuerCall }
+}
 const levels = { initial: 100, final: 100 }
 const flat = (count: number, level = 90) => Array.from({ length: count }, () => level)
 const fieldsOf = (product: Product) => productIssues(product).map(({ field }) => field)
@@ -25,7 +28,7 @@ describe('review count', () => {
   })
 
   it('is one review, the final date, when there is no schedule', () => {
-    expect(reviewCount({ term: { months: 36 } })).toBe(1)
+    expect(reviewCount({ term: { months: 36 }, schedule: undefined })).toBe(1)
   })
 })
 
@@ -53,8 +56,8 @@ describe('validation of a schedule and an autocall', () => {
     expect(fieldsOf(callable({ schedule: undefined }))).toEqual(['schedule'])
   })
 
-  it('rejects a schedule on a bullet product, which nothing would read', () => {
-    expect(fieldsOf({ ...callable(), redemption: 'bullet' })).toEqual(['schedule'])
+  it('belongs to the redemption, so a bullet product has none', () => {
+    expect(fieldsOf(callable({ redemption: 'bullet' }))).toEqual([])
   })
 
   it('needs a term that holds whole periods', () => {
@@ -275,14 +278,14 @@ describe('a trigger that steps down, a call amount for each year, and a call on 
   })
 
   it('does not test the final review when it is not a call', () => {
-    const note = callable({ ...stepped, redemption: autocall({ trigger: 1, triggerStep: -0.05, callAmount: 0.1, callAmountBasis: 'per-year' }) })
+    const note = callable({ ...stepped, redemption: autocall({ schedule: { frequency: 'semi-annual' }, trigger: 1, triggerStep: -0.05, callAmount: 0.1, callAmountBasis: 'per-year' }) })
     const outcome = redemptionOutcome(note, never, { initial: 100, final: 100 })
     expect(outcome.calledAtReview).toBeUndefined()
     expect(outcome.tests).toHaveLength(5)
   })
 
   it('pays the same call amount on every review when the basis is flat', () => {
-    const flatNote = callable({ ...stepped, redemption: autocall({ callAmount: 0.1, callAmountBasis: 'flat' }) })
+    const flatNote = callable({ ...stepped, redemption: autocall({ schedule: { frequency: 'semi-annual' }, callAmount: 0.1, callAmountBasis: 'flat' }) })
     expect(redemptionOutcome(flatNote, [100, ...never.slice(1)], levels).payment).toBe(1100)
     expect(redemptionOutcome(flatNote, [90, 90, 90, 90, 100], levels).payment).toBe(1100)
   })
@@ -368,7 +371,7 @@ describe('a non-call period', () => {
 
 // An issuer call: the issuer may redeem on a review that can call, whatever the level. Whether it does is a scenario input.
 describe('an issuer call', () => {
-  const issuerCall = (terms: Partial<IssuerCall> = {}, overrides: Partial<Product> = {}): Product =>
+  const issuerCall = (terms: Partial<IssuerCall> = {}, overrides: Overrides = {}): Product =>
     callable({ redemption: { kind: 'issuer-call', callAmount: 0.02, ...terms }, payoff: { participations: [{ direction: 'downside', rate: 1 }] }, ...overrides })
 
   it('is valid with a schedule, and needs one', () => {

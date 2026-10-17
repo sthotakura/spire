@@ -1,6 +1,6 @@
 # Coupons
 
-A **coupon** is a payment made to the holder during a product's life, on its reviews, separate from the repayment of principal. This chapter explains the coupon most public autocallable notes pay, the **contingent coupon**, and the **memory** feature that some of them add. The reference models it with an autocall.
+A **coupon** is a payment made to the holder during a product's life, on its reviews, separate from the repayment of principal. This chapter explains the coupon most public autocallable notes pay, the **contingent coupon**, and the **memory** feature that some of them add. The reference gives the coupon its own reviews, so it goes with any redemption: a bullet note, an autocall or an issuer call.
 
 ## A contingent coupon
 
@@ -16,7 +16,7 @@ The reference states the coupon with three terms:
 - the **coupon barrier**, a share of the initial level, such as 70%, read at or above;
 - **memory**, on or off.
 
-It is tested on the same reviews as the autocall. Each review the product reaches is tested, including the reviews in a non-call period, which cannot call but can pay a coupon, and the last review, which reads the final level.
+It is tested on its own **reviews**, a frequency such as monthly or quarterly, as the call's are. Each coupon review the product reaches is tested, including those in a call's non-call period, which cannot call but can pay a coupon, and the last review, which reads the final level. The coupon's reviews can be the same as the call's, and in the three notes above they are, but they need not be: a coupon can be reviewed monthly beside a quarterly call.
 
 ## Memory
 
@@ -26,7 +26,9 @@ Memory does not change the condition. It only lets a missed coupon be paid late.
 
 ## The coupon and the call
 
-A coupon and an autocall read the same reviews, but they test different levels. The call trigger is usually higher, such as 100% of the initial level, and the coupon barrier lower, such as 70%. A review at or above the barrier and below the trigger pays its coupon and the product continues. A review at or above the trigger calls the product, which repays principal plus that review's coupon, and with memory any remembered coupons, and ends. No later coupon is paid.
+A coupon and an autocall test different levels. The call trigger is usually higher, such as 100% of the initial level, and the coupon barrier lower, such as 70%. A review at or above the barrier and below the trigger pays its coupon and the product continues. A review at or above the trigger calls the product, which repays principal plus that review's coupon, and with memory any remembered coupons, and ends. No later coupon is paid.
+
+When the two have different reviews, the dates are taken in order of month. A coupon review that falls on the date of a call pays with the call. A call on a date that is not a coupon review pays principal and any call amount, and the coupons tested before it have been paid on their own dates. With a monthly coupon and a quarterly call, a call in month 6 pays the month 6 coupon with it; with a quarterly coupon and a monthly call, a call in month 4 pays no coupon, the month 3 coupon having been paid already.
 
 In the public notes read for this chapter a call pays principal and the coupon and nothing more, so the call amount described in [Reviews and early redemption](19-reviews-and-early-redemption.md) is zero. The reference still allows a call amount beside a coupon, since the two are coherent together.
 
@@ -69,18 +71,20 @@ It does not give an annualised return when the product pays coupons. The return 
 - **A basket** is read as its basket level, as the call is. For a worst-of basket, the coupon is paid only if every asset is at or above the barrier, which is the worst asset at or above it. The note in [Reviews and early redemption](19-reviews-and-early-redemption.md) on two funds pays its coupon this way.
 - **Averaging** is allowed. The last review reads the averaged final level, as the maturity payment does.
 - **A trigger that steps down** below the coupon barrier can call the product on a review that misses its coupon. The reference then pays principal and any call amount, with no coupon on that review, and remembered coupons are lost. No public note read states this case.
-- **A bullet note or an issuer call** with a coupon is not available. Both are coherent, and the issuer call notes in [Reviews and early redemption](19-reviews-and-early-redemption.md) pay a coupon, but the reference offers the coupon with an autocall only.
+- **A bullet note** with a coupon reads a level on each coupon review and nothing else, and pays the last coupon with its maturity payment.
+- **An issuer call** with a coupon reads a level on each coupon review; the issuer's decision reads none. A call on a coupon review pays principal, any call amount and that review's coupon, as the issuer call notes in [Reviews and early redemption](19-reviews-and-early-redemption.md) do.
+- **Lookback and a barrier observed on every close** are not available with a coupon, for the reason they are not with an autocall: the levels on the coupon reviews are not tied to the lookback dates, or to the one lowest or highest close a scenario states.
 
 ## Assumptions and sources
 
 - The coupon, its barrier read at or above, memory and the call that pays principal plus the coupon follow three public auto-callable contingent interest notes: the 50% note with memory, the 70% note without it, and a note on two funds at 80% with memory ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)).
-- The coupon and the call are tested on one schedule, the call on the reviews after the non-call period. The three notes use one list of review dates.
+- The coupon has its own schedule. The three contingent notes use one list of review dates for both; a fixed coupon note from another issuer lists its coupon payment dates apart from its call dates ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm)). No contingent note read reviews its coupon on dates other than its calls, but a coupon and a call on their own schedules are coherent, and the reference allows it.
 - The coupon on a review is the rate a year times the months between reviews, divided by 12. The reference does not round it; public notes state a rounded amount.
 - The reviews are evenly spaced whole numbers of months, and payments are made at the review. Public notes pay a few days after.
 
 ## What is not modelled
 
-A fixed coupon, a coupon on a bullet note or an issuer call, a coupon and a call on different schedules, a coupon barrier that steps, a coupon barrier set differently for each asset, an annualised return over payments made on several dates, and payment dates.
+A fixed coupon, a coupon barrier that steps, a coupon barrier set differently for each asset, an annualised return over payments made on several dates, and payment dates.
 
 ## Related concepts
 
