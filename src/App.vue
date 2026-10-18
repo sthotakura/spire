@@ -1200,6 +1200,7 @@ const chooseSample = (event: Event) => {
       <div class="intro">
         <h1>Structured products, built from their parts.</h1>
         <p>See how each feature changes what the product pays, and why.</p>
+        <div class="sample-picker"><label for="sample-select">Start from a sample</label><select id="sample-select" class="sample-select" :value="openSample?.slug ?? ''" @change="chooseSample($event)"><option value="">Open a sample product…</option><optgroup v-for="group in sampleGroups" :key="group.label" :label="group.label"><option v-for="sample in group.samples" :key="sample.slug" :value="sample.slug">{{ sample.name }}</option></optgroup></select></div>
       </div>
 
       <p class="summary-sentence" aria-live="polite"><template v-for="(segment, index) in summary" :key="index"><button v-if="segment.concept" type="button" :class="['concept', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)" :aria-pressed="highlighted(segment.concept)" @click="select(segment.concept)">{{ segment.text }}</button><span v-else>{{ segment.text }}</span></template></p>
@@ -1208,7 +1209,7 @@ const chooseSample = (event: Event) => {
 
       <div class="workspace">
         <section ref="outlinePanel" class="panel outline" aria-label="Product structure">
-          <header class="panel-head"><h2>Structure</h2><p>What the product is made of</p><select class="sample-select" aria-label="Open a sample product" :value="openSample?.slug ?? ''" @change="chooseSample($event)"><option value="">Open a sample product…</option><optgroup v-for="group in sampleGroups" :key="group.label" :label="group.label"><option v-for="sample in group.samples" :key="sample.slug" :value="sample.slug">{{ sample.name }}</option></optgroup></select></header>
+          <header class="panel-head"><h2>Structure</h2><p>What the product is made of</p></header>
           <ul class="tree">
             <li :class="['node', { sel: highlighted('wrapper') }]" :style="conceptStyle('wrapper')">
               <div class="nrow" @click="select('wrapper')" @focusin="focusRow('wrapper')">

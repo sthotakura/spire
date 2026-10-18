@@ -457,7 +457,7 @@ Push to `origin/main` only at milestones, since every push runs the Pages deploy
 
 ## 36. Open sample products
 
-A menu in the Structure panel opens a sample product, and each sample has its own address, `?example=<slug>`. The samples, their sources and the decisions are in [docs/sample-products.md](docs/sample-products.md).
+A menu beside the page heading, "Start from a sample", opens a sample product, and each sample has its own address, `?example=<slug>`. The samples, their sources and the decisions are in [docs/sample-products.md](docs/sample-products.md).
 
 - **Thirteen samples in five groups**, each modelled on a public product in the research notes, under a generic name, with synthetic underliers. Terms the notes did not record were re-read in the filings; a range takes its low end. Products the model cannot reproduce in full are listed there and left out.
 - **Terms only.** Opening a sample sets every term from it and returns every scenario input to a first visit's, so the menu and a fresh link open the same page. The address drops the slug once a term changes. A visit with no slug opens the starting note.
