@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { amountToY, barrierFromX, bufferFromX, fitAmountAxis, bufferLevel, capBindLevel, capFromY, clamp, clampBarrier, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, clampProtection, clampUpsideBarrier, clampUpsideRate, differingRuns, finalLevelFromX, jumpsOf, keyDelta, leaderStart, levelAxisFactor, levelToX, minimumReturnFromY, placeLabels, protectionFromY, reachedPayment, regimeOf, regimeRuns, returnTicks, slopeLevel, splitAtJumps, splitByRegime, upsideBarrierFromX, upsideRateFromY, wrapWords, type Box, type Jump, type RegimeRun, type Sample, type AmountAxis, type Plot, type Regime } from './chart/geometry'
 import { payoffLabels, type PayoffLabelKey } from './content/chart-labels'
 import HintToggle from './components/HintToggle.vue'
@@ -11,12 +12,13 @@ import type { ConceptId } from './content/concepts'
 import { marketingNames, productCategory, type MarketingName } from './content/names'
 import { paymentFormula, paymentInWords } from './content/formula'
 import { explainOutcome } from './content/outcome'
+import { sameProduct, sampleBySlug, sampleGroups } from './content/examples'
 import { breachClose, scenarioRows } from './content/scenarios'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
 import { finalCallLevel, paymentAtEnd, redemptionOutcome } from './domain/autocall'
-import { barrierLevelAt, basketBreakdown, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
+import { barrierLevelAt, basketBreakdown, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
@@ -1074,6 +1076,122 @@ const chart = computed(() => {
     bubble,
   }
 })
+
+// A sample product is opened from the menu or from its address, ?example=slug. Opening one sets every term from it and returns every
+// scenario input and term it leaves out to where a first visit starts, so the menu and the address open it the same way.
+function loadProduct(product: Product) {
+  // A percent from a fraction, without floating-point noise: 1.39 × 100 is 138.99999999999997.
+  const percent = (fraction: number) => Math.round(fraction * 1e8) / 1e6
+  const { redemption: terms, coupon, underlier: loaded, payoff } = product
+  wrapper.value = product.wrapper
+  principal.value = product.principalAmount
+  termMonths.value = product.term.months
+  redemptionKind.value = terms === 'bullet' ? 'bullet' : terms.kind
+  chosenFrequency.value = terms === 'bullet' ? null : terms.schedule.frequency
+  const autocall = terms !== 'bullet' && terms.kind === 'autocall' ? terms : undefined
+  const issuerCall = terms !== 'bullet' && terms.kind === 'issuer-call' ? terms : undefined
+  triggerPercent.value = autocall ? percent(autocall.trigger) : 100
+  triggerStepPercent.value = percent(autocall?.triggerStep ?? 0)
+  callAmountPercent.value = autocall ? percent(autocall.callAmount) : 8
+  issuerAmountPercent.value = issuerCall ? percent(issuerCall.callAmount) : 0
+  nonCallReviewCount.value = autocall?.nonCallReviews ?? issuerCall?.nonCallReviews ?? 0
+  callAmountBasis.value = autocall?.callAmountBasis ?? issuerCall?.callAmountBasis ?? 'flat'
+  callOnFinal.value = autocall?.callOnFinalReview ?? false
+  couponSelected.value = coupon !== undefined
+  couponRatePercent.value = coupon ? percent(coupon.rate) : firstFeatureValues.coupon
+  couponBarrierPercent.value = coupon ? percent(coupon.barrier) : firstFeatureValues.couponBarrier
+  couponMemory.value = coupon?.memory ?? false
+  chosenCouponFrequency.value = coupon?.schedule.frequency ?? null
+  // The single asset's terms, and a basket's assets with their weights. A basket that has no weights is given equal ones, which are
+  // read only if the reader chooses a weighted basket.
+  underlierKind.value = loaded.kind
+  finalKind.value = loaded.determination.final.kind
+  observationCount.value = loaded.determination.final.kind === 'averaging' ? loaded.determination.final.observationCount : firstObservationCount
+  if (loaded.kind === 'single') {
+    const [{ asset }] = loaded.components
+    const { initial } = loaded.determination
+    assetKind.value = asset.kind
+    assetName.value = asset.name
+    initialKind.value = initial.kind
+    initialLevel.value = initial.kind === 'given' ? initial.level : startingInitialLevel
+    lookbackCount.value = initial.kind === 'lookback' ? initial.observationCount : firstLookbackMoves.length
+    basketReturnKind.value = 'weighted'
+    basketAssets.value = []
+  } else {
+    const { levels } = loaded.determination.initial
+    assetKind.value = startingComponent.asset.kind
+    assetName.value = startingComponent.asset.name
+    initialKind.value = 'given'
+    initialLevel.value = startingInitialLevel
+    lookbackCount.value = firstLookbackMoves.length
+    basketReturnKind.value = loaded.determination.basketReturn.kind
+    const assets = loaded.components.map(({ asset, weight }) => ({ kind: asset.kind, name: asset.name, initialLevel: levels.find((level) => level.asset === asset.name)?.level ?? 100, weightPercent: weight === undefined ? 0 : percent(weight) }))
+    basketAssets.value = loaded.components.every(({ weight }) => weight !== undefined) ? assets : withEqualWeights(assets)
+  }
+  const downside = payoff.participations.find((participation): participation is DownsideParticipation => participation.direction === 'downside')
+  const upside = upsideOf(product)
+  selectedParticipation.downside = downside !== undefined
+  selectedParticipation.upside = upside !== undefined
+  participationPercent.downside = downside ? percent(downside.rate) : firstFeatureValues.downside
+  participationPercent.upside = upside ? percent(upside.rate) : firstFeatureValues.upside
+  bufferSelected.value = downside?.buffer !== undefined
+  bufferPercent.value = downside?.buffer !== undefined ? percent(downside.buffer) : firstFeatureValues.buffer
+  barrierSelected.value = downside?.barrier !== undefined
+  barrierPercent.value = downside?.barrier ? percent(downside.barrier.level) : firstFeatureValues.barrier
+  barrierObservation.value = downside?.barrier?.observation ?? 'final'
+  absoluteSelected.value = downside?.absoluteReturn !== undefined
+  absolutePercent.value = downside?.absoluteReturn ? percent(downside.absoluteReturn.rate) : firstFeatureValues.absoluteReturn
+  capSelected.value = upside?.cap !== undefined
+  capPercent.value = upside?.cap !== undefined ? percent(upside.cap) : firstFeatureValues.cap
+  upsideBarrierSelected.value = upside?.barrier !== undefined
+  upsideBarrierPercent.value = upside?.barrier ? percent(upside.barrier.level) : firstFeatureValues.upsideBarrier
+  upsideBarrierObservation.value = upside?.barrier?.observation ?? 'final'
+  rebateSelected.value = upside?.barrier?.rebate !== undefined
+  rebatePercent.value = upside?.barrier?.rebate !== undefined ? percent(upside.barrier.rebate) : firstFeatureValues.rebate
+  const bothWays = payoff.barrierAbsoluteReturn
+  bothWaysSelected.value = bothWays !== undefined
+  bothWaysRate.value = bothWays ? percent(bothWays.rate) : firstFeatureValues.absoluteReturn
+  lowerBarrierPercent.value = bothWays ? percent(bothWays.lowerBarrier.level) : firstFeatureValues.lowerBarrier
+  upperBarrierPercent.value = bothWays ? percent(bothWays.upperBarrier.level) : firstFeatureValues.upperBarrier
+  lowerObservation.value = bothWays?.lowerBarrier.observation ?? 'daily-close'
+  upperObservation.value = bothWays?.upperBarrier.observation ?? 'daily-close'
+  conditionalSelected.value = bothWays?.conditionalReturn !== undefined
+  conditionalPercent.value = bothWays?.conditionalReturn !== undefined ? percent(bothWays.conditionalReturn) : firstFeatureValues.conditional
+  protectionSelected.value = payoff.principalProtection !== undefined
+  protectionPercent.value = payoff.principalProtection !== undefined ? percent(payoff.principalProtection) : firstFeatureValues.protection
+  minimumSelected.value = payoff.minimumReturn !== undefined
+  minimumPercent.value = payoff.minimumReturn !== undefined ? percent(payoff.minimumReturn) : firstFeatureValues.minimum
+  // The scenario starts where a first visit does: the starting final level, a basket's assets each up by the same share, and no
+  // review levels, closes or issuer choice set by hand.
+  observedLevels.value = [startingFinalLevel]
+  lookbackLevels.value = initialKind.value === 'lookback' ? firstLookbackMoves.map((move) => Math.round(initialLevel.value * (1 + move))) : []
+  basketLevels.value = basketAssets.value.map(({ initialLevel: level }) => [Math.round(level * startingFinalLevel / startingInitialLevel * 100) / 100])
+  reviewLevelInputs.value = {}
+  reviewAssetInputs.value = {}
+  issuerCallsOn.value = null
+  lowestCloseInput.value = undefined
+  highestCloseInput.value = undefined
+  ghostNote.value = null
+  selected.value = 'payoff'
+  activeHint.value = null
+}
+const route = useRoute()
+const router = useRouter()
+const openSample = computed(() => sampleBySlug(route.query.example))
+// The address opens the sample it names. An address naming no sample is dropped, and the builder keeps what it shows.
+watch(() => route.query.example, (slug) => {
+  if (openSample.value) loadProduct(openSample.value.product)
+  else if (slug !== undefined) router.replace({ query: { ...route.query, example: undefined } })
+}, { immediate: true })
+// Once the terms differ from the sample, the address no longer names it, so it never claims a product the builder does not show.
+watch(note, (current) => {
+  if (openSample.value && !sameProduct(current, openSample.value.product)) router.replace({ query: { ...route.query, example: undefined } })
+})
+// The menu replaces the address rather than adding to the history, so Back leaves the builder rather than stepping through samples.
+const chooseSample = (event: Event) => {
+  const slug = (event.target as HTMLSelectElement).value
+  if (slug) router.replace({ query: { ...route.query, example: slug } })
+}
 </script>
 
 <template>
@@ -1090,7 +1208,7 @@ const chart = computed(() => {
 
       <div class="workspace">
         <section ref="outlinePanel" class="panel outline" aria-label="Product structure">
-          <header class="panel-head"><h2>Structure</h2><p>What the product is made of</p></header>
+          <header class="panel-head"><h2>Structure</h2><p>What the product is made of</p><select class="sample-select" aria-label="Open a sample product" :value="openSample?.slug ?? ''" @change="chooseSample($event)"><option value="">Open a sample product…</option><optgroup v-for="group in sampleGroups" :key="group.label" :label="group.label"><option v-for="sample in group.samples" :key="sample.slug" :value="sample.slug">{{ sample.name }}</option></optgroup></select></header>
           <ul class="tree">
             <li :class="['node', { sel: highlighted('wrapper') }]" :style="conceptStyle('wrapper')">
               <div class="nrow" @click="select('wrapper')" @focusin="focusRow('wrapper')">

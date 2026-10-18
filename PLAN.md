@@ -451,9 +451,18 @@ Where the reviews, autocall and coupon work stands, and what follows. The order 
 2. **Fixed coupon** (slice 4, [docs/coupon.md](docs/coupon.md)): a coupon with no barrier, on its own schedule. The BofA fixed coupon autocall note is a source; it lists its coupon payment dates apart from its call observation dates.
 3. **The category of a coupon note.** The Swiss taxonomy may place an autocall that pays a coupon in Yield Enhancement; the reference still places it by its payoff alone. To verify before changing.
 4. **Checks not done.** Keyboard use of the review table and the redemption and coupon rows; screen-reader checks; how a 120-review monthly schedule behaves in the interface; the book's chapters 17, 19 and 20 read in the running book at narrow width.
-5. **Smaller items.** Thresholds listed date by date with uneven steps; a rate-times-elapsed-time call price stated as a table; a hint or example menu so a learner can find the shark fin (a "Load an example" menu, proposed and not built).
+5. **Smaller items.** Thresholds listed date by date with uneven steps; a rate-times-elapsed-time call price stated as a table; a hint so a learner can find the shark fin. (The example menu is section 36.)
 
 Push to `origin/main` only at milestones, since every push runs the Pages deploy.
+
+## 36. Open sample products
+
+A menu in the Structure panel opens a sample product, and each sample has its own address, `?example=<slug>`. The samples, their sources and the decisions are in [docs/sample-products.md](docs/sample-products.md).
+
+- **Thirteen samples in five groups**, each modelled on a public product in the research notes, under a generic name, with synthetic underliers. Terms the notes did not record were re-read in the filings; a range takes its low end. Products the model cannot reproduce in full are listed there and left out.
+- **Terms only.** Opening a sample sets every term from it and returns every scenario input to a first visit's, so the menu and a fresh link open the same page. The address drops the slug once a term changes. A visit with no slug opens the starting note.
+- **Checked** by the schema test (each sample passes the schema and `validateProduct`), by `src/content/examples.test.ts`, and by opening every link in a fresh browser on a production build under `/spire/`: each shows exactly its product, with no issues.
+- **Not done:** links from book chapters to the sample they describe, and a sample of the basket CD, which averages more dates than the reference allows.
 
 ## Later direction: a composable form
 

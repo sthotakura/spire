@@ -3,6 +3,7 @@ import Ajv, { type ValidateFunction } from 'ajv'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { productIssues, type Autocall, type BarrierAbsoluteReturn, type IssuerCall, type DownsideParticipation, type Product, type UpsideParticipation } from '../src/domain/note'
 import { startingProduct } from '../src/domain/starting-note'
+import { sampleProducts } from '../src/content/examples'
 import { productExamples } from './product-examples'
 import { productSchemaText, schemaId } from './product-schema'
 
@@ -83,6 +84,11 @@ describe('product schema', () => {
   describe('accepts the products the model supports', () => {
     it.each(productExamples.map(([title, product]) => [title, product] as const))('%s', (_, product) => {
       expect(validatorAccepts(product), 'validateProduct rejects the example').toBe(true)
+      expect(schemaAccepts(product), JSON.stringify(validate.errors)).toBe(true)
+    })
+
+    it.each(sampleProducts.map(({ name, product }) => [name, product] as const))('a sample the builder opens: %s', (_, product) => {
+      expect(validatorAccepts(product), 'validateProduct rejects the sample').toBe(true)
       expect(schemaAccepts(product), JSON.stringify(validate.errors)).toBe(true)
     })
 
