@@ -92,7 +92,7 @@ Two endings for the same note if it is never called, with the 11 earlier coupons
 ## Assumptions
 
 - **A review the product is called on pays its coupon only if the barrier is met.** The notes pay "the Contingent Interest Payment applicable to that Review Date"; with a trigger at or above the barrier the coupon is always met when the call is. A trigger that steps below the barrier could call a product on a review that misses its coupon. The reference then pays no coupon on that review, and with memory the remembered coupons are lost. No source states this case.
-- **One schedule.** The coupon is tested on every review, and the call on those after the non-call period. All three contingent notes read use one list of review dates. A note whose coupon and call fall on different frequencies is not modelled (open question 1).
+- **One schedule.** The coupon is tested on every review, and the call on those after the non-call period. All three contingent notes read use one list of review dates. A note whose coupon and call fall on different frequencies is not modelled (open question 1). Superseded: the coupon now has its own schedule, and the BofA issuer callable yield note, re-read on 18 October 2026 for [sample-products.md](sample-products.md), pays its coupon monthly and can be called only quarterly.
 - **A call amount is allowed with a coupon.** It is coherent, and no coupon note read pays one; the book says so. Adding a coupon does not change the call amount the reader has set.
 - **Upside participation is allowed with a coupon.** It is coherent; none of the notes read has one.
 

@@ -10,6 +10,7 @@ The builder has a menu of sample products, grouped by family. Each opens a compl
 - **Terms only.** An address names the product's terms, not a scenario. Opening a sample returns every scenario input to where a first visit starts (a final level of 110, a basket's assets each up 10%, no review levels, closes or issuer call set by hand), and every term the sample leaves out to its first value, so the menu and the address open it the same way.
 - **The address follows the terms.** Once the reader changes a term, `?example` is removed and the menu returns to its placeholder, so the address never names a product the builder does not show. Choosing a sample replaces the address rather than adding a history entry, so Back leaves the builder.
 - **No address, no sample.** A visit with no `?example` opens the starting note, as before. An address naming no sample opens the starting note and drops the slug.
+- **Linked from the book.** Each sample is linked from the chapter that explains it, by its address on the published site, which the book view opens within the app.
 - **A query, not a path.** `/spire/?example=…` is served by `index.html` with HTTP 200 on Pages. A path such as `/spire/examples/…` would be served by `404.html`, as a book chapter is.
 
 ## The samples and their sources

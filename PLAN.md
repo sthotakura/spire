@@ -462,7 +462,8 @@ A menu in the Structure panel opens a sample product, and each sample has its ow
 - **Thirteen samples in five groups**, each modelled on a public product in the research notes, under a generic name, with synthetic underliers. Terms the notes did not record were re-read in the filings; a range takes its low end. Products the model cannot reproduce in full are listed there and left out.
 - **Terms only.** Opening a sample sets every term from it and returns every scenario input to a first visit's, so the menu and a fresh link open the same page. The address drops the slug once a term changes. A visit with no slug opens the starting note.
 - **Checked** by the schema test (each sample passes the schema and `validateProduct`), by `src/content/examples.test.ts`, and by opening every link in a fresh browser on a production build under `/spire/`: each shows exactly its product, with no issues.
-- **Not done:** links from book chapters to the sample they describe, and a sample of the basket CD, which averages more dates than the reference allows.
+- **Book links.** Chapters 5, 6, 13, 14, 19 and 20 link to the samples they describe, written as the published site's address (`https://sthotakura.github.io/spire/?example=…`) so they work on GitHub too; the book view turns them into links within the app. A test checks every sample link names a sample and every sample is linked from a chapter. Chapter 13 no longer says absolute return above a barrier is unavailable on a basket, and chapter 20 cites the BofA note for a coupon reviewed apart from its calls.
+- **Not done:** a sample of the basket CD, which averages more dates than the reference allows.
 
 ## Later direction: a composable form
 

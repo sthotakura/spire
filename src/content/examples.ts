@@ -148,6 +148,11 @@ export const sampleGroups: SampleGroup[] = [
 
 export const sampleProducts: SampleProduct[] = sampleGroups.flatMap(({ samples }) => samples)
 
+// A sample's address on the published site. The book links to samples this way, so a chapter read outside the app still opens one;
+// the book view turns these links into links within the app.
+export const sampleLink = (slug: string) => `https://sthotakura.github.io/spire/?example=${slug}`
+export const sampleSlugIn = (href: string) => href.match(/^https:\/\/sthotakura\.github\.io\/spire\/\?example=([\w-]+)$/)?.[1]
+
 export const sampleBySlug = (slug: unknown): SampleProduct | undefined => sampleProducts.find((sample) => sample.slug === slug)
 
 // Whether two products state the same terms. A key whose value is undefined is the same as a missing one, as in JSON.

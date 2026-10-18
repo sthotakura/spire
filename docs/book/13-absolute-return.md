@@ -45,9 +45,8 @@ from two Morgan Stanley preliminary pricing supplements dated October 1, 2026:
 - The barrier case follows [Dual Directional Trigger PLUS, No. 18,961](https://www.morganstanley.com/structuredinvestments/docs/prospectus/prelim/ProspectusRed61781LUU2.pdf),
   on the worst performing of two indices, with a threshold at 70% of the
   initial level, read on the final date, and a 50% absolute-return rate. The
-  example above uses a single underlier, because barrier absolute return is
-  not calculated on a basket here; only the shape of the payoff is taken from
-  the note.
+  example above uses a single underlier for simplicity; the sample listed at
+  the end of this chapter reads the worst of two, as the note does.
 
 ## In both directions, until a barrier
 
@@ -109,3 +108,24 @@ be combined with participation, a buffer, a cap, a minimum return, lookback, a
 basket or averaging. It never pays less than principal, so a protection floor
 changes nothing. The fixed amount is not a coupon and not a downside rule, and
 no note was found that loses principal after a barrier.
+
+## In the builder
+
+Each of these samples opens in the builder, on synthetic indices, with the
+terms of the public note it is modelled on:
+
+- [Dual directional buffered note](https://sthotakura.github.io/spire/?example=dual-directional-buffered-note): 100% of
+  a rise up to a 69% maximum return, and a 15% buffer with 100% absolute return.
+  A 5% fall pays 1,050 and a 100% rise pays 1,690.
+- [Worst-of dual directional buffered note](https://sthotakura.github.io/spire/?example=worst-of-dual-directional-buffered-note):
+  the worst of three indices, 139% of a rise with no maximum, and a 20% buffer
+  with 100% absolute return. A 5% rise of the worst index pays 1,069.50.
+- [Worst-of dual directional barrier note](https://sthotakura.github.io/spire/?example=worst-of-dual-directional-barrier-note):
+  the worst of two indices, 125% of a rise, and a 70% downside barrier read on
+  the final date with 50% absolute return. A 5% fall pays 1,025.
+- [Barrier absolute return note](https://sthotakura.github.io/spire/?example=barrier-absolute-return-note): barriers
+  23.75% below and above the initial level, observed on every close, and a 2%
+  conditional return. With no barrier reached it pays at most 1,237.50.
+- [Barrier absolute return note without a conditional return](https://sthotakura.github.io/spire/?example=barrier-absolute-return-note-without-conditional-return):
+  barriers at 84% and 116%, observed on every close; a barrier reached leaves
+  only principal. With none reached it pays at most 1,160.

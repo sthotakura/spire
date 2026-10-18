@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { renderTable } from './book-table'
+import { sampleSlugIn } from './content/examples'
 
 interface Chapter { slug: string; title: string; source: string }
 
@@ -20,6 +21,8 @@ const router = useRouter()
 // An unknown or missing chapter in the address shows the first chapter.
 const selectedSlug = computed(() => chapters.find(chapter => chapter.slug === route.params.slug)?.slug ?? chapters[0].slug)
 const chapterPath = (slug: string) => `/book/${slug}`
+// A sample product opens in the builder, here rather than on the published site.
+const samplePath = (slug: string) => ({ path: '/', query: { example: slug } })
 const selectedChapter = computed(() => chapters.find(chapter => chapter.slug === selectedSlug.value)!)
 const selectedIndex = computed(() => chapters.indexOf(selectedChapter.value))
 
@@ -33,6 +36,8 @@ const escapeHtml = (value: string) => value
 const inlineMarkdown = (value: string) => escapeHtml(value)
   .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text: string, href: string) => /^[\w-]+\.md$/.test(href)
     ? `<a href="${router.resolve(chapterPath(href.replace(/\.md$/, ''))).href}" data-chapter="${href.replace(/\.md$/, '')}">${text}</a>`
+    : sampleSlugIn(href)
+    ? `<a href="${router.resolve(samplePath(sampleSlugIn(href)!)).href}" data-sample="${sampleSlugIn(href)}">${text}</a>`
     : `<a href="${href}">${text}</a>`)
   .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   .replace(/`([^`]+)`/g, '<code>$1</code>')
@@ -99,9 +104,15 @@ const renderMarkdown = (source: string) => {
 
 const renderedChapter = computed(() => renderMarkdown(selectedChapter.value.source))
 
-// A link to another chapter's file, as GitHub shows it, opens that chapter here.
+// A link to another chapter's file, as GitHub shows it, opens that chapter here, and a link to a sample opens it in the builder.
 const followChapterLink = (event: MouseEvent) => {
-  const slug = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[data-chapter]')?.dataset.chapter
+  const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[data-chapter], a[data-sample]')
+  const { chapter: slug, sample } = link?.dataset ?? {}
+  if (sample) {
+    event.preventDefault()
+    router.push(samplePath(sample))
+    return
+  }
   if (!slug || !chapters.some(chapter => chapter.slug === slug)) return
   event.preventDefault()
   router.push(chapterPath(slug))

@@ -132,6 +132,25 @@ An issuer call is not available with a barrier observed on every close or with b
 - **A barrier observed on every close** is not available with an autocall: a called product ends before the observation period does, and the single lowest or highest close a scenario states cannot say how far the product got. A barrier read on the final date is available.
 - **Barrier absolute return** is not available with an autocall, because its barriers are observed on every close.
 
+## In the builder
+
+These samples open in the builder, on synthetic indices, with the terms of the
+public notes they are modelled on:
+
+- [Worst-of step-down autocallable note](https://sthotakura.github.io/spire/?example=worst-of-step-down-autocallable-note):
+  the worst of three indices, reviewed every six months for three years, with a
+  trigger of 100% that steps down by 5% to 75% on the last review, which is a
+  call too. A call pays 37.5% for each year elapsed: 1,187.50 on review 1, up to
+  2,125 on the last. Not called, a downside barrier at 50% applies.
+- [Callable contingent coupon note](https://sthotakura.github.io/spire/?example=callable-contingent-coupon-note): three
+  years, which the issuer may call on any quarterly review from the second. The
+  coupon of 8.20% a year is reviewed monthly at a 70% barrier, without memory,
+  and a downside barrier at 70% applies at the end of the term.
+- [Worst-of callable contingent coupon note](https://sthotakura.github.io/spire/?example=worst-of-callable-contingent-coupon-note):
+  the worst of three indices, two years, which the issuer may call on any
+  monthly review from the sixth. The coupon of 11.30% a year is paid at a 75%
+  barrier, without memory, and a downside barrier at 70% applies.
+
 ## Assumptions and sources
 
 - The calls and reviews follow public auto-callable notes, such as an auto-callable contingent interest note whose automatic call can occur from a later review ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)), and a step-down trigger autocallable note whose call threshold falls on each observation date, whose call return grows with time, and whose final valuation date is also tested for a call ([UBS AG, 424B2](https://www.sec.gov/Archives/edgar/data/1114446/000183988225047092/ubs_424b2-26373.htm)).

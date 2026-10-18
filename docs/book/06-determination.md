@@ -54,3 +54,8 @@ combining their returns: weighted, or the lowest (worst-of) or highest
 
 A [lookback pricing supplement](https://www.sec.gov/Archives/edgar/data/19617/000121390026052623/ea0289438-01_424b2.htm)
 defines the starting level from observations over a specified lookback period.
+The builder's [Lookback barrier note](https://sthotakura.github.io/spire/?example=lookback-barrier-note) is modelled on a
+public note of this kind: it starts from the lowest of the levels on the pricing
+date and six dates after it, pays 170% of a rise, and has a downside barrier at
+70% of that lowest level, read on the final date. The public note reads every
+close for about six weeks; six dates stand in for that period.

@@ -34,6 +34,16 @@ A minimum return must be below the cap, if there is one. A minimum at or above
 the cap would leave participation nothing to add: the payment would always be
 the minimum.
 
+## In the builder
+
+Two samples open in the builder, modelled on public market-linked CDs, each
+with a five-year term:
+
+- [Capped market-linked deposit](https://sthotakura.github.io/spire/?example=capped-market-linked-deposit): 100% of a
+  rise with a 30% cap, so it pays at most 1,300.
+- [Leveraged market-linked deposit](https://sthotakura.github.io/spire/?example=leveraged-market-linked-deposit): 265%
+  of a rise with no cap, so a 10% rise pays 1,265.
+
 ## Scope and contractual terms
 
 This example does not model early withdrawal or deposits whose repayment can

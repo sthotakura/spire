@@ -78,10 +78,28 @@ It does not give an annualised return when the product pays coupons. The return 
 - **Lookback** is allowed, on the assumption that the lookback period ends before the first coupon review, as with an autocall. The coupon barrier is then a share of the lookback level.
 - **A barrier observed on every close** is not available with a coupon, for the reason it is not with an autocall: the levels on the coupon reviews are closes that the one lowest or highest close a scenario states would have to agree with.
 
+## In the builder
+
+These samples open in the builder with the terms of the public notes they are
+modelled on, on synthetic indices:
+
+- [Autocallable contingent coupon note](https://sthotakura.github.io/spire/?example=autocallable-contingent-coupon-note):
+  the 50% note. Three years of monthly reviews, a coupon of 17.35% a year at a
+  50% barrier with memory, a call at 100% from review 6, and a downside barrier
+  at 40%.
+- [Worst-of autocallable contingent coupon note with a buffer](https://sthotakura.github.io/spire/?example=worst-of-autocallable-contingent-coupon-note):
+  the note on two funds. Twelve monthly reviews of the worst of two indices, a
+  coupon of 14.15% a year at an 80% barrier with memory, a call at 100% from
+  review 6, and a 20% buffer at a rate of 1.25, so the loss reaches 100% when
+  the worst index falls to zero.
+- [Callable contingent coupon note](https://sthotakura.github.io/spire/?example=callable-contingent-coupon-note): a
+  coupon reviewed monthly on a note the issuer may call quarterly, as described
+  in [Reviews and early redemption](19-reviews-and-early-redemption.md).
+
 ## Assumptions and sources
 
 - The coupon, its barrier read at or above, memory and the call that pays principal plus the coupon follow three public auto-callable contingent interest notes: the 50% note with memory, the 70% note without it, and a note on two funds at 80% with memory ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)).
-- The coupon has its own schedule. The three contingent notes use one list of review dates for both; a fixed coupon note from another issuer lists its coupon payment dates apart from its call dates ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm)). No contingent note read reviews its coupon on dates other than its calls, but a coupon and a call on their own schedules are coherent, and the reference allows it.
+- The coupon has its own schedule. The three contingent notes use one list of review dates for both; a fixed coupon note from another issuer lists its coupon payment dates apart from its call dates ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm)). An issuer callable contingent coupon note reviews its coupon monthly and can be called only quarterly ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/1682472/000148105724004907/form424b2.htm)).
 - The coupon on a review is the rate a year times the months between reviews, divided by 12. The reference does not round it; public notes state a rounded amount.
 - The reviews are evenly spaced whole numbers of months, and payments are made at the review. Public notes pay a few days after.
 
