@@ -133,7 +133,7 @@ const followChapterLink = (event: MouseEvent) => {
         <article class="book-article" v-html="renderedChapter" @click="followChapterLink" />
         <nav class="book-pagination" aria-label="Adjacent chapters">
           <RouterLink v-if="selectedIndex > 0" :to="chapterPath(chapters[selectedIndex - 1].slug)">← {{ chapters[selectedIndex - 1].title }}</RouterLink>
-          <RouterLink v-if="selectedIndex < chapters.length - 1" :to="chapterPath(chapters[selectedIndex + 1].slug)">{{ chapters[selectedIndex + 1].title }} →</RouterLink>
+          <RouterLink v-if="selectedIndex < chapters.length - 1" class="next" :to="chapterPath(chapters[selectedIndex + 1].slug)">{{ chapters[selectedIndex + 1].title }} →</RouterLink>
         </nav>
       </div>
     </div>
