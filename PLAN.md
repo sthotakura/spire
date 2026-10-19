@@ -67,6 +67,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 
 - Which payoff mechanics can be combined independently of wrappers? [docs/feature-map.md](docs/feature-map.md) sorts common note features into the concepts they belong to.
 - When should observation and valuation schedules become explicit model concepts? A proposal models only dates on which something is observed, each on the concept that observes: the pricing and lookback dates on the initial level, and the observation dates on the final level. Issue and maturity dates belong to issuance and are left out ([docs/observation-dates.md](docs/observation-dates.md)). Dates change no payment built so far. **Daily close observation** looked like the first case that would, and section 26 built it without dates: the period is part of the definition, and a scenario states the lowest or highest close. Coupons and calls, whose conditions are observed on stated dates, are the first cases that would need dates.
+- Autocall observations are a cadence of reviews, but at least one public note has a three-year term and a single autocall observation. Deferred until more products show the need ([docs/autocall-observation-schedule.md](docs/autocall-observation-schedule.md)).
 - Which terms are product economics, and which belong only to issuance?
 - How should changes to authoritative terms invalidate derived results?
 - Would a capped, leveraged note also carry "Outperformance" in its name? The Swiss taxonomy describes that product without a cap, so the name is unverified and not shown.
