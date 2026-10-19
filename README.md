@@ -4,23 +4,29 @@
 
 SPIRe uses generic public concepts and synthetic examples. It does not describe or reproduce any proprietary issuance platform.
 
-## First example
+## What it covers
 
-The first structure is a bullet note linked to one equity or equity index, with point-to-point participation. The example compares an initial and a hypothetical final underlier level (with lookback, the initial level is the lowest of it and several levels observed after pricing; with averaging, the final level is the average of several observed levels), applies selected participation rules to positive or negative performance, enforces a configurable contractual protection floor, and displays a maturity payment, scenario table, diagram, and plain-English explanation. Upside participation, downside participation, principal protection, a buffer against the first part of a fall, a barrier below which the whole fall counts, and a cap on the maximum return are each optional; a note with none of them repays principal.
+The starting note is a bullet note linked to one equity or equity index. It only repays principal, and the reader adds features one at a time. Each feature is a small, separate part of the structure, so a combination is composed rather than hard-coded as a product type.
 
-The wrapper is a **note**; **bullet** describes its one-payment-at-maturity redemption behavior. The wrapper can also be a **deposit**, which a bank repays in full at the end of its term: with upside participation, and optionally a cap or a minimum return, it is a market-linked deposit. Principal protection is a separate economic rule that sets the contractual maturity-payment floor as a percentage of principal. Upside and downside participation determine the payment above that floor. Contractual payment depends on the issuer's ability to pay.
+- **Wrapper and term.** A **note**, or a **deposit** that a bank repays in full at the end of its term. A note's **bullet** redemption is one payment at maturity. A deposit with upside participation, and optionally a cap or a minimum return, is a market-linked deposit.
+- **Underlier.** One equity or equity index, or a weighted basket, a worst-of or a best-of. The initial level comes from the determination method: point to point, lookback (the lowest of the initial level and several later levels), or averaging (the final level is the average of several levels).
+- **Payoff at maturity.** Upside and downside participation, principal protection (the contractual floor on the maturity payment), a buffer against the first part of a fall, a barrier below which the whole fall counts (observed on the final date or on every close), a cap on the return, absolute return, and an upside barrier. A note with none of them repays principal.
+- **Reviews and early redemption.** A review schedule, with an **autocall** (the note redeems early when the underlier is at or above a trigger, which can step), a non-call period, a call amount, and an **issuer call** (the issuer's choice of review).
+- **Coupons.** A contingent coupon on its own schedule, paid when the underlier is at or above a coupon barrier, with optional memory of missed coupons.
+
+Principal protection is a separate economic rule from participation: participation sets the payment above the floor. Contractual payment depends on the issuer's ability to pay. The concepts, with their definitions and assumptions, are in the book and in [docs/feature-map.md](docs/feature-map.md).
 
 ## Interface direction
 
-The single-page application shows the product as an outline of its concepts: wrapper, redemption behavior, term, underlier (its asset, initial level and determination method), and payoff. Each term sits beside the concept it belongs to. The note starts with no payoff features, so it only repays principal, and the reader adds a buffer, a cap, downside participation, principal protection, and upside participation one at a time.
+The single-page application shows the product as an outline of its concepts: wrapper, redemption behavior, term, underlier (its asset, initial level and determination method), coupon, and payoff. Each term sits beside the concept it belongs to. The note starts with no payoff features, so it only repays principal, and the reader adds features one at a time.
 
-Beside the outline the page shows a one-sentence summary of the note, a payoff diagram with draggable handles, a worked calculation of the maturity payment, a scenario table, and the note's structure as JSON. Selecting a concept highlights it in each of them.
+Beside the outline the page shows a one-sentence summary of the note, a payoff diagram with draggable handles, a worked calculation of the payment, a scenario table, and the note's structure as JSON. A product with reviews also gets a review table, with the level read on each date and named paths such as a rise and a recovery. Selecting a concept highlights it in each of them.
 
-A menu beside the page heading, "Start from a sample", opens sample products, each modelled on a public product with synthetic underliers and a generic name, grouped by family. Each has its own link, such as `/spire/?example=dual-directional-buffered-note`; a visit with no link opens the starting note. The samples and their sources are in [docs/sample-products.md](docs/sample-products.md).
+A menu beside the page heading, "Start from a sample", opens sample products, each modelled on a public product with synthetic underliers and a generic name, grouped by family. Thirteen in all, from market-linked deposits to callable contingent coupon notes. Each has its own link, such as `/spire/?example=dual-directional-buffered-note`; a visit with no link opens the starting note. The samples and their sources are in [docs/sample-products.md](docs/sample-products.md).
 
-Under the summary, "Often marketed as" lists generic names a structure like this is commonly sold under, such as a principal-protected note or a capped participation note. They are hints drawn from public sources, not definitions, and a note that fits none shows none. Each name's popup also names the broad category the terms place the note in, Capital Protection or Participation. The rules are recorded in [docs/marketing-names.md](docs/marketing-names.md).
+Under the summary, "Often marketed as" lists generic names a structure like this is commonly sold under, such as a principal-protected note, a capped participation note or an Express certificate. They are hints drawn from public sources, not definitions, and a note that fits none shows none. Each name's popup also names the broad category the terms place the note in: Capital Protection, Participation or Yield Enhancement. The rules are recorded in [docs/marketing-names.md](docs/marketing-names.md).
 
-The first release supports only the combination we can define and test precisely. Other choices are visible and marked unavailable, without suggesting they already work. Observation or valuation schedules will arrive with an example that actually uses them; where they belong is an open question in [docs/underlier-model.md](docs/underlier-model.md). The interface design is recorded in [docs/annotated-outline-task.md](docs/annotated-outline-task.md).
+The reference supports only the combinations we can define and test precisely. Other choices are visible and marked unavailable, without suggesting they already work, and a combination that is not supported is said to be so rather than given invented behavior. A fixed coupon, for example, is still a proposal ([docs/coupon.md](docs/coupon.md)). The interface design is recorded in [docs/annotated-outline-task.md](docs/annotated-outline-task.md).
 
 ## Technology direction
 
@@ -32,7 +38,7 @@ research behind each chapter. Locally, open `/book/`; the production base path
 places it under `/spire/book/`. The builder and the book are routes of one
 client-side routed app (`/` and `/book/<chapter>`), sharing one header; the Pages
 workflow serves `index.html` as `404.html` so a direct visit to a chapter reaches
-the router. The chapters currently remain drafts.
+the router. The book has 21 chapters, all still drafts.
 
 Use TypeScript and Vue with Vite to build a static single-page application. Keep payoff logic and validation in framework-independent TypeScript modules. Add a backend only when a concrete capability requires one.
 
@@ -42,9 +48,9 @@ The first milestone does not cover real market pricing, volatility, Greeks, live
 
 See [PLAN.md](PLAN.md) for the immediate work and open questions.
 
-The structure the page shows as JSON has a JSON Schema in [docs/schema/product.schema.json](docs/schema/product.schema.json) (also served by the site at `product.schema.json`, linked under the JSON), generated from the domain types with `npm run schema`. It lists every variant and feature, with descriptions, numeric limits and ten example products. Two of the rules that tie fields together are written into it; the validator enforces all of them, and the schema's description lists which is which.
+The structure the page shows as JSON has a JSON Schema in [docs/schema/product.schema.json](docs/schema/product.schema.json) (also served by the site at `product.schema.json`, linked under the JSON), generated from the domain types with `npm run schema`. It lists every variant and feature, with descriptions, numeric limits and seventeen example products. Two of the rules that tie fields together are written into it; the validator enforces all of them, and the schema's description lists which is which.
 
-The original first-milestone concepts and example are recorded in [docs/milestone-1.md](docs/milestone-1.md). The subsequent separation of protection, upside participation, and downside participation is recorded in [docs/participation-and-protection.md](docs/participation-and-protection.md), the buffer in [docs/buffer.md](docs/buffer.md), averaging in [docs/averaging.md](docs/averaging.md), lookback in [docs/lookback.md](docs/lookback.md), the term in [docs/term.md](docs/term.md), the market-linked deposit in [docs/deposit.md](docs/deposit.md), and absolute return in [docs/absolute-return.md](docs/absolute-return.md).
+The original first-milestone concepts and example are recorded in [docs/milestone-1.md](docs/milestone-1.md). The subsequent separation of protection, upside participation, and downside participation is recorded in [docs/participation-and-protection.md](docs/participation-and-protection.md), the buffer in [docs/buffer.md](docs/buffer.md), averaging in [docs/averaging.md](docs/averaging.md), lookback in [docs/lookback.md](docs/lookback.md), the term in [docs/term.md](docs/term.md), the market-linked deposit in [docs/deposit.md](docs/deposit.md), absolute return in [docs/absolute-return.md](docs/absolute-return.md), barriers in [docs/barrier.md](docs/barrier.md) and [docs/upside-barrier.md](docs/upside-barrier.md), baskets and worst-of in [docs/basket.md](docs/basket.md) and [docs/worst-of.md](docs/worst-of.md), reviews and autocall in [docs/observation-dates.md](docs/observation-dates.md), [docs/autocall-observation-schedule.md](docs/autocall-observation-schedule.md) and [docs/non-call-period.md](docs/non-call-period.md), the issuer call in [docs/issuer-call.md](docs/issuer-call.md), coupons in [docs/contingent-coupon.md](docs/contingent-coupon.md) and [docs/coupon.md](docs/coupon.md), and the sample products in [docs/sample-products.md](docs/sample-products.md).
 
 ## Run locally
 
@@ -53,7 +59,7 @@ npm install
 npm run dev
 ```
 
-Use `npm test` for the domain scenarios and `npm run build` for type checking and a static production build. The app currently supports the first synthetic product only. Amounts displayed in the interface are rounded to two decimal places; the calculator uses JavaScript numbers for this learning example and is not a production money calculation.
+Use `npm test` for the domain scenarios and `npm run build` for type checking and a static production build. Amounts displayed in the interface are rounded to two decimal places; the calculator uses JavaScript numbers for this learning example and is not a production money calculation. The calculator reads synthetic scenario levels, not market data.
 
 ## After adding or changing a feature
 
