@@ -183,3 +183,10 @@ Assumptions and limits of this version:
   the threshold and an upside barrier strictly above it, as the two-sided note
   above tests its upper barrier. A close exactly at either barrier does not
   reach it. Each contract states its own equality rule.
+
+## In the builder
+
+The [Capped barrier note](https://sthotakura.github.io/spire/?example=capped-barrier-note) has a final-date barrier at
+80% of the initial level over 12 months, with 100% of a rise capped at 11.25%. A 5% rise pays 1,050, and a rise of 20%
+pays 1,112.50. A fall to 85 pays 1,000, because the barrier is not reached; a fall to 70 reaches it, and the whole
+30% fall counts: the payment is 700.

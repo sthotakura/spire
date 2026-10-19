@@ -40,6 +40,28 @@ export const sampleGroups: SampleGroup[] = [
   {
     label: 'Participation notes',
     samples: [
+      // Citigroup Global Markets market-linked securities on the Dow Jones Industrial Average, due 2029: a cap of at least 20%, taken
+      // at the low end. Pricing to valuation is 33 months.
+      {
+        slug: 'capped-principal-protected-note',
+        name: 'Capped principal-protected note',
+        product: product(33, { participations: [{ direction: 'upside', rate: 1, cap: 0.2 }], principalProtection: 1 }),
+      },
+      // Citigroup Global Markets barrier securities on the S&P 500, due 2027: a cap of at least 11.25%, taken at the low end, and a
+      // final barrier at 80% of the initial level.
+      {
+        slug: 'capped-barrier-note',
+        name: 'Capped barrier note',
+        product: product(12, { participations: [{ direction: 'downside', barrier: { level: 0.8, observation: 'final' }, rate: 1 }, { direction: 'upside', rate: 1, cap: 0.1125 }] }),
+      },
+      // JPMorgan Chase Financial capped buffered enhanced participation equity notes on the S&P 500, due 2028: a cap level of 119.04% to
+      // 122.39%, taken at the low end, so a return of at most 19.04% at a rate of 1.40. The buffer rate is the initial level divided by
+      // the buffer level, which reaches a 100% loss when the underlier falls to zero. Trade to determination is about 26 months.
+      {
+        slug: 'capped-buffered-note',
+        name: 'Capped buffered note',
+        product: product(26, { participations: [{ direction: 'downside', buffer: 0.15, rate: 1 / 0.85 }, { direction: 'upside', rate: 1.4, cap: 0.1904 }] }),
+      },
       // JPMorgan uncapped lookback accelerated barrier note: a leverage factor of at least 1.70 and a barrier at 70% of the lookback
       // value. Its lookback period reads every close for about six weeks; this reads six dates.
       {

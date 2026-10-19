@@ -25,6 +25,12 @@ A floor limits the total contractual loss. A buffer removes an initial portion
 of the underlier's fall before calculating a loss. These are different rules
 and can produce very different payments for small and large falls.
 
+## In the builder
+
+The [Capped principal-protected note](https://sthotakura.github.io/spire/?example=capped-principal-protected-note) has
+100% protection, 100% of a rise and a 20% cap, over 33 months. It pays between 1,000 and 1,200 at maturity: a 5% rise
+pays 1,050, and any fall pays 1,000.
+
 ## What the promise covers
 
 Protection in this example applies at maturity. It does not determine a resale

@@ -25,6 +25,13 @@ The downside rate applies after removing the buffer. With a 150% rate, a 15%
 fall and 10% buffer produce a 7.5% loss, giving 925. Products with other loss
 rates can have different maximum losses even when their buffers are identical.
 
+## In the builder
+
+The [Capped buffered note](https://sthotakura.github.io/spire/?example=capped-buffered-note) has a 15% buffer, and a
+downside rate of 1 ÷ 0.85 ≈ 1.1765, so that a fall to zero loses the whole 1,000. Its upside is 140% of a rise, capped
+at 19.04%, so the most it pays is 1,190.40 at 1,000 of principal. At a final level of 75, the 25% fall leaves 10% beyond the
+buffer, and 10% × 1.1765 ≈ 11.76% is lost: the payment is about 882.35.
+
 ## Buffer, barrier, and floor
 
 A buffer removes an initial portion of loss. A barrier decides whether the

@@ -25,6 +25,12 @@ The cap starts binding at an underlier rise of approximately 13.33%:
 A lower participation rate alone does not cap the payment. Without a cap,
 even a small rate continues to add a contribution as the underlier rises.
 
+## In the builder
+
+The [Capped principal-protected note](https://sthotakura.github.io/spire/?example=capped-principal-protected-note),
+the [Capped barrier note](https://sthotakura.github.io/spire/?example=capped-barrier-note) and the
+[Capped buffered note](https://sthotakura.github.io/spire/?example=capped-buffered-note) each cap 100% or more of a rise.
+
 ## Scope of this cap
 
 SPIRe places the cap on upside participation. It does not cap an
