@@ -71,6 +71,13 @@ export const sampleGroups: SampleGroup[] = [
           underlier: single({ initial: { kind: 'lookback', observationCount: 6 }, final: { kind: 'final-date' } }),
         }),
       },
+      // Citigroup Global Markets barrier securities on the worst performing of three indices, due 2025: an upside participation rate of
+      // 141.50% with no cap, and a final barrier at 80% of each initial level. Pricing to valuation is 42 months.
+      {
+        slug: 'worst-of-leveraged-barrier-note',
+        name: 'Worst-of leveraged barrier note',
+        product: product(42, { participations: [{ direction: 'downside', barrier: { level: 0.8, observation: 'final' }, rate: 1 }, { direction: 'upside', rate: 1.415 }] }, { underlier: worstOf('Index A', 'Index B', 'Index C') }),
+      },
       // Morgan Stanley Dual Directional Buffered Participation Securities, No. 19,026: a maximum of 169% to 171%, taken at the low end.
       {
         slug: 'dual-directional-buffered-note',

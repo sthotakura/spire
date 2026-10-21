@@ -190,3 +190,9 @@ The [Capped barrier note](https://sthotakura.github.io/spire/?example=capped-bar
 80% of the initial level over 12 months, with 100% of a rise capped at 11.25%. A 5% rise pays 1,050, and a rise of 20%
 pays 1,112.50. A fall to 85 pays 1,000, because the barrier is not reached; a fall to 70 reaches it, and the whole
 30% fall counts: the payment is 700.
+
+The [Worst-of leveraged barrier note](https://sthotakura.github.io/spire/?example=worst-of-leveraged-barrier-note)
+reads the worst of three indices over 42 months, with 141.5% of a rise and no cap, and the same final-date barrier at 80%.
+Each index starts at 100. If the worst ends at 110, the note pays 1,141.50, whatever the other two did. If the worst
+ends at 85 it pays 1,000; at 70 it reaches the barrier, and the whole 30% fall counts: the payment is 700. On the final
+date, the worst index below 80% is the same test as any one index below 80% of its own initial level.
