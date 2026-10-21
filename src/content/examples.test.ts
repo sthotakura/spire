@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { startingProduct } from '../domain/starting-note'
 import { sameProduct, sampleBySlug, sampleGroups, sampleProducts } from './examples'
@@ -29,6 +30,15 @@ describe('sample products', () => {
     expect(sameProduct({ a: 1 / 0.85 }, { a: 1.17647059 })).toBe(true)
     expect(sameProduct({ a: 1.1 }, { a: 1.10001 })).toBe(false)
     expect(sameProduct(startingProduct, JSON.parse(JSON.stringify(startingProduct)))).toBe(true)
+  })
+
+  it('names the same public product and link as the table in docs/sample-products.md', () => {
+    const table = readFileSync('docs/sample-products.md', 'utf8')
+    for (const { name, source } of sampleProducts) {
+      const row = table.split('\n').find((line) => line.startsWith(`| ${name} | `))
+      expect(row, name).toContain(`| ${source.title} ([`)
+      expect(row, name).toContain(`](${source.url})) |`)
+    }
   })
 
   it('opens no sample as the starting note', () => {
