@@ -76,19 +76,19 @@ export const sampleGroups: SampleGroup[] = [
       {
         slug: 'dual-directional-buffered-note',
         name: 'Dual directional buffered note',
-        source: { title: 'Morgan Stanley Dual Directional Buffered Participation Securities, No. 19,026', url: 'https://www.morganstanley.com/structuredinvestments/docs/prospectus/prelim/ProspectusRed61781LXR6.pdf', note: 'The maximum payment was set at pricing between 169% and 171%; this takes 169%.' },
+        source: { title: 'Morgan Stanley Dual Directional Buffered Participation Securities, No. 19,026', url: 'https://www.sec.gov/Archives/edgar/data/895421/000183988226048469/ms19026_424b2-32381.htm', note: 'The maximum payment was set at pricing between 169% and 171%; this takes 169%.' },
         product: product(60, { participations: [{ direction: 'downside', buffer: 0.15, absoluteReturn: { rate: 1 }, rate: 1 }, { direction: 'upside', rate: 1, cap: 0.69 }] }),
       },
       {
         slug: 'worst-of-dual-directional-buffered-note',
         name: 'Worst-of dual directional buffered note',
-        source: { title: 'Morgan Stanley Dual Directional Buffered PLUS, No. 19,021', url: 'https://www.morganstanley.com/structuredinvestments/docs/prospectus/prelim/ProspectusRed61781LVU1.pdf', note: 'The leverage factor was set at pricing between 139% and 154%; this takes 139%.' },
+        source: { title: 'Morgan Stanley Dual Directional Buffered PLUS, No. 19,021', url: 'https://www.sec.gov/Archives/edgar/data/895421/000183988226048464/ms19021_424b2-32988.htm', note: 'The leverage factor was set at pricing between 139% and 154%; this takes 139%.' },
         product: product(60, { participations: [{ direction: 'downside', buffer: 0.2, absoluteReturn: { rate: 1 }, rate: 1 }, { direction: 'upside', rate: 1.39 }] }, { underlier: worstOf('Index A', 'Index B', 'Index C') }),
       },
       {
         slug: 'worst-of-dual-directional-barrier-note',
         name: 'Worst-of dual directional barrier note',
-        source: { title: 'Morgan Stanley Dual Directional Trigger PLUS, No. 18,961', url: 'https://www.morganstanley.com/structuredinvestments/docs/prospectus/prelim/ProspectusRed61781LUU2.pdf', note: 'The leverage factor was set at pricing between 125% and 140%; this takes 125%.' },
+        source: { title: 'Morgan Stanley Dual Directional Trigger PLUS, No. 18,961', url: 'https://www.sec.gov/Archives/edgar/data/895421/000183988226048190/ms18961_424b2-32321.htm', note: 'The leverage factor was set at pricing between 125% and 140%; this takes 125%.' },
         product: product(48, { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, absoluteReturn: { rate: 0.5 }, rate: 1 }, { direction: 'upside', rate: 1.25 }] }, { underlier: worstOf('Index A', 'Index B') }),
       },
     ],
