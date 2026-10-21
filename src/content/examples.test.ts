@@ -26,6 +26,8 @@ describe('sample products', () => {
     expect(sameProduct({ a: 1 }, { a: 2 })).toBe(false)
     expect(sameProduct({ a: [1, 2] }, { a: [2, 1] })).toBe(false)
     expect(sameProduct({ a: 1 }, { a: 1, b: 0 })).toBe(false)
+    expect(sameProduct({ a: 1 / 0.85 }, { a: 1.17647059 })).toBe(true)
+    expect(sameProduct({ a: 1.1 }, { a: 1.10001 })).toBe(false)
     expect(sameProduct(startingProduct, JSON.parse(JSON.stringify(startingProduct)))).toBe(true)
   })
 

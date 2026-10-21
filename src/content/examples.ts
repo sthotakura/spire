@@ -177,9 +177,11 @@ export const sampleSlugIn = (href: string) => href.match(/^https:\/\/sthotakura\
 
 export const sampleBySlug = (slug: unknown): SampleProduct | undefined => sampleProducts.find((sample) => sample.slug === slug)
 
-// Whether two products state the same terms. A key whose value is undefined is the same as a missing one, as in JSON.
+// Whether two products state the same terms. A key whose value is undefined is the same as a missing one, as in JSON, and numbers
+// agree to the eight decimals the builder keeps: it holds a rate as a percent to six, so 1 / 0.85 comes back as 1.17647059.
 export function sameProduct(a: unknown, b: unknown): boolean {
   if (Array.isArray(a) || Array.isArray(b)) return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((item, i) => sameProduct(item, b[i]))
+  if (typeof a === 'number' && typeof b === 'number') return Math.abs(a - b) < 1e-8
   if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return a === b
   const keys = (value: object) => Object.entries(value).filter(([, item]) => item !== undefined).map(([key]) => key)
   const [aKeys, bKeys] = [keys(a), keys(b)]
