@@ -466,6 +466,16 @@ A menu beside the page heading, "Start from a sample", opens a sample product, a
 - **Book links.** Chapters 5, 6, 13, 14, 19 and 20 link to the samples they describe, written as the published site's address (`https://sthotakura.github.io/spire/?example=…`) so they work on GitHub too; the book view turns them into links within the app. A test checks every sample link names a sample and every sample is linked from a chapter. Chapter 13 no longer says absolute return above a barrier is unavailable on a basket, and chapter 20 cites the BofA note for a coupon reviewed apart from its calls.
 - **Not done:** a sample of the basket CD, which averages more dates than the reference allows.
 
+## 37. Add a digital return (planned)
+
+A public Citigroup worst-of note on three indices ([424B2](https://www.sec.gov/Archives/edgar/data/200245/000095010322019230/dp183917_424b2us2209155.htm)) pays principal plus the greater of a 26% digital return and the worst return when the worst index ends at or above 70% of its initial level, and the worst return 1:1 below it. Every other term of it is modelled: the wrapper, term, bullet redemption, worst-of basket and 1:1 participation. The proposal, its three sources, a worked example and the decisions to confirm are in [docs/digital-return.md](docs/digital-return.md).
+
+- **A payoff feature that owns its barrier:** `digitalReturn: { amount, barrier: { level, observation } }`. The barrier is met at or above a level from 0% (exclusive) to 100%, on the final date only.
+- **The payment:** a floor applied with the other floors. While the barrier is met, the note pays at least principal × (1 + amount); below it the digital return does nothing. With 1:1 participation both ways this is the filing's formula exactly, so the sample needs no downside barrier.
+- **Kept separate from the minimum return**, which stays an unconditional floor on deposits. Whether the two merge is open.
+- **Build order.** The domain (type, validation, payment, tests from the worked example and the filing's four examples); the schema and an example; the content (summary, JSON, payment rule, calculation, outcome, scenarios); the interface (outline row, the Add feature menu's Digital entry, chart jump and colour); the sample "Worst-of barrier digital note"; and the book.
+- **Before building:** confirm the decisions in the proposal, and re-read the JPMorgan digital barrier note (what a rise pays) and the Morgan Stanley Jump Securities (a barrier at 100%).
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.
