@@ -19,6 +19,12 @@ const worstOf = (...names: string[]): Underlier => ({
   components: names.map((name) => ({ asset: index(name) })),
   determination: { initial: { kind: 'given', levels: names.map((asset) => ({ asset, level: 100 })) }, final: { kind: 'final-date' }, basketReturn: { kind: 'worst-of' } },
 })
+// An equally weighted basket of synthetic stocks, each starting at 100, whose final level is the average of several observed levels.
+const averagedBasket = (names: string[], observationCount: number): Underlier => ({
+  kind: 'basket',
+  components: names.map((name) => ({ asset: { kind: 'equity' as const, name }, weight: 1 / names.length })),
+  determination: { initial: { kind: 'given', levels: names.map((asset) => ({ asset, level: 100 })) }, final: { kind: 'averaging', observationCount }, basketReturn: { kind: 'weighted' } },
+})
 const product = (months: number, payoff: Product['payoff'], terms: Partial<Product> = {}): Product => ({
   wrapper: 'note',
   principalAmount: 1000,
@@ -96,6 +102,22 @@ export const sampleGroups: SampleGroup[] = [
   {
     label: 'Digital return notes',
     samples: [
+      // The filing's illustrative table pays less above 120% of the starting value than the formula it states twice, so the sample follows the formula.
+      {
+        slug: 'leveraged-digital-barrier-note',
+        name: 'Leveraged digital barrier note',
+        source: { title: 'BofA Finance digital return plus notes on the S&P 500 Futures Excess Return Index, due 2031', url: 'https://www.sec.gov/Archives/edgar/data/70858/000191870426007286/form424b2.htm', note: 'The filing pays the greater of 150% of a rise and a 30% digital payment from 60% of the starting value up. Its illustrative table pays less than that formula above a 20% rise (1,750 at +60%, where the formula gives 1,900); this follows the formula, which the filing states on its cover and in its terms. The 60 months are the approximate term.' },
+        product: product(60, { participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1.5 }], digitalReturn: { amount: 0.3, barrier: { level: 0.6, observation: 'final' } } }),
+      },
+      {
+        slug: 'autocallable-basket-note-with-buffer-and-digital-return',
+        name: 'Autocallable basket note with a buffer and a digital return',
+        source: { title: 'The Bank of Nova Scotia autocallable digital buffer notes on an equally weighted basket of four stocks, due 2028', url: 'https://www.sec.gov/Archives/edgar/data/9631/000183988226019286/bns_424b3-12372.htm', note: 'The filing is an amended preliminary pricing supplement. Its one review date, 12 months after the strike date, is read as an annual review, and the final level averages five dates. The 24 months run from the strike date.' },
+        product: product(24, { participations: [{ direction: 'downside', buffer: 0.15, rate: 1 / 0.85 }, { direction: 'upside', rate: 1.5 }], digitalReturn: { amount: 0.4744, barrier: { level: 1, observation: 'final' } } }, {
+          redemption: { kind: 'autocall', schedule: { frequency: 'annual' }, trigger: 1, nonCallReviews: 0, triggerStep: 0, callAmount: 0.2372, callAmountBasis: 'flat', callOnFinalReview: false },
+          underlier: averagedBasket(['Stock A', 'Stock B', 'Stock C', 'Stock D'], 5),
+        }),
+      },
       {
         slug: 'worst-of-barrier-digital-note',
         name: 'Worst-of barrier digital note',

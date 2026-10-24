@@ -256,6 +256,28 @@ predictions. A digital return needs a note: it is not available on a deposit.
 With a cap, its amount must be below the cap, so that participation can still
 pay more than the floor.
 
+A digital return is often paired with leverage. A public five-year note on one index pays, from 60% of the starting
+value up, the greater of 150% of a rise and a 30% digital payment, and below 60% the whole fall counts one for one.
+A 20% rise is where 150% of the rise reaches 30%, so up to it the note pays 1,300 and above it follows the index
+at 150%: 1,450 at a final level of 130, and 1,900 at 160. A final level of 60 pays 1,300, and 59.99 pays 599.90. The
+filing's own illustrative table pays less than this formula above a 20% rise (1,750 at +60%, where the formula
+gives 1,900); the sample follows the formula, which the filing states on its cover and in its terms.
+
+A digital return can also sit beside a buffer, a basket, averaging and a call. A two-year note on an equally
+weighted basket of four stocks is called after one year if the basket is at or above its starting level, and pays
+principal plus a 23.72% call premium. If it is not called, the final level is the average of five observed basket
+levels. At or above the starting level the note pays the greater of a 47.44% digital return and 150% of the rise.
+Between 85% and 100% it repays principal, and below 85% a 15% buffer applies at a loss rate of 1 ÷ 0.85, about
+1.1765% for each 1% of fall. The digital barrier is at 100% of the starting level, and reads the averaged level.
+With every stock observed at 120 on each date the note pays 1,474.40, because 150% of a 20% rise is only 30%; at 140
+it pays 1,600. At 99.99 it pays 1,000, at 80 it pays 941.18, and at 0 it pays nothing.
+
+One further shape is not modelled here. A public five-year note on the worst of two metal funds pays a digital
+payment of 96.5% if both are at or above their starting values, and adds 150% of the rise beyond 196.5% of the
+starting value. It repays principal between 80% and 100%, and loses one for one below 80%. The digital payment and
+the two barriers fit the reference, but participation that starts at a level above the initial level is not a
+feature of it, so the note is not a sample.
+
 ## In the builder
 
 The [Capped barrier note](https://sthotakura.github.io/spire/?example=capped-barrier-note) has a final-date barrier at
@@ -274,3 +296,8 @@ first example above, over 36 months. The
 [Worst-of fixed-return barrier note](https://sthotakura.github.io/spire/?example=worst-of-fixed-return-barrier-note) is
 the second, over 13 months. In the builder, a digital return is added from the Add feature menu, and its barrier sits
 beneath it in the outline.
+
+The [Leveraged digital barrier note](https://sthotakura.github.io/spire/?example=leveraged-digital-barrier-note) is the
+five-year note with 150% upside participation, and the
+[Autocallable basket note with a buffer and a digital return](https://sthotakura.github.io/spire/?example=autocallable-basket-note-with-buffer-and-digital-return)
+is the two-year basket note.

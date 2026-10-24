@@ -142,6 +142,10 @@ public notes they are modelled on:
   trigger of 100% that steps down by 5% to 75% on the last review, which is a
   call too. A call pays 37.5% for each year elapsed: 1,187.50 on review 1, up to
   2,125 on the last. Not called, a downside barrier at 50% applies.
+- [Autocallable basket note with a buffer and a digital return](https://sthotakura.github.io/spire/?example=autocallable-basket-note-with-buffer-and-digital-return):
+  an equally weighted basket of four stocks over two years, called after the first annual review if the basket is
+  at or above its starting level, paying 23.72%. Not called, the final level averages five dates and a digital
+  return of 47.44% and a 15% buffer apply, as the [Barrier chapter](12-barrier.md) describes.
 - [Callable contingent coupon note](https://sthotakura.github.io/spire/?example=callable-contingent-coupon-note): three
   years, which the issuer may call on any quarterly review from the second. The
   coupon of 8.20% a year is reviewed monthly at a 70% barrier, without memory,

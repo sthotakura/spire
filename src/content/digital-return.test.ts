@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { paymentBreakdown, type Product, type SingleProduct } from '../domain/note'
+import { redemptionOutcome } from '../domain/autocall'
+import { redemptionSteps } from './autocall'
+import { basketBreakdown, paymentBreakdown, type BasketUnderlier, type Product, type SingleProduct } from '../domain/note'
 import { calculationSteps } from './calculation'
 import { payoffLabels } from './chart-labels'
 import { paymentFormula, paymentInWords } from './formula'
+import { sampleBySlug } from './examples'
 import { explainOutcome } from './outcome'
 import { scenarioRows } from './scenarios'
 import { marketingNames } from './names'
@@ -189,5 +192,62 @@ describe('digital return stated to two decimal places', () => {
   it('says 8.08% in the outcome, not 8.1%', () => {
     expect(explainOutcome(downsideOnly, at(downsideOnly, 110))).toContain('principal plus the 8.08% digital return')
     expect(explainOutcome(downsideOnly, at(downsideOnly, 50))).toContain('so the 8.08% digital return is not paid')
+  })
+})
+
+describe('the digital return samples taken from public notes', () => {
+  const sample = (slug: string) => sampleBySlug(slug)!.product
+
+  it.each([
+    [160, 1900],
+    [130, 1450],
+    [120, 1300],
+    [100, 1300],
+    [60, 1300],
+    [59.99, 599.9],
+    [50, 500],
+    [0, 0],
+  ])('pays the greater of 150%% of a rise and the 30%% digital payment from 60%% up: final level %s pays %s', (final, payment) => {
+    expect(paymentBreakdown(sample('leveraged-digital-barrier-note'), { initial: 100, final }).payment).toBeCloseTo(payment, 8)
+  })
+
+  describe('with a buffer, a basket averaged over five dates and a call after one review', () => {
+    const note = sample('autocallable-basket-note-with-buffer-and-digital-return')
+    const underlier = note.underlier as BasketUnderlier
+    // Each stock is observed on five dates at the same level, so the basket level is that level.
+    const maturity = (level: number) => paymentBreakdown(note, basketBreakdown(underlier, Array(4).fill(Array(5).fill(level))).levels).payment
+
+    it.each([
+      [140, 1600],
+      [120, 1474.4],
+      [100, 1474.4],
+      [99.99, 1000],
+      [85, 1000],
+      [80, 941.18],
+      [0, 0],
+    ])('pays at maturity %s of the basket level: %s', (level, payment) => {
+      expect(maturity(level)).toBeCloseTo(payment, 2)
+    })
+
+    it('calls on the one review at 100% and pays principal plus the 23.72% call premium', () => {
+      const final = basketBreakdown(underlier, Array(4).fill(Array(5).fill(90))).levels
+      const called = redemptionOutcome(note, [100], final)
+      expect(called.calledAtReview).toBe(1)
+      expect(called.payment).toBeCloseTo(1237.2, 8)
+      const notCalled = redemptionOutcome(note, [99], final)
+      expect(notCalled.calledAtReview).toBeUndefined()
+      // A fall of 10% is within the 15% buffer, so principal is repaid.
+      expect(notCalled.payment).toBeCloseTo(1000, 8)
+    })
+  })
+})
+
+describe('a call amount stated to two decimal places', () => {
+  const note = sampleBySlug('autocallable-basket-note-with-buffer-and-digital-return')!.product
+  it('says 23.72% in the summary and in the redemption step', () => {
+    expect(summarize(note).map(({ text }) => text).join('')).toContain('paying 23.72% above principal')
+    const final = basketBreakdown(note.underlier as BasketUnderlier, Array(4).fill(Array(5).fill(90))).levels
+    const outcome = redemptionOutcome(note, [100], final)
+    expect(redemptionSteps(note, outcome).find(({ title }) => title === 'Redemption')?.how).toContain('1 + 23.72%')
   })
 })

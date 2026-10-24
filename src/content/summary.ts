@@ -128,7 +128,7 @@ export function summarize(note: Product): SummarySegment[] {
     ]
     const paying: SummarySegment[] = [
       { text: ', ' },
-      { text: terms.callAmount > 0 ? `paying ${percent(terms.callAmount)}${terms.callAmountBasis === 'per-year' ? ' for each year elapsed' : ''} above principal` : 'repaying principal', concept: 'call-amount' },
+      { text: terms.callAmount > 0 ? `paying ${weightPercent(terms.callAmount)}${terms.callAmountBasis === 'per-year' ? ' for each year elapsed' : ''} above principal` : 'repaying principal', concept: 'call-amount' },
       { text: ',' },
     ]
     const otherwise: SummarySegment[] = [{ text: ' and otherwise redeems ' }, { text: 'at maturity', concept: 'redemption' }]

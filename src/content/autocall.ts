@@ -114,7 +114,7 @@ export function redemptionSteps(note: Product, outcome: RedemptionOutcome): Arra
   const withCoupon = callCouponText(note, outcome)
   steps.push(outcome.calledAtReview === undefined
     ? { title: 'Redemption', how: `No review${firstCall > 1 ? ' that could call' : ''}${callOnFinalReview ? ', including the last,' : firstCall > 1 ? '' : ' before the last'} reached the trigger, so the product runs to the end of its ${monthsPhrase(outcome.months)} term`, value: 'At maturity', concept: 'redemption' }
-    : { title: 'Redemption', how: `Called on review ${outcome.calledAtReview}, after ${monthsPhrase(outcome.months)}: principal × (1 + ${callAmountBasis === 'per-year' ? `${percent(callAmount)} a year × ${yearsPhrase(outcome.months)} = ${percent(outcome.tests[outcome.calledAtReview - 1].callAmount)}` : percent(callAmount)})${withCoupon}`, value: units(outcome.payment), result: true, concept: 'call-amount' })
+    : { title: 'Redemption', how: `Called on review ${outcome.calledAtReview}, after ${monthsPhrase(outcome.months)}: principal × (1 + ${callAmountBasis === 'per-year' ? `${twoDecimalPercent(callAmount)} a year × ${yearsPhrase(outcome.months)} = ${percent(outcome.tests[outcome.calledAtReview - 1].callAmount)}` : twoDecimalPercent(callAmount)})${withCoupon}`, value: units(outcome.payment), result: true, concept: 'call-amount' })
   if (outcome.calledAtReview !== undefined) steps.push(...calledSteps(note, outcome))
   return steps
 }
@@ -256,7 +256,7 @@ function issuerCallSteps(note: Product, outcome: RedemptionOutcome): Array<Omit<
     steps.push({ title: 'Issuer call', how: `The issuer did not call, so the product runs to the end of its ${monthsPhrase(outcome.months)} term`, value: 'Not called', concept: 'redemption' })
     return steps
   }
-  const amount = callAmountBasis === 'per-year' ? `${percent(callAmount)} a year × ${yearsPhrase(outcome.months)} = ${percent(callAmountAtReview(note.redemption, outcome.months))}` : percent(callAmount)
+  const amount = callAmountBasis === 'per-year' ? `${twoDecimalPercent(callAmount)} a year × ${yearsPhrase(outcome.months)} = ${twoDecimalPercent(callAmountAtReview(note.redemption, outcome.months))}` : twoDecimalPercent(callAmount)
   steps.push({ title: 'Issuer call', how: `The issuer called on review ${outcome.calledAtReview}, after ${monthsPhrase(outcome.months)}: principal × (1 + ${amount})${callCouponText(note, outcome)}`, value: units(outcome.payment), result: true, concept: 'call-amount' }, ...calledSteps(note, outcome))
   return steps
 }
