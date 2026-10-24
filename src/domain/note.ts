@@ -141,6 +141,35 @@ export interface BarrierAbsoluteReturn {
   conditionalReturn?: number
 }
 
+// See docs/digital-return.md.
+/**
+ * A level as a fraction of the initial level, reached at or above it. It reads the final level the determination produces.
+ */
+export interface DigitalBarrier {
+  /**
+   * The level as a fraction of the initial level. A level of 1 is the initial level itself.
+   * @exclusiveMinimum 0
+   * @maximum 1
+   */
+  level: number
+  /** The final date only: the barrier reads the final level. */
+  observation: 'final'
+}
+
+/**
+ * A fixed return on principal, paid only while the final level is at or above the digital barrier. It acts as a floor: the payment
+ * is at least principal plus this return while the barrier is met, and whatever the rest of the payoff pays if that is more. Below
+ * the barrier it pays nothing and the rest of the payoff applies as if it were absent.
+ */
+export interface DigitalReturn {
+  /**
+   * The return on principal paid: 0.26 is 26%.
+   * @exclusiveMinimum 0
+   */
+  amount: number
+  barrier: DigitalBarrier
+}
+
 /** What is tracked. Its identity only: where its change is measured from belongs to the determination. */
 export interface Asset {
   kind: AssetKind
@@ -459,6 +488,8 @@ export interface Product {
      * @maximum 1
      */
     principalProtection?: number
+    /** A fixed return on principal, paid as a floor while the final level is at or above its barrier. Available on notes only. */
+    digitalReturn?: DigitalReturn
     /**
      * The lowest return the product pays on principal, whatever the underlier does: a floor of principal × (1 + minimum return),
      * not an addition to the participated return. This reference allows it on deposits only.
@@ -480,7 +511,7 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
     ? { direction: 'downside', buffer, barrier, absoluteReturn, rate: participation.rate }
     : { direction: 'upside', barrier: upsideBarrier, rate: participation.rate, cap })
 
-export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'nonCallReviews' | 'triggerStep' | 'callAmount' | 'coupon' | 'couponSchedule'
+export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'digitalReturn' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'nonCallReviews' | 'triggerStep' | 'callAmount' | 'coupon' | 'couponSchedule'
 
 // A barrier as an underlier level: its fraction of the level the return is measured from. Rounded to nine decimals, because
 // 1.1 × 100 is 110.00000000000001 in floating point, which would put a final level of 110 on the wrong side of a barrier at 110%.
@@ -753,6 +784,20 @@ export function productIssues(note: Product): ProductIssue[] {
       issues.push({ field: 'barrierAbsoluteReturn', message: 'Absolute return in both directions needs a single underlier with a fixed initial level and a final level on the final date.' })
     }
   }
+  const digital = note.payoff.digitalReturn
+  if (digital !== undefined) {
+    const { amount, barrier: digitalBarrier } = digital
+    if (!Number.isFinite(amount) || amount <= 0) issues.push({ field: 'digitalReturn', message: 'Digital return must be greater than zero.' })
+    // A digital return at or above the cap would fix the payment whatever the underlier does, so upside participation could never pay more.
+    else if (cap !== undefined && Number.isFinite(cap) && amount >= cap) issues.push({ field: 'digitalReturn', message: 'Digital return must be less than the cap.' })
+    // A barrier at 100% is at the initial level, where public jump notes put theirs. Above it no public note was verified.
+    if (!Number.isFinite(digitalBarrier.level) || digitalBarrier.level <= 0 || digitalBarrier.level > 1) issues.push({ field: 'digitalReturn', message: 'Digital barrier must be greater than 0% and at most 100% of the initial level.' })
+    // No public note was verified with a digital return on a deposit, beside an upside barrier, or beside the two barriers of barrier absolute return.
+    if (note.wrapper === 'deposit') issues.push({ field: 'digitalReturn', message: 'A digital return is available on notes only.' })
+    if (upsideBarrier !== undefined) issues.push({ field: 'digitalReturn', message: 'A digital return cannot be combined with an upside barrier.' })
+    if (bothWays !== undefined) issues.push({ field: 'digitalReturn', message: 'A digital return cannot be combined with absolute return in both directions.' })
+    if (note.payoff.minimumReturn !== undefined) issues.push({ field: 'digitalReturn', message: 'A digital return cannot be combined with a minimum return.' })
+  }
   issues.push(...redemptionIssues(note), ...couponIssues(note))
   // A deposit is repaid in full, so nothing may take the payment below principal, and principal needs no protection term.
   if (note.wrapper === 'deposit' && downsideOf(note)) issues.push({ field: 'participations', message: 'A deposit repays principal in full, so it cannot have downside participation.' })
@@ -875,6 +920,14 @@ export interface BarrierAbsoluteBreakdown {
   conditionalReturn: number
 }
 
+// How the digital return stands: its barrier as an underlier level, whether the final level is at or above it, and the least the
+// note then pays, principal × (1 + amount). The floor is stated whether or not the barrier is met; it applies only while it is.
+export interface DigitalReturnBreakdown {
+  barrierLevel: number
+  reached: boolean
+  floor: number
+}
+
 export interface PaymentBreakdown {
   // The level the return is measured from, as the initial end of the determination produced it.
   initialLevel: number
@@ -897,6 +950,8 @@ export interface PaymentBreakdown {
   highestClose?: number
   // Undefined unless the payoff is barrier absolute return.
   barrierAbsolute?: BarrierAbsoluteBreakdown
+  // Undefined when the note has no digital return.
+  digitalReturn?: DigitalReturnBreakdown
   // Undefined when the note has no absolute return. Otherwise whether the fall is paid as a gain: within the buffer, or ending
   // at or above the barrier.
   absoluteReturnApplies?: boolean
@@ -916,7 +971,8 @@ export interface PaymentBreakdown {
   // The payment after the cap and before the floor.
   unflooredPayment: number
   // The lowest payment. On a note it is principal × protection, or zero without protection: a holder cannot lose more than
-  // the principal amount. On a deposit it is principal, or principal × (1 + minimum return) with a minimum return.
+  // the principal amount. On a deposit it is principal, or principal × (1 + minimum return) with a minimum return. While a
+  // digital return's barrier is met, the floor is at least its floor.
   floor: number
   floorApplies: boolean
   payment: number
@@ -983,7 +1039,15 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
   const capApplies = capAmount !== undefined && direction === 'upside' && uncappedPayment > capAmount
   const unflooredPayment = capApplies ? capAmount : uncappedPayment
   const { minimumReturn, principalProtection } = note.payoff
-  const floor = note.principalAmount * (minimumReturn !== undefined ? 1 + minimumReturn : note.wrapper === 'deposit' ? 1 : principalProtection ?? 0)
+  // The digital barrier reads the final level at or above its level, the edge the downside barrier is not reached at.
+  const digital = note.payoff.digitalReturn
+  let digitalReturn: DigitalReturnBreakdown | undefined
+  if (digital !== undefined) {
+    const digitalBarrierLevel = barrierLevelAt(digital.barrier.level, levels.initial)
+    digitalReturn = { barrierLevel: digitalBarrierLevel, reached: levels.final >= digitalBarrierLevel, floor: note.principalAmount * (1 + digital.amount) }
+  }
+  const protectionFloor = note.principalAmount * (minimumReturn !== undefined ? 1 + minimumReturn : note.wrapper === 'deposit' ? 1 : principalProtection ?? 0)
+  const floor = digitalReturn?.reached ? Math.max(protectionFloor, digitalReturn.floor) : protectionFloor
   return {
     initialLevel: levels.initial,
     underlierReturn,
@@ -996,6 +1060,7 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
     lowestClose: barrier?.observation === 'daily-close' || bothWays?.lowerBarrier.observation === 'daily-close' ? lowestClose : undefined,
     highestClose: upsideBarrier?.observation === 'daily-close' || bothWays?.upperBarrier.observation === 'daily-close' ? highestClose : undefined,
     barrierAbsolute,
+    digitalReturn,
     absoluteReturnApplies,
     participationRate,
     participatedReturn,

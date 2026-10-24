@@ -67,6 +67,14 @@
           "minimum": 0,
           "maximum": 1
         },
+        "digitalReturn": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/DigitalReturn"
+            }
+          ],
+          "description": "A fixed return on principal, paid as a floor while the final level is at or above its barrier. Available on notes only."
+        },
         "minimumReturn": {
           "type": "number",
           "description": "The lowest return the product pays on principal, whatever the underlier does: a floor of principal × (1 + minimum return), not an addition to the participated return. This reference allows it on deposits only.",
@@ -1776,6 +1784,47 @@
       ],
       "additionalProperties": false,
       "description": "A level above the initial level, as a fraction of it, reached strictly above that level. Observed on the final date it reads the final level; observed daily, the highest close from pricing to the final date. It is the upper barrier of barrier absolute return."
+    },
+    "DigitalReturn": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "number",
+          "description": "The return on principal paid: 0.26 is 26%.",
+          "exclusiveMinimum": 0
+        },
+        "barrier": {
+          "$ref": "#/definitions/DigitalBarrier"
+        }
+      },
+      "required": [
+        "amount",
+        "barrier"
+      ],
+      "additionalProperties": false,
+      "description": "A fixed return on principal, paid only while the final level is at or above the digital barrier. It acts as a floor: the payment is at least principal plus this return while the barrier is met, and whatever the rest of the payoff pays if that is more. Below the barrier it pays nothing and the rest of the payoff applies as if it were absent."
+    },
+    "DigitalBarrier": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "number",
+          "description": "The level as a fraction of the initial level. A level of 1 is the initial level itself.",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "observation": {
+          "type": "string",
+          "const": "final",
+          "description": "The final date only: the barrier reads the final level."
+        }
+      },
+      "required": [
+        "level",
+        "observation"
+      ],
+      "additionalProperties": false,
+      "description": "A level as a fraction of the initial level, reached at or above it. It reads the final level the determination produces."
     }
   }
 }
