@@ -38,6 +38,7 @@ export function structureLines(note: Product): StructureLine[] {
     if (second === 'barrierAbsoluteReturn') return third === 'lowerBarrier' || third === 'upperBarrier' || third === 'conditionalReturn' ? 'barrier' : 'absolute-return'
     if (second === 'principalProtection') return 'protection'
     if (second === 'minimumReturn') return 'minimum-return'
+    if (second === 'digitalReturn') return third === 'barrier' ? 'digital-barrier' : 'digital-return'
     if (second === 'participations' && typeof third === 'number') return fourth === 'buffer' || fourth === 'barrier' || fourth === 'cap' ? fourth : fourth === 'absoluteReturn' ? 'absolute-return' : note.payoff.participations[third]?.direction ?? 'payoff'
     return 'payoff'
   }

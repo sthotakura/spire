@@ -122,6 +122,16 @@ function barrierAbsoluteSteps(bothWays: BarrierAbsoluteReturn, b: PaymentBreakdo
   return steps
 }
 
+// Whether the final level is at or above the digital barrier. Only then is the payment at least principal plus the digital return.
+function digitalReturnStep(level: number, breakdown: PaymentBreakdown, finalName: string, finalLevel: number): Omit<CalculationStep, 'n'> {
+  const digital = breakdown.digitalReturn!
+  const binds = digital.reached && breakdown.unflooredPayment < digital.floor
+  const reason = !digital.reached ? 'below it, so the digital return is not paid'
+    : binds ? `at or above it, so the payment is at least ${formatAmount(digital.floor)}`
+      : `at or above it, so the payment is at least ${formatAmount(digital.floor)} · not binding here`
+  return { title: 'Digital return', how: `${formatPercent(level)} × ${formatAmount(breakdown.initialLevel)} = ${formatAmount(digital.barrierLevel)} · ${finalName} ${formatAmount(finalLevel)} is ${reason}`, value: formatAmount(digital.floor), muted: !binds, concept: 'digital-return' }
+}
+
 // How a single asset's levels give its return: the lookback level and the averaged final level when the note has them, then the return.
 function singleSteps(note: SingleProduct, breakdown: PaymentBreakdown, observedLevels: number[], initialObservations: number[]): Array<Omit<CalculationStep, 'n'>> {
   const name = note.underlier.components[0].asset.name.trim()
@@ -189,10 +199,11 @@ export function calculationSteps(note: Product, breakdown: PaymentBreakdown, obs
     steps.push(basket ? upsideBarrierStep(upsideBarrier.level, b, 'basket level', basket.levels.final) : upsideBarrierStep(upsideBarrier.level, b, 'final level', finalLevelFrom(note.underlier.determination.final, observedLevels)))
     if (upsideBarrier.rebate !== undefined) steps.push(rebateStep(upsideBarrier.rebate, b))
   }
-  // A deposit's floor is its minimum return; a note's is its protection.
+  // A deposit's floor is its minimum return; a note's is its protection, raised by the digital return while its barrier is met.
   const deposit = note.wrapper === 'deposit'
   const minimum = note.payoff.minimumReturn
-  const withFloor = deposit ? minimum !== undefined : withProtection
+  const digital = note.payoff.digitalReturn
+  const withFloor = deposit ? minimum !== undefined : withProtection || b.digitalReturn?.reached === true
   steps.push(
     ...(bothWays !== undefined ? [] : [participationStep(note, b, 'downside'), participationStep(note, b, 'upside')]),
     // With nothing selected the step only restates principal, so it is muted like the steps above it. Without a cap or protection there is no
@@ -205,8 +216,11 @@ export function calculationSteps(note: Product, breakdown: PaymentBreakdown, obs
       ? { title: 'Minimum return', how: `${formatAmount(principal)} × (1 + ${twoDecimalPercent(minimum)}) · ${b.floorApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.floor), muted: !b.floorApplies, concept: 'minimum-return' }
       : { title: 'Minimum return', how: 'Not added. A deposit repays principal in full, so the payment is never below it', value: 'Not added', muted: true, concept: 'minimum-return' })
   } else {
+    // The digital return is a floor of its own, so the protection step states only the protection's.
+    if (digital !== undefined) steps.push(basket ? digitalReturnStep(digital.barrier.level, b, 'basket level', basket.levels.final) : digitalReturnStep(digital.barrier.level, b, 'final level', finalLevelFrom(note.underlier.determination.final, observedLevels)))
+    const protectionFloor = principal * (principalProtection ?? 0)
     steps.push(withProtection
-      ? { title: 'Protection floor', how: `${formatPercent(principalProtection)} × ${formatAmount(principal)} · ${b.floorApplies ? 'applies here' : 'not binding here'}`, value: formatAmount(b.floor), muted: !b.floorApplies, concept: 'protection' }
+      ? { title: 'Protection floor', how: `${formatPercent(principalProtection)} × ${formatAmount(principal)} · ${protectionFloor > b.unflooredPayment ? 'applies here' : 'not binding here'}`, value: formatAmount(protectionFloor), muted: !(protectionFloor > b.unflooredPayment), concept: 'protection' }
       : { title: 'Protection floor', how: hasDownside ? 'Not added, so some or all of the principal can be lost' : 'Not added. Without downside participation, a fall does not reduce principal', value: 'Not added', muted: true, concept: 'protection' })
   }
   // The closing step names the amounts it combines, in the payment rule's words. Without a floor, a note's payment cannot fall

@@ -96,6 +96,9 @@ export function summarize(note: Product): SummarySegment[] {
   if (upsideBarrier !== undefined) clauses.push({ text: `an upside barrier at ${percent(upsideBarrier.level)} of the ${barrierFrom}${everyClose(upsideBarrier.observation)} that ends the upside${upsideBarrier.rebate !== undefined ? ` and pays a ${percent(upsideBarrier.rebate)} rebate` : ''}`, concept: 'barrier' })
   // The cap limits a rise only. With absolute return a fall can pay more, so the clause says which return it limits.
   if (cap !== undefined) clauses.push({ text: `a maximum return of ${percent(cap)}${absoluteReturn !== undefined ? ' on a rise' : ''}`, concept: 'cap' })
+  // The digital return is a floor paid only at or above its barrier, which a worst-of basket reaches when every asset is.
+  const digital = note.payoff.digitalReturn
+  if (digital !== undefined) clauses.push({ text: `a digital return of ${weightPercent(digital.amount)}, paid as a minimum at or above ${percent(digital.barrier.level)} of the ${downsideBarrierFrom}`, concept: 'digital-return' })
   const minimum = note.payoff.minimumReturn
   if (minimum !== undefined) clauses.push({ text: `a minimum return of ${weightPercent(minimum)}`, concept: 'minimum-return' })
   // Two barriers, each with its own level and observation, either of which ends the absolute return. When both are observed the same

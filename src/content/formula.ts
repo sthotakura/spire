@@ -88,6 +88,9 @@ export function paymentFormula(note: Product): FormulaLine[] {
   }
   // The cap limits upside participation only, which matters once a fall can pay a gain.
   if (cap !== undefined) lines.push({ segments: [{ text: absoluteReturn !== undefined ? 'a rise capped at ' : 'capped at ' }, { text: 'Principal × (1 + Cap)', concept: 'cap' }] })
+  // The digital return is a floor that holds only while its barrier is met, at or above its level.
+  const digital = note.payoff.digitalReturn
+  if (digital !== undefined) lines.push({ segments: [{ text: 'floored at ' }, { text: 'Principal × (1 + Digital)', concept: 'digital-return' }, { text: ' when ' }, { text: barrierTestFor('Digital barrier', 'Final level', '≥'), concept: 'digital-barrier' }] })
   // Without protection the payment still cannot fall below zero. That only matters when a fall reduces principal, which a
   // deposit never allows, so a deposit has a floor line only for its minimum return.
   if (note.payoff.minimumReturn !== undefined) lines.push({ segments: [{ text: 'floored at ' }, { text: 'Principal × (1 + Minimum)', concept: 'minimum-return' }] })
@@ -132,7 +135,12 @@ export function paymentInWords(note: Product): string {
   const from = note.underlier.determination.initial.kind === 'lookback' ? 'lookback' : 'initial'
 
   const minimum = note.payoff.minimumReturn
+  // The digital return is a floor that holds at or above its barrier, which the final level reaches at the level itself.
+  const digital = note.payoff.digitalReturn
+  const digitalLevel = digital && `${percent(digital.barrier.level)} of its ${from} level`
+  const digitalPays = digital && `at least ${amount(principal * (1 + digital.amount))}, principal plus a fixed ${percent(digital.amount)}`
   if (!upside && !downside) {
+    if (digital) return `The payment is principal, ${amount(principal)}, unless ${name} ends at or above ${digitalLevel}, when it is ${digitalPays}.`
     return minimum === undefined
       ? `The payment is always principal, ${amount(principal)}, whatever ${name} does.`
       : `The payment is always principal plus the minimum return, ${amount(principal * (1 + minimum))}, whatever ${name} does.`
@@ -162,6 +170,7 @@ export function paymentInWords(note: Product): string {
     : upsideBarrier.observation === 'daily-close' ? ` If ${name} closes above ${percent(upsideBarrier.level)} of its ${from} level on any day, upside participation ends and the payment adds ${rebateInWords(upsideBarrier.rebate)}, whatever the final level.`
     : ` Above ${percent(upsideBarrier.level)} of its ${from} level, a rise adds ${upsideBarrier.rebate === undefined ? 'nothing' : `only a fixed ${percent(upsideBarrier.rebate)} of principal`}.`
   // With a minimum return a fall pays the minimum, which the limits below state.
+  const digitalSentence = digital ? ` If ${name} ends at or above ${digitalLevel}, the payment is ${digitalPays}.` : ''
   const unchanged = !upside ? ' A rise leaves principal unchanged.' : !downside && minimum === undefined ? ' A fall leaves principal unchanged.' : ''
 
   const floor = minimum !== undefined ? amount(principal * (1 + minimum)) : principalProtection !== undefined ? amount(principal * principalProtection) : downside ? 'zero' : undefined
@@ -172,5 +181,5 @@ export function paymentInWords(note: Product): string {
     : ceiling ? ` The payment never goes above ${ceiling}.`
       : floor ? ` The payment never goes below ${floor}.` : ''
 
-  return `${moves[0].toUpperCase()}${moves.slice(1)}.${larger}${atUpsideBarrier}${unchanged}${limits}`
+  return `${moves[0].toUpperCase()}${moves.slice(1)}.${larger}${atUpsideBarrier}${unchanged}${digitalSentence}${limits}`
 }

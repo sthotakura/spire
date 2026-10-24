@@ -9,11 +9,12 @@ export interface ScenarioRow {
   finalLevel: number
   // True for the row a barrier adds at its own level. Neither barrier is reached at its level: for a barrier on downside
   // participation it is the lowest final level that still repays principal, and for one on upside participation the highest that
-  // still takes part in the rise, so the largest payment.
+  // still takes part in the rise, so the largest payment. For a digital return's barrier it is the lowest final level that still
+  // earns the digital return.
   atBarrier: boolean
   // Set on the row a barrier adds just past its level, on the side where it is reached: above an upside or upper barrier, below a
   // lower barrier. Participation or absolute return has ended there and the rebate or conditional return, if there is one, is paid,
-  // so the table shows the drop that follows the largest payment.
+  // so the table shows the drop that follows the largest payment. Below a digital return's barrier the digital return is lost.
   pastBarrier: 'above' | 'below' | null
   // True for the row absolute return adds at the buffer level, the lowest final level that still pays a fall as a gain.
   atBuffer: boolean
@@ -85,6 +86,14 @@ export function scenarioRows(note: Product, initialLevel: number, returns: numbe
     added(Math.max(0, lowerLevel - 0.05 * initialLevel), bothWays.lowerBarrier.level - 1 - 0.05, { pastBarrier: 'below' })
     added(upperLevel, bothWays.upperBarrier.level - 1, { atBarrier: true })
     added(upperLevel + 0.05 * initialLevel, bothWays.upperBarrier.level - 1 + 0.05, { pastBarrier: 'above' })
+  }
+  // A digital return adds a row at its barrier, the lowest final level that still earns it, and one a percent of the initial level
+  // below it, where it is lost and the payment drops.
+  const digital = note.payoff.digitalReturn
+  if (digital !== undefined) {
+    const level = barrierLevelAt(digital.barrier.level, initialLevel)
+    added(level, digital.barrier.level - 1, { atBarrier: true })
+    added(Math.max(0, level - 0.01 * initialLevel), digital.barrier.level - 1.01, { pastBarrier: 'below' })
   }
   // A coupon adds a row at its barrier, where the last coupon is paid, and one a percent of the initial level below it, where it is not.
   const couponLevel = couponBarrierLevel(note, initialLevel)

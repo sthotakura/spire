@@ -82,8 +82,14 @@ export function explainOutcome(note: Product, breakdown: PaymentBreakdown): stri
     participation = downsideApplies ? `${ended}. ${participation}` : `${ended}, whatever the final level.`
   }
 
+  // The digital return is its own sentence, because a floor that holds only at or above its barrier needs the level said.
+  const digital = breakdown.digitalReturn
+  const digitalSentence = digital === undefined ? ''
+    : digital.reached ? `It ended at or above the ${units(digital.barrierLevel)} digital barrier, so the payment is at least ${units(digital.floor)}, principal plus the ${percent(note.payoff.digitalReturn!.amount)} digital return.`
+      : `It ended below the ${units(digital.barrierLevel)} digital barrier, so the ${percent(note.payoff.digitalReturn!.amount)} digital return is not paid.`
+
   const reasons: string[] = []
-  const hasFloor = hasProtection || hasMinimum
+  const hasFloor = hasProtection || hasMinimum || digital?.reached === true
   if (hasCap && hasFloor && !capApplies && !floorApplies) reasons.push(`neither the ${units(capAmount)} cap nor the ${units(floor)} ${floorName} applies`)
   else {
     if (hasCap) reasons.push(`the ${units(capAmount)} cap ${capApplies ? 'applies' : 'does not apply'}`)
@@ -99,5 +105,5 @@ export function explainOutcome(note: Product, breakdown: PaymentBreakdown): stri
       : 'the same as principal'
   const result = `${reason ? `${reason[0].toUpperCase()}${reason.slice(1)}, so the` : 'The'} contractual payment is ${units(payment)}, ${comparison}.`
 
-  return [movement, participation, result].join(' ')
+  return [movement, participation, digitalSentence, result].filter(Boolean).join(' ')
 }
