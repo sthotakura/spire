@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { withSubFeatures, type Participation, type Product } from '../domain/note'
+import { sampleProducts } from './examples'
 import { marketingNames, productCategory } from './names'
 
 const noteWith = ({ participations = [], principalProtection, cap, buffer }: { participations?: Participation[]; principalProtection?: number; cap?: number; buffer?: number }): Product => ({
@@ -100,10 +101,13 @@ describe('marketing names', () => {
     expect(namesOf({ participations: [up(1), down(1)], buffer: 0.1, principalProtection: 0.9 })).toEqual(['Partially principal-protected note', 'Buffered note'])
   })
 
-  it('does not call a note with a barrier a tracker or outperformance', () => {
+  it('does not call a note with a barrier a tracker or outperformance, and names it for the Swiss bonus types instead', () => {
     const barriered = (participations: Participation[]) => marketingNames({ ...noteWith({ participations }), payoff: { participations: withSubFeatures(participations, { barrier: { level: 0.7, observation: 'final' as const } }) } }).map(({ name }) => name)
-    expect(barriered([up(1), down(1)])).toEqual([])
-    expect(barriered([up(1.5), down(1)])).toEqual([])
+    expect(barriered([up(1), down(1)])).toEqual(['Bonus certificate'])
+    expect(barriered([up(1.5), down(1)])).toEqual(['Bonus outperformance certificate'])
+    // Other rates are not what the Swiss types describe.
+    expect(barriered([up(0.8), down(1)])).toEqual([])
+    expect(barriered([up(1.5), down(0.9)])).toEqual([])
   })
 
   it('gives no name to a draft with invalid terms', () => {
@@ -343,5 +347,79 @@ describe('names for a call and a coupon', () => {
     expect(productCategory(withTerms({}, { redemption: issuerCall, coupon }))).toBe('Yield Enhancement')
     expect(productCategory(withTerms({ participations: [up(1)] }, { coupon }))).toBeUndefined()
     expect(productCategory(withTerms({ principalProtection: 1 }, { coupon }))).toBe('Capital Protection')
+  })
+})
+
+describe('marketing names for a barrier on downside participation', () => {
+  const barriered = (terms: { up?: number; down?: number; observation?: 'final' | 'daily-close'; absolute?: number; cap?: number; protection?: number; buffer?: number } = {}): Product => ({
+    ...noteWith({ participations: [], principalProtection: terms.protection }),
+    payoff: {
+      participations: [
+        { direction: 'downside', rate: terms.down ?? 1, barrier: { level: 0.7, observation: terms.observation ?? 'final' }, buffer: terms.buffer, absoluteReturn: terms.absolute === undefined ? undefined : { rate: terms.absolute } },
+        { direction: 'upside', rate: terms.up ?? 1, cap: terms.cap },
+      ],
+      principalProtection: terms.protection,
+    },
+  })
+  const names = (product: Product) => marketingNames(product).map(({ name }) => name)
+
+  it('calls an uncapped barrier note with 1:1 upside a bonus certificate, and a leveraged one a bonus outperformance certificate', () => {
+    expect(names(barriered())).toEqual(['Bonus certificate'])
+    expect(names(barriered({ up: 1.7 }))).toEqual(['Bonus outperformance certificate'])
+  })
+
+  it('says the Swiss barrier is observed during the life, and that this one is read on the final date, unless it is observed on every close', () => {
+    expect(marketingNames(barriered())[0].reason).toContain('read on the final date only, so the contract differs')
+    expect(marketingNames(barriered({ observation: 'daily-close' }))[0].reason).toContain('as this one is, on every close')
+  })
+
+  it('says when the initial level is a lookback level', () => {
+    const lookback: Product = { ...barriered(), underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }], determination: { initial: { kind: 'lookback', observationCount: 3 }, final: { kind: 'final-date' } } } }
+    expect(marketingNames(lookback)[0].reason).toContain('lookback level, which the Swiss type does not have')
+  })
+
+  it('calls the same note with absolute return above the barrier a twin-win certificate', () => {
+    const [twin] = marketingNames(barriered({ up: 1.25, absolute: 0.5 }))
+    expect(twin.name).toBe('Twin-win certificate')
+    expect(twin.vocabulary).toBe('SSPA')
+    expect(twin.concepts).toEqual(['upside', 'downside', 'barrier', 'absolute-return'])
+    expect(twin.reason).toContain('125% of a rise and 50% of a fall')
+  })
+
+  it('gives no such name to a capped, protected or buffered note, or one with a coupon, a call or a digital return', () => {
+    expect(names(barriered({ cap: 0.2 }))).toEqual(['Capped participation'])
+    expect(names(barriered({ protection: 0.9 }))).toEqual(['Partially principal-protected note'])
+    expect(names({ ...barriered(), coupon: { schedule: { frequency: 'quarterly' }, rate: 0.08, barrier: 0.7, memory: false }, term: { months: 36 } })).toEqual(['Contingent coupon note'])
+    expect(names({ ...barriered(), redemption: { kind: 'autocall', schedule: { frequency: 'annual' }, trigger: 1, callAmount: 0.1 } })).toEqual(['Autocallable note'])
+    expect(names({ ...barriered(), payoff: { ...barriered().payoff, digitalReturn: { amount: 0.2, barrier: { level: 0.9, observation: 'final' } } } })).toEqual(['Digital return note'])
+  })
+})
+
+describe('marketing names for a digital return', () => {
+  const digital: Product = { ...noteWith({ participations: [up(1), down(1)] }), payoff: { participations: [up(1), down(1)], digitalReturn: { amount: 0.0808, barrier: { level: 0.71, observation: 'final' } } } }
+
+  it('names it the digital return note, as issuers title it, with the amount and the level', () => {
+    const [name, ...rest] = marketingNames(digital)
+    expect(rest).toEqual([])
+    expect(name.name).toBe('Digital return note')
+    expect(name.vocabulary).toBe('Market usage')
+    expect(name.concepts).toEqual(['digital-return'])
+    expect(name.reason).toContain('8.08% on principal')
+    expect(name.reason).toContain('71% of the initial level')
+  })
+
+  it('does not say the name fails to cover the digital return', () => {
+    expect(marketingNames(digital)[0].reason).not.toContain('does not cover the digital return')
+  })
+
+  it('is not given to a deposit', () => {
+    expect(marketingNames({ ...digital, wrapper: 'deposit' }).map(({ name }) => name)).not.toContain('Digital return note')
+  })
+})
+
+describe('marketing names for the samples', () => {
+  it('gives every sample at least one name', () => {
+    const none = sampleProducts.filter(({ product }) => marketingNames(product).length === 0).map(({ name }) => name)
+    expect(none).toEqual([])
   })
 })

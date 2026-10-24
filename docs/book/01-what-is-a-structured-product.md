@@ -66,7 +66,12 @@ says that a call can end the product earlier or that a coupon is paid as well.
 The call and the coupon have names of their own: “autocallable note”,
 “callable note” and “contingent coupon note”. An unprotected autocall that pays
 coupons instead of a share in a rise, with a downside barrier, is what the
-Swiss taxonomy calls an Express certificate.
+Swiss taxonomy calls an Express certificate. A note whose downside barrier leaves
+at least principal until it is reached, and then follows the underlier, is what that
+taxonomy calls a bonus certificate, or a bonus outperformance certificate when the
+rise is leveraged, and a twin-win certificate when a fall above the barrier is paid
+as a gain. A fixed return paid as a minimum from a level up is a digital return,
+which issuers put in the title as a digital return note.
 
 Both are hints. The structure remains the authoritative description of what the
 product pays.

@@ -33,11 +33,11 @@ export function productCategory(note: Product): ProductCategory | undefined {
 }
 
 // The names below describe the payment at maturity. A call or a coupon changes what the product pays, so the reason says so.
-function maturityOnlyNote(note: Product): string {
+function maturityOnlyNote(note: Product, name: string): string {
   const parts: string[] = []
   if (note.redemption !== 'bullet') parts.push(`The name describes the payment at maturity; ${note.redemption.kind === 'autocall' ? 'an autocall' : 'an issuer call'} can end the product earlier.`)
   if (note.coupon !== undefined) parts.push('The name does not cover the contingent coupon, paid on the reviews that meet its barrier.')
-  if (note.payoff.digitalReturn !== undefined) parts.push('The name does not cover the digital return, a fixed return paid as a minimum at or above its barrier.')
+  if (note.payoff.digitalReturn !== undefined && name !== 'Digital return note') parts.push('The name does not cover the digital return, a fixed return paid as a minimum at or above its barrier.')
   return parts.join(' ')
 }
 
@@ -147,12 +147,60 @@ export function marketingNames(note: Product): MarketingName[] {
     })
   }
 
+  // The Swiss Bonus, Bonus Outperformance and Twin Win types: a barrier below the initial level that, until it is reached, leaves at least principal,
+  // and once reached makes the note follow the underlier one for one. They describe a note that only follows the underlier to maturity.
+  const absoluteReturn = downsideOf(note)?.absoluteReturn
+  const initialLookback = note.underlier.determination.initial.kind === 'lookback'
+  if (note.wrapper === 'note' && note.redemption === 'bullet' && note.coupon === undefined && note.payoff.digitalReturn === undefined && unprotected && buffer === undefined && barrier !== undefined && cap === undefined && upsideBarrier === undefined && downside === 1 && isRate(upside)) {
+    const observed = barrier.observation === 'daily-close'
+      ? 'The Swiss barrier is observed during the product’s life, as this one is, on every close.'
+      : 'The Swiss barrier is observed during the product’s life; this one is read on the final date only, so the contract differs.'
+    const lookback = initialLookback ? ' The initial level here is a lookback level, which the Swiss type does not have.' : ''
+    const below = `Below the barrier level, ${percentText(barrier.level)} of the initial level, the whole fall counts one for one, as in a tracker.`
+    if (absoluteReturn !== undefined) {
+      names.push({
+        name: 'Twin-win certificate',
+        vocabulary: 'SSPA',
+        reason: `A fall that ends at or above the barrier is paid as a gain, ${percentText(absoluteReturn.rate)} of its size, so the holder can gain whether the underlier rises or falls. ${below} The Swiss taxonomy calls this a Twin Win Certificate (1340); it does not state the rates, which here are ${percentText(upside)} of a rise and ${percentText(absoluteReturn.rate)} of a fall. ${observed}${lookback}`,
+        concepts: ['upside', 'downside', 'barrier', 'absolute-return'],
+      })
+    } else if (upside === 1) {
+      names.push({
+        name: 'Bonus certificate',
+        vocabulary: 'SSPA',
+        reason: `The payment is at least principal while the downside barrier is not reached, and a rise is shared one for one. ${below} The Swiss taxonomy calls this a Bonus Certificate (1320), and notes that a worst-of basket allows a higher bonus level or a lower barrier. ${observed}${lookback}`,
+        concepts: ['upside', 'downside', 'barrier'],
+      })
+    } else if (upside > 1) {
+      names.push({
+        name: 'Bonus outperformance certificate',
+        vocabulary: 'SSPA',
+        reason: `The payment is at least principal while the downside barrier is not reached, and a rise is shared more than one for one, at ${percentText(upside)}. ${below} The Swiss taxonomy calls this a Bonus Outperformance Certificate (1330), and notes that a worst-of basket allows a higher bonus level or a lower barrier. ${observed}${lookback}`,
+        concepts: ['upside', 'downside', 'barrier'],
+      })
+    }
+  }
+
+  // A fixed return on principal paid as a floor while the final level is at or above its barrier. Issuers put "digital" in the titles of
+  // public pricing supplements for this payoff; it is seller usage, not a regulator's or the SSPA's name.
+  if (note.wrapper === 'note' && note.payoff.digitalReturn !== undefined) {
+    const { amount, barrier: digitalBarrier } = note.payoff.digitalReturn
+    names.push({
+      name: 'Digital return note',
+      vocabulary: 'Market usage',
+      reason: `A fixed return of ${(amount * 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}% on principal is paid as a minimum while the final level is at or above ${percentText(digitalBarrier.level)} of the initial level. Below that level the digital return pays nothing. The name is the word issuers use in the titles of public pricing supplements for this payoff, not a regulator’s or the Swiss taxonomy’s.`,
+      concepts: ['digital-return'],
+    })
+  }
+
   if (hasCap && upside !== undefined) {
     names.push({ name: 'Capped participation', vocabulary: 'US descriptive', reason: 'Upside participation stops at a maximum return, so the payment cannot rise past the cap.', concepts: ['upside', 'cap'] })
   }
 
-  const caveat = maturityOnlyNote(note)
-  const maturityNames = caveat ? names.map((name) => ({ ...name, reason: `${name.reason} ${caveat}` })) : names
+  const maturityNames = names.map((name) => {
+    const caveat = maturityOnlyNote(note, name.name)
+    return caveat ? { ...name, reason: `${name.reason} ${caveat}` } : name
+  })
   return [...maturityNames, ...callAndCouponNames(note)]
 }
 
