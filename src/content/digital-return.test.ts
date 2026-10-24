@@ -198,19 +198,6 @@ describe('digital return stated to two decimal places', () => {
 describe('the digital return samples taken from public notes', () => {
   const sample = (slug: string) => sampleBySlug(slug)!.product
 
-  it.each([
-    [160, 1900],
-    [130, 1450],
-    [120, 1300],
-    [100, 1300],
-    [60, 1300],
-    [59.99, 599.9],
-    [50, 500],
-    [0, 0],
-  ])('pays the greater of 150%% of a rise and the 30%% digital payment from 60%% up: final level %s pays %s', (final, payment) => {
-    expect(paymentBreakdown(sample('leveraged-digital-barrier-note'), { initial: 100, final }).payment).toBeCloseTo(payment, 8)
-  })
-
   describe('with a buffer, a basket averaged over five dates and a call after one review', () => {
     const note = sample('autocallable-basket-note-with-buffer-and-digital-return')
     const underlier = note.underlier as BasketUnderlier

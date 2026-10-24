@@ -256,14 +256,7 @@ predictions. A digital return needs a note: it is not available on a deposit.
 With a cap, its amount must be below the cap, so that participation can still
 pay more than the floor.
 
-A digital return is often paired with leverage. A public five-year note on one index pays, from 60% of the starting
-value up, the greater of 150% of a rise and a 30% digital payment, and below 60% the whole fall counts one for one.
-A 20% rise is where 150% of the rise reaches 30%, so up to it the note pays 1,300 and above it follows the index
-at 150%: 1,450 at a final level of 130, and 1,900 at 160. A final level of 60 pays 1,300, and 59.99 pays 599.90. The
-filing's own illustrative table pays less than this formula above a 20% rise (1,750 at +60%, where the formula
-gives 1,900); the sample follows the formula, which the filing states on its cover and in its terms.
-
-A digital return can also sit beside a buffer, a basket, averaging and a call. A two-year note on an equally
+A digital return can also sit beside participation, a buffer, a basket, averaging and a call. A two-year note on an equally
 weighted basket of four stocks is called after one year if the basket is at or above its starting level, and pays
 principal plus a 23.72% call premium. If it is not called, the final level is the average of five observed basket
 levels. At or above the starting level the note pays the greater of a 47.44% digital return and 150% of the rise.
@@ -297,7 +290,5 @@ first example above, over 36 months. The
 the second, over 13 months. In the builder, a digital return is added from the Add feature menu, and its barrier sits
 beneath it in the outline.
 
-The [Leveraged digital barrier note](https://sthotakura.github.io/spire/?example=leveraged-digital-barrier-note) is the
-five-year note with 150% upside participation, and the
-[Autocallable basket note with a buffer and a digital return](https://sthotakura.github.io/spire/?example=autocallable-basket-note-with-buffer-and-digital-return)
+The [Autocallable basket note with a buffer and a digital return](https://sthotakura.github.io/spire/?example=autocallable-basket-note-with-buffer-and-digital-return)
 is the two-year basket note.
