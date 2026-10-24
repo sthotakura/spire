@@ -58,7 +58,8 @@ const bothWays = (terms: Partial<BarrierAbsoluteReturn>, payoff: Partial<Product
   ...payoff,
 }, overrides)
 const deposit = (minimumReturn: number) => withPayoff({ participations: [{ direction: 'upside', rate: 1 }], minimumReturn }, { wrapper: 'deposit' })
-const issuerCallable = (terms: Partial<IssuerCall>): Product => ({ ...base, term: { months: 12 }, redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0.02, ...terms } })
+const digital = (amount: number, level: number, payoff: Partial<Product['payoff']> = {}, overrides: Partial<Product> = {}) => withPayoff({ participations: [], digitalReturn: { amount, barrier: { level, observation: 'final' } }, ...payoff }, overrides)
+const issuerCallable =(terms: Partial<IssuerCall>): Product => ({ ...base, term: { months: 12 }, redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0.02, ...terms } })
 const callable = (terms: Partial<Autocall>): Product => ({ ...base, term: { months: 12 }, redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, callAmount: 0.08, ...terms } })
 const withCoupon = (terms: { rate?: number; barrier?: number }): Product => ({ ...base, term: { months: 12 }, coupon: { schedule: { frequency: 'quarterly' }, rate: 0.1, barrier: 0.7, ...terms } })
 const determined = (determination: Extract<Product['underlier'], { kind: 'single' }>['determination']) => ({ ...base, underlier: { ...(base.underlier as object), determination } }) as Product
@@ -103,6 +104,7 @@ describe('product schema', () => {
       ['a misspelled key inside a feature', clone(withPayoff({ participations: [{ direction: 'upside', rate: 1, caps: 0.2 } as unknown as UpsideParticipation] }))],
       ['a wrapper it does not know', { ...clone(startingProduct), wrapper: 'certificate' }],
       ['an observation it does not know', clone(downside({ barrier: { level: 0.7, observation: 'daily' as never } }))],
+      ['a digital barrier observed on every close', clone(withPayoff({ participations: [], digitalReturn: { amount: 0.26, barrier: { level: 0.7, observation: 'daily-close' as never } } }))],
       ['an underlier kind it does not know', { ...clone(startingProduct), underlier: { kind: 'worst-of' } }],
       ['a missing required key', (({ term: _term, ...rest }) => rest)(clone(startingProduct))],
     ])('%s', (_, product) => {
@@ -125,6 +127,8 @@ describe('product schema', () => {
       ['rebate 0', upside({ barrier: { level: 1.3, observation: 'final', rebate: 0 } }), false], ['rebate 0.01', upside({ barrier: { level: 1.3, observation: 'final', rebate: 0.01 } }), true],
       ['cap 0', upside({ cap: 0 }), false], ['cap 0.01', upside({ cap: 0.01 }), true],
       ...[[-0.01, false], [0, true], [1, true], [1.01, false]].map(([value, ok]): [string, Product, boolean] => [`protection ${value}`, withPayoff({ participations: [], principalProtection: value as number }), ok as boolean]),
+      ['digital return 0', digital(0, 0.7), false], ['digital return 0.01', digital(0.01, 0.7), true],
+      ...[[0, false], [0.01, true], [1, true], [1.01, false]].map(([value, ok]): [string, Product, boolean] => [`digital barrier at ${value}`, digital(0.26, value as number), ok as boolean]),
       ['deposit minimum return 0', deposit(0), false], ['deposit minimum return 0.01', deposit(0.01), true],
       ...[[1, false], [2, true], [12, true], [13, false], [2.5, false]].flatMap(([value, ok]): Array<[string, Product, boolean]> => [
         [`lookback with ${value} observations`, determined({ initial: { kind: 'lookback', observationCount: value as number }, final: { kind: 'final-date' } }), ok as boolean],
@@ -170,6 +174,10 @@ describe('product schema', () => {
       ['two upside participations', withPayoff({ participations: [{ direction: 'upside', rate: 1 }, { direction: 'upside', rate: 2 }] })],
       ['a buffer and a downside barrier together', downside({ buffer: 0.1, barrier: { level: 0.7, observation: 'final' } })],
       ['a cap and an upside barrier together', upside({ cap: 0.2, barrier: { level: 1.3, observation: 'final' } })],
+      ['a digital return on a deposit', digital(0.26, 0.7, { participations: [{ direction: 'upside', rate: 1 }] }, { wrapper: 'deposit' })],
+      ['a digital return equal to the cap', withPayoff({ participations: [{ direction: 'upside', rate: 1, cap: 0.26 }], digitalReturn: { amount: 0.26, barrier: { level: 0.7, observation: 'final' } } })],
+      ['a digital return and an upside barrier together', withPayoff({ participations: [{ direction: 'upside', rate: 1, barrier: { level: 1.3, observation: 'final' } }], digitalReturn: { amount: 0.26, barrier: { level: 0.7, observation: 'final' } } })],
+      ['a digital return and barrier absolute return together', bothWays({}, { digitalReturn: { amount: 0.26, barrier: { level: 0.7, observation: 'final' } } })],
       ['basket weights that do not add up to 1', basket([100, 100], ['Index A', 'Index B'], [5, 5])],
       ['a quarterly call schedule over a term of 10 months', { ...callable({ schedule: { frequency: 'quarterly' } }), term: { months: 10 } }],
       ['an annual coupon schedule over a term of 18 months', { ...withCoupon({}), term: { months: 18 }, coupon: { schedule: { frequency: 'annual' }, rate: 0.1, barrier: 0.7 } } as Product],

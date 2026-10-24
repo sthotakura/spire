@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://sthotakura.github.io/spire/product.schema.json",
   "title": "SPIRe product",
-  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- The term must hold a whole number of periods of each schedule: at least two for an autocall or an issuer call, and at least one for a coupon.\n- An autocall, an issuer call or a coupon cannot be combined with a barrier observed on every close.\n- An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The non-call period of an autocall or an issuer call leaves at least one review that can call.",
+  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A digital return is for notes only, is less than any cap, and cannot be combined with an upside barrier, barrier absolute return or a minimum return.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- The term must hold a whole number of periods of each schedule: at least two for an autocall or an issuer call, and at least one for a coupon.\n- An autocall, an issuer call or a coupon cannot be combined with a barrier observed on every close.\n- An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The non-call period of an autocall or an issuer call leaves at least one review that can call.",
   "type": "object",
   "properties": {
     "wrapper": {
@@ -452,6 +452,189 @@
           },
           "upperBarrier": {
             "level": 1.25,
+            "observation": "final"
+          }
+        }
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "basket",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Index A"
+            }
+          },
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Index B"
+            }
+          },
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Index C"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "levels": [
+              {
+                "asset": "Index A",
+                "level": 100
+              },
+              {
+                "asset": "Index B",
+                "level": 50
+              },
+              {
+                "asset": "Index C",
+                "level": 200
+              }
+            ]
+          },
+          "final": {
+            "kind": "final-date"
+          },
+          "basketReturn": {
+            "kind": "worst-of"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "rate": 1
+          },
+          {
+            "direction": "upside",
+            "rate": 1
+          }
+        ],
+        "digitalReturn": {
+          "amount": 0.26,
+          "barrier": {
+            "level": 0.7,
+            "observation": "final"
+          }
+        }
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 13
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "basket",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Index A"
+            }
+          },
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Index B"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "levels": [
+              {
+                "asset": "Index A",
+                "level": 100
+              },
+              {
+                "asset": "Index B",
+                "level": 50
+              }
+            ]
+          },
+          "final": {
+            "kind": "final-date"
+          },
+          "basketReturn": {
+            "kind": "worst-of"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "rate": 1
+          }
+        ],
+        "digitalReturn": {
+          "amount": 0.0808,
+          "barrier": {
+            "level": 0.71,
+            "observation": "final"
+          }
+        }
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 36
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Synthetic Index"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "level": 100
+          },
+          "final": {
+            "kind": "final-date"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "rate": 1
+          },
+          {
+            "direction": "upside",
+            "rate": 1
+          }
+        ],
+        "digitalReturn": {
+          "amount": 0.15,
+          "barrier": {
+            "level": 1,
             "observation": "final"
           }
         }

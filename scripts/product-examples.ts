@@ -36,6 +36,28 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     'barrier absolute return with no conditional return, read on the final date',
     note({ participations: [], barrierAbsoluteReturn: { rate: 1, lowerBarrier: { level: 0.8, observation: 'final' }, upperBarrier: { level: 1.25, observation: 'final' } } }),
   ],
+  [
+    'a digital return of 26% paid while the worst of three assets is at or above 70% of its initial level, beside 1:1 participation both ways',
+    note({ participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }], digitalReturn: { amount: 0.26, barrier: { level: 0.7, observation: 'final' } } }, {
+      underlier: {
+        kind: 'basket',
+        components: [{ asset: asset('Index A') }, { asset: asset('Index B') }, { asset: asset('Index C') }],
+        determination: { initial: { kind: 'given', levels: [{ asset: 'Index A', level: 100 }, { asset: 'Index B', level: 50 }, { asset: 'Index C', level: 200 }] }, final: { kind: 'final-date' }, basketReturn: { kind: 'worst-of' } },
+      },
+    }),
+  ],
+  [
+    'a digital return that is the most the note pays, with downside participation and no upside participation, on a worst-of basket',
+    note({ participations: [{ direction: 'downside', rate: 1 }], digitalReturn: { amount: 0.0808, barrier: { level: 0.71, observation: 'final' } } }, {
+      term: { months: 13 },
+      underlier: {
+        kind: 'basket',
+        components: [{ asset: asset('Index A') }, { asset: asset('Index B') }],
+        determination: { initial: { kind: 'given', levels: [{ asset: 'Index A', level: 100 }, { asset: 'Index B', level: 50 }] }, final: { kind: 'final-date' }, basketReturn: { kind: 'worst-of' } },
+      },
+    }),
+  ],
+  ['a digital return whose barrier is the initial level itself, beside participation both ways', note({ participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }], digitalReturn: { amount: 0.15, barrier: { level: 1, observation: 'final' } } })],
   ['a deposit with upside participation and a minimum return', note({ participations: [{ direction: 'upside', rate: 1 }], minimumReturn: 0.05 }, { wrapper: 'deposit' })],
   [
     'lookback on the initial level and averaging on the final level',
