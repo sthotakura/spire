@@ -38,7 +38,9 @@ research behind each chapter. Locally, open `/book/`; the production base path
 places it under `/spire/book/`. The builder and the book are routes of one
 client-side routed app (`/` and `/book/<chapter>`), sharing one header; the Pages
 workflow serves `index.html` as `404.html` so a direct visit to a chapter reaches
-the router. The book has 21 chapters, all still drafts.
+the router. The book view has a search box (press `/`): it matches every word of a
+query against chapter titles, headings and text, and a result opens its chapter at
+the heading. The book has 21 chapters, all still drafts.
 
 Use TypeScript and Vue with Vite to build a static single-page application. Keep payoff logic and validation in framework-independent TypeScript modules. Add a backend only when a concrete capability requires one.
 

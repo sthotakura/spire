@@ -9,5 +9,6 @@ export const router = createRouter({
     { path: '/book/:slug?', component: () => import('./BookView.vue') },
     { path: '/:rest(.*)*', redirect: '/' },
   ],
-  scrollBehavior: () => ({ top: 0 }),
+  // A book search result links to a heading of a chapter by its anchor.
+  scrollBehavior: (to) => (to.hash ? { el: to.hash } : { top: 0 }),
 })

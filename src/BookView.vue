@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { headingId, searchBook, sectionsOf } from './book-search'
 import { renderTable } from './book-table'
 import { sampleSlugIn } from './content/examples'
 
@@ -41,6 +42,8 @@ const inlineMarkdown = (value: string) => escapeHtml(value)
     : `<a href="${href}">${text}</a>`)
   .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   .replace(/`([^`]+)`/g, '<code>$1</code>')
+
+const plainHeading = (heading: string) => heading.replace(/[*`]/g, '')
 
 const renderMarkdown = (source: string) => {
   const lines = source.replaceAll('\r\n', '\n').split('\n')
@@ -83,9 +86,9 @@ const renderMarkdown = (source: string) => {
     } else if (/^\|/.test(line.trim())) {
       flushParagraph(); flushList(); table.push(line.trim())
     } else if (/^### /.test(line)) {
-      flushParagraph(); flushList(); output.push(`<h3>${inlineMarkdown(line.slice(4))}</h3>`)
+      flushParagraph(); flushList(); output.push(`<h3 id="${headingId(plainHeading(line.slice(4)))}">${inlineMarkdown(line.slice(4))}</h3>`)
     } else if (/^## /.test(line)) {
-      flushParagraph(); flushList(); output.push(`<h2>${inlineMarkdown(line.slice(3))}</h2>`)
+      flushParagraph(); flushList(); output.push(`<h2 id="${headingId(plainHeading(line.slice(3)))}">${inlineMarkdown(line.slice(3))}</h2>`)
     } else if (/^# /.test(line)) {
       flushParagraph(); flushList(); output.push(`<h1>${inlineMarkdown(line.slice(2))}</h1>`)
     } else if (/^- /.test(line)) {
@@ -117,6 +120,27 @@ const followChapterLink = (event: MouseEvent) => {
   event.preventDefault()
   router.push(chapterPath(slug))
 }
+
+const sections = chapters.flatMap(chapter => sectionsOf(chapter.slug, chapter.title, chapter.source))
+const query = ref('')
+const searchBox = ref<HTMLInputElement | null>(null)
+const hits = computed(() => searchBook(sections, query.value))
+
+// A result opens its chapter and scrolls to its heading.
+const openHit = async (chapter: string, id: string) => {
+  await router.push({ path: chapterPath(chapter), hash: id ? `#${id}` : '' })
+  query.value = ''
+}
+
+// "/" focuses the search box, unless the reader is typing somewhere.
+const focusSearch = (event: KeyboardEvent) => {
+  const target = event.target as HTMLElement
+  if (event.key !== '/' || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable) return
+  event.preventDefault()
+  searchBox.value?.focus()
+}
+onMounted(() => window.addEventListener('keydown', focusSearch))
+onBeforeUnmount(() => window.removeEventListener('keydown', focusSearch))
 </script>
 
 <template>
@@ -124,10 +148,23 @@ const followChapterLink = (event: MouseEvent) => {
     <div class="book-layout">
       <aside class="book-nav" aria-label="Book chapters">
         <p class="book-kicker">The SPIRe learning book</p>
+        <input ref="searchBox" v-model="query" class="book-search" type="search" placeholder="Search the book (press /)" aria-label="Search the book" @keydown.esc="query = ''" />
+        <ul v-if="query.trim()" class="book-results" aria-label="Search results">
+          <li v-for="hit in hits" :key="hit.section.chapter + hit.section.id">
+            <a :href="router.resolve(chapterPath(hit.section.chapter)).href + (hit.section.id ? '#' + hit.section.id : '')" @click.prevent="openHit(hit.section.chapter, hit.section.id)">
+              <b>{{ hit.section.heading }}</b>
+              <small>{{ hit.section.chapterTitle }}</small>
+              <span>{{ hit.snippet }}</span>
+            </a>
+          </li>
+          <li v-if="!hits.length" class="book-no-results">Nothing in the book matches “{{ query.trim() }}”.</li>
+        </ul>
+        <template v-else>
         <h2>Contents</h2>
         <RouterLink v-for="(chapter, index) in chapters" :key="chapter.slug" :to="chapterPath(chapter.slug)" :class="{ active: chapter.slug === selectedSlug }" :aria-current="chapter.slug === selectedSlug ? 'page' : undefined">
           {{ index + 1 }}. {{ chapter.title }}
         </RouterLink>
+        </template>
       </aside>
       <div>
         <article class="book-article" v-html="renderedChapter" @click="followChapterLink" />
