@@ -184,3 +184,10 @@ describe('digital return and the generic names', () => {
     expect(name.reason).toContain('The name does not cover the digital return')
   })
 })
+
+describe('digital return stated to two decimal places', () => {
+  it('says 8.08% in the outcome, not 8.1%', () => {
+    expect(explainOutcome(downsideOnly, at(downsideOnly, 110))).toContain('principal plus the 8.08% digital return')
+    expect(explainOutcome(downsideOnly, at(downsideOnly, 50))).toContain('so the 8.08% digital return is not paid')
+  })
+})

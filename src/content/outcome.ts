@@ -1,6 +1,8 @@
 import { downsideOf, upsideOf, type PaymentBreakdown, type Product } from '../domain/note'
 
 const percent = (fraction: number) => `${(Math.abs(fraction) * 100).toFixed(1).replace(/\.0$/, '')}%`
+// A digital return is stated to two decimal places of a percent, such as 8.08%.
+const twoDecimalPercent = (fraction: number) => `${(fraction * 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
 const units = (value: number) => Math.abs(value).toLocaleString('en-US', { maximumFractionDigits: 2 })
 
 // Barrier absolute return: which barrier was reached, by which level, and what that does; or that none was and the absolute return pays.
@@ -85,8 +87,8 @@ export function explainOutcome(note: Product, breakdown: PaymentBreakdown): stri
   // The digital return is its own sentence, because a floor that holds only at or above its barrier needs the level said.
   const digital = breakdown.digitalReturn
   const digitalSentence = digital === undefined ? ''
-    : digital.reached ? `It ended at or above the ${units(digital.barrierLevel)} digital barrier, so the payment is at least ${units(digital.floor)}, principal plus the ${percent(note.payoff.digitalReturn!.amount)} digital return.`
-      : `It ended below the ${units(digital.barrierLevel)} digital barrier, so the ${percent(note.payoff.digitalReturn!.amount)} digital return is not paid.`
+    : digital.reached ? `It ended at or above the ${units(digital.barrierLevel)} digital barrier, so the payment is at least ${units(digital.floor)}, principal plus the ${twoDecimalPercent(note.payoff.digitalReturn!.amount)} digital return.`
+      : `It ended below the ${units(digital.barrierLevel)} digital barrier, so the ${twoDecimalPercent(note.payoff.digitalReturn!.amount)} digital return is not paid.`
 
   const reasons: string[] = []
   const hasFloor = hasProtection || hasMinimum || digital?.reached === true

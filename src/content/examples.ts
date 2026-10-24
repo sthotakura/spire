@@ -94,6 +94,24 @@ export const sampleGroups: SampleGroup[] = [
     ],
   },
   {
+    label: 'Digital return notes',
+    samples: [
+      {
+        slug: 'worst-of-barrier-digital-note',
+        name: 'Worst-of barrier digital note',
+        source: { title: 'Citigroup Global Markets enhanced barrier digital plus securities on the worst performing of three indices, due 2025', url: 'https://www.sec.gov/Archives/edgar/data/200245/000095010322019230/dp183917_424b2us2209155.htm', note: 'The filing is a preliminary pricing supplement. The 36 months run from pricing to valuation.' },
+        product: product(36, { participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }], digitalReturn: { amount: 0.26, barrier: { level: 0.7, observation: 'final' } } }, { underlier: worstOf('Index A', 'Index B', 'Index C') }),
+      },
+      // The filing pays the digital return and nothing more on a rise, so there is no upside participation.
+      {
+        slug: 'worst-of-fixed-return-barrier-note',
+        name: 'Worst-of fixed-return barrier note',
+        source: { title: 'Bank of Montreal digital return barrier notes on the least performing of two indices, due 2027', url: 'https://www.sec.gov/Archives/edgar/data/927971/000183988226013810/bmo5560_424b2-08699.htm', note: 'The 13 months run from pricing to valuation.' },
+        product: product(13, { participations: [{ direction: 'downside', rate: 1 }], digitalReturn: { amount: 0.0808, barrier: { level: 0.71, observation: 'final' } } }, { underlier: worstOf('Index A', 'Index B') }),
+      },
+    ],
+  },
+  {
     label: 'Barrier absolute return',
     samples: [
       {

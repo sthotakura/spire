@@ -184,6 +184,74 @@ Assumptions and limits of this version:
   above tests its upper barrier. A close exactly at either barrier does not
   reach it. Each contract states its own equality rule.
 
+## A digital return
+
+A third kind of barrier belongs to a feature of its own. A digital return is a
+fixed return on principal that is paid only while the determined final level is
+at or above its own level, the digital barrier. It is called digital because the
+condition is on or off: one cent below the barrier, none of it is paid.
+
+Public notes write it as principal plus *the greater of* the digital return and
+whatever the rest of the payoff would pay. So it acts as a floor that holds only
+while the barrier is met. Below the barrier the payoff applies as if there were
+no digital return.
+
+Two things set it apart from the barriers above. It is **met at the level**: a
+final level exactly at the digital barrier earns the digital return, where a
+downside barrier is reached only strictly below its level. And the digital
+barrier belongs to the digital return, not to downside participation. It is
+read on the final date only, and its level can be at most 100% of the initial
+level, so a barrier at the initial level itself can be written.
+
+It is not absolute return. Absolute return pays a share of the size of a fall,
+so the more the underlier falls, the more it pays, until the buffer or barrier
+is passed, and it never pays on a rise. A digital return pays the same amount at
+every level from its barrier up, a rise included.
+
+Assume principal of 1,000, a worst-of basket of three indices that each start at
+100, 100% upside participation, 100% downside participation, and a 26% digital
+return with its barrier at 70% of each index's initial level. The worst index's
+final level sets the payment.
+
+```text
+Worst index at 150 (+50%): participation pays 1,500, above the floor; payment = 1,500
+Worst index at 126 (+26%): participation pays 1,260, the same as the floor; payment = 1,260
+Worst index at 105 (+5%): barrier met; participation pays 1,050; the floor lifts it to 1,000 × (1 + 26%) = 1,260
+Worst index at 100 (0%): barrier met; participation pays 1,000; payment = 1,260
+Worst index at 90 (−10%): barrier met; participation pays 900; payment = 1,260
+Worst index at 70 (−30%): at the barrier, met; participation pays 700; payment = 1,260
+Worst index at 69.9 (−30.1%): below the barrier; the digital return is not paid; payment = 699
+Worst index at 30 (−70%): below the barrier; payment = 300
+```
+
+The payment is the same 1,260 from the barrier up to the point where
+participation overtakes it, and then follows the worst index. Below the barrier
+it follows the worst index down. On the final date, the worst index at or above
+70% is the same test as every index at or above 70% of its own initial level.
+
+A digital return can also be the only thing a rise pays. Leave out upside
+participation, and a rise leaves the payoff at principal, which the digital floor
+then lifts to principal plus the digital return and no more. Assume principal of
+1,000, a worst-of basket of two indices that each start at 100, 100% downside
+participation, no upside participation, and an 8.08% digital return with its
+barrier at 71%.
+
+```text
+Worst index at 140 (+40%): payment = 1,000 × (1 + 8.08%) = 1,080.80
+Worst index at 90 (−10%): payment = 1,080.80
+Worst index at 71 (−29%): at the barrier, met; payment = 1,080.80
+Worst index at 70.99 (−29.01%): below the barrier; 100% of the fall counts; payment = 709.90
+Worst index at 40 (−60%): payment = 400
+Worst index at 0 (−100%): payment = 0
+```
+
+The most this note can pay is the digital return, however far the indices rise,
+and a fall below the barrier is borne in full. The two examples follow the
+payment rules of public notes, with synthetic indices, and are not valuations or
+predictions. A digital return needs a note: it is not available on a deposit.
+With a cap, its amount must be below the cap, so that participation can still
+pay more than the floor.
+
 ## In the builder
 
 The [Capped barrier note](https://sthotakura.github.io/spire/?example=capped-barrier-note) has a final-date barrier at
@@ -196,3 +264,9 @@ reads the worst of three indices over 42 months, with 141.5% of a rise and no ca
 Each index starts at 100. If the worst ends at 110, the note pays 1,141.50, whatever the other two did. If the worst
 ends at 85 it pays 1,000; at 70 it reaches the barrier, and the whole 30% fall counts: the payment is 700. On the final
 date, the worst index below 80% is the same test as any one index below 80% of its own initial level.
+
+The [Worst-of barrier digital note](https://sthotakura.github.io/spire/?example=worst-of-barrier-digital-note) is the
+first example above, over 36 months. The
+[Worst-of fixed-return barrier note](https://sthotakura.github.io/spire/?example=worst-of-fixed-return-barrier-note) is
+the second, over 13 months. In the builder, a digital return is added from the Add feature menu, and its barrier sits
+beneath it in the outline.
