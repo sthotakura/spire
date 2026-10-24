@@ -37,6 +37,7 @@ function maturityOnlyNote(note: Product): string {
   const parts: string[] = []
   if (note.redemption !== 'bullet') parts.push(`The name describes the payment at maturity; ${note.redemption.kind === 'autocall' ? 'an autocall' : 'an issuer call'} can end the product earlier.`)
   if (note.coupon !== undefined) parts.push('The name does not cover the contingent coupon, paid on the reviews that meet its barrier.')
+  if (note.payoff.digitalReturn !== undefined) parts.push('The name does not cover the digital return, a fixed return paid as a minimum at or above its barrier.')
   return parts.join(' ')
 }
 
@@ -94,7 +95,7 @@ export function marketingNames(note: Product): MarketingName[] {
   // These names describe notes, so a deposit gets none of them. They describe a note that only follows the underlier to maturity,
   // so a call or a coupon rules them out.
   const unprotected = protection === undefined || protection === 0
-  if (note.wrapper === 'note' && note.redemption === 'bullet' && note.coupon === undefined && unprotected && buffer === undefined && barrier === undefined && upsideBarrier === undefined && cap === undefined && isRate(upside) && (downside === undefined || isRate(downside))) {
+  if (note.wrapper === 'note' && note.redemption === 'bullet' && note.coupon === undefined && note.payoff.digitalReturn === undefined && unprotected && buffer === undefined && barrier === undefined && upsideBarrier === undefined && cap === undefined && isRate(upside) && (downside === undefined || isRate(downside))) {
     if (downside === 1 && upside === 1) {
       names.push({ name: 'Tracker', vocabulary: 'SSPA', reason: 'The payment follows the underlier one for one, up and down.', concepts: ['upside', 'downside'] })
     } else if (downside === 1 && upside > 1) {

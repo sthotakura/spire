@@ -54,6 +54,9 @@ export const barrierRange = { min: 1, max: 99 }
 // An upside barrier is above the initial level, up to the edge of the axis (a rise of 100%).
 export const upsideBarrierRange = { min: 101, max: 200 }
 export const minimumReturnRange = { min: 1, max: 100 }
+// A digital return is a return on principal, and its barrier can be as high as the initial level.
+export const digitalRange = { min: 1, max: 100 }
+export const digitalBarrierRange = { min: 1, max: 100 }
 
 export const clampProtection = (percent: number) => clamp(Math.round(percent), protectionRange.min, protectionRange.max)
 export const clampUpsideRate = (percent: number) => clamp(Math.round(percent), upsideRateRange.min, upsideRateRange.max)
@@ -62,6 +65,8 @@ export const clampBuffer = (percent: number) => clamp(Math.round(percent), buffe
 export const clampBarrier = (percent: number) => clamp(Math.round(percent), barrierRange.min, barrierRange.max)
 export const clampUpsideBarrier = (percent: number) => clamp(Math.round(percent), upsideBarrierRange.min, upsideBarrierRange.max)
 export const clampMinimumReturn = (percent: number) => clamp(Math.round(percent), minimumReturnRange.min, minimumReturnRange.max)
+export const clampDigital = (percent: number) => clamp(Math.round(percent), digitalRange.min, digitalRange.max)
+export const clampDigitalBarrier = (percent: number) => clamp(Math.round(percent), digitalBarrierRange.min, digitalBarrierRange.max)
 export const clampFinalLevel = (level: number, initialLevel: number) => clamp(Math.round(level), 0, Math.floor(initialLevel * levelAxisFactor))
 
 // Dragging the floor handle to a height sets protection, snapped to 1%.
@@ -90,6 +95,9 @@ export const capFromY = (y: number, principal: number, top: number, plot: Plot) 
 // Dragging the minimum-return handle to a height sets the minimum as a return on principal, snapped to 1%.
 export const minimumReturnFromY = (y: number, principal: number, top: number, plot: Plot) => clampMinimumReturn((dragAmount(y, top, plot) / principal - 1) * 100)
 
+// Dragging the digital return handle to a height sets the digital return on principal, snapped to 1%.
+export const digitalFromY = (y: number, principal: number, top: number, plot: Plot) => clampDigital((dragAmount(y, top, plot) / principal - 1) * 100)
+
 // The buffer handle sits where losses start: the level the underlier can fall to before principal is reduced.
 export const bufferLevel = (initialLevel: number, buffer: number) => initialLevel * (1 - buffer)
 
@@ -98,6 +106,9 @@ export const bufferFromX = (x: number, initialLevel: number, plot: Plot, measure
 
 // Dragging the barrier handle sideways sets the barrier as a percentage of the level the return is measured from, snapped to 1%.
 export const barrierFromX = (x: number, initialLevel: number, plot: Plot, measuredFrom: number) => clampBarrier(xToLevel(x, initialLevel, plot) / measuredFrom * 100)
+
+// Dragging the digital barrier handle sideways sets it as a percentage of the level the return is measured from, snapped to 1%.
+export const digitalBarrierFromX = (x: number, initialLevel: number, plot: Plot, measuredFrom: number) => clampDigitalBarrier(xToLevel(x, initialLevel, plot) / measuredFrom * 100)
 
 // Dragging the upside barrier handle sideways sets it as a percentage of the level the return is measured from, snapped to 1%.
 export const upsideBarrierFromX = (x: number, initialLevel: number, plot: Plot, measuredFrom: number) => clampUpsideBarrier(xToLevel(x, initialLevel, plot) / measuredFrom * 100)
@@ -112,14 +123,15 @@ export const keyDelta = (key: string, shift: boolean, step: number): number | nu
 }
 
 // The rule that sets the payment at a final level. The line is drawn in one colour per rule, so the reader can see which one binds where.
+// The digital return is the rule where its floor sets the payment, as the protection floor is where that does.
 // Barrier absolute return adds two: the fixed return paid when the final level is itself below the lower barrier, and above the upper one.
-export type Regime = 'call' | 'principal' | 'buffer' | 'barrier' | 'upside-barrier' | 'absolute' | 'downside' | 'upside' | 'floor' | 'cap' | 'event-below' | 'event-above'
+export type Regime = 'call' | 'principal' | 'buffer' | 'barrier' | 'upside-barrier' | 'absolute' | 'downside' | 'upside' | 'floor' | 'digital' | 'cap' | 'event-below' | 'event-above'
 
 // A fall the buffer absorbs in full leaves principal unchanged, but it is the buffer, not the absence of participation, that holds the payment there.
 // A fall that ends at or above a barrier is held at principal by the barrier in the same way. A fall within the buffer that
 // absolute return pays as a gain is absolute return's. A rise that reaches an upside barrier is paid the rebate, or principal,
 // by that barrier, which is the same concept as the barrier on downside participation but a different piece of the line.
-export const regimeOf = (b: PaymentBreakdown): Regime => b.barrierAbsolute ? (b.barrierAbsolute.reached ? (b.barrierAbsolute.lowerReached ? 'event-below' : 'event-above') : 'absolute') : b.floorApplies ? 'floor' : b.capApplies ? 'cap' : b.absoluteReturnApplies ? 'absolute' : b.participationRate === undefined ? 'principal'
+export const regimeOf = (b: PaymentBreakdown): Regime => b.barrierAbsolute ? (b.barrierAbsolute.reached ? (b.barrierAbsolute.lowerReached ? 'event-below' : 'event-above') : 'absolute') : b.floorApplies ? (b.digitalReturn?.reached && b.floor === b.digitalReturn.floor ? 'digital' : 'floor') : b.capApplies ? 'cap' : b.absoluteReturnApplies ? 'absolute' : b.participationRate === undefined ? 'principal'
   : b.direction === 'downside' && b.barrierReached === false ? 'barrier'
     : b.direction === 'upside' && b.upsideBarrierReached ? 'upside-barrier'
       : b.direction === 'downside' && b.bufferAbsorbs && b.participatedReturn === 0 ? 'buffer' : b.direction
@@ -147,6 +159,9 @@ export const jumpsOf = (product: Product, initialLevel: number): Jump[] => {
   if (bothWays !== undefined) {
     jumps.push({ level: barrierLevelAt(bothWays.lowerBarrier.level, initialLevel), paysAbove: true }, { level: barrierLevelAt(bothWays.upperBarrier.level, initialLevel), paysAbove: false })
   }
+  // A digital return is earned at and above its barrier, so its level pays like the samples above it.
+  const digital = product.payoff.digitalReturn
+  if (digital !== undefined) jumps.push({ level: barrierLevelAt(digital.barrier.level, initialLevel), paysAbove: true })
   // A final review that is also a call pays the call at and above its trigger, so the payment jumps there and its level pays the call.
   const finalCall = finalCallLevel(product, initialLevel)
   if (finalCall !== undefined) jumps.push({ level: finalCall, paysAbove: true })

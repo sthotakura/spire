@@ -5,6 +5,7 @@ import { payoffLabels } from './chart-labels'
 import { paymentFormula, paymentInWords } from './formula'
 import { explainOutcome } from './outcome'
 import { scenarioRows } from './scenarios'
+import { marketingNames } from './names'
 import { isHighlighted } from './selection'
 import { structureLines } from './structure-json'
 import { summarize } from './summary'
@@ -167,5 +168,19 @@ describe('digital return on the chart and in the outline', () => {
     expect(isHighlighted('payoff', 'digital-barrier')).toBe(true)
     expect(isHighlighted('digital-barrier', 'digital-return')).toBe(false)
     expect(isHighlighted('upside', 'digital-return')).toBe(false)
+  })
+})
+
+describe('digital return and the generic names', () => {
+  it('rules out the plain participation names, which describe a note that only follows the underlier', () => {
+    expect(marketingNames({ ...base, payoff: { participations: base.payoff.participations } }).map(({ name }) => name)).toEqual(['Tracker'])
+    expect(marketingNames(base).map(({ name }) => name)).toEqual([])
+  })
+
+  it('says beside the names it keeps that they do not cover the digital return', () => {
+    const buffered: SingleProduct = { ...base, payoff: { ...base.payoff, participations: [{ direction: 'downside', buffer: 0.2, rate: 1 }] } }
+    const [name] = marketingNames(buffered)
+    expect(name.name).toBe('Buffered note')
+    expect(name.reason).toContain('The name does not cover the digital return')
   })
 })
