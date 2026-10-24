@@ -43,7 +43,7 @@ Where a filing gives a range set on the pricing date, the sample takes the low e
 
 - The Morgan Stanley basket CD averages 28 quarterly closes; the reference averages at most 12 dates.
 - The JPMorgan lookback buffered note reads the lesser performing of two indices; lookback is not available on a basket.
-- The Morgan Stanley Jump Securities, the JPMorgan digital barrier note and the Citigroup worst-of barrier digital note pay a fixed digital return, which is not modelled yet ([digital-return.md](digital-return.md)).
+- The Morgan Stanley Jump Securities, the JPMorgan digital barrier note, the Citigroup worst-of barrier digital note and the BMO digital return barrier note pay a fixed digital return, which is not modelled yet ([digital-return.md](digital-return.md)).
 - The two GS Finance barrier absolute return notes pay a minimum return inside the barriers, which barrier absolute return does not model.
 - The HSBC barrier absolute return note repeats the JPMorgan one with barriers set on the trade date.
 - The BofA fixed coupon autocall needs a fixed coupon. Shark fin notes are described only in educational material.

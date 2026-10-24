@@ -1,12 +1,26 @@
 # Digital return
 
-A proposal, not yet built. It is the one feature missing to reproduce a public worst-of note; everything else in that note is modelled. The work is planned in section 37 of [PLAN.md](../PLAN.md).
+A proposal, not yet built. It is the one feature missing to reproduce two public worst-of notes (Citigroup and BMO); everything else in them is modelled. The work is planned in section 37 of [PLAN.md](../PLAN.md).
 
 ## Domain meaning
 
 A digital return is a fixed return on principal, paid only if the underlier ends at or above a level, its digital barrier. It is called digital because the condition is on or off: one cent below the barrier and nothing of it is paid. Public notes pay principal plus *the greater of* the digital return and whatever else the payoff would pay, so it acts as a floor that applies only while its barrier holds. Below the barrier the payoff applies as if there were no digital return.
 
 That makes it a conditional cousin of the deposit's minimum return ([deposit.md](deposit.md)), which is also a "greater of" floor but applies whatever the underlier does.
+
+### How it differs from absolute return
+
+Both pay something at final levels between a barrier and the initial level, so they can look alike, but they are different shapes ([absolute-return.md](absolute-return.md)).
+
+| | Absolute return | Digital return |
+| --- | --- | --- |
+| Amount | Proportional: rate × the size of the fall | Fixed: the same at every level |
+| Range | Falls only, from the initial level down to the buffer or barrier | Everything at or above its barrier, rises included |
+| Belongs to | Downside participation, which must have a buffer or barrier | Nothing else: it has its own barrier, at any level |
+
+A 5% fall pays a 5% gain under 100% absolute return and the whole digital return under a digital return of 8.08%; a 29% fall pays 29% against the same 8.08%. No absolute return rate reproduces the digital shape, since the rate makes the gain grow with the fall, and absolute return never pays on a rise. A digital return is also not downside participation with a barrier: that barrier only decides whether the fall is borne, and pays nothing above it.
+
+The Jump note is the nearest relative: it pays a fixed amount, but only at or above the initial level. That is a digital return with its barrier at 100%.
 
 ## Sources
 
@@ -17,6 +31,12 @@ That makes it a conditional cousin of the deposit's minimum return ([deposit.md]
    - The filing's examples: worst +5% pays $1,260, +50% pays $1,500, −10% pays $1,260, −70% pays $300.
 2. **JPMorgan digital barrier note with a buffer** ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390025119557/ea0268903-01_424b2.htm)), recorded in [barrier.md](barrier.md). Digital barrier 85%, 20% buffer on the downside, worst of two indices: a 10% fall pays $1,087.00, 84.99 pays $1,000.00 and 70.00 pays $900.00. The digital barrier and the buffer are at different levels, so the digital return owns its barrier. What a rise pays is to re-read.
 3. **Morgan Stanley Jump Securities**, recorded in [absolute-return.md](absolute-return.md) (open question 5) and [feature-map.md](feature-map.md) as a "fixed upside payment": the greater of the rise and a fixed return when the final level is at or above the initial level. Read as a digital return with its barrier at 100%. To re-read before it is used as a sample.
+4. **Bank of Montreal, Digital Return Barrier Notes due 6 April 2027** (CUSIP 06376K3V8), on the S&P 500 and the Dow Jones Industrial Average ([SEC 424B2](https://www.sec.gov/Archives/edgar/data/927971/000183988226013810/bmo5560_424b2-08699.htm)). Pricing 3 March 2026, valuation 1 April 2027 (about 13 months), maturity 6 April 2027. Read through a summarising fetch tool on 24 October 2026, not as extracted text, so the wording below is the summary's and the figures need a second look in the filing before the sample is built. It pays on the "Least Performing Reference Asset" (the lower percentage change), observed on the valuation date only, with no coupon, call or periodic observation:
+   - at or above the digital barrier level: "$1,000 + ($1,000 x Digital Return)", a digital return of 8.08%, so $1,080.80;
+   - below the barrier level: "$1,000 + ($1,000 x Percentage Change of the Least Performing Reference Asset)", losing 1% for each 1% of fall, with no buffer.
+   - The digital barrier level and the barrier level are both 71% of each initial level (S&P 500 initial 6,816.63, Dow Jones initial 48,501.27). No participation rate, cap or buffer is stated; the digital return is the most the note pays.
+   - The filing's examples, on an initial level of 100: 90 pays $1,080.80, 140 pays $1,080.80, 71 pays $1,080.80, 70.99 pays $709.90, 40 pays $400 and 0 pays $0.
+   - **This pays the digital return and nothing more on a rise**, where the Citigroup note pays the greater of it and the worst return. Both fit the floor model: leave upside participation off for this note, and a rise leaves the payoff at principal, which the digital floor lifts.
 
 ## Proposed model
 
@@ -55,6 +75,19 @@ Synthetic: principal 1,000; a worst-of basket of Index A, Index B and Index C; 1
 
 The +5%, +50%, −10% and −70% rows agree with the filing's examples.
 
+A second synthetic example follows the BMO note: principal 1,000; a worst-of basket of Index A and Index B; downside participation 1:1 and **no upside participation**; an 8.08% digital return with its barrier at 71%.
+
+| Worst asset's return | Digital barrier | Without the digital return | Payment |
+| --- | --- | --- | --- |
+| +40% | met | 1,000 | 1,080.80 |
+| −10% | met | 900 | 1,080.80 |
+| −29% (at barrier) | met | 710 | 1,080.80 |
+| −29.01% | not met | 709.90 | 709.90 |
+| −60% | not met | 400 | 400 |
+| −100% | not met | 0 | 0 |
+
+These agree with the filing's examples, as summarised. The edge sits at the level, not the return: the payment compares the final level with 71% of the initial level, as the buffer and barrier do, so that a rounding error in 1 − 0.29 cannot put a final level of exactly 71 on the wrong side.
+
 ## Decisions to confirm before building
 
 1. **A feature of its own, not a minimum return with a condition.** `minimumReturn` is a number on deposits only, and giving it a barrier would change its shape and its rules. The two stay separate. Whether they merge later is open.
@@ -71,13 +104,13 @@ The +5%, +50%, −10% and −70% rows agree with the filing's examples.
 - **Chart**: the payoff jumps at the digital barrier: a filled mark at the barrier on the digital side and an open one below, drawn as two pieces as the barrier jump is. A flat stretch from the barrier up to the level where participation passes the digital return, labelled. The feature needs its own colour, checked against the palette.
 - **Scenarios**: rows at the barrier and just below it, using the existing past-barrier mark.
 - **Schema and examples**: JSDoc on the new types, `npm run schema`, a schema example, and the boundary-case table extended for the amount and the barrier level. Add the rules only the validator checks to the list in `scripts/product-schema.ts`.
-- **Sample**: "Worst-of barrier digital note", modelled on the Citi note with synthetic indices. Then remove that note from the products not used in [sample-products.md](sample-products.md).
+- **Samples**: "Worst-of barrier digital note", modelled on the Citi note with synthetic indices, and a second modelled on the BMO note (no upside participation, 8.08% at 71%, 13 months), whose menu name is still to settle and must be generic. Then remove both from the products not used in [sample-products.md](sample-products.md).
 - **Book**: a chapter or a section, probably in chapter 12 (Barrier) or a new chapter beside it, with a chart from `scripts/book-charts.ts`, plus updates to the combining-features, JSON and boundaries chapters and the outline.
 - **Names**: Citi's "Barrier Digital Plus" is a product name, not a generic one. A generic name ("digital note", "digital barrier note") needs a public generic source before a chip is shown.
 
 ## Open questions
 
-1. What does the JPMorgan note pay on a rise: the digital return only, or the greater of it and a participation?
+1. What does the JPMorgan note pay on a rise: the digital return only, or the greater of it and a participation? *Partly settled:* the BMO note pays the digital return only and the Citigroup note the greater of the two, and the model covers both. The JPMorgan note is still to re-read.
 2. Does the Jump note have a downside buffer or absolute return, so that it can be a second sample?
 3. Is there a public note with a digital return observed on every close, or with a cap?
 4. Should the minimum return become a digital return with no barrier (or a barrier at 0%), so the reference has one floor concept instead of two?
