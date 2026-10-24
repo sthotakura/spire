@@ -1,6 +1,6 @@
 # Digital return
 
-A proposal, not yet built. It is the one feature missing to reproduce two public worst-of notes (Citigroup and BMO); everything else in them is modelled. The work is planned in section 37 of [PLAN.md](../PLAN.md).
+Built, as proposed below except for the departures listed under *As built*. It was the one feature missing to reproduce two public worst-of notes (Citigroup and BMO), which are now samples ([sample-products.md](sample-products.md)). The work is recorded in section 37 of [PLAN.md](../PLAN.md); the reader-facing explanation is a section of the [Barrier chapter](book/12-barrier.md).
 
 ## Domain meaning
 
@@ -107,6 +107,23 @@ These agree with the filing's examples, as summarised. The edge sits at the leve
 - **Samples**: "Worst-of barrier digital note", modelled on the Citi note with synthetic indices, and a second modelled on the BMO note (no upside participation, 8.08% at 71%, 13 months), whose menu name is still to settle and must be generic. Then remove both from the products not used in [sample-products.md](sample-products.md).
 - **Book**: a chapter or a section, probably in chapter 12 (Barrier) or a new chapter beside it, with a chart from `scripts/book-charts.ts`, plus updates to the combining-features, JSON and boundaries chapters and the outline.
 - **Names**: Citi's "Barrier Digital Plus" is a product name, not a generic one. A generic name ("digital note", "digital barrier note") needs a public generic source before a chip is shown.
+
+## As built
+
+Every step is done: the domain, the schema, the content, the interface, two samples and the book. The model, the worked examples (each row is a domain test) and the decisions above stand, with these details:
+
+- **Decisions 1 to 5 followed as proposed.** The sixth was settled by the tests: a worst-of basket reads the basket level, which is the worst asset.
+- **Absolute return on a fall is allowed beside it**, which the decisions did not list. The floor is a greater-of, so where the digital barrier is met the payment is the greater of the digital floor and what absolute return pays; the combination is stated in the book.
+- **Two concepts, not one.** The digital return and its barrier are `digital-return` and `digital-barrier`, the barrier nested under the return as the coupon barrier is under the coupon, so each highlights its own rows, JSON lines and chart handle. The summary clause is one phrase for both.
+- **The key is `digitalReturn`**, on the payoff beside `participations`, with `amount` and `barrier: { level, observation }`. The observation is the literal `"final"`; the schema rejects a daily one, and `validateProduct` does not check it because the type forbids it.
+- **The payment breakdown** gains `digitalReturn`: the barrier as an underlier level (rounded as every barrier is, so a level exactly at it is met), whether it is met, and the floor. The payment floor is the larger of it, while met, and the protection floor.
+- **The calculation** has one *Digital return* step between the participation and the protection floor, which now states only the protection's own floor. It is muted below the barrier and where participation already pays more.
+- **The scenarios** add a row at the barrier (marked at barrier) and one a percent of the initial level below it (marked below barrier). They reuse the markers of the other barriers.
+- **The chart** draws the line in its own colour where the digital floor sets the payment, with a jump at the barrier, and two handles: the amount, on the flat stretch of the floor, and the barrier, at the top of the jump. The two colours are chosen against the chart palette. The amount handle moves in whole percents, so a term such as 8.08% is typed.
+- **Names.** A note with a digital return gets no Tracker, Outperformance or Participation note chip, and the other maturity names say they do not cover it. No generic public name for a digital return was found, so it has no chip of its own ([marketing-names.md](marketing-names.md)).
+- **Menu.** The Add feature menu's Digital entry is available. It is blocked beside an upside barrier, absolute return in both directions and on a deposit, with the reason; a minimum return exists on deposits only, so it never meets it.
+- **Samples.** Worst-of barrier digital note (Citigroup) and Worst-of fixed-return barrier note (BMO), both re-read as extracted text on 24 October 2026. The JPMorgan and Jump notes have not been re-read, so open questions 1 (JPMorgan) and 2 stay open.
+- **Not checked:** the chart at phone width and keyboard use of the handles with a screen reader.
 
 ## Open questions
 

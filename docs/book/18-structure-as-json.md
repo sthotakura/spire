@@ -122,6 +122,17 @@ level and observation, so the two sides can differ:
 The conditional return is optional; without it, reaching a barrier leaves only
 principal.
 
+A digital return is a feature of the payoff too, beside the participations, and
+its barrier belongs to it. It has no `"daily-close"` form: its barrier reads the
+final level, so the observation is always `"final"`:
+
+```json
+"digitalReturn": { "amount": 0.26, "barrier": { "level": 0.7, "observation": "final" } }
+```
+
+The amount is a return on principal, so `0.26` is 26%. The level is a fraction of
+the starting level, from above 0 up to `1`, and is met at or above it.
+
 The hypothetical final level is not stored in this structure. It is a
 scenario input, supplied when calculating a payment. Likewise, lookback and
 averaging observations are inputs rather than known future outcomes in the

@@ -191,7 +191,7 @@ fixed return on principal that is paid only while the determined final level is
 at or above its own level, the digital barrier. It is called digital because the
 condition is on or off: one cent below the barrier, none of it is paid.
 
-Public notes write it as principal plus *the greater of* the digital return and
+Public notes write it as principal plus the greater of the digital return and
 whatever the rest of the payoff would pay. So it acts as a floor that holds only
 while the barrier is met. Below the barrier the payoff applies as if there were
 no digital return.
@@ -224,6 +224,8 @@ Worst index at 69.9 (−30.1%): below the barrier; the digital return is not pai
 Worst index at 30 (−70%): below the barrier; payment = 300
 ```
 
+![Payoff with 100% upside and downside participation and a 26% digital return at or above 70%, at a final level of 90](charts/digital-return.svg)
+
 The payment is the same 1,260 from the barrier up to the point where
 participation overtakes it, and then follows the worst index. Below the barrier
 it follows the worst index down. On the final date, the worst index at or above
@@ -244,6 +246,8 @@ Worst index at 70.99 (−29.01%): below the barrier; 100% of the fall counts; pa
 Worst index at 40 (−60%): payment = 400
 Worst index at 0 (−100%): payment = 0
 ```
+
+![Payoff with 100% downside participation, no upside participation and an 8.08% digital return at or above 71%, at a final level of 120](charts/digital-return-only.svg)
 
 The most this note can pay is the digital return, however far the indices rise,
 and a fall below the barrier is borne in full. The two examples follow the

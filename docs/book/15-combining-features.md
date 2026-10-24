@@ -39,6 +39,8 @@ interact.
 - Lookback or a basket with a barrier observed on every close.
 - A downside barrier observed on every close with absolute return on a fall,
   which the public trigger note reads on the final date.
+- A digital return with an upside barrier, or with absolute return in both
+  directions. No public note combines them.
 
 Some combinations are allowed because each part is defined on its own.
 
@@ -46,6 +48,18 @@ Some combinations are allowed because each part is defined on its own.
   a different rule.
 - A daily upside barrier may be combined with downside participation, each side
   keeping its own rule.
+- A digital return may sit beside any participation, a buffer, a downside
+  barrier, principal protection, a basket, lookback or averaging. It is a floor
+  that holds while its own barrier is met, so the payment is the greater of it
+  and the rest of the payoff, and a protection floor still applies. Its barrier
+  reads the determined final level against the determined initial level, which
+  for averaging or lookback is the averaged final level and the lookback level.
+  No public note was verified with either, so that is an assumption of this
+  reference. Beside absolute return on a fall, it pays the greater of the two
+  where its barrier is met. With a cap, its amount must be below the cap, or
+  participation could never pay more than the floor. With an autocall, an issuer
+  call or a coupon it applies to the payment at maturity, as every payoff
+  feature does.
 
 Absolute return in both directions, with a lower and an upper barrier, is a
 payoff of its own. It replaces participation, so it cannot be combined with a
@@ -59,6 +73,7 @@ A deposit has its own repayment rule.
   term.
 - It alone can have a minimum return, which must be greater than zero and
   below the cap if there is one.
+- It cannot have a digital return, which only a note has.
 
 These are the supported model's boundaries, not statements that all contracts
 use these restrictions.

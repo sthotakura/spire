@@ -46,6 +46,15 @@ final level 129 pays 1,232. Final level 130, exactly at the barrier, pays 1,240.
 Just above 130 the barrier is reached, so participation ends and the payment
 drops to 1,020. The [Barrier chapter](12-barrier.md) has the full set of levels.
 
+## Add a digital return
+
+With 100% participation in both directions and a 26% digital return at 70% of the
+initial level, a final level of 90 would pay 900 from participation alone, but the
+digital barrier is met, so the payment is at least 1,260. A final level of 70,
+exactly at the barrier, also pays 1,260; 69.9 does not meet it and pays 699. A rise
+to 150 pays 1,500, because participation then pays more than the floor. The
+[Barrier chapter](12-barrier.md) has the full set of levels.
+
 ## Observe a barrier on every close
 
 Return to the 70% downside barrier with 100% downside participation, and final

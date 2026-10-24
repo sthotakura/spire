@@ -29,7 +29,7 @@ fixed coupon, and a return a year over payments made on several dates, are not
 calculated. A barrier can be observed on every close, but only through the one
 lowest or highest close a scenario states. It is not combined with an autocall,
 an issuer call or a coupon. Conditions observed on calendar dates would need
-dated observations, which are not modelled.
+dated observations, which are not modelled. A digital return reads the final level only.
 
 ## Reading other contracts
 
