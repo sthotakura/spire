@@ -523,4 +523,4 @@ Payoff may eventually stop being one list of features and become several section
 
 ## Not planned
 
-Market pricing, implied volatility, Greeks, live data, contingent and floating coupons, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.
+Market pricing, implied volatility, Greeks, live data, floating coupons, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.
