@@ -709,7 +709,7 @@ function redemptionIssues(note: Product): ProductIssue[] {
     else if (triggerAllowed(redemption.trigger) && count !== undefined && !triggersAllowed(redemption, count)) issues.push({ field: 'triggerStep', message: 'The trigger must stay above 0% and at most 200% of the initial level on every review that can call, after its step.' })
   }
   if (!Number.isFinite(redemption.callAmount) || redemption.callAmount < 0) issues.push({ field: 'callAmount', message: 'Call amount must be zero or greater.' })
-  const { underlier, payoff } = note
+  const { payoff } = note
   // Lookback is allowed with an autocall on the assumption that the lookback period ends before the first review, so the trigger is a
   // share of a level already known when it is first tested. Lookback dates are counted, not dated, so this is not checked.
   const observations = [downsideOf(note)?.barrier, upsideOf(note)?.barrier, payoff.barrierAbsoluteReturn?.lowerBarrier, payoff.barrierAbsoluteReturn?.upperBarrier]
@@ -733,7 +733,7 @@ function couponIssues(note: Product): ProductIssue[] {
     return issues
   }
   if (!Number.isFinite(coupon.barrier) || coupon.barrier <= 0 || coupon.barrier > 2) issues.push({ field: 'coupon', message: 'Coupon barrier must be greater than 0% and at most 200% of the initial level.' })
-  const { underlier, payoff } = note
+  const { payoff } = note
   // Lookback is allowed on the assumption that the lookback period ends before the first coupon review, as for an autocall.
   const observations = [downsideOf(note)?.barrier, upsideOf(note)?.barrier, payoff.barrierAbsoluteReturn?.lowerBarrier, payoff.barrierAbsoluteReturn?.upperBarrier]
   if (observations.some((barrier) => barrier?.observation === 'daily-close')) issues.push({ field: 'couponSchedule', message: 'A barrier observed on every close cannot be combined with a coupon: the levels on the coupon reviews are closes that the lowest and highest close would have to agree with.' })

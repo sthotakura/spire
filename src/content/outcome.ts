@@ -23,7 +23,7 @@ function barrierAbsoluteSentence(note: Product, breakdown: PaymentBreakdown): st
 
 // Explains a contractual maturity payment in words, from the note and its payment breakdown.
 export function explainOutcome(note: Product, breakdown: PaymentBreakdown): string {
-  const { initialLevel, underlierReturn, direction, bufferAbsorbs, barrierLevel, barrierReached, upsideBarrierLevel, upsideBarrierReached, absoluteReturnApplies, participationRate, participatedReturn, upsideTerm, downsideTerm, capAmount, capApplies, unflooredPayment, floor, floorApplies, payment } = breakdown
+  const { initialLevel, underlierReturn, direction, bufferAbsorbs, barrierLevel, barrierReached, upsideBarrierLevel, upsideBarrierReached, absoluteReturnApplies, participationRate, upsideTerm, downsideTerm, capAmount, capApplies, unflooredPayment, floor, floorApplies, payment } = breakdown
   const hasProtection = note.payoff.principalProtection !== undefined
   const hasMinimum = note.payoff.minimumReturn !== undefined
   // A deposit's floor is its minimum return; a note's is its protection.

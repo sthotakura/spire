@@ -616,7 +616,6 @@ const highestClose = computed(() => highestCloseWanted.value && initialValid.val
 // breakdown, the payment at the end of the term and the redemption outcome all read these, so they cannot disagree.
 const scenarioLevels = computed(() => ({ initial: determinedInitialLevel.value, final: finalLevel.value, lowestClose: lowestClose.value, highestClose: highestClose.value }))
 const breakdown = computed(() => valid.value ? paymentBreakdown(note.value, scenarioLevels.value) : null)
-const payment = computed(() => breakdown.value?.payment ?? null)
 // What the product pays at the end of its term from the final level, if no earlier review called it. It is the payment the chart
 // draws, and differs from the payment only when the final review is a call.
 const endPayment = computed(() => valid.value ? paymentAtEnd(note.value, scenarioLevels.value) : null)
