@@ -92,6 +92,10 @@ modelled on, on synthetic indices:
   coupon of 14.15% a year at an 80% barrier with memory, a call at 100% from
   review 6, and a 20% buffer at a rate of 1.25, so the loss reaches 100% when
   the worst index falls to zero.
+- [Worst-of fixed coupon autocallable note](https://sthotakura.github.io/spire/?example=worst-of-fixed-coupon-autocallable-note):
+  a fixed coupon of 11.72% a year paid every quarter for 18 months on the worst
+  of three indices, a call from review 2 at 95% stepping down 5% a review to
+  80%, and a downside barrier at 60%.
 - [Callable contingent coupon note](https://sthotakura.github.io/spire/?example=callable-contingent-coupon-note): a
   coupon reviewed monthly on a note the issuer may call quarterly, as described
   in [Reviews and early redemption](19-reviews-and-early-redemption.md).

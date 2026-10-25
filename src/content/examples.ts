@@ -166,6 +166,18 @@ export const sampleGroups: SampleGroup[] = [
           underlier: worstOf('Index A', 'Index B'),
         }),
       },
+      // The filing's first call test is in month 6, so review 1 is the non-call period; its triggers of 95% to 80% are a trigger of
+      // 100% on review 1 stepping down 5% a review.
+      {
+        slug: 'worst-of-fixed-coupon-autocallable-note',
+        name: 'Worst-of fixed coupon autocallable note',
+        source: { title: 'Morgan Stanley Finance worst of fixed coupon auto-callable securities on three stocks, 2019', url: 'https://www.sec.gov/Archives/edgar/data/1666268/000095010319017010/dp117426_424b2-ps2983.htm', note: 'The filing’s underliers are three stocks. Its coupon is about $29.30 a quarter, set on a 30/360 basis.' },
+        product: product(18, { participations: [{ direction: 'downside', barrier: { level: 0.6, observation: 'final' }, rate: 1 }] }, {
+          redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, nonCallReviews: 1, triggerStep: -0.05, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false },
+          coupon: { schedule: { frequency: 'quarterly' }, rate: 0.1172 },
+          underlier: worstOf('Index A', 'Index B', 'Index C'),
+        }),
+      },
       {
         slug: 'worst-of-step-down-autocallable-note',
         name: 'Worst-of step-down autocallable note',
