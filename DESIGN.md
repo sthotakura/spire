@@ -134,7 +134,7 @@ components:
 
 SPIRe shows a structured product taken apart. Each concept (wrapper, redemption, underlier, determination, each payoff feature) is a labelled piece with its own colour, and that colour follows it into every view: the outline row's left bar, the underline in the summary sentence, the term in the payment rule, the line and handle on the chart, the highlighted lines of the structure JSON. Select a piece and it lights up wherever it acts. The diagram is the product; the chrome around it stays out of the way.
 
-The mood is quiet, precise and explanatory. Surfaces are cool white panels on a pale blue-grey page, with one blue accent for interaction and nothing decorative. Every row in the outline is something the reader can change, so every row, Payoff included, is styled the same way. Density is moderate: a three-column workspace (outline, preview, JSON) that folds to two and then one, with small, exact type for terms and a larger, airy sentence for the summary. State changes are instant, with no transitions or motion; the reader's attention belongs on what changed, not on how it changed.
+The mood is quiet, precise and explanatory. Surfaces are cool white panels on a pale blue-grey page, with one blue accent for interaction and nothing decorative. Every row in the outline is something the reader can change, so every row, Payoff included, is styled the same way. Density is moderate: a three-column workspace (outline, preview, JSON) that folds to two and then one, with small, exact type for terms and a larger, airy sentence for the summary. State changes are instant, with no transitions or motion; the reader's attention belongs on what changed, not on how it changed. The one exception is the calculation path, an explanation the reader plays or steps through.
 
 It must never look like a trading terminal (dark, dense, ticker-style), fintech marketing (gradients, glossy hero art, a sales tone) or a bank brochure (stock imagery, corporate gloss implying an issuer). It is a reference that explains, not a market or a pitch.
 
@@ -144,7 +144,7 @@ It must never look like a trading terminal (dark, dense, ticker-style), fintech 
 - One interaction blue; everything else is neutral slate on white.
 - Flat panels with a near-invisible shadow; hairline borders do the separating.
 - Small, exact labels; a generous, readable summary sentence.
-- No motion; highlight and selection are immediate.
+- No motion; highlight and selection are immediate. Only the calculation path moves, and only when the reader asks.
 - Light theme only.
 
 ## Colors
@@ -248,6 +248,9 @@ A tree row with a left border in its concept colour, the concept name, inline co
 ### Payoff chart (signature)
 An inline SVG that reads the product against the underlier. The horizontal axis is the underlier's change, fixed from −100% to +100% of the level the return is measured from, with 0% in bold at the centre. A 1.75px dashed Muted line is the payment moving 1:1 with the underlier; it is a reference, not a concept, so it takes no concept colour. The payoff line is 4px in the colour of the concept that sets the payment, over an 8px white casing, and principal is a solid slate line. Labels, not colour, carry the meaning: each piece of the line has a short plain-words label in Ink with a 1px Slate leader, placed by priority clear of the lines, the bubble and each other, and dropped when there is no room. The selected feature's label is placed first and set in bold, and the gap it makes against the 1:1 line is tinted 16% in its colour; nothing is tinted at rest. Thin dotted droplines mark where the rule changes. A jump has a filled mark where the level pays and an open mark just below. Handles are white dots with a 3.5px concept-colour stroke, shown while the pointer is over the chart, when one has focus, or for the selected feature; they fill with a tint on hover or focus, with a focus ring. The hypothetical final level is an Ink dot with a white stroke and an Ink bubble giving the change, the level and the payment. A two-entry key under the chart names the product's line and the 1:1 line. Labels carry a white paint-order stroke so they stay legible over lines.
 
+### Calculation path
+The payoff line is built one rule at a time. Each step draws the line after that rule as a 3.5px line in the rule's concept colour on a white casing, the line before it as the faint ghost line, and shades the gap between them in the rule's colour at 16%. The scenario's point rides on the line as a 6px dot in that colour with a white stroke, a bold amount beside it and a dashed guide to the axis. While it shows, the payoff, its labels, droplines, shading, handles and bubble are hidden; the 1:1 reference stays, since the path starts from it. A bar under the key always takes the same space: back, play or pause, next and close as 32px buttons, play filled Ledger Blue, then the step in Ink, its number as the list numbers it, what the rule does to every outcome, what it does to the scenario's point in Ink, and on the last step, in Slate, what the scenario pays that the line does not draw. The step the dot is at is marked in the worked calculation with a 3px Ledger Blue inset bar, and a step the path visits can be clicked to jump to it; when the chart is off screen, as on a narrow one where the list is below it, the jump scrolls the chart into view and leaves focus on the step. A step forward morphs the line and the point over 450ms, eased; back, a jump and reduced motion change them at once. Changing a term or the scenario, or selecting a concept, ends the path at once.
+
 ### Worked calculation (signature)
 Numbered steps in a grid of number disc, label and description, then a right-aligned tabular value. Steps that do not apply are muted. The final step sits on Result Wash with a Ledger Blue disc and a 20px value.
 
@@ -268,6 +271,6 @@ Numbered steps in a grid of number disc, label and description, then a right-ali
 - **Don't** make it look like fintech marketing: no gradients, glossy hero art or sales tone.
 - **Don't** make it look like a bank brochure: no stock imagery or corporate gloss that implies an issuer.
 - **Don't** use a concept colour for decoration, or the blue accent for anything but interaction and the protection concept.
-- **Don't** add transitions or motion to highlight and selection; changes are immediate.
+- **Don't** add transitions or motion to highlight and selection; changes are immediate. Motion belongs only to the calculation path, which the reader starts.
 - **Don't** add elevation to in-flow content; shadows are only for tooltips and menus.
 - **Don't** put a small uppercase label above a heading; each panel heading carries one plain line beneath it instead.

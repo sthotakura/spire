@@ -500,6 +500,14 @@ A fixed coupon is interest at a fixed rate a year, paid on every coupon review w
 - **Checked** by tests from the worked example, the 2019 note's tables and the Barclays examples, and by driving the running app: the option, switching kinds, both schedule combinations, a bullet note with a daily barrier, phone width, and the sample's address on a production build under `/spire/`. Keyboard and screen-reader use are not checked.
 - **Not done:** a fixed and a contingent coupon together, a fixed coupon for an initial period then a contingent one, and settlement.
 
+## 41. Show the calculation as a path
+
+An animation on the payoff chart that builds the payoff line one rule at a time, in the order the calculation applies them: it starts as a payment moving 1:1 with the underlier, and each rule (barrier, buffer, participation, cap, floor, the last review's call and coupon) reshapes the whole line, with the line before it faint and the gap shaded, until it is the payoff line. The reader's scenario rides on the line, and the bar says what the rule does to every outcome and to that point. What the line does not draw, such as an earlier call, coupons paid before the end or a close that reached a barrier, is stated on the last step. [docs/calculation-path.md](docs/calculation-path.md) records the decisions, and why a first build that moved a dot through the calculation was replaced.
+
+- **Built** as `lineStages` and `scenarioAside` in `src/content/path.ts`, drawn and driven in the app; DESIGN.md describes it and its one exception to the no-motion rule.
+- **Checked** by tests over every sample product at many final levels (the same steps at every level, starting on the 1:1 line and ending at what the chart draws), a buffered and capped note step by step, barriers observed on every close, a deposit's minimum return and a call on the final review with remembered coupons, and by driving the running app: a buffered fall, an autocall with coupons, an early call, jumping from the list, editing the scenario mid-path, and phone width. Keyboard and screen-reader use are not checked.
+- **Not planned yet:** a timeline that shows reviews over time, the part the payoff chart cannot show.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.

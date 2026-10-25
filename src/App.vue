@@ -8,6 +8,7 @@ import NumberInput from './components/NumberInput.vue'
 import TabGroup from './components/TabGroup.vue'
 import { couponCell, couponClosingSteps, couponFormula, explainCoupons, explainRedemption, pathScenarios, redemptionFormula, redemptionSteps } from './content/autocall'
 import { calculationSteps } from './content/calculation'
+import { lineStages, scenarioAside } from './content/path'
 import type { ConceptId } from './content/concepts'
 import { marketingNames, productCategory, type MarketingName } from './content/names'
 import { paymentFormula, paymentInWords } from './content/formula'
@@ -807,6 +808,110 @@ const calculation = computed(() => {
   return [...early, ...payoff, ...couponClosingSteps(note.value, redemption.value)].map((step) => ({ ...step, n: step.heading ? 0 : ++n }))
 })
 
+// The calculation path: the payoff line built one rule at a time, in the calculation's order (see docs/calculation-path.md). The
+// stages at the final level are the scenario's point on each line. The line reads the final level only, as the chart draws it, so the
+// closes a barrier observed daily reads are left out here and named in the aside.
+const lineLevels = computed(() => ({ initial: scenarioLevels.value.initial, final: scenarioLevels.value.final }))
+const pathStages = computed(() => breakdown.value ? lineStages(note.value, paymentBreakdown(note.value, lineLevels.value), lineLevels.value) : [])
+const pathAside = computed(() => breakdown.value && (!(scheduled.value || couponSelected.value) || redemption.value) ? scenarioAside(note.value, scenarioLevels.value, redemption.value ?? undefined) : '')
+// The stage shown, or null when no path is shown, and the stage it is changing from while a step animates.
+const pathAt = ref<number | null>(null)
+const pathFrom = ref<number | null>(null)
+const pathProgress = ref(1)
+const playing = ref(false)
+const lastStage = computed(() => pathStages.value.length - 1)
+let pathFrame = 0
+let playTimer: ReturnType<typeof setTimeout> | undefined
+// Motion is an explanation the reader asks for: only a step forward animates, and not at all with reduced motion.
+const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+function goToStage(index: number, animate = true) {
+  cancelAnimationFrame(pathFrame)
+  const from = pathAt.value
+  pathAt.value = index
+  pathFrom.value = from
+  if (!animate || from === null || index !== from + 1 || reducedMotion()) {
+    pathProgress.value = 1
+    return
+  }
+  pathProgress.value = 0
+  const start = performance.now()
+  const tick = (now: number) => {
+    pathProgress.value = Math.min(1, (now - start) / 450)
+    if (pathProgress.value < 1) pathFrame = requestAnimationFrame(tick)
+  }
+  pathFrame = requestAnimationFrame(tick)
+}
+function pausePath() {
+  playing.value = false
+  clearTimeout(playTimer)
+}
+// Each stage holds long enough to read; one that changes nothing holds for less.
+function schedulePlay() {
+  clearTimeout(playTimer)
+  const changed = pathAt.value === null || (pathLines.value?.changed[pathAt.value] ?? true)
+  playTimer = setTimeout(() => {
+    if (!playing.value || pathAt.value === null) return
+    if (pathAt.value >= lastStage.value) return pausePath()
+    goToStage(pathAt.value + 1)
+    schedulePlay()
+  }, changed ? 1800 : 500)
+}
+function playPath() {
+  if (!pathStages.value.length) return
+  if (pathAt.value === null || pathAt.value >= lastStage.value) goToStage(0, false)
+  playing.value = true
+  schedulePlay()
+}
+const stepPath = (delta: number) => {
+  pausePath()
+  goToStage(clamp((pathAt.value ?? -1) + delta, 0, lastStage.value), delta > 0)
+}
+// Changing a term, the scenario or the selection ends the path at once, so a change is still shown instantly.
+function endPath() {
+  pausePath()
+  cancelAnimationFrame(pathFrame)
+  pathAt.value = null
+  pathFrom.value = null
+}
+const pathKey = (event: KeyboardEvent) => {
+  if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+    event.preventDefault()
+    stepPath(event.key === 'ArrowRight' ? 1 : -1)
+  } else if (event.key === 'Escape') endPath()
+}
+onBeforeUnmount(endPath)
+// The stage of each calculation step, so a step in the list can be jumped to, and the stage shown.
+const stageOfStep = computed(() => {
+  const first = new Map<string, number>()
+  pathStages.value.forEach(({ step }, index) => { if (!first.has(step)) first.set(step, index) })
+  return first
+})
+const currentStage = computed(() => pathAt.value === null ? null : pathStages.value[pathAt.value] ?? null)
+const jumpToStep = (title: string) => {
+  const index = stageOfStep.value.get(title)
+  if (index === undefined) return
+  pausePath()
+  goToStage(index, false)
+  // On a narrow screen the list is below the chart: bring the chart into view, leaving focus on the step. Nothing moves if it shows.
+  chartSvg.value?.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' })
+}
+const pathStatus = computed(() => {
+  const stage = currentStage.value
+  if (!stage || pathAt.value === null) return null
+  const previous = pathStages.value[pathAt.value - 1]
+  const n = calculation.value.find(({ title }) => title === stage.step)?.n
+  const change = changeText(lineLevels.value.final / lineLevels.value.initial - 1)
+  return {
+    // Numbered as the list numbers the step, so the bar and the list agree. A step the list does not show has no number.
+    title: `${n ? `Step ${n} · ` : ''}${stage.step}`,
+    progress: `${pathAt.value + 1} of ${pathStages.value.length}`,
+    detail: stage.detail,
+    // What the rule does to the scenario's point.
+    point: !previous || Math.abs(previous.amount - stage.amount) < 1e-9 ? `At ${change}: ${formatAmount(stage.amount)}${previous ? ', unchanged' : ''}` : `At ${change}: ${formatAmount(previous.amount)} → ${formatAmount(stage.amount)}`,
+    aside: pathAt.value === lastStage.value ? pathAside.value : '',
+  }
+})
+
 // The chart. Its vertical axis is fitted to the payoff (see chart/geometry.ts), and handles on it edit the same values the outline fields edit.
 const viewBoxWidth = 620
 const plot: Plot = { left: 50, right: 590, top: 35, bottom: 310 }
@@ -1107,6 +1212,10 @@ const chart = computed(() => {
   }))
   return {
     axis,
+    // The final levels the line is sampled at, and where a level and an amount are on the chart, for the calculation path.
+    levels,
+    xOf: x,
+    yOf: y,
     pieces,
     branchPieces,
     segments,
@@ -1147,6 +1256,52 @@ const chart = computed(() => {
     bubble,
   }
 })
+
+// Every stage's line, at the final levels the chart samples, and whether each changes the line from the one before. Worked out once
+// when the path opens, not on every step.
+const pathOpen = computed(() => pathAt.value !== null)
+const pathLines = computed(() => {
+  const c = chart.value
+  if (!pathOpen.value || !c) return null
+  const initial = determinedInitialLevel.value
+  const rows = c.levels.map((final) => lineStages(note.value, paymentBreakdown(note.value, { initial, final }), { initial, final }).map(({ amount }) => amount))
+  const lines = pathStages.value.map((_, k) => rows.map((row) => row[k]))
+  const changed = lines.map((line, k) => k === 0 || line.some((value, i) => Math.abs(value - lines[k - 1][i]) > principal.value * 1e-9))
+  return { lines, changed }
+})
+// The calculation path on the chart: the current stage's line in its rule's colour, the line before it faint and dashed, the gap
+// between them shaded, and the scenario's point on the line. A step forward morphs one line into the next.
+const easeInOut = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
+const trace = computed(() => {
+  const c = chart.value
+  const lines = pathLines.value
+  const stage = currentStage.value
+  const at = pathAt.value
+  if (!c || !lines || !stage || at === null) return null
+  const current = lines.lines[at]
+  const previous = at > 0 ? lines.lines[at - 1] : null
+  const t = pathFrom.value === at - 1 ? easeInOut(pathProgress.value) : 1
+  const between = (from: number, to: number) => from + (to - from) * t
+  const shown = previous ? current.map((value, i) => between(previous[i], value)) : current
+  // The line breaks where the payment jumps: two samples at the same level that pay differently.
+  const piecesOf = (values: number[]) => splitAtJumps(c.levels.map((level, i) => ({ point: `${c.xOf(level)},${c.yOf(values[i])}`, jump: i > 0 && level - c.levels[i - 1] < c.end * 1e-6 && Math.abs(values[i] - values[i - 1]) > principal.value * 1e-9 })))
+  const shade = previous && lines.changed[at] ? [...c.levels.map((level, i) => `${c.xOf(level)},${c.yOf(shown[i])}`), ...c.levels.map((level, i) => `${c.xOf(level)},${c.yOf(previous[i])}`).reverse()].join(' ') : null
+  const before = pathStages.value[at - 1]
+  const x = c.xOf(clamp(lineLevels.value.final, 0, c.end))
+  const y = clamp(c.yOf(before ? between(before.amount, stage.amount) : stage.amount), plot.top, plot.bottom)
+  const text = formatAmount(stage.amount)
+  const right = x + 14 + text.length * 6.6 * labelScale.value + 12 < plot.right
+  return {
+    pieces: piecesOf(shown),
+    previous: previous && lines.changed[at] ? piecesOf(previous) : [],
+    shade,
+    concept: stage.concept,
+    point: { x, y },
+    label: { text, x: right ? x + 12 : x - 12, anchor: right ? 'start' : 'end', y: clamp(y - 10, plot.top + 10, plot.bottom - 4) },
+  }
+})
+watch(pathStages, endPath)
+watch(selected, endPath)
 
 // A sample product is opened from the menu or from its address, ?example=slug. Opening one sets every term from it and returns every
 // scenario input and term it leaves out to where a first visit starts, so the menu and the address open it the same way.
@@ -1604,7 +1759,7 @@ const chooseSample = (event: Event) => {
         <section class="panel preview" aria-label="Payoff preview">
           <header class="panel-head"><h2>Payoff at {{ wrapper === 'deposit' ? 'maturity' : 'redemption' }}</h2><p>{{ scheduled ? (autocalled && callOnFinal ? 'What it pays at the end of its term for each hypothetical final level, if no earlier review called it. At or above the last trigger, the final review calls it' : 'What it pays if held to the end of its term, for each hypothetical final level') : 'What it pays for each hypothetical final level' }}</p></header>
           <template v-if="chart">
-            <svg ref="chartSvg" :class="['chart', { 'feature-selected': featureSelected }]" viewBox="0 0 620 350" role="group" :aria-label="chartDescription" :style="{ '--label': `${11 * labelScale}px` }">
+            <svg ref="chartSvg" :class="['chart', { 'feature-selected': featureSelected, tracing: trace }]" viewBox="0 0 620 350" role="group" :aria-label="chartDescription" :style="{ '--label': `${11 * labelScale}px` }">
               <defs><clipPath id="plot-clip"><rect :x="plot.left" :y="plot.top" :width="plot.right - plot.left" :height="plot.bottom - plot.top"/></clipPath></defs>
               <line :x1="plot.left" :y1="plot.bottom" :x2="plot.right" :y2="plot.bottom" class="axis-line"/><line :x1="plot.left" :y1="plot.top" :x2="plot.left" :y2="plot.bottom" class="axis-line"/>
               <line :x1="plot.left" :y1="chart.principalY" :x2="plot.right" :y2="chart.principalY" class="ref-line principal"/>
@@ -1629,7 +1784,18 @@ const chooseSample = (event: Event) => {
                 <path :d="`M${label.from.x},${label.from.y} L${label.anchor.x},${label.anchor.y}`" class="leader"/>
                 <text v-for="(line, index) in label.lines" :key="index" :x="label.x + 3" :y="label.y + chart.lineHeight * (index + 1) - 1" class="ref-label">{{ line }}</text>
               </g>
-              <g v-if="chart.bubble" class="bubble" :transform="`translate(${chart.bubble.x} ${chart.bubble.y})`"><rect :width="chart.bubble.width" height="22" rx="6"/><text :x="chart.bubble.width / 2" y="15" text-anchor="middle">{{ chart.bubble.text }}</text></g>
+              <g v-if="trace" class="trace" aria-hidden="true" :style="conceptStyle(trace.concept)">
+                <g clip-path="url(#plot-clip)">
+                  <polygon v-if="trace.shade" :points="trace.shade" class="trace-shade"/>
+                  <polyline v-for="(piece, index) in trace.previous" :key="`before-${index}`" :points="piece" class="trace-previous"/>
+                  <polyline v-for="(piece, index) in trace.pieces" :key="`casing-${index}`" :points="piece" class="trace-casing"/>
+                  <polyline v-for="(piece, index) in trace.pieces" :key="`line-${index}`" :points="piece" class="trace-line"/>
+                </g>
+                <line :x1="trace.point.x" :y1="trace.point.y" :x2="trace.point.x" :y2="plot.bottom" class="final-guide"/>
+                <circle :cx="trace.point.x" :cy="trace.point.y" r="6" class="trace-point"/>
+                <text :x="trace.label.x" :y="trace.label.y" :text-anchor="trace.label.anchor" class="ref-label trace-label">{{ trace.label.text }}</text>
+              </g>
+              <g v-if="chart.bubble && !trace" class="bubble" :transform="`translate(${chart.bubble.x} ${chart.bubble.y})`"><rect :width="chart.bubble.width" height="22" rx="6"/><text :x="chart.bubble.width / 2" y="15" text-anchor="middle">{{ chart.bubble.text }}</text></g>
               <g v-if="chart.floorHandle" :class="['handle', { on: highlighted(floorConcept) }]" :style="conceptStyle(floorConcept)" :transform="`translate(${chart.floorHandle.x} ${chart.floorHandle.y})`" tabindex="0" role="slider" aria-orientation="vertical" :aria-label="minimumSelected ? 'Minimum return' : 'Principal protection'" :aria-valuemin="minimumSelected ? 1 : 0" aria-valuemax="100" :aria-valuenow="minimumSelected ? minimumPercent : protectionPercent" :aria-valuetext="minimumSelected ? `${minimumPercent}% minimum return` : `${protectionPercent}% protection`" @pointerdown="startDrag('floor', $event)" @pointermove="dragMove('floor', $event)" @pointerup="endDrag" @pointercancel="endDrag" @keydown="keyHandle('floor', $event)" @focus="focusHandle('floor')">
                 <circle class="handle-ring" :r="handleRadius + 5"/><circle :r="hitRadius" fill="transparent"/><circle class="handle-dot" :r="handleRadius"/>
               </g>
@@ -1666,6 +1832,15 @@ const chooseSample = (event: Event) => {
             </svg>
             <div class="chart-axis-title">Change in {{ isBasket ? `the basket from its starting level${averaging ? `, each asset averaged over ${observationCount} observed levels` : ''}` : `${underlierLabel} from its ${lookingBack ? 'lookback' : 'initial'} level${averaging ? `, averaged over ${observations.length} observed levels` : ''}` }} →</div>
             <ul class="chart-legend" aria-label="Key"><li :style="conceptStyle('payoff')"><span class="legend-swatch" aria-hidden="true"></span>The {{ wrapper }}</li><li><span class="legend-swatch underlier" aria-hidden="true"></span>Moving 1:1 with {{ isBasket ? 'the basket' : underlierLabel }}</li></ul>
+            <div class="path-bar" role="group" aria-label="Calculation path" @keydown="pathKey">
+              <div class="path-buttons">
+                <button type="button" class="path-button" aria-label="Previous step" title="Previous step (←)" :disabled="pathAt === null || pathAt === 0" @click="stepPath(-1)"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M10 3.5L5.5 8l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                <button type="button" class="path-button play" :aria-label="playing ? 'Pause' : 'Play how the payoff is built'" :title="playing ? 'Pause' : 'Play how the payoff is built'" :disabled="!pathStages.length" @click="playing ? pausePath() : playPath()"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path v-if="playing" d="M5 3.5v9M11 3.5v9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path v-else d="M5 3l8 5-8 5z" fill="currentColor"/></svg></button>
+                <button type="button" class="path-button" aria-label="Next step" title="Next step (→)" :disabled="!pathStages.length || pathAt === lastStage" @click="stepPath(1)"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                <button type="button" class="path-button" aria-label="Close the path" title="Close the path (Esc)" :disabled="pathAt === null" @click="endPath"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+              </div>
+              <p class="path-status" aria-live="polite"><template v-if="pathStatus"><b>{{ pathStatus.title }}<span class="path-progress">{{ pathStatus.progress }}</span></b><span>{{ pathStatus.detail }}</span><span class="path-point">{{ pathStatus.point }}</span><span v-if="pathStatus.aside" class="path-aside">{{ pathStatus.aside }}</span></template><template v-else><b>How the payoff is built</b><span>Play or step through it: the line starts moving 1:1 with {{ isBasket ? 'the basket' : underlierLabel }}, and each rule reshapes it until it is what the {{ wrapper }} pays.</span></template></p>
+            </div>
             <p class="chart-hint">Point at the chart to show its handles, then drag one, or focus one and use the arrow keys. Shift takes bigger steps. Select a feature to shade what it changes. A faint line shows the payoff before your last change.</p>
           </template>
           <p v-else class="help">Enter valid terms to see the payoff.</p>
@@ -1690,7 +1865,7 @@ const chooseSample = (event: Event) => {
                 <div class="field-heading"><label for="issuer-call-review" class="observed-heading">The issuer’s choice in this scenario</label><HintToggle id="issuer-choice" about="the issuer’s choice" :text="hints['issuer-choice']" :active="activeHint === 'issuer-choice'" @toggle="toggleHint('issuer-choice')" /><select id="issuer-call-review" v-model="issuerCallSelection" class="path-select"><option :value="null">The issuer does not call</option><option v-for="review in issuerCallableReviews" :key="review" :value="review">Calls on review {{ review }} of {{ issuerCallableReviews.length + nonCallReviewCount + 1 }}, after {{ issuerCallMonths(review) }} {{ issuerCallMonths(review) === 1 ? 'month' : 'months' }}</option></select></div>
               </div>
               <div class="formula" role="group" aria-label="Payment rule"><div v-for="(line, index) in formula" :key="index" :class="['fline', { limit: !line.lead }]"><span class="flead">{{ line.lead }}</span><span class="feq">{{ line.lead ? '=' : '' }}</span><span class="fexpr"><template v-for="(segment, part) in line.segments" :key="part"><span v-if="segment.concept" :class="['fterm', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)">{{ segment.text }}</span><template v-else>{{ segment.text }}</template></template></span></div><p class="fwords"><b>In words:</b> {{ formulaWords }}</p></div>
-              <ol class="calc-steps" aria-live="polite"><li v-for="step in calculation" :key="`${step.n}-${step.title}`" :class="{ hl: !step.heading && step.concept && highlighted(step.concept), muted: step.muted, result: step.result, heading: step.heading }"><template v-if="step.heading"><b>{{ step.title }}</b><span class="calc-how">{{ step.how }}</span></template><template v-else><span class="calc-n">{{ step.n }}</span><b>{{ step.title }}</b><span class="calc-value">{{ step.value }}</span><span class="calc-how">{{ step.how }}</span></template></li></ol>
+              <ol class="calc-steps" aria-live="polite"><li v-for="step in calculation" :key="`${step.n}-${step.title}`" :class="{ hl: !step.heading && step.concept && highlighted(step.concept), muted: step.muted, result: step.result, heading: step.heading, traceable: !step.heading && stageOfStep.has(step.title), current: currentStage?.step === step.title }" :tabindex="!step.heading && stageOfStep.has(step.title) ? 0 : undefined" :aria-current="currentStage?.step === step.title ? 'step' : undefined" :title="!step.heading && stageOfStep.has(step.title) ? 'Show this step on the chart' : undefined" @click="jumpToStep(step.title)" @keydown.enter.prevent="jumpToStep(step.title)" @keydown.space.prevent="jumpToStep(step.title)"><template v-if="step.heading"><b>{{ step.title }}</b><span class="calc-how">{{ step.how }}</span></template><template v-else><span class="calc-n">{{ step.n }}</span><b>{{ step.title }}</b><span class="calc-value">{{ step.value }}</span><span class="calc-how">{{ step.how }}</span></template></li></ol>
               <p v-if="outcomeSentence" class="outcome" aria-live="polite">{{ outcomeSentence }}</p>
             </template>
             <template #scenarios>
