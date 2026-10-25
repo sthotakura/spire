@@ -1,8 +1,9 @@
 # Payoff diagrams and scenarios
 
 A payoff diagram plots a contractual payment for each hypothetical measured
-underlier return. A scenario table shows selected points on the same rule.
-Neither assigns a probability to those outcomes.
+underlier return. A scenario picks one point on that rule: a hypothetical final
+level, and any other levels the product reads. Neither assigns a probability to
+those outcomes.
 
 ## Reading the axes
 
@@ -56,17 +57,12 @@ at the fixed return, with a jump at the barrier. The filled point of each jump
 is the payment at the barrier level, which is the absolute return, and the open
 point is the fixed return just beyond it. If a barrier is observed on every
 close, a dashed flat line at the fixed return shows the payment had a close gone
-beyond a barrier earlier. The scenario table adds a row at each barrier, a row
-just past each, and a row for each barrier observed on every close where the
-underlier returned to the initial level after a close beyond it, labelled with
-that close.
+beyond a barrier earlier.
 
-With a [coupon](20-coupons.md), the chart and the scenario table show the
-payment at the end of the term, which includes the last review's coupon when the
-final level is at or above the coupon barrier. The table adds a column for that
-coupon, and a row at the coupon barrier and one just below it. A fixed coupon
-has no barrier: the last coupon is added at every level, so the line moves up
-by one coupon and the table adds the column but no rows.
+With a [coupon](20-coupons.md), the chart shows the payment at the end of the
+term, which includes the last review's coupon when the final level is at or
+above the coupon barrier. A fixed coupon has no barrier: the last coupon is
+added at every level, so the line moves up by one coupon.
 
 ![Absolute return in both directions between barriers at 80% and 125%, with a 2% conditional return, at a final level of 110](charts/barrier-absolute-return.svg)
 
@@ -83,6 +79,4 @@ one basket return can result from many different component performances.
 With averaging or lookback, the chart uses the determined levels for the
 assumed observations. A final-return diagram alone cannot show every possible
 observation path. For a barrier observed on every close, the dashed line and the
-scenario's lowest or highest close stand in for the path, and the scenario table
-adds a row where the barrier was reached and the underlier then moved back
-towards the initial level, labelled with the close that reached it.
+scenario's lowest or highest close stand in for the path.

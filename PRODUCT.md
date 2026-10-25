@@ -29,7 +29,7 @@ A reader succeeds when they leave able to:
 
 ## Positioning
 
-A product shown as an outline of its concepts rather than a form or a pricer. Every concept sits beside its terms, and selecting one highlights it everywhere it acts: the summary sentence, payoff diagram, payment rule, worked calculation, scenario table and structure JSON. The data shape and the financial meaning are visible side by side, so the same page serves a learner and an engineer.
+A product shown as an outline of its concepts rather than a form or a pricer. Every concept sits beside its terms, and selecting one highlights it everywhere it acts: the summary sentence, payoff diagram, payment rule, worked calculation and structure JSON. The data shape and the financial meaning are visible side by side, so the same page serves a learner and an engineer.
 
 ## Operating Context
 
@@ -44,7 +44,7 @@ A product shown as an outline of its concepts rather than a form or a pricer. Ev
 - One equity or equity-index underlier; basket shown as unavailable.
 - Determination: initial level given or by lookback; final level on the final date or averaged.
 - Payoff features: upside participation, downside participation, principal protection, buffer, barrier, cap, minimum return. A product with none repays principal.
-- Outputs: summary sentence, "Often marketed as" names, payoff diagram with draggable handles, payment rule in symbols and words, worked calculation, scenario table, structure JSON.
+- Outputs: summary sentence, "Often marketed as" names, payoff diagram with draggable handles, payment rule in symbols and words, worked calculation, structure JSON.
 - Unsupported combinations and missing terms are explicit in interface state, with a concise learner-facing label, never roadmap language.
 - Stack: TypeScript domain modules independent of Vue; Vue 3 + Vite; static build; no backend until a concrete need.
 - Out of scope: pricing, market data, valuation, booking, issuance workflows, identifiers, document generation, regulatory processing, AI.

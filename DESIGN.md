@@ -100,11 +100,6 @@ components:
     padding: "6px 12px"
   add-button-hover:
     backgroundColor: "{colors.hover-wash}"
-  tab:
-    textColor: "{colors.muted}"
-    padding: "10px 12px"
-  tab-active:
-    textColor: "{colors.ledger-blue-deep}"
   name-chip:
     backgroundColor: "#edf4fc"
     textColor: "#315d91"
@@ -152,7 +147,7 @@ It must never look like a trading terminal (dark, dense, ticker-style), fintech 
 A cool, low-chroma neutral world in which the only saturated colour is meaning: the blue accent for interaction, and the concept palette for the parts of the product.
 
 ### Primary
-- **Ledger Blue** (`ledger-blue`): the interaction colour. The text of the Add feature and Add asset buttons, the ⓘ hint glyphs, the active tab's underline, the result step's number disc, highlighted JSON lines' left bar. Its deeper shade (`ledger-blue-deep`) is hover and active text; `focus-blue` is the focus outline; `ledger-blue-mark` is the "Re" in the wordmark.
+- **Ledger Blue** (`ledger-blue`): the interaction colour. The text of the Add feature and Add asset buttons, the ⓘ hint glyphs, the result step's number disc, highlighted JSON lines' left bar. Its deeper shade (`ledger-blue-deep`) is hover and active text; `focus-blue` is the focus outline; `ledger-blue-mark` is the "Re" in the wordmark.
 - **Selection Wash** (`selection-wash`) and **Result Wash** (`result-wash`): pale blue fills for a selected JSON line and the final payment step. **Hover Wash** (`hover-wash`) is the hover fill for buttons and highlighted calculation steps.
 
 ### Concept palette
@@ -165,7 +160,7 @@ Seventeen hues, one per concept, applied through a single CSS variable (`--c`) o
 - **Ink Soft** (`ink-soft`) and **Slate** (`slate`): reading text in the summary, formula, explanation and outcome.
 - **Muted** (`muted`): descriptions, field labels, table headers, hints. **Faint** (`faint`): muted calculation steps and the remove (×) glyph at rest.
 - **Page** (`page`): the page background. **Panel** (`panel`): every panel and field.
-- **Hairline** (`hairline`): panel and header borders. **Field Edge** (`field-edge`): input, select, menu and tooltip borders. **Divider** (`divider`): table rules, tab rail, section breaks. **Code Wash** (`code-wash`): the JSON block and row hover.
+- **Hairline** (`hairline`): panel and header borders. **Field Edge** (`field-edge`): input, select, menu and tooltip borders. **Divider** (`divider`): table rules, section breaks. **Code Wash** (`code-wash`): the JSON block and row hover.
 - **Error** (`error`): validation messages and the remove button's hover.
 
 ### Named Rules
@@ -239,7 +234,6 @@ Restrained and mostly textual; the page has almost no filled buttons.
 - **Error:** red text list beneath the field group; no red borders.
 
 ### Navigation
-- **Tabs:** text tabs on a 1px divider rail; muted at rest, Ledger Blue Deep on hover; the active tab adds a 3px Ledger Blue underline. Arrow keys, Home and End move between tabs.
 - **Header:** white bar, hairline bottom border, wordmark "SPI" in Ink with "Re" in Ledger Blue Mark, and the full name "Structured Products Interactive Reference" in muted 13px on the right.
 
 ### Outline row (signature)

@@ -5,7 +5,6 @@ import { startingProduct } from '../domain/starting-note'
 import { payoffLabels } from './chart-labels'
 import { couponCell, couponClosingSteps, couponFormula, explainCoupons, pathScenarios, redemptionSteps } from './autocall'
 import { marketingNames, productCategory } from './names'
-import { scenarioRows } from './scenarios'
 import { summarize } from './summary'
 
 // Synthetic: the worked example in docs/coupon.md. An 18-month note of 1,000, a fixed coupon of 12% a year paid quarterly (30 a review),
@@ -81,14 +80,6 @@ describe('the paths with a fixed coupon', () => {
 
   it('has none for a bullet note', () => {
     expect(pathScenarios(bullet, 100)).toEqual([])
-  })
-})
-
-describe('the scenario table with a fixed coupon', () => {
-  it('adds no coupon barrier row and adds the last coupon at every level', () => {
-    const rows = scenarioRows(product(), 100)
-    expect(rows.some((row) => row.atCouponBarrier)).toBe(false)
-    expect(rows.every((row) => Math.abs(row.lastCoupon - 30) < 1e-9)).toBe(true)
   })
 })
 

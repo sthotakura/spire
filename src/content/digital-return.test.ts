@@ -7,7 +7,6 @@ import { payoffLabels } from './chart-labels'
 import { paymentFormula, paymentInWords } from './formula'
 import { sampleBySlug } from './examples'
 import { explainOutcome } from './outcome'
-import { scenarioRows } from './scenarios'
 import { marketingNames } from './names'
 import { isHighlighted } from './selection'
 import { structureLines } from './structure-json'
@@ -132,31 +131,6 @@ describe('digital return in the outcome', () => {
 
   it('says the floor does not apply when the rise pays more', () => {
     expect(explain(base, 150)).toBe('The underlier rose 50%. Upside participation of 100% adds 50% to principal. It ended at or above the 70 digital barrier, so the payment is at least 1,260, principal plus the 26% digital return. The 1,260 floor does not apply, so the contractual payment is 1,500, 500 more than principal.')
-  })
-})
-
-describe('digital return in the scenarios', () => {
-  const rows = scenarioRows(base, 100)
-
-  it('adds a row at the barrier and one just below it, where the digital return is lost', () => {
-    const atBarrier = rows.find((row) => row.atBarrier)
-    expect(atBarrier).toMatchObject({ finalLevel: 70 })
-    expect(atBarrier?.breakdown.payment).toBeCloseTo(1260, 8)
-    const below = rows.find((row) => row.pastBarrier === 'below')
-    expect(below?.finalLevel).toBeCloseTo(69, 8)
-    expect(below?.breakdown.payment).toBeCloseTo(690, 8)
-  })
-
-  it('takes the place of a fixed row at the same level and keeps the table in order', () => {
-    const atInitial = scenarioRows({ ...base, payoff: { ...base.payoff, digitalReturn: { amount: 0.15, barrier: { level: 1, observation: 'final' } } } }, 100)
-    expect(atInitial.filter((row) => row.finalLevel === 100)).toHaveLength(1)
-    expect(atInitial.find((row) => row.finalLevel === 100)?.atBarrier).toBe(true)
-    expect(atInitial.map((row) => row.finalLevel)).toEqual([...atInitial.map((row) => row.finalLevel)].sort((a, b) => a - b))
-  })
-
-  it('has none without a digital return', () => {
-    const plain = scenarioRows({ ...base, payoff: { participations: base.payoff.participations } }, 100)
-    expect(plain.some((row) => row.atBarrier || row.pastBarrier !== null)).toBe(false)
   })
 })
 

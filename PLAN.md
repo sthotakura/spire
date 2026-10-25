@@ -22,7 +22,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 - Show the note as an outline of its concepts: wrapper, redemption behavior, underlier, determination method, and payoff. Each term sits beside the concept it belongs to: principal with the wrapper, name, type and initial level with the asset under the underlier, the determination method under the underlier, and rates and protection with the payoff features. The underlier model is recorded in [docs/underlier-model.md](docs/underlier-model.md).
 - Start with a valid note whose payoff has no features. It only repays principal, and the reader adds downside participation, principal protection, and upside participation one at a time.
 - Support only the verified first structure. Unsupported wrappers, redemption behaviors, and payoff features stay visible and are marked unavailable.
-- Keep these in step and let the reader select a concept to highlight it everywhere: a one-sentence summary of the note, the structure JSON, the payoff diagram with draggable handles, the worked calculation, and the scenario table.
+- Keep these in step and let the reader select a concept to highlight it everywhere: a one-sentence summary of the note, the structure JSON, the payoff diagram with draggable handles, and the worked calculation. (Section 42 removed the scenario table.)
 - Recalculate all of them when terms or the hypothetical final level change.
 - Keep the interface usable on narrow screens and with keyboard navigation.
 
@@ -507,6 +507,13 @@ An animation on the payoff chart that builds the payoff line one rule at a time,
 - **Built** as `lineStages` and `scenarioAside` in `src/content/path.ts`, drawn and driven in the app; DESIGN.md describes it and its one exception to the no-motion rule.
 - **Checked** by tests over every sample product at many final levels (the same steps at every level, starting on the 1:1 line and ending at what the chart draws), a buffered and capped note step by step, barriers observed on every close, a deposit's minimum return and a call on the final review with remembered coupons, and by driving the running app: a buffered fall, an autocall with coupons, an early call, jumping from the list, editing the scenario mid-path, and phone width. Keyboard and screen-reader use are not checked.
 - **Not planned yet:** a timeline that shows reviews over time, the part the payoff chart cannot show.
+
+## 42. Remove the scenario table
+
+The Scenarios tab under the chart listed fixed final levels (−40%, 0, +10%, +30%) plus rows each feature added at its thresholds, with the working for each. Once the chart showed the payment at the reader's own final level, the calculation worked it out step by step and the path built the line one rule at a time, the table repeated them, and every new payoff feature had to add its own rows, columns and tests to it. It was removed, and the calculation now stands under the chart without tabs.
+
+- **What was given up:** several outcomes side by side, with exact payments on each side of a jump, and a text form of the whole line. The chart description sentence still states the shape in words.
+- **Where it could return:** a table of hypothetical payments, in the shape public filings use (final level, underlier return, payment), belongs with a fixed worked example in a book chapter, as chapter 19's tables do, or in a view of its own. Not beside the calculation.
 
 ## Later direction: a composable form
 
