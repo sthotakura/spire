@@ -178,6 +178,17 @@ export const sampleGroups: SampleGroup[] = [
           underlier: worstOf('Index A', 'Index B', 'Index C'),
         }),
       },
+      // The filing's first call observation is in month 6, and its valuation date, in month 36, is not a call.
+      {
+        slug: 'monthly-worst-of-fixed-coupon-autocallable-note',
+        name: 'Monthly worst-of fixed coupon autocallable note',
+        source: { title: 'BofA Finance fixed income auto-callable yield notes on three stocks, 2023', url: 'https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm', note: 'The filing’s underliers are three stocks. Its coupon is stated as $12.084 a month, 14.50% a year rounded up. Its payment below the threshold is read from its table, as the formula is printed as an image.' },
+        product: product(36, { participations: [{ direction: 'downside', barrier: { level: 0.5, observation: 'final' }, rate: 1 }] }, {
+          redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, nonCallReviews: 5, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false },
+          coupon: { schedule: { frequency: 'monthly' }, rate: 0.145 },
+          underlier: worstOf('Index A', 'Index B', 'Index C'),
+        }),
+      },
       {
         slug: 'worst-of-step-down-autocallable-note',
         name: 'Worst-of step-down autocallable note',

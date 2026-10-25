@@ -130,6 +130,9 @@ modelled on, on synthetic indices:
   a fixed coupon of 11.72% a year paid every quarter for 18 months on the worst
   of three indices, a call from review 2 at 95% stepping down 5% a review to
   80%, and a downside barrier at 60%.
+- [Monthly worst-of fixed coupon autocallable note](https://sthotakura.github.io/spire/?example=monthly-worst-of-fixed-coupon-autocallable-note):
+  a fixed coupon of 14.50% a year paid every month for three years on the worst
+  of three indices, a call at 100% from review 6, and a downside barrier at 50%.
 - [Callable contingent coupon note](https://sthotakura.github.io/spire/?example=callable-contingent-coupon-note): a
   coupon reviewed monthly on a note the issuer may call quarterly, as described
   in [Reviews and early redemption](19-reviews-and-early-redemption.md).
@@ -137,8 +140,8 @@ modelled on, on synthetic indices:
 ## Assumptions and sources
 
 - The coupon, its barrier read at or above, memory and the call that pays principal plus the coupon follow three public auto-callable contingent interest notes: the 50% note with memory, the 70% note without it, and a note on two funds at 80% with memory ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)).
-- The coupon has its own schedule. The three contingent notes use one list of review dates for both; a fixed coupon note from another issuer lists its coupon payment dates apart from its call dates ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm)). An issuer callable contingent coupon note reviews its coupon monthly and can be called only quarterly ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/1682472/000148105724004907/form424b2.htm)).
-- The fixed coupon, paid on every review until a call or the end of the term and with the payment on the review the product ends, follows three public fixed coupon autocallable notes on the worst of several stocks: the 11.72% note, a monthly note at 12.90% a year or more ([Morgan Stanley Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/1666268/000183988224003876/ms997_424b2-02307.htm)), and the note that pays 536.05 at half its initial level. In all three the coupon and the call share one schedule, and a call pays principal plus that review's coupon and nothing more.
+- The coupon has its own schedule. The three contingent notes use one list of review dates for both. A fixed coupon note lists its coupon payment dates and its call dates separately, but each call falls on a coupon date from the sixth month on, so it is one monthly schedule with a non-call period ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm)). An issuer callable contingent coupon note does review its coupon monthly and can be called only quarterly ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/1682472/000148105724004907/form424b2.htm)).
+- The fixed coupon, paid on every review until a call or the end of the term and with the payment on the review the product ends, follows three public fixed coupon autocallable notes on the worst of several stocks: the 11.72% note, a monthly note at 12.90% a year or more ([Morgan Stanley Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/1666268/000183988224003876/ms997_424b2-02307.htm)), and the note that pays 536.05 at half its initial level. A fourth, monthly at 14.50% a year, is described in the next point. In all four the coupon and the call share one schedule, and a call pays principal plus that review's coupon and nothing more.
 - The coupon on a review is the rate a year times the months between reviews, divided by 12. The reference does not round it; public notes state a rounded amount. Two of the fixed coupon notes state a 30/360 day count, which over whole months gives the same amount.
 - The reviews are evenly spaced whole numbers of months, and payments are made at the review. Public notes pay a few days after.
 

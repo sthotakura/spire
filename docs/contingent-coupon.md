@@ -28,7 +28,7 @@ Coupons stop when the product ends. A called product pays principal plus the cou
 | **On a basket the coupon reads the worst asset.** The two-fund note pays if every fund is at or above its barrier, which is the lesser performing fund at or above it. | Two-fund note |
 | **There is no upside participation.** The return is the coupons. | All three JPM notes; the BofA note says its return "is limited to the Fixed Coupon Payments" |
 
-The [BofA fixed coupon note](https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm) is a source for slice 4, not this one. It also lists its dates in a different way: 36 monthly coupon payment dates, a separate list of 30 call observation dates starting about six months in, and a valuation date. Its fixed coupon has no observation at all.
+The [BofA fixed coupon note](https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm) is a source for slice 4, not this one. It also lists its dates in a different way: 36 monthly coupon payment dates, a separate list of 30 call observation dates starting about six months in, and a valuation date. Its fixed coupon has no observation at all. Re-read on 25 October 2026: each call is paid on a coupon payment date, so the two lists are one monthly schedule with a non-call period, not two schedules ([coupon.md](coupon.md)).
 
 ## Smallest model
 

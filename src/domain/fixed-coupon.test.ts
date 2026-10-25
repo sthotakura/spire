@@ -151,6 +151,30 @@ describe('the 2019 worst-of fixed coupon autocall, with synthetic assets', () =>
   })
 })
 
+describe('the 2023 BofA fixed income auto-callable yield note\'s table, on one synthetic stock', () => {
+  // 36 months, 14.50% a year paid monthly (the filing rounds 12.0833 up to 12.084), a monthly call at 100% from review 6 that is not
+  // tested on the last review, and a 50% threshold below which the holder bears the whole fall.
+  const note = withFixedCoupon({
+    term: { months: 36 },
+    redemption: autocall({ schedule: { frequency: 'monthly' }, triggerStep: 0, nonCallReviews: 5 }),
+    coupon: fixed({ schedule: { frequency: 'monthly' }, rate: 0.145 }),
+    payoff: { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.5, observation: 'final' } }] },
+  })
+  const neverCalledMonthly = Array.from({ length: 35 }, () => 90)
+
+  it.each([[160, 1012.08], [100, 1012.08], [50, 1012.08], [49.99, 511.98], [0, 12.08]])('a final level of %s pays %s with the last coupon', (final, payment) => {
+    expect(validateProduct(note)).toEqual([])
+    expect(redemptionOutcome(note, neverCalledMonthly, { initial: 100, final }).payment).toBeCloseTo(payment, 2)
+  })
+
+  it('cannot be called before review 6, and pays principal and that month\'s coupon when it is', () => {
+    const outcome = redemptionOutcome(note, [100, 100, 100, 100, 100, 100, ...Array.from({ length: 29 }, () => 90)], { initial: 100, final: 90 })
+    expect(outcome.calledAtReview).toBe(6)
+    expect(outcome.payment).toBeCloseTo(1012.08, 2)
+    expect(outcome.totalPaid).toBeCloseTo(1000 + 6 * 12.0833, 2)
+  })
+})
+
 describe('the 2026 Barclays fixed coupon autocall examples, on one synthetic stock', () => {
   // A 12-month note, 3.605% a quarter (14.42% a year, 36.05 on 1,000), a quarterly call at 100% from review 1, and a 60% threshold.
   const note = withFixedCoupon({ term: { months: 12 }, redemption: autocall({ triggerStep: 0, nonCallReviews: 0 }), coupon: fixed({ rate: 0.1442 }) })

@@ -25,7 +25,7 @@ Three public notes were read on 25 October 2026. All are fixed coupon autocalls 
 | **Coupon and call share a schedule** in all three: each call test falls on a coupon period. The determination dates fall a few days before the payment dates; that gap is issuance. | All three |
 | **The downside is a barrier read on the final date**: below 60% (50% in the 2024 note) of the initial level, the holder bears the whole fall of the worst stock, 1:1. At or above it, principal. | All three |
 
-The BofA fixed coupon autocall ([424B2](https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm)) lists 36 monthly coupon payment dates and a separate list of 30 call observation dates, so it also reads as a coupon and a call on different schedules. It was not re-read for this proposal.
+A fourth note, the BofA fixed income auto-callable yield note ([424B2](https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm)), was re-read after the build, on 25 October 2026. It lists 36 monthly coupon payment dates and, separately, 30 call observation dates, which looked like a coupon and a call on different schedules. They are not: each call is paid on a coupon payment date, from month 6 to month 35, so the call is monthly with a non-call period of five reviews, and the valuation date in month 36 is not a call. It pays 14.50% a year, stated as $12.084 a month (14.50% ÷ 12 rounded up), the last coupon "regardless of the performance" of the worst stock, and bears the whole fall of the worst stock below 50%. Its formula below the threshold is printed as an image; its table (49.99 pays 511.984) shows the 1:1 loss.
 
 ### Fit with the model
 
@@ -33,6 +33,7 @@ The BofA fixed coupon autocall ([424B2](https://www.sec.gov/Archives/edgar/data/
 | :--- | :--- | :--- |
 | MS 2019 | 18 months; a worst-of basket of three; quarterly autocall with one non-call review, trigger 100% stepping −5% so review 2 is 95% and review 5 is 80%, no call amount, final review not a call; a fixed coupon of 11.72% a year, quarterly; downside participation 100% with a 60% barrier on the final date | Yes. A final pricing supplement whose examples reconcile with its terms. |
 | MS 2024 | 24 months; worst of four; monthly autocall, five non-call reviews, trigger 100%; 12.90% a year, monthly; 50% barrier | Not now. A preliminary supplement with the rate stated as "at least 12.90%" and the levels blank. A final supplement would make it one. |
+| BofA 2023 | 36 months; worst of three; monthly autocall, five non-call reviews, trigger 100%, final review not a call; 14.50% a year, monthly; 50% barrier | Yes. A final pricing supplement whose table agrees with its terms; the payment below the threshold is read from the table. |
 | Barclays 2026 | 12 months; worst of three; quarterly autocall from review 1, trigger 100%; 14.42% a year, quarterly; 60% barrier | No; a source only. Its call test reads "greater than or equal to" on the cover and "above" in its risk factors and an example, and its tax section refers to a physical settlement option that its payment terms do not have. |
 
 Settlement, cash or delivery of the underlier, is not part of the product model: it belongs with issuance, which the reference does not model. The name "reverse convertible" is therefore not shown, since the Swiss type includes delivery (see [call-and-coupon-names.md](call-and-coupon-names.md)).
@@ -98,7 +99,7 @@ A 12-month bullet note with a fixed coupon of 6% a year, monthly, pays 5.00 a mo
 - **Interface.** The Coupon row offers None, Fixed and Contingent. With Fixed, the coupon barrier and memory rows are not shown; switching keeps the reader's rate and schedule, and switching back to Contingent restores the barrier. For a fixed coupon the review table's coupon column shows what each review pays, with no barrier test.
 - **Names.** The Contingent coupon note chip needs a barrier. No chip for a fixed coupon (see above). The category follows the contingent coupon: an unprotected note with a coupon and no upside is Yield Enhancement.
 - **Annualised return.** Still left out with a coupon, until the cash-flow result.
-- **Sample.** "Worst-of fixed coupon autocallable note" from the 2019 note, with synthetic underliers.
+- **Samples.** "Worst-of fixed coupon autocallable note" from the 2019 note, and "Monthly worst-of fixed coupon autocallable note" from the BofA note, with synthetic underliers.
 - **Book.** A fixed coupon section in chapter 20, with a chart of the payment at the end of the term; chapters 19 and 21 and the outline updated.
 
 ## Decisions agreed
@@ -111,7 +112,7 @@ A 12-month bullet note with a fixed coupon of 6% a year, monthly, pays 5.00 a mo
 
 ## Open questions
 
-1. **A coupon and a call on different schedules** in a fixed coupon note: the BofA note may be one. The model allows it; re-read the note before citing it.
+1. **A coupon and a call on different schedules** in a fixed coupon note. None of the four notes read has one: the BofA note, which looked like one, calls monthly on its coupon dates after a non-call period. The model allows it, as the BofA issuer callable contingent coupon note (monthly coupon, quarterly call) needs.
 2. **A fixed coupon for an initial period, then a contingent one.** Not seen in a public note.
 3. **Interest added to the balance and paid at the end** is a fixed return in the payoff, not a coupon, and is not modelled.
 4. **Broken periods**, a short or long first or last coupon period. Not modelled.
