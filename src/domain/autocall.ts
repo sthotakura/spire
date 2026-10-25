@@ -1,4 +1,4 @@
-import { barrierLevelAt, callAmountAtReview, callReviewCount, couponPerReview, firstCallReview, lastCallReview, maturityPayment, monthsPerReview, reviewCount, reviewDates, triggerAtReview, paymentBreakdown, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
+import { barrierLevelAt, callAmountAtReview, callReviewCount, couponPerReview, firstCallReview, lastCallReview, maturityPayment, monthsPerReview, reviewDates, scheduleReviews, triggerAtReview, paymentBreakdown, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
 
 // The level at or above which the final review calls the product, from the determined initial level. Undefined when the final review
 // is not a call.
@@ -47,18 +47,17 @@ export interface ReviewTest {
   callAmount: number
 }
 
-// One review on which the coupon is tested, or for a fixed coupon paid.
-export interface CouponTest {
+// One review on which the coupon is tested, or for a fixed coupon paid. A contingent coupon's test has a level and a barrier level; a
+// fixed coupon's has neither, since it reads no level.
+export type CouponTest = CouponPayment & ({ level: number; barrierLevel: number } | { level: undefined; barrierLevel: undefined })
+
+interface CouponPayment {
   // Numbered from 1, among the coupon's reviews.
   review: number
   // Its month from the start of the term.
   month: number
-  // The level of the underlier on the review. The last review reads the determined final level. Undefined for a fixed coupon, which
-  // reads no level.
-  level?: number
-  // The coupon barrier as an underlier level, and whether the review's level is at or above it. A fixed coupon has no barrier, and
-  // every review meets it.
-  barrierLevel?: number
+  // Whether the review's level is at or above the coupon barrier, as an underlier level from the determined initial level. The last
+  // review reads the determined final level. A fixed coupon has no barrier, and every review meets it.
   met: boolean
   // The number of coupons the review pays: its own and, with memory, those missed before it. Zero when it misses the barrier.
   coupons: number
@@ -145,21 +144,13 @@ export function redemptionOutcome(note: Product, reviewLevels: number[], levels:
 
   const months = called?.month ?? note.term.months
   const couponReviews = note.coupon?.barrier === undefined
-    ? fixedCouponReviews(note).filter(({ month }) => month <= months)
+    ? (note.coupon === undefined ? [] : scheduleReviews(note.term, note.coupon.schedule) ?? []).filter(({ month }) => month <= months)
     : dates.flatMap((date, index) => (date.coupon !== undefined && date.month <= months ? [{ review: date.coupon, month: date.month, level: levelOn(index) }] : []))
   const coupons = couponTests(note, couponReviews, levels.initial)
   const ending = coupons.find((test) => test.month === months)?.paid ?? 0
   const earlier = coupons.filter((test) => test.month < months).reduce((sum, { paid }) => sum + paid, 0)
   const payment = (called ? note.principalAmount * (1 + called.callAmount) : maturity.payment) + ending
   return { calledAtReview: called?.review, reviews, tests, months, payment, maturity, coupons, totalPaid: earlier + payment }
-}
-
-// The reviews of a fixed coupon, with no level: it reads none. Empty without a coupon or when its schedule does not divide the term.
-function fixedCouponReviews(note: Product): Array<{ review: number; month: number }> {
-  const schedule = note.coupon?.schedule
-  const count = schedule === undefined ? undefined : reviewCount({ term: note.term, schedule })
-  if (schedule === undefined || count === undefined) return []
-  return Array.from({ length: count }, (_, index) => ({ review: index + 1, month: (index + 1) * monthsPerReview[schedule.frequency] }))
 }
 
 // The coupon on each of its reviews, in order, from its level. A review at or above the barrier pays its coupon and, with memory, every
@@ -170,10 +161,12 @@ function couponTests(note: Product, reviews: Array<{ review: number; month: numb
   const barrierLevel = coupon.barrier === undefined ? undefined : barrierLevelAt(coupon.barrier, initialLevel)
   const each = couponPerReview(note)
   let remembered = 0
-  return reviews.map(({ review, month, level }) => {
-    const met = barrierLevel === undefined || level! >= barrierLevel
+  return reviews.map(({ review, month, level }): CouponTest => {
+    // A contingent coupon's reviews are the dates it reads a level on, so each has one.
+    const read = barrierLevel === undefined || level === undefined ? { level: undefined, barrierLevel: undefined } : { level, barrierLevel }
+    const met = read.barrierLevel === undefined || read.level >= read.barrierLevel
     const coupons = met ? 1 + remembered : 0
     remembered = met ? 0 : coupon.memory ? remembered + 1 : 0
-    return { review, month, level, barrierLevel, met, coupons, paid: coupons * each, remembered }
+    return { review, month, ...read, met, coupons, paid: coupons * each, remembered }
   })
 }

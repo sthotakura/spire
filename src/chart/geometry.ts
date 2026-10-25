@@ -3,8 +3,8 @@
 // initial level sits at the centre. The vertical axis starts at zero and is fitted to the payoff. The page holds it still while the reader drags, so the line
 // does not move under the pointer, and refits it when the drag ends.
 
-import { couponBarrierLevel, finalCallLevel } from '../domain/autocall'
-import { barrierLevelAt, downsideOf, maturityPayment, upsideOf, type DeterminedLevels, type PaymentBreakdown, type Product } from '../domain/note'
+import { couponBarrierLevel, finalCallLevel, paymentAtEnd } from '../domain/autocall'
+import { barrierLevelAt, downsideOf, upsideOf, type DeterminedLevels, type PaymentBreakdown, type Product } from '../domain/note'
 
 export interface Plot {
   left: number
@@ -176,7 +176,8 @@ export const jumpLevelsOf = (product: Product, initialLevel: number): number[] =
 // The payment at a final level had a barrier observed on every close been reached on an earlier close. The chart draws the line
 // for a barrier that was not reached, and this is the other path. Undefined when no barrier is observed daily. For a downside
 // barrier it is the lowest close at zero, and for an upside barrier the highest close just above the barrier level, or above the
-// initial and final levels if they are higher.
+// initial and final levels if they are higher. It is the payment at the end of the term, as the main line is, so a fixed coupon is in
+// both and only the barrier separates them.
 export function reachedPayment(product: Product, levels: DeterminedLevels): number | undefined {
   // Barrier absolute return: a barrier observed daily is taken as reached, so the other path is the fixed return at every final level.
   const bothWays = product.payoff.barrierAbsoluteReturn
@@ -184,7 +185,7 @@ export function reachedPayment(product: Product, levels: DeterminedLevels): numb
     const lowerDaily = bothWays.lowerBarrier.observation === 'daily-close'
     const upperDaily = bothWays.upperBarrier.observation === 'daily-close'
     if (!lowerDaily && !upperDaily) return undefined
-    return maturityPayment(product, {
+    return paymentAtEnd(product, {
       ...levels,
       lowestClose: lowerDaily ? 0 : undefined,
       highestClose: upperDaily ? Math.max(levels.initial, levels.final, barrierLevelAt(bothWays.upperBarrier.level, levels.initial) * (1 + 1e-9)) : undefined,
@@ -196,7 +197,7 @@ export function reachedPayment(product: Product, levels: DeterminedLevels): numb
   const upsideBarrier = upsideOf(product)?.barrier
   const upsideDaily = upsideBarrier?.observation === 'daily-close'
   if (!downsideDaily && !upsideDaily) return undefined
-  return maturityPayment(product, {
+  return paymentAtEnd(product, {
     ...levels,
     lowestClose: downsideDaily ? 0 : undefined,
     highestClose: upsideDaily ? Math.max(levels.initial, levels.final, barrierLevelAt(upsideBarrier!.level, levels.initial) * (1 + 1e-9)) : undefined,

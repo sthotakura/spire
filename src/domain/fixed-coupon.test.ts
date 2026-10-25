@@ -90,6 +90,15 @@ describe('a fixed coupon on a bullet note', () => {
     expect(outcome.totalPaid).toBeCloseTo(500 + 60, 9)
   })
 
+  it('reads a barrier observed on every close from the closes the scenario gives, in the payment and the total paid', () => {
+    const daily = { ...bullet, payoff: dailyBarrier }
+    // The final level of 95 is above the 60% barrier, but a close of 50 reached it, so the whole 5% fall counts.
+    const outcome = redemptionOutcome(daily, [], { initial: 100, final: 95, lowestClose: 50 })
+    expect(outcome.maturity.payment).toBeCloseTo(950, 9)
+    expect(outcome.payment).toBeCloseTo(955, 9)
+    expect(outcome.totalPaid).toBeCloseTo(1010, 9)
+  })
+
   it('expects no review levels', () => {
     expect(() => redemptionOutcome(bullet, [90], { initial: 100, final: 50 })).toThrow()
   })

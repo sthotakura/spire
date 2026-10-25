@@ -150,14 +150,15 @@ function couponEntries(note: Product, outcome: RedemptionOutcome): Array<{ month
   const { coupon } = note
   if (coupon === undefined) return []
   const count = reviewCount({ term: note.term, schedule: coupon.schedule })
+  const { barrier: couponBarrier } = coupon
   return outcome.coupons.map((test) => {
     const title = `Coupon on review ${test.review} of ${count}, month ${test.month}`
-    // A fixed coupon reads no level: every review pays.
-    if (coupon.barrier === undefined || test.level === undefined || test.barrierLevel === undefined) {
+    // A fixed coupon reads no level: every review pays. Its tests have no level, and a contingent coupon's always have one.
+    if (couponBarrier === undefined || test.barrierLevel === undefined) {
       return { month: test.month, step: { title, how: `Fixed, paid whatever the level: ${couponWorking(note, test.coupons)}`, value: units(test.paid), concept: 'coupon' as const } }
     }
     const level = test.month === note.term.months ? `Final level ${units(test.level)}` : units(test.level)
-    const barrier = `the coupon barrier, ${percent(coupon.barrier)} × initial level = ${units(test.barrierLevel)}`
+    const barrier = `the coupon barrier, ${percent(couponBarrier)} × initial level = ${units(test.barrierLevel)}`
     if (!test.met) {
       const after = coupon.memory ? `, so its coupon is remembered: ${coupons(test.remembered)} unpaid` : ', so its coupon is missed and not paid later'
       return { month: test.month, step: { title, how: `${level} is below ${barrier}${after}`, value: '0', muted: true, concept: 'coupon' as const } }
@@ -240,9 +241,9 @@ export function explainCoupons(note: Product, outcome: RedemptionOutcome): strin
   const tested = outcome.coupons.length
   const met = outcome.coupons.filter((test) => test.met).length
   const paid = outcome.coupons.reduce((sum, test) => sum + test.paid, 0)
-  const barrierLevel = outcome.coupons[0].barrierLevel
-  if (barrierLevel === undefined) return `It paid its fixed coupon on ${tested === 1 ? 'the one coupon review' : `each of the ${tested} coupon reviews`} it lasted for, whatever the underlier did: ${units(paid)} in coupons.${total}`
-  const barrier = units(barrierLevel)
+  const [first] = outcome.coupons
+  if (coupon.barrier === undefined || first.barrierLevel === undefined) return `It paid its fixed coupon on ${tested === 1 ? 'the one coupon review' : `each of the ${tested} coupon reviews`} it lasted for, whatever the underlier did: ${units(paid)} in coupons.${total}`
+  const barrier = units(first.barrierLevel)
   const opening = met === 0
     ? `None of the ${tested} coupon reviews it lasted for was at or above the ${barrier} coupon barrier, so it paid no coupon.`
     : `${met} of the ${tested} coupon reviews it lasted for ${met === 1 ? 'was' : 'were'} at or above the ${barrier} coupon barrier, paying ${units(paid)} in coupons.`

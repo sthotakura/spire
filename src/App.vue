@@ -18,7 +18,7 @@ import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
 import { finalCallLevel, paymentAtEnd, redemptionOutcome } from './domain/autocall'
-import { barrierLevelAt, basketBreakdown, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
+import { barrierLevelAt, basketBreakdown, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, scheduleReviews, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
@@ -40,7 +40,7 @@ const hints = {
   'call-basis': 'Flat pays the call amount whenever the product is called. Per year treats it as a rate for each year the product has lasted, as a term sheet states “10% per annum”: a call after six months pays half of it, and a call after three years pays three times it.',
   'final-call': 'The last review is the end of the term. It pays the maturity payoff, or it is a call too: a level at or above the trigger on that review pays principal plus the call amount in place of the maturity payoff. With an upside participation, a trigger above the initial level draws the payoff as a shark fin: it climbs, then drops to the call amount.',
   coupon: 'Interest paid on the coupon’s own reviews. A fixed coupon is paid on every review, whatever the underlier does; a contingent coupon only on a review where the underlier is at or above the coupon barrier. It is stated as a rate a year, and each review pays its share: 12% a year on monthly reviews is 1% of principal a review. It is paid or tested on each of its own reviews, including those in a call’s non-call period and the last, until the product ends. A call on a date that is also a coupon review pays principal plus that review’s coupon.',
-  'coupon-schedule': 'How often the coupon is tested. The coupon has its own reviews, apart from the call’s: they can be the same, or the coupon can be reviewed more often, such as monthly beside a quarterly call. Same as the calls copies the call’s frequency once; changing either later does not change the other.',
+  'coupon-schedule': 'How often the coupon is paid, or for a contingent coupon tested. The coupon has its own reviews, apart from the call’s: they can be the same, or the coupon can be reviewed more often, such as monthly beside a quarterly call. Same as the calls copies the call’s frequency once; changing either later does not change the other.',
   'coupon-barrier': 'The level, as a share of the initial level, at or above which a review pays its coupon. It is its own level, apart from the call trigger and the downside barrier, though a note may set two of them equal.',
   memory: 'With memory, a coupon missed on a review below the barrier is remembered, and paid with the coupon of the next review at or above it. Without memory a missed coupon is never paid. Remembered coupons that no later review pays are never paid either.',
   asset: 'The equity or equity index the product tracks. Holding the product does not mean owning the asset.',
@@ -613,11 +613,14 @@ const finalLevel = computed(() => !valid.value ? Number.NaN : basketMeasure.valu
 // or any level observed on the final or averaging dates; the reader's level is moved in to stay within them.
 const lowestClose = computed(() => lowestCloseWanted.value && initialValid.value ? Math.min(Number.isFinite(lowestCloseInput.value) ? Math.max(0, lowestCloseInput.value as number) : Infinity, determinedInitialLevel.value, ...observations.value) : undefined)
 const highestClose = computed(() => highestCloseWanted.value && initialValid.value ? Math.max(Number.isFinite(highestCloseInput.value) ? highestCloseInput.value as number : -Infinity, determinedInitialLevel.value, ...observations.value) : undefined)
-const breakdown = computed(() => valid.value ? paymentBreakdown(note.value, { initial: determinedInitialLevel.value, final: finalLevel.value, lowestClose: lowestClose.value, highestClose: highestClose.value }) : null)
+// The levels the scenario gives the payment: the determined initial and final levels, and the closes a daily barrier reads. The
+// breakdown, the payment at the end of the term and the redemption outcome all read these, so they cannot disagree.
+const scenarioLevels = computed(() => ({ initial: determinedInitialLevel.value, final: finalLevel.value, lowestClose: lowestClose.value, highestClose: highestClose.value }))
+const breakdown = computed(() => valid.value ? paymentBreakdown(note.value, scenarioLevels.value) : null)
 const payment = computed(() => breakdown.value?.payment ?? null)
 // What the product pays at the end of its term from the final level, if no earlier review called it. It is the payment the chart
 // draws, and differs from the payment only when the final review is a call.
-const endPayment = computed(() => valid.value ? paymentAtEnd(note.value, { initial: determinedInitialLevel.value, final: finalLevel.value, lowestClose: lowestClose.value, highestClose: highestClose.value }) : null)
+const endPayment = computed(() => valid.value ? paymentAtEnd(note.value, scenarioLevels.value) : null)
 // The dates on which a level is read before the end of the term: an autocall's reviews and a coupon's, a date on both once. The last
 // review reads the final level, which has its own field.
 const datesBeforeLast = computed(() => reviewDates(note.value).slice(0, -1))
@@ -651,7 +654,7 @@ const issuerCallableReviews = computed(() => {
 const issuerCallChoice = computed(() => issuerCallsOn.value !== null && issuerCallableReviews.value.includes(issuerCallsOn.value) ? issuerCallsOn.value : undefined)
 // How the product ended and what its coupon paid, for a product with a call or a coupon. A bullet product with neither pays its payoff.
 const redemption = computed(() => (scheduled.value || couponSelected.value) && valid.value && !reviewError.value && breakdown.value
-  ? redemptionOutcome(note.value, reviewLevels.value, { initial: determinedInitialLevel.value, final: finalLevel.value }, issuerCalled.value ? issuerCallChoice.value : undefined)
+  ? redemptionOutcome(note.value, reviewLevels.value, scenarioLevels.value, issuerCalled.value ? issuerCallChoice.value : undefined)
   : null)
 const issuerCallSelection = computed({ get: () => issuerCallChoice.value ?? null, set: (review: number | null) => { issuerCallsOn.value = review } })
 const issuerCallMonths = (review: number) => review * monthsPerReview[reviewFrequency.value]
@@ -667,14 +670,23 @@ const loadPath = (event: Event) => {
   reviewAssetInputs.value = Object.fromEntries(path.reviewLevels.map((level, index) => [months[index], basketAssets.value.map(({ initialLevel }) => Math.round(initialLevel * level / basketStartingLevel * 100) / 100)]))
   if (path.finalLevel !== undefined) setFinalLevel(path.finalLevel)
 }
-// The coupon review that falls on a date, if any. A fixed coupon reads no level, so its reviews are not among the dates; one on a call
-// review's month is still paid there, so it is found by month.
-const couponReviewOn = (date: ReviewDate) => {
+// The reviews of a fixed coupon. It reads no level, so they are not among the dates a level is read on, and are found by month.
+const fixedCouponReviews = computed(() => {
   const { coupon } = note.value
-  if (date.coupon !== undefined || coupon === undefined || coupon.barrier !== undefined) return date.coupon
-  const months = monthsPerReview[coupon.schedule.frequency]
-  return date.month % months === 0 ? date.month / months : undefined
-}
+  return coupon === undefined || coupon.barrier !== undefined ? [] : scheduleReviews(note.value.term, coupon.schedule) ?? []
+})
+// The coupon review that falls on a date, if any.
+const couponReviewOn = (date: ReviewDate) => date.coupon ?? fixedCouponReviews.value.find(({ month }) => month === date.month)?.review
+// The rows of the review table: each date a level is read on before the last, with its place among them, and each review of a fixed
+// coupon before the last that falls between them, which reads no level and has no place. A product with no date that reads a level
+// has no table.
+const reviewRows = computed((): Array<{ date: ReviewDate; index?: number }> => {
+  const read = datesBeforeLast.value.map((date, index) => ({ date, index }))
+  if (!read.length) return read
+  const months = new Set(read.map(({ date }) => date.month))
+  const unread = fixedCouponReviews.value.filter(({ month }) => month < termMonths.value && !months.has(month)).map(({ review, month }) => ({ date: { month, coupon: review } }))
+  return [...read, ...unread].sort((a, b) => a.date.month - b.date.month)
+})
 // What each date is a review of, for the review table: the call's review, the coupon's, or both.
 const reviewLabel = (date: ReviewDate) => [date.call === undefined ? '' : `Call ${date.call}`, couponReviewOn(date) === undefined ? '' : `Coupon ${couponReviewOn(date)}`].filter(Boolean).join(' · ')
 // The level a call review needs, as the call reads it: the trigger of that review, as a share of the initial level. None on a date that
@@ -727,7 +739,13 @@ const bufferSummary = computed(() => formatPercent(bufferPercent.value / 100))
 const absoluteSummary = computed(() => formatPercent(absolutePercent.value / 100))
 const digitalSummary = computed(() => `${formatAmount(principal.value * (1 + digitalPercent.value / 100))} (principal plus the digital return)`)
 const capSummary = computed(() => `${formatAmount(principal.value * (1 + capPercent.value / 100))} (a ${formatPercent(capPercent.value / 100)} return on principal)`)
-const chartDescription = computed(() => `${payoffDescription.value}${note.value.coupon ? ' At and above the coupon barrier, the payment at the end of the term also includes the last review’s coupon.' : ''}`)
+const chartDescription = computed(() => {
+  const { coupon } = note.value
+  const withCoupon = !coupon ? ''
+    : coupon.barrier === undefined ? ' At every final level, the payment at the end of the term also includes the last review’s fixed coupon.'
+      : ' At and above the coupon barrier, the payment at the end of the term also includes the last review’s coupon.'
+  return `${payoffDescription.value}${withCoupon}`
+})
 const payoffDescription = computed(() => {
   if (!hasFeatures.value) return 'Contractual maturity payment stays at principal for every final level.'
   if (bothWaysSelected.value) return `Contractual maturity payment rises with the size of the underlier’s move, up or down, between the two barriers, then drops to ${conditionalSelected.value ? 'principal plus the conditional return' : 'principal'} beyond each.${dailySelected.value ? ' A dashed line shows the payment if a barrier had been reached on an earlier close.' : ''}`
@@ -1665,7 +1683,7 @@ const chooseSample = (event: Event) => {
               <div v-if="highestCloseWanted && highestClose !== undefined" class="hint-field"><div class="field-heading"><label for="highest-close">Highest close: hypothetical highest close of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About the highest close" aria-controls="highest-close-hint" :aria-expanded="activeHint === 'highest-close'" @click="toggleHint('highest-close')">ⓘ</button><p v-if="activeHint === 'highest-close'" id="highest-close-hint" class="hint-text" role="tooltip">{{ hints['highest-close'] }}</p></div><NumberInput id="highest-close" :model-value="highestClose" class="final-input" @update:model-value="highestCloseInput = $event" /></div>
               <div v-if="datesBeforeLast.length" class="hint-field">
                 <div class="field-heading"><span id="review-levels-label" class="observed-heading">Reviews: hypothetical level of {{ underlierLabel }} on each review before the last</span><select class="path-select" aria-label="Load a path" @change="loadPath($event)"><option value="">Load a path…</option><option v-for="(path, index) in pathOptions" :key="path.name" :value="index">{{ path.name }}</option></select></div>
-                <div class="table-wrap basket-levels review-levels" :style="conceptStyle(autocalled ? 'trigger' : 'coupon')"><table aria-labelledby="review-levels-label"><thead><tr><th scope="col">Month</th><th scope="col">Review</th><th v-if="autocalled" scope="col" class="review-trigger">Trigger</th><template v-if="isBasket"><th v-for="(asset, a) in basketAssets" :key="a" scope="col">{{ asset.name.trim() || `Asset ${a + 1}` }}</th><th scope="col">Basket level</th></template><th v-else scope="col">Level</th><th v-if="autocalled" scope="col">Test</th><th v-if="note.coupon" scope="col">Coupon</th></tr></thead><tbody><tr v-for="(date, index) in datesBeforeLast" :key="date.month"><th scope="row">{{ date.month }}</th><td class="review-name">{{ reviewLabel(date) }}</td><td v-if="autocalled" class="review-trigger">{{ Number.isFinite(reviewTrigger(date)) ? formatAmount(reviewTrigger(date)) : '—' }}</td><template v-if="isBasket"><td v-for="(assetLevel, a) in reviewAssetLevels[index]" :key="a"><NumberInput :model-value="assetLevel" class="observed-input" :aria-label="`${basketAssets[a].name.trim() || `Asset ${a + 1}`}, month ${date.month}`" @update:model-value="setReviewAssetLevel(index, a, $event)" /></td><td><output class="observed-result" aria-live="polite">{{ Number.isFinite(reviewLevels[index]) ? formatAmount(reviewLevels[index]) : '—' }}</output></td></template><td v-else><NumberInput :model-value="reviewLevels[index]" class="observed-input" :aria-label="`Level in month ${date.month}`" @update:model-value="setReviewLevel(index, $event)" /></td><td v-if="autocalled" class="review-test-cell"><span v-if="reviewTest(date)" :class="['review-test', { called: reviewTest(date) === 'Called', ended: reviewTest(date) === 'Ended' || reviewTest(date) === 'No call' }]">{{ reviewTest(date) }}</span></td><td v-if="note.coupon" class="review-test-cell"><span v-if="reviewCoupon(date)" :class="['review-test', { ended: reviewCoupon(date).startsWith('Missed') || reviewCoupon(date) === 'Ended' || reviewCoupon(date) === '—' }]" :style="conceptStyle('coupon')">{{ reviewCoupon(date) }}</span></td></tr></tbody></table></div>
+                <div class="table-wrap basket-levels review-levels" :style="conceptStyle(autocalled ? 'trigger' : 'coupon')"><table aria-labelledby="review-levels-label"><thead><tr><th scope="col">Month</th><th scope="col">Review</th><th v-if="autocalled" scope="col" class="review-trigger">Trigger</th><template v-if="isBasket"><th v-for="(asset, a) in basketAssets" :key="a" scope="col">{{ asset.name.trim() || `Asset ${a + 1}` }}</th><th scope="col">Basket level</th></template><th v-else scope="col">Level</th><th v-if="autocalled" scope="col">Test</th><th v-if="note.coupon" scope="col">Coupon</th></tr></thead><tbody><tr v-for="{ date, index } in reviewRows" :key="date.month"><th scope="row">{{ date.month }}</th><td class="review-name">{{ reviewLabel(date) }}</td><td v-if="autocalled" class="review-trigger">{{ Number.isFinite(reviewTrigger(date)) ? formatAmount(reviewTrigger(date)) : '—' }}</td><td v-if="index === undefined" :colspan="isBasket ? basketAssets.length + 1 : 1" class="review-unread" title="A fixed coupon reads no level">—</td><template v-else-if="isBasket"><td v-for="(assetLevel, a) in reviewAssetLevels[index]" :key="a"><NumberInput :model-value="assetLevel" class="observed-input" :aria-label="`${basketAssets[a].name.trim() || `Asset ${a + 1}`}, month ${date.month}`" @update:model-value="setReviewAssetLevel(index, a, $event)" /></td><td><output class="observed-result" aria-live="polite">{{ Number.isFinite(reviewLevels[index]) ? formatAmount(reviewLevels[index]) : '—' }}</output></td></template><td v-else><NumberInput :model-value="reviewLevels[index]" class="observed-input" :aria-label="`Level in month ${date.month}`" @update:model-value="setReviewLevel(index, $event)" /></td><td v-if="autocalled" class="review-test-cell"><span v-if="reviewTest(date)" :class="['review-test', { called: reviewTest(date) === 'Called', ended: reviewTest(date) === 'Ended' || reviewTest(date) === 'No call' }]">{{ reviewTest(date) }}</span></td><td v-if="note.coupon" class="review-test-cell"><span v-if="reviewCoupon(date)" :class="['review-test', { ended: reviewCoupon(date).startsWith('Missed') || reviewCoupon(date) === 'Ended' || reviewCoupon(date) === '—' }]" :style="conceptStyle('coupon')">{{ reviewCoupon(date) }}</span></td></tr></tbody></table></div>
                 <p v-if="reviewError" class="errors" role="alert">{{ reviewError }}</p>
               </div>
               <div v-if="issuerCalled && issuerCallableReviews.length" class="hint-field">

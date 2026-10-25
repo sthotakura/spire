@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { amountToY, barrierFromX, clampBarrier, fitAmountAxis, splitAtJumps, bufferFromX, bufferLevel, capBindLevel, capFromY, clampBuffer, clampCap, clampFinalLevel, clampMinimumReturn, minimumReturnFromY, clampProtection, clampUpsideBarrier, clampUpsideRate, differingRuns, finalLevelFromX, jumpLevelsOf, jumpsOf, keyDelta, leaderStart, levelToX, placeLabels, regimeRuns, returnTicks, wrapWords, protectionFromY, reachedPayment, regimeOf, slopeLevel, splitByRegime, type Plot, upsideBarrierFromX, upsideRateFromY, xToLevel, yToAmount } from './geometry'
+import { paymentAtEnd } from '../domain/autocall'
 import { maturityPayment, paymentBreakdown, withSubFeatures, type Product } from '../domain/note'
 import { startingProduct } from '../domain/starting-note'
 
@@ -381,6 +382,17 @@ describe('barrier observed on every close', () => {
       expect(reachedPayment(finned('daily-close'), { initial: 100, final: 90 })).toBeCloseTo(1020, 8)
       expect(reachedPayment(finned('daily-close'), { initial: 100, final: 150 })).toBeCloseTo(1020, 8)
       expect(reachedPayment(finned('daily-close'), { initial: 100, final: 130 })).toBeCloseTo(1020, 8)
+    })
+
+    it('includes a fixed coupon, as the main line does, so the two differ only where reaching the barrier changes the payment', () => {
+      // A bullet note with a fixed coupon of 8% a year paid quarterly: 20 a review, the last at the end of the term.
+      const couponed: Product = { ...downsideNote('daily-close'), coupon: { schedule: { frequency: 'quarterly' }, rate: 0.08 } }
+      const levels = [50, 69, 70, 80, 100, 120, 150]
+      const main = levels.map((final) => paymentAtEnd(couponed, { initial: 100, final }))
+      const reached = levels.map((final) => reachedPayment(couponed, { initial: 100, final })!)
+      expect(reached).toEqual([520, 710, 720, 820, 1020, 1020, 1020].map((amount) => expect.closeTo(amount, 8)))
+      // Below 70% both paths count the whole fall; at the initial level and above, reaching the barrier changes nothing.
+      expect(differingRuns(main, reached, 1e-6)).toEqual([{ start: 1, end: 4 }])
     })
 
     it('is undefined without a barrier observed daily', () => {

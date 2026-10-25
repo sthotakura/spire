@@ -38,7 +38,7 @@
           "$ref": "#/definitions/Coupon"
         }
       ],
-      "description": "A coupon tested on each review of its own schedule, with any redemption."
+      "description": "A coupon on each review of its own schedule, with any redemption: fixed, paid on every review, or contingent, paid on a review that meets its barrier."
     },
     "underlier": {
       "$ref": "#/definitions/Underlier"
@@ -1491,7 +1491,7 @@
               "$ref": "#/definitions/Schedule"
             }
           ],
-          "description": "The reviews on which the coupon is tested. They need not be the call's: a coupon can be reviewed monthly and a call quarterly."
+          "description": "The reviews on which the coupon is paid, or for a contingent coupon tested. They need not be the call's: a coupon can be reviewed monthly and a call quarterly."
         },
         "rate": {
           "type": "number",

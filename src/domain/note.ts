@@ -434,7 +434,10 @@ export interface IssuerCall {
  * also a coupon review pays that review's coupon with the call, if the review pays one.
  */
 export interface Coupon {
-  /** The reviews on which the coupon is tested. They need not be the call's: a coupon can be reviewed monthly and a call quarterly. */
+  /**
+   * The reviews on which the coupon is paid, or for a contingent coupon tested. They need not be the call's: a coupon can be reviewed
+   * monthly and a call quarterly.
+   */
   schedule: Schedule
   /**
    * The coupon as a rate a year, as a fraction of principal. Each review that pays a coupon pays principal × rate × the months
@@ -476,7 +479,10 @@ export interface Product {
   term: Term
   /** Bullet redemption pays once, at maturity. An autocall or an issuer call can end the product earlier, on a review. */
   redemption: 'bullet' | Autocall | IssuerCall
-  /** A coupon tested on each review of its own schedule, with any redemption. */
+  /**
+   * A coupon on each review of its own schedule, with any redemption: fixed, paid on every review, or contingent, paid on a review that
+   * meets its barrier.
+   */
   coupon?: Coupon
   underlier: Underlier
   /** The rules that turn the underlier's change into the maturity payment. With no features the product repays principal. */
@@ -631,6 +637,14 @@ export function reviewCount({ term, schedule }: { term: Term; schedule: Schedule
   return term.months % months === 0 ? term.months / months : undefined
 }
 
+// The reviews of a schedule over a term, numbered from 1, with their months; the last is the end of the term. Undefined when the
+// schedule does not divide the term into whole periods.
+export function scheduleReviews(term: Term, schedule: Schedule): Array<{ review: number; month: number }> | undefined {
+  const count = reviewCount({ term, schedule })
+  if (count === undefined) return undefined
+  return Array.from({ length: count }, (_, index) => ({ review: index + 1, month: (index + 1) * monthsPerReview[schedule.frequency] }))
+}
+
 // The call's schedule, or none for a bullet product.
 export const callScheduleOf = (note: Product): Schedule | undefined => (note.redemption === 'bullet' ? undefined : note.redemption.schedule)
 
@@ -651,12 +665,9 @@ export interface ReviewDate {
 export function reviewDates(note: Product): ReviewDate[] {
   const dates = new Map<number, ReviewDate>()
   const add = (schedule: Schedule, key: 'call' | 'coupon'): boolean => {
-    const count = reviewCount({ term: note.term, schedule })
-    if (count === undefined) return false
-    for (let review = 1; review <= count; review++) {
-      const month = review * monthsPerReview[schedule.frequency]
-      dates.set(month, { ...(dates.get(month) ?? { month }), [key]: review })
-    }
+    const reviews = scheduleReviews(note.term, schedule)
+    if (reviews === undefined) return false
+    for (const { review, month } of reviews) dates.set(month, { ...(dates.get(month) ?? { month }), [key]: review })
     return true
   }
   const { redemption, coupon } = note
