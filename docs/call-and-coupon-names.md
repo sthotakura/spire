@@ -37,16 +37,18 @@ Category:
 
 | Rule (model terms) | Category | Note |
 | :--- | :--- | :--- |
-| On a note: no protection, a contingent coupon, no upside participation | Yield Enhancement | The SSPA puts both the Express and the reverse convertible types here; both pay a coupon in place of upside. Protection still decides first, so a protected note with a coupon stays Capital Protection, which matches SSPA 1140. |
+| On a note: no protection, a coupon (fixed or contingent), no upside participation | Yield Enhancement | The SSPA puts both the Express and the reverse convertible types here; both pay a coupon in place of upside, and FINRA describes the reverse convertible's as a "periodic fixed coupon". Protection still decides first, so a protected note with a coupon stays Capital Protection, which matches SSPA 1140. |
 
 An unprotected note with a call and no coupon, or a coupon beside upside participation, keeps no category.
 
-With 100% protection and a coupon, the Principal-protected note reason would add that the Swiss taxonomy calls this a Capital Protection Certificate with Coupon, as it already names 1100 for participation.
+With 100% protection and a contingent coupon, the Principal-protected note reason adds that the Swiss taxonomy calls this a Capital Protection Certificate with Coupon, as it already names 1100 for participation. A fixed coupon does not get that sentence, since 1140's coupon "is dependent on the performance of the underlying".
+
+A fixed coupon gets no chip of its own, and no Express certificate, whose coupon "depends on conditions".
 
 ## Not shown
 
 - **Phoenix.** Market usage whose sources disagree on memory. It could be added later as market usage for an autocall with a coupon and memory, like the shark fin note.
-- **Reverse convertible.** FINRA and the SSPA describe a fixed coupon, paid whatever the underlier does, and the SSPA adds delivery of the underlier. The model has only a contingent coupon and pays cash.
+- **Reverse convertible.** FINRA and the SSPA describe a fixed coupon, paid whatever the underlier does, and the SSPA adds delivery of the underlier. The model now has a fixed coupon ([coupon.md](coupon.md)), but settlement, cash or delivery, belongs with issuance, which the reference does not model, so the name is not shown. "RevCons" is a brand.
 - **One combined name** such as "Autocallable contingent coupon note". The US titles combine the parts in different orders; separate chips say the same and match each part.
 
 ## Open questions

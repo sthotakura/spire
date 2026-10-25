@@ -153,7 +153,7 @@ export function summarize(note: Product): SummarySegment[] {
   const couponMonths = coupon?.schedule ? monthsPerReview[coupon.schedule.frequency] : undefined
   const couponing: SummarySegment[] = coupon === undefined ? [] : [
     { text: ' It pays ' },
-    { text: `a coupon of ${weightPercent(coupon.rate)} a year${couponMonths === undefined ? '' : ` (${weightPercent((coupon.rate * couponMonths) / 12)} a review)`}`, concept: 'coupon' },
+    { text: `a ${coupon.barrier === undefined ? 'fixed ' : ''}coupon of ${weightPercent(coupon.rate)} a year${couponMonths === undefined ? '' : ` (${weightPercent((coupon.rate * couponMonths) / 12)} a review)`}`, concept: 'coupon' },
     { text: ' on each ' },
     { text: coupon.schedule?.frequency ?? 'monthly', concept: 'coupon-schedule' },
     ...(coupon.barrier === undefined

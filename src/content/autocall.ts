@@ -64,9 +64,22 @@ export function redemptionFormula(note: Product): FormulaLine[] {
 }
 
 // The coupon rule: tested on each of its reviews until the product ends, paid on its own before then, and with the call or the maturity
-// payment on the date the product ends. Memory adds the coupons missed since the last one paid. Empty without a coupon.
+// payment on the date the product ends. Memory adds the coupons missed since the last one paid. A fixed coupon is paid on each review
+// with no test. Empty without a coupon.
 export function couponFormula(note: Product): FormulaLine[] {
   if (note.coupon === undefined) return []
+  if (note.coupon.barrier === undefined) {
+    return [{
+      lead: 'Coupon',
+      segments: [
+        { text: 'On each ' },
+        { text: 'coupon review', concept: 'coupon-schedule' },
+        { text: ' until it ends, pay ' },
+        { text: 'Principal × Rate × Months between coupon reviews ÷ 12', concept: 'coupon' },
+        { text: ', whatever the level. A coupon review on the date the product ends pays with it' },
+      ],
+    }]
+  }
   return [{
     lead: 'Coupon',
     segments: [
@@ -141,7 +154,7 @@ function couponEntries(note: Product, outcome: RedemptionOutcome): Array<{ month
     const title = `Coupon on review ${test.review} of ${count}, month ${test.month}`
     // A fixed coupon reads no level: every review pays.
     if (coupon.barrier === undefined || test.level === undefined || test.barrierLevel === undefined) {
-      return { month: test.month, step: { title, how: `A fixed coupon, paid whatever the level: ${couponWorking(note, test.coupons)}`, value: units(test.paid), concept: 'coupon' as const } }
+      return { month: test.month, step: { title, how: `Fixed, paid whatever the level: ${couponWorking(note, test.coupons)}`, value: units(test.paid), concept: 'coupon' as const } }
     }
     const level = test.month === note.term.months ? `Final level ${units(test.level)}` : units(test.level)
     const barrier = `the coupon barrier, ${percent(coupon.barrier)} × initial level = ${units(test.barrierLevel)}`
@@ -218,7 +231,7 @@ export function couponClosingSteps(note: Product, outcome: RedemptionOutcome): A
 }
 
 // How the coupons went: how many reviews met the barrier, what they paid, and what was not paid, then the total paid and the total
-// return. A product called before its first coupon review says so. Empty without a coupon.
+// return. A fixed coupon says what every review paid. A product called before its first coupon review says so. Empty without a coupon.
 export function explainCoupons(note: Product, outcome: RedemptionOutcome): string {
   const { coupon } = note
   if (coupon === undefined) return ''
@@ -228,7 +241,7 @@ export function explainCoupons(note: Product, outcome: RedemptionOutcome): strin
   const met = outcome.coupons.filter((test) => test.met).length
   const paid = outcome.coupons.reduce((sum, test) => sum + test.paid, 0)
   const barrierLevel = outcome.coupons[0].barrierLevel
-  if (barrierLevel === undefined) return `It paid a fixed coupon on each of the ${tested} coupon reviews it lasted for, ${units(paid)} in coupons.${total}`
+  if (barrierLevel === undefined) return `It paid its fixed coupon on ${tested === 1 ? 'the one coupon review' : `each of the ${tested} coupon reviews`} it lasted for, whatever the underlier did: ${units(paid)} in coupons.${total}`
   const barrier = units(barrierLevel)
   const opening = met === 0
     ? `None of the ${tested} coupon reviews it lasted for was at or above the ${barrier} coupon barrier, so it paid no coupon.`

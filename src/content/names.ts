@@ -25,7 +25,7 @@ export function productCategory(note: Product): ProductCategory | undefined {
 
   if (protection !== undefined && Number.isFinite(protection) && protection > 0) return 'Capital Protection'
   if (note.wrapper === 'deposit' && isRate(upside)) return 'Capital Protection'
-  // A coupon in place of upside, as in the Swiss Express and reverse convertible types, with or without a call.
+  // A coupon in place of upside, fixed or contingent, as in the Swiss Express and reverse convertible types, with or without a call.
   if (note.wrapper === 'note' && note.coupon !== undefined && upside === undefined) return 'Yield Enhancement'
   // A call without a coupon, or a coupon beside upside participation, is not placed, so it gets no category.
   if (note.wrapper === 'note' && note.redemption === 'bullet' && note.coupon === undefined && (isRate(upside) || isRate(downside))) return 'Participation'
@@ -36,7 +36,7 @@ export function productCategory(note: Product): ProductCategory | undefined {
 function maturityOnlyNote(note: Product, name: string): string {
   const parts: string[] = []
   if (note.redemption !== 'bullet') parts.push(`The name describes the payment at maturity; ${note.redemption.kind === 'autocall' ? 'an autocall' : 'an issuer call'} can end the product earlier.`)
-  if (note.coupon !== undefined) parts.push('The name does not cover the contingent coupon, paid on the reviews that meet its barrier.')
+  if (note.coupon !== undefined) parts.push(note.coupon.barrier === undefined ? 'The name does not cover the fixed coupon, paid on every coupon review.' : 'The name does not cover the contingent coupon, paid on the reviews that meet its barrier.')
   if (note.payoff.digitalReturn !== undefined && name !== 'Digital return note') parts.push('The name does not cover the digital return, a fixed return paid as a minimum at or above its barrier.')
   return parts.join(' ')
 }
@@ -59,7 +59,7 @@ export function marketingNames(note: Product): MarketingName[] {
     names.push({
       name: 'Principal-protected note',
       vocabulary: 'US descriptive',
-      reason: `The payment at maturity is at least the full principal, subject to the issuer's ability to pay.${upside ? ' In the Swiss taxonomy this is a Capital Protection Note with Participation.' : note.coupon ? ' In the Swiss taxonomy this is a Capital Protection Certificate with Coupon.' : ''}`,
+      reason: `The payment at maturity is at least the full principal, subject to the issuer's ability to pay.${upside ? ' In the Swiss taxonomy this is a Capital Protection Note with Participation.' : note.coupon?.barrier !== undefined ? ' In the Swiss taxonomy this is a Capital Protection Certificate with Coupon.' : ''}`,
       concepts: ['protection'],
     })
   } else if (hasProtection && protection < 1) {
@@ -227,7 +227,8 @@ function callAndCouponNames(note: Product): MarketingName[] {
       concepts: ['redemption'],
     })
   }
-  if (coupon !== undefined) {
+  // A fixed coupon gets no name of its own: "reverse convertible" also describes settlement, which the reference does not model.
+  if (coupon?.barrier !== undefined) {
     names.push({
       name: 'Contingent coupon note',
       vocabulary: 'US descriptive',
@@ -237,11 +238,12 @@ function callAndCouponNames(note: Product): MarketingName[] {
   }
 
   // The Swiss Express-Barrier-Certificate: coupons in place of upside, an autocall, and a barrier below which the holder bears the fall.
-  // Without a barrier the Swiss type's maturity payment is unverified, so a buffer or no downside feature gets no Express name.
+  // Without a barrier the Swiss type's maturity payment is unverified, so a buffer or no downside feature gets no Express name. Its
+  // coupon "depends on conditions", so a fixed coupon gets none either.
   const protection = note.payoff.principalProtection
   const unprotected = protection === undefined || protection === 0
   const downside = downsideOf(note)
-  if (redemption !== 'bullet' && redemption.kind === 'autocall' && coupon !== undefined && unprotected && upsideOf(note) === undefined && note.payoff.barrierAbsoluteReturn === undefined && downside?.barrier !== undefined && downside.buffer === undefined) {
+  if (redemption !== 'bullet' && redemption.kind === 'autocall' && coupon?.barrier !== undefined && unprotected && upsideOf(note) === undefined && note.payoff.barrierAbsoluteReturn === undefined && downside?.barrier !== undefined && downside.buffer === undefined) {
     names.push({
       name: 'Express certificate',
       vocabulary: 'SSPA',
