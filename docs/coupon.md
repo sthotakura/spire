@@ -1,81 +1,118 @@
-# Coupon
+# Fixed coupon
 
-This is a proposal, not scheduled. It describes a fixed coupon: interest at a fixed annual rate, paid at a stated frequency over the term. It was first proposed for a fixed deposit, which is no longer modelled because it is not a structured product ([deposit.md](deposit.md)). It will be built with the first structured product that pays a fixed coupon, such as a reverse convertible. It does not cover contingent, range-accrual, memory or floating coupons, or compounding. It needs the term ([term.md](term.md)).
+Agreed on 25 October 2026, not yet built. A fixed coupon is interest at a fixed rate a year, paid on every coupon review whatever the underlier does, until the product ends. It is built as a coupon with no barrier, beside the contingent coupon of [contingent-coupon.md](contingent-coupon.md). It does not cover floating, range-accrual or step-up coupons, or interest added to the balance.
 
-The established concepts below come from fixed deposits, where the choice of frequency is plainest. The same arithmetic applies to a fixed coupon on a note.
+This document replaces an earlier proposal written for a fixed deposit, which is no longer modelled because it is not a structured product ([deposit.md](deposit.md)). Its arithmetic carries over; its sources were deposit material and are replaced by the three notes below.
+
+## What it means
+
+A **fixed coupon** is a payment of interest on stated dates during the product's life, separate from the repayment of principal. Unlike a contingent coupon, it has no condition: no level of the underlier is read to decide whether it is paid. It stops when the product ends, so a called product pays the coupon of the review it is called on and no later ones.
+
+A fixed coupon does not protect principal. In the notes read, the holder receives every coupon and can still lose most of the principal at the end of the term. The coupon is high because the holder bears that loss: both issuers' tax sections describe each coupon as partly interest on a deposit and partly a premium for a put option the holder has sold. That is how the issuers characterise the payment for tax, not a pricing model, and the reference does not price it.
 
 ## Established concepts
 
-- A **coupon** is interest paid to the holder during the product's life, on stated dates, as a separate payment from the repayment of principal.
-- A fixed deposit pays its interest **either at stated intervals or once at the end** of the term. Bank material in India describes the choice as monthly, quarterly, half-yearly or yearly payout ("non-cumulative"), or payment on maturity ([Moneylife](https://www.moneylife.in/article/how-to-choose-between-monthly-quarterly-and-cumulative-fd-payouts/78721.html); [HDFC Bank](https://www.hdfc.bank.in/blogs/fixed-deposit/what-is-fixed-deposit-interest)). FINRA describes CDs that "pay you interest until maturity", after which "you can cash in your CD for the principal plus the interest you've earned" ([FINRA, Bank Products](https://www.finra.org/investors/investing/investment-products/bank-products)).
-- **Paid interest does not compound.** A coupon that is paid out leaves the principal unchanged, so each coupon is the same amount.
-- **Interest added to the balance does compound.** In a "cumulative" deposit, interest is "compounded quarterly, and payment is made on maturity" ([Moneylife](https://www.moneylife.in/article/how-to-choose-between-monthly-quarterly-and-cumulative-fd-payouts/78721.html)). Nothing is paid until the end, so this is not a coupon. It is a fixed return paid with principal, like a zero-coupon bond, and is left out of this proposal (open question 1).
-- The [feature map](feature-map.md) describes a coupon as a payment condition combined with a rate. This proposal builds one cell of that table: always paid, at a fixed rate.
+Three public notes were read on 25 October 2026. All are fixed coupon autocalls on the worst of several stocks, paid in cash, with no upside participation.
 
-## Proposal
+| Finding | Source |
+| :--- | :--- |
+| **The coupon is paid whatever the underlier does.** The 2019 note pays a quarterly coupon "at an annual rate of 11.72%" on each coupon date unless previously redeemed. The Barclays note's example 3 pays a final level of 50% as 500 plus the 36.05 coupon, 536.05. | [MS 2019](https://www.sec.gov/Archives/edgar/data/1666268/000095010319017010/dp117426_424b2-ps2983.htm); [Barclays 2026](https://www.sec.gov/Archives/edgar/data/312070/000095010326010923/dp250300_424b2-9273ms.htm) |
+| **The coupon per review is the annual rate times the period.** 11.72% a year is about 29.30 a quarter on 1,000; 12.90% a year is about 10.75 a month; Barclays states 3.605% a quarter, 14.42% a year in its tax section. | All three |
+| **A whole period is a twelfth of a year per month.** Both Morgan Stanley notes state 30/360, which over whole months is months ÷ 12. Barclays states no day count. | MS 2019; [MS 2024](https://www.sec.gov/Archives/edgar/data/1666268/000183988224003876/ms997_424b2-02307.htm) |
+| **A call pays principal plus that period's coupon**, and nothing for being called. No further payments follow. | All three |
+| **The coupon is paid in the non-call period.** The 2019 note pays a coupon in March 2020 and cannot be called until June 2020; the 2024 note pays five monthly coupons before its first call test. | MS 2019; MS 2024 |
+| **The last coupon is paid with the payment at the end of the term**, whether or not the downside threshold is breached. | All three |
+| **Coupon and call share a schedule** in all three: each call test falls on a coupon period. The determination dates fall a few days before the payment dates; that gap is issuance. | All three |
+| **The downside is a barrier read on the final date**: below 60% (50% in the 2024 note) of the initial level, the holder bears the whole fall of the worst stock, 1:1. At or above it, principal. | All three |
 
-The coupon sits beside the payoff, not inside it. The payoff is the payment at the end of the term, given the underlier. A coupon is a series of payments over the term, and a later product could have both.
+The BofA fixed coupon autocall ([424B2](https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm)) lists 36 monthly coupon payment dates and a separate list of 30 call observation dates, so it also reads as a coupon and a call on different schedules. It was not re-read for this proposal.
+
+### Fit with the model
+
+| Note | Maps to | Sample |
+| :--- | :--- | :--- |
+| MS 2019 | 18 months; a worst-of basket of three; quarterly autocall with one non-call review, trigger 100% stepping −5% so review 2 is 95% and review 5 is 80%, no call amount, final review not a call; a fixed coupon of 11.72% a year, quarterly; downside participation 100% with a 60% barrier on the final date | Yes. A final pricing supplement whose examples reconcile with its terms. |
+| MS 2024 | 24 months; worst of four; monthly autocall, five non-call reviews, trigger 100%; 12.90% a year, monthly; 50% barrier | Not now. A preliminary supplement with the rate stated as "at least 12.90%" and the levels blank. A final supplement would make it one. |
+| Barclays 2026 | 12 months; worst of three; quarterly autocall from review 1, trigger 100%; 14.42% a year, quarterly; 60% barrier | No; a source only. Its call test reads "greater than or equal to" on the cover and "above" in its risk factors and an example, and its tax section refers to a physical settlement option that its payment terms do not have. |
+
+Settlement, cash or delivery of the underlier, is not part of the product model: it belongs with issuance, which the reference does not model. The name "reverse convertible" is therefore not shown, since the Swiss type includes delivery (see [call-and-coupon-names.md](call-and-coupon-names.md)).
+
+## Smallest model
 
 ```json
-"coupon": { "rate": 0.045, "frequency": "quarterly" }
+"coupon": { "schedule": { "frequency": "quarterly" }, "rate": 0.1172 }
 ```
+
+- **A coupon with no barrier.** `barrier` becomes optional on `Coupon`. With one, the coupon is contingent, as now; without one, it is fixed. This was decision 2 of [contingent-coupon.md](contingent-coupon.md).
+- **No `kind`.** The presence of the barrier is the difference; a kind would state it twice.
+- **No memory without a barrier.** No fixed coupon can be missed, so `memory: true` without a barrier is an issue, not ignored. The app writes no `memory` key on a fixed coupon.
+- **Fixed or contingent, not both.** A product has one coupon. No public note read pays a fixed coupon and a contingent one together, so that combination is not modelled.
+- **The schedule, rate and arithmetic are the contingent coupon's.** The coupon keeps its own schedule and works with any redemption: bullet, autocall or issuer call.
+
+## The rules
+
+On each coupon review `r`, up to the date the product ends:
 
 ```text
-months per period  = 1 (monthly), 3 (quarterly), 6 (semi-annual), 12 (annual), or the term (once at the end)
-number of coupons  = term months / months per period
-each coupon        = principal × rate × months per period / 12
+coupon   = principal × rate × months per review / 12
+paid(r)  = coupon
 ```
 
-- **Rate.** A fixed annual rate, as deposits quote it. Greater than zero. A zero rate is no coupon.
-- **Frequency.** Monthly, quarterly, semi-annual, annual, or `term`: one coupon, paid with principal at the end of the term.
-- **Whole periods.** The term must hold a whole number of periods: a 12-month term pays quarterly, but an 18-month term cannot pay annually. A shortened first or last period is left out (open question 2).
-- **Nominal periods.** A quarter is a quarter of a year, whatever its number of days. Day counts belong to issuance ([term.md](term.md)).
-- **No kind yet.** `condition: "always"` and `rate.kind: "fixed"` would each have one value, and section 17 of the plan dropped `payoff.kind` for that reason. A `kind` is added with the second coupon type.
-
-## Cash flows
-
-With a coupon a product makes several payments, so the result becomes a schedule instead of a single payment. It is derived, never stored:
-
-- one row for each coupon period, numbered from 1, with the coupon;
-- the payment at the end of the term: the payoff payment (principal, when the payoff has no features) plus the last coupon;
-- the total paid over the term.
-
-Periods are numbered, not dated, so the schedule says "Coupon 3 of 4" rather than a date. `paymentBreakdown` remains the single source of the payoff payment, and the schedule adds the coupons to it.
+- **A call** on a date that is a coupon review pays principal, the call amount and that review's coupon. A call on any other date pays no coupon, as now.
+- **The last review**, if the product is not called, pays the payment at the end of the term plus the last coupon.
+- **No level is read for the coupon.** A fixed coupon adds no dates to the scenario's levels: a bullet note with a fixed coupon has no review table, and an autocall reads levels on its call reviews only. The coupon's reviews still decide when coupons are paid and what they add to the total.
 
 ## Synthetic worked example
 
-A deposit of 10,000, a 12-month term, 4.5% a year.
+A note of 1,000 on a synthetic stock with an initial level of 100, shaped like the 2019 note. An 18-month term; a fixed coupon of 12% a year, quarterly, so 30.00 a review over six reviews; a quarterly autocall with no call on review 1, a trigger of 100% stepping −5% (95% on review 2, 80% on review 5), no call amount and no call on the final review; 100% downside participation with a 60% barrier read on the final date.
 
-| Frequency | Coupons | Each coupon | Paid at the end of the term | Total interest |
-| :--- | ---: | ---: | ---: | ---: |
-| Monthly | 12 | 37.50 | 10,037.50 | 450.00 |
-| Quarterly | 4 | 112.50 | 10,112.50 | 450.00 |
-| Semi-annual | 2 | 225.00 | 10,225.00 | 450.00 |
-| Annual | 1 | 450.00 | 10,450.00 | 450.00 |
-| Once at the end of the term | 1 | 450.00 | 10,450.00 | 450.00 |
+Called early:
 
-Over an 18-month term at the same rate: quarterly pays 6 coupons of 112.50, once at the end pays one coupon of 675.00 (4.5% × 1.5 × 10,000), and annual is invalid because 18 months is not a whole number of years.
+| Review | Level | Trigger | Call | Paid |
+| ---: | ---: | ---: | :--- | ---: |
+| 1 | 80 | — | No; non-call period | 30.00 |
+| 2 | 92 | 95% | No | 30.00 |
+| 3 | 91 | 90% | Yes | 1,000 + 30.00 |
 
-For comparison, a cumulative deposit compounded quarterly would pay 10,000 × (1 + 0.045 / 4)⁴ = 10,457.65 at the end of 12 months. Not modelled.
+The holder receives 1,090.00 over nine months, 90.00 of it in coupons.
+
+Never called, with five coupons, 150.00, paid before the last review:
+
+| Final level | Payoff | Last coupon | Paid at the end of the term | Total paid |
+| ---: | ---: | ---: | ---: | ---: |
+| 75 | 1,000.00 | 30.00 | 1,030.00 | 1,180.00 |
+| 60 | 1,000.00 | 30.00 | 1,030.00 | 1,180.00 |
+| 50 | 500.00 | 30.00 | 530.00 | 680.00 |
+
+At 60 the barrier is not breached, since it is reached only strictly below. At 50 the holder bears the whole fall and still receives every coupon.
+
+A 12-month bullet note with a fixed coupon of 6% a year, monthly, pays 5.00 a month, the last with the payment at the end of the term: 60.00 in coupons whatever the final level. No public bullet note with a fixed coupon was read; it is a coherent combination of defined parts.
 
 ## Consequences
 
-- **Outline.** A Coupon row beside the payoff, with Rate (a percent a year) and Frequency (a dropdown). It is added from the Add feature menu.
-- **Summary.** "…and pays 4.5% a year in quarterly coupons", or "…and pays 4.5% a year, once at the end of the term".
-- **Structure JSON.** The `coupon` key after `payoff`, with its own colour and highlights.
-- **Payment rule and calculation.** A coupon line, `Coupon = Principal × 4.5% × 3 / 12 = 112.50, paid 4 times`, and a cash-flow table listing each coupon and the payment at the end of the term.
-- **Validation.** Named issues for a rate of zero or less, a term that does not hold whole periods, and a coupon on a note.
+- **Domain.** `barrier` optional on `Coupon`; an issue for memory without a barrier; `reviewDates` adds coupon dates only for a coupon with a barrier; `couponTests` pays every review of a fixed coupon; the payment at the end of the term adds the last coupon at every final level, so the chart's line moves up by one coupon with no step.
+- **Daily observation.** A barrier observed on every close is not combined with a coupon today, because the levels read on coupon reviews would have to agree with the lowest and highest close. A fixed coupon reads no levels, so the rule is lifted for a fixed coupon on a bullet note or an issuer call. With an autocall the call reviews still read levels, and the rule stays.
+- **Lookback.** The assumption that the lookback period ends before the first review applies to a fixed coupon only through the call reviews that read levels.
+- **Schema.** `barrier` optional, with JSDoc that says a coupon without one is fixed; an example from the sample; a boundary case; "memory needs a barrier" added to the rules only the validator checks.
+- **Content.** Summary: "…and pays 12% a year in quarterly coupons". Payment rule and calculation: `Coupon = 1,000 × 12% × 3 / 12 = 30.00`, paid on each review until the product ends. Outcome, scenarios and chart labels say the coupon is paid whatever the level.
+- **Interface.** The Coupon row offers None, Fixed and Contingent. With Fixed, the coupon barrier and memory rows are not shown; switching keeps the reader's rate and schedule, and switching back to Contingent restores the barrier. For a fixed coupon the review table's coupon column shows what each review pays, with no barrier test.
+- **Names.** The Contingent coupon note chip needs a barrier. No chip for a fixed coupon (see above). The category follows the contingent coupon: an unprotected note with a coupon and no upside is Yield Enhancement.
+- **Annualised return.** Still left out with a coupon, until the cash-flow result.
+- **Sample.** "Worst-of fixed coupon autocallable note" from the 2019 note, with synthetic underliers.
+- **Book.** A fixed coupon section in chapter 20, with a chart of the payment at the end of the term; chapters 19 and 21 and the outline updated.
 
-## Decisions
+## Decisions agreed
 
-1. **The coupon sits beside the payoff**, as the feature map proposed.
-2. **A coupon is paid.** Interest added to the balance is a different concept and is not a coupon setting.
-3. **Once at the end of the term is a frequency**, not a separate concept: one period as long as the term.
-4. **The domain shape does not depend on the wrapper.** A fixed coupon on a note is a public product.
+1. **A fixed coupon is a coupon with no barrier**, with no `kind`.
+2. **Fixed or contingent, not both.** No note read pays both.
+3. **No name chip for a fixed coupon.** "Reverse convertible" depends on settlement, which belongs with issuance; "RevCons" is a brand.
+4. **Barclays is a source, not a sample**, since its filing contradicts itself.
+5. **The fixed coupon comes before the cash-flow result.** The total paid stays the result.
 
 ## Open questions
 
-1. **Cumulative interest.** Interest compounded and paid at the end is a fixed return in the payoff, with a compounding frequency. It is added to the payment, unlike the minimum return of a market-linked deposit, which is a floor ([deposit.md](deposit.md)).
-2. **Broken periods.** Real products can have a short or long first or last coupon period. Not modelled.
-3. **Floating and contingent coupons.** A floating rate observes a reference rate, so the coupon would have its own underlier ([underlier-model.md](underlier-model.md)). A contingent coupon observes the underlier on each coupon date, which needs observation dates ([observation-dates.md](observation-dates.md)).
-4. **Negative rates.** Some deposits have had negative rates. Rates must be greater than zero here.
+1. **A coupon and a call on different schedules** in a fixed coupon note: the BofA note may be one. The model allows it; re-read the note before citing it.
+2. **A fixed coupon for an initial period, then a contingent one.** Not seen in a public note.
+3. **Interest added to the balance and paid at the end** is a fixed return in the payoff, not a coupon, and is not modelled.
+4. **Broken periods**, a short or long first or last coupon period. Not modelled.
+5. **Floating coupons** would read a reference rate, an underlier of their own. Not planned.
