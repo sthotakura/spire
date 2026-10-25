@@ -152,4 +152,17 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
       coupon: { schedule: { frequency: 'quarterly' }, rate: 0.08, barrier: 0.7, memory: false },
     }),
   ],
+  [
+    'an autocall reviewed quarterly on a worst-of basket, with a fixed coupon of 11.72% a year paid on every review, a trigger stepping down from 95% and a 60% downside barrier at the end of the term',
+    note({ participations: [{ direction: 'downside', barrier: { level: 0.6, observation: 'final' }, rate: 1 }] }, {
+      term: { months: 18 },
+      redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, triggerStep: -0.05, nonCallReviews: 1, callAmount: 0 },
+      coupon: { schedule: { frequency: 'quarterly' }, rate: 0.1172 },
+      underlier: {
+        kind: 'basket',
+        components: [{ asset: asset('Index A') }, { asset: asset('Index B') }, { asset: asset('Index C') }],
+        determination: { initial: { kind: 'given', levels: [{ asset: 'Index A', level: 100 }, { asset: 'Index B', level: 50 }, { asset: 'Index C', level: 200 }] }, final: { kind: 'final-date' }, basketReturn: { kind: 'worst-of' } },
+      },
+    }),
+  ],
 ]

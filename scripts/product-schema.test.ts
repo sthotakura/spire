@@ -159,6 +159,7 @@ describe('product schema', () => {
       ['autocall call amount -0.01', callable({ callAmount: -0.01 }), false], ['autocall call amount 0', callable({ callAmount: 0 }), true],
       ...[[0, false], [0.0001, true]].map(([value, ok]): [string, Product, boolean] => [`coupon rate ${value}`, withCoupon({ rate: value as number }), ok as boolean]),
       ...[[0, false], [0.01, true], [2, true], [2.01, false]].map(([value, ok]): [string, Product, boolean] => [`coupon barrier ${value}`, withCoupon({ barrier: value as number }), ok as boolean]),
+      ['a fixed coupon, with no barrier', { ...withCoupon({}), coupon: { schedule: { frequency: 'quarterly' }, rate: 0.1 } } as Product, true],
     ]
 
     it.each(cases)('%s', (_, product, expected) => {
@@ -181,6 +182,7 @@ describe('product schema', () => {
       ['basket weights that do not add up to 1', basket([100, 100], ['Index A', 'Index B'], [5, 5])],
       ['a quarterly call schedule over a term of 10 months', { ...callable({ schedule: { frequency: 'quarterly' } }), term: { months: 10 } }],
       ['an annual coupon schedule over a term of 18 months', { ...withCoupon({}), term: { months: 18 }, coupon: { schedule: { frequency: 'annual' }, rate: 0.1, barrier: 0.7 } } as Product],
+      ['memory on a fixed coupon', { ...withCoupon({}), coupon: { schedule: { frequency: 'quarterly' }, rate: 0.1, memory: true } } as Product],
       ['barrier absolute return with lookback', { ...bothWays({}), underlier: determined({ initial: { kind: 'lookback', observationCount: 3 }, final: { kind: 'final-date' } }).underlier } as Product],
     ])('%s', (_, product) => {
       expect(schemaAccepts(product), 'schema').toBe(true)
