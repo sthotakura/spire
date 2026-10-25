@@ -16,7 +16,7 @@ remain working research and design records. Reader-facing chapters belong in
 | Chapter | Status | Reader-facing chapter | Working material |
 | --- | --- | --- | --- |
 | 1. What is a structured product? | Draft | [Read chapter](book/01-what-is-a-structured-product.md) | [README](../README.md) |
-| 2. Wrapper | Draft | [Read chapter](book/02-wrapper.md) | [Term](term.md), [Deposit](deposit.md) |
+| 2. Wrapper | Draft | [Read chapter](book/02-wrapper.md) | [Term](term.md), [Deposit](deposit.md), [Certificate](certificate.md) |
 | 3. Redemption behaviour | Draft | [Read chapter](book/03-redemption.md) | [Feature map](feature-map.md) |
 | 4. Term | Draft | [Read chapter](book/04-term.md) | [Term](term.md) |
 | 5. Underliers | Draft | [Read chapter](book/05-underliers.md) | [Underlier model](underlier-model.md), [Basket](basket.md), [Worst-of](worst-of.md) |

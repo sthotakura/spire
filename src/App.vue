@@ -75,7 +75,8 @@ const hints = {
 const wrapperOptions = [
   { id: 'note', label: 'Note', description: 'A debt security with payments defined by its terms and subject to the issuer’s ability to pay.', available: true },
   { id: 'deposit', label: 'Deposit', description: 'Money held by a bank and repaid in full at the end of the term.', available: true },
-  { id: 'certificate-or-warrant', label: 'Certificate or warrant', description: 'Distinct security forms whose rights and legal treatment depend on their market and terms.', available: false },
+  { id: 'certificate', label: 'Certificate', description: 'A debt security of its issuer, the name Swiss and German markets commonly give to structured products.', available: false },
+  { id: 'warrant', label: 'Warrant', description: 'A security that pays the underlier’s move beyond a strike at expiry, as a call or a put, and can expire worthless.', available: false },
   { id: 'etf', label: 'ETF', description: 'A fund whose shares trade on an exchange and represent an interest in a portfolio.', available: false },
 ] as const
 const redemptionOptions = [

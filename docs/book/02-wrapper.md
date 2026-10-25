@@ -15,6 +15,14 @@ scheduled maturity.
 The note wrapper does not mean that the holder owns the linked equity or index.
 The underlier is a reference for calculating the payment.
 
+Swiss and German issuers commonly call such a debt security a **certificate**.
+A certificate with a denomination is paid by the same kind of rules as a note,
+stated per denomination, and its holder likewise depends on the issuer's
+ability to pay. Some certificates have no fixed term and pay the underlier's
+price times a ratio. Those differences belong to the term, redemption and
+payoff, not to the name. In the United States, "certificate" more often means a
+certificate of deposit, which is a deposit.
+
 ## Deposit
 
 A market-linked deposit is a bank deposit whose return is linked to an
