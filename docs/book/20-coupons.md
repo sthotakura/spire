@@ -1,12 +1,20 @@
 # Coupons
 
-A **coupon** is a payment made to the holder during a product's life, on its reviews, separate from the repayment of principal. This chapter explains the coupon most public autocallable notes pay, the **contingent coupon**, and the **memory** feature that some of them add. The reference gives the coupon its own reviews, so it goes with any redemption: a bullet note, an autocall or an issuer call.
+A **coupon** is a payment made to the holder during a product's life, on its reviews, separate from the repayment of principal. This chapter explains the two kinds the reference models: the **fixed coupon**, paid on every review whatever the underlier does, and the **contingent coupon**, paid only on reviews that meet a condition, with the **memory** feature that some contingent coupons add. A product has one coupon, fixed or contingent. The reference gives the coupon its own reviews, so it goes with any redemption: a bullet note, an autocall or an issuer call.
+
+## A fixed coupon
+
+A fixed coupon is paid on every coupon review until the product ends, whatever the underlier does. No level is read for it. One public note pays "a quarterly coupon at an annual rate of 11.72%" on each coupon payment date unless it has been redeemed early ([Morgan Stanley Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/1666268/000095010319017010/dp117426_424b2-ps2983.htm)). Each coupon is the rate a year times the months between reviews, divided by 12: about 29.30 a quarter on 1,000.
+
+The reference states a fixed coupon with two terms: the **rate**, a share of principal a year, and its **reviews**. It has no coupon barrier and no memory, since no review can miss.
+
+A fixed coupon does not protect principal. In the public fixed coupon notes read for this chapter, the holder receives every coupon and can still lose most of the principal at the end of the term: one pays 536.05 on 1,000, half the principal and its last coupon of 36.05, when the worst of its stocks ends at half its initial level ([Barclays Bank PLC, 424B2](https://www.sec.gov/Archives/edgar/data/312070/000095010326010923/dp250300_424b2-9273ms.htm)). The coupon is high because the holder bears that loss. Both issuers describe each coupon, for tax purposes, as partly interest and partly a premium for an option the holder has in effect sold: the right to hand the holder the fall in the underlier. That is how the issuers characterise the payment, not a price; the reference does not price anything.
 
 ## A contingent coupon
 
 A contingent coupon is paid on a review only if a condition holds. The condition is a **coupon barrier**: a level of the underlier, as a share of its initial level. On each review the level is compared with it. At or above the barrier, the coupon for that review is paid. Below it, the coupon is missed.
 
-The condition is what makes the coupon contingent. A fixed coupon is paid on every date whatever the underlier does. A contingent coupon can pay on some reviews and not others, or on none.
+The condition is what makes the coupon contingent. A fixed coupon is paid on every review whatever the underlier does. A contingent coupon can pay on some reviews and not others, or on none.
 
 A public note states the coupon as a rate a year and the amount paid on each review. One note pays "17.35% per annum, payable at a rate of 1.44583% per month" when its stock closes at or above 50% of its strike on a review ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026045661/ea0286921-01_424b2.htm)). Another pays 11.50% a year, 2.875% a quarter, at or above 70% ([JPMorgan Chase & Co., 424B2](https://www.sec.gov/Archives/edgar/data/19617/000089109212004122/e49253_424b2.pdf)). The amount on each review is the rate a year times the months between reviews, divided by 12.
 
@@ -36,7 +44,7 @@ If the product is not called, the last review pays the maturity payoff, and its 
 
 The coupon barrier is its own level, apart from the trigger and from the downside barrier or buffer of the payoff. In the 70% note the coupon barrier and the downside barrier are both 70%. In the 50% note the downside barrier is lower, at 40%, so a final level between 40% and 50% repays principal and pays no coupon.
 
-## Worked example
+## Worked example: a contingent coupon
 
 A synthetic note with principal of 1,000, a term of 12 months, monthly reviews and an initial level of 100. The coupon is 12% a year, so 10 a review, with a 70% barrier. The autocall has a 100% trigger, no call amount and a non-call period of 3 reviews. The payoff is 100% downside participation with a 60% downside barrier read on the final date.
 
@@ -52,6 +60,28 @@ With memory the note pays 1,050 over five months, 50 of it in coupons. Without m
 
 If the note is never called, the last review decides two things at once. Say the earlier coupons have been paid. A final level of 75 is above the downside barrier, so the payoff repays 1,000, and it is above the coupon barrier, so the last coupon of 10 is paid with it: 1,010, plus any remembered coupons. A final level of 55 is below the downside barrier, so the payoff pays 550, and it is below the coupon barrier, so the last coupon is missed and any remembered coupons are lost.
 
+## Worked example: a fixed coupon
+
+A synthetic note with principal of 1,000, a term of 18 months, quarterly reviews and an initial level of 100, shaped like the 11.72% note. The fixed coupon is 12% a year, so 30 a review over six reviews. The autocall cannot call on review 1, and its trigger is 100% stepping down 5% a review: 95% on review 2, 90% on review 3, down to 80% on review 5. It has no call amount, and the last review is not a call. The payoff is 100% downside participation with a 60% downside barrier read on the final date.
+
+| Review | Level | Trigger | Call | Paid |
+| ---: | ---: | ---: | :--- | ---: |
+| 1 | 80 | — | No; in the non-call period | 30 |
+| 2 | 92 | 95% | No | 30 |
+| 3 | 91 | 90% | Yes | 1,000 + 30 |
+
+The note pays 1,090 over nine months, 90 of it in coupons. Review 1 pays its coupon at 80, and would have at any level.
+
+If the note is never called, it has paid five coupons, 150, before the last review, which pays the payoff and the last coupon of 30:
+
+| Final level | Payoff | Paid at the end of the term | Total paid |
+| ---: | ---: | ---: | ---: |
+| 75 | 1,000 | 1,030 | 1,180 |
+| 60 | 1,000 | 1,030 | 1,180 |
+| 50 | 500 | 530 | 680 |
+
+At 60 the downside barrier is not reached, since it is reached only below its level. At 50 the holder bears the whole 50% fall and still receives every coupon.
+
 ## Seen against the final level
 
 The payoff chart draws what the product pays at the end of its term, if no earlier review called it, against the final level. With a coupon the line steps up at the coupon barrier by one coupon, the last review's own. The remembered coupons depend on the path, so they are not drawn; the review table and the calculation show them. The review table works out the coupon of each review before the last, such as 1,000 × 10% × 3/12 = 25 for a quarterly review, or 2 × 1,000 × 10% × 3/12 = 50 when a remembered coupon is paid with it. Only the result is rounded, so the sum is the one paid. The last review reads the final level, so its coupon is not in the table; the calculation works out every coupon the same way, the last included.
@@ -62,6 +92,10 @@ When the coupon barrier equals the downside barrier, the two steps are at the sa
 
 ![A note with 100% downside participation, a 70% downside barrier and an 11.5% contingent coupon at a 70% barrier: below 70% the payment follows the fall, and at 70% it jumps to principal plus the last coupon](charts/contingent-coupon.svg)
 
+A fixed coupon has no barrier, so the last coupon is added at every final level. The line keeps the shape of the payoff and sits one coupon higher, and the scenario table adds the column for the last coupon but no rows.
+
+![The fixed coupon worked example: 100% downside participation with a 60% downside barrier and a 12% fixed coupon paid quarterly; the payment at the end of the term is the payoff plus the last coupon of 30 at every final level](charts/fixed-coupon.svg)
+
 ## The calculation
 
 The calculation lists the coupon on each review the product reached, then the call tests, then how it ended. A called product's total is what it paid on earlier reviews plus the call. A product that ran to the end adds the last coupon to the payoff payment, and then gives the total.
@@ -70,13 +104,13 @@ It does not give an annualised return when the product pays coupons. The return 
 
 ## Underliers and other features
 
-- **A basket** is read as its basket level, as the call is. For a worst-of basket, the coupon is paid only if every asset is at or above the barrier, which is the worst asset at or above it. The note in [Reviews and early redemption](19-reviews-and-early-redemption.md) on two funds pays its coupon this way.
+- **A basket** is read as its basket level, as the call is. For a worst-of basket, a contingent coupon is paid only if every asset is at or above the barrier, which is the worst asset at or above it. The note in [Reviews and early redemption](19-reviews-and-early-redemption.md) on two funds pays its coupon this way. A fixed coupon reads no level, on a basket or otherwise.
 - **Averaging** is allowed. The last review reads the averaged final level, as the maturity payment does.
 - **A trigger that steps down** below the coupon barrier can call the product on a review that misses its coupon. The reference then pays principal and any call amount, with no coupon on that review, and remembered coupons are lost. No public note read states this case.
-- **A bullet note** with a coupon reads a level on each coupon review and nothing else, and pays the last coupon with its maturity payment.
-- **An issuer call** with a coupon reads a level on each coupon review; the issuer's decision reads none. A call on a coupon review pays principal, any call amount and that review's coupon, as the issuer call notes in [Reviews and early redemption](19-reviews-and-early-redemption.md) do.
+- **A bullet note** with a contingent coupon reads a level on each coupon review and nothing else, and pays the last coupon with its maturity payment. With a fixed coupon it reads no level before the final date.
+- **An issuer call** with a contingent coupon reads a level on each coupon review; the issuer's decision reads none, and neither does a fixed coupon. A call on a coupon review pays principal, any call amount and that review's coupon, as the issuer call notes in [Reviews and early redemption](19-reviews-and-early-redemption.md) do.
 - **Lookback** is allowed, on the assumption that the lookback period ends before the first coupon review, as with an autocall. The coupon barrier is then a share of the lookback level.
-- **A barrier observed on every close** is not available with a coupon, for the reason it is not with an autocall: the levels on the coupon reviews are closes that the one lowest or highest close a scenario states would have to agree with.
+- **A barrier observed on every close** is not available with a contingent coupon, for the reason it is not with an autocall: the levels on the coupon reviews are closes that the one lowest or highest close a scenario states would have to agree with. A fixed coupon reads no level, so a bullet note with one can have such a barrier. No public note with the combination was read; the two parts are each defined, and the coupon is paid whatever the closes do.
 
 ## In the builder
 
@@ -104,12 +138,13 @@ modelled on, on synthetic indices:
 
 - The coupon, its barrier read at or above, memory and the call that pays principal plus the coupon follow three public auto-callable contingent interest notes: the 50% note with memory, the 70% note without it, and a note on two funds at 80% with memory ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)).
 - The coupon has its own schedule. The three contingent notes use one list of review dates for both; a fixed coupon note from another issuer lists its coupon payment dates apart from its call dates ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm)). An issuer callable contingent coupon note reviews its coupon monthly and can be called only quarterly ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/1682472/000148105724004907/form424b2.htm)).
-- The coupon on a review is the rate a year times the months between reviews, divided by 12. The reference does not round it; public notes state a rounded amount.
+- The fixed coupon, paid on every review until a call or the end of the term and with the payment on the review the product ends, follows three public fixed coupon autocallable notes on the worst of several stocks: the 11.72% note, a monthly note at 12.90% a year or more ([Morgan Stanley Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/1666268/000183988224003876/ms997_424b2-02307.htm)), and the note that pays 536.05 at half its initial level. In all three the coupon and the call share one schedule, and a call pays principal plus that review's coupon and nothing more.
+- The coupon on a review is the rate a year times the months between reviews, divided by 12. The reference does not round it; public notes state a rounded amount. Two of the fixed coupon notes state a 30/360 day count, which over whole months gives the same amount.
 - The reviews are evenly spaced whole numbers of months, and payments are made at the review. Public notes pay a few days after.
 
 ## What is not modelled
 
-A fixed coupon, a coupon barrier that steps, a coupon barrier set differently for each asset, an annualised return over payments made on several dates, and payment dates.
+A fixed and a contingent coupon on one product, a coupon barrier that steps, a coupon barrier set differently for each asset, an annualised return over payments made on several dates, payment dates, and settlement by delivery of the underlier.
 
 ## Related concepts
 

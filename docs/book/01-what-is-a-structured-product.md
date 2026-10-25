@@ -51,8 +51,8 @@ A **category** is a broad class. The Swiss Structured Products Association
 groups products into Capital Protection, Yield Enhancement, Participation and
 Leverage. A product falls in at most one. SPIRe shows a category only when the
 terms place the note in it: any principal protection above 0% is Capital
-Protection, an unprotected note that pays a contingent coupon in place of a
-share in a rise is Yield Enhancement, and an unprotected bullet note with no
+Protection, an unprotected note that pays a coupon, fixed or contingent, in
+place of a share in a rise is Yield Enhancement, and an unprotected bullet note with no
 coupon that follows the underlier is Participation. Other products, such as an
 unprotected note with a call and no coupon, show no category. The model does
 not place a product in Leverage.
@@ -64,9 +64,11 @@ underlier, so a call or a coupon rules them out. Names that describe the
 payment at maturity, such as “buffered note”, still apply, and their reason
 says that a call can end the product earlier or that a coupon is paid as well.
 The call and the coupon have names of their own: “autocallable note”,
-“callable note” and “contingent coupon note”. An unprotected autocall that pays
-coupons instead of a share in a rise, with a downside barrier, is what the
-Swiss taxonomy calls an Express certificate. A note whose downside barrier leaves
+“callable note” and “contingent coupon note”. A fixed coupon has no name of its
+own here: the name usually given to it, “reverse convertible”, also describes
+how the note is settled, which this reference does not model. An unprotected
+autocall that pays contingent coupons instead of a share in a rise, with a
+downside barrier, is what the Swiss taxonomy calls an Express certificate. A note whose downside barrier leaves
 at least principal until it is reached, and then follows the underlier, is what that
 taxonomy calls a bonus certificate, or a bonus outperformance certificate when the
 rise is leveraged, and a twin-win certificate when a fall above the barrier is paid

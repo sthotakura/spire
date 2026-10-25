@@ -87,6 +87,12 @@ product can have one:
 "coupon": { "schedule": { "frequency": "monthly" }, "rate": 0.12, "barrier": 0.7, "memory": true }
 ```
 
+A fixed coupon is a coupon with no barrier, and so no memory:
+
+```json
+"coupon": { "schedule": { "frequency": "quarterly" }, "rate": 0.1172 }
+```
+
 The chapter on [coupons](20-coupons.md) explains the terms.
 
 ## Reading the terms

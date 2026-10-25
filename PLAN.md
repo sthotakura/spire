@@ -449,7 +449,7 @@ A coupon tested on each review of an autocall, paid when the underlier is at or 
 Where the reviews, autocall and coupon work stands, and what follows. The order is by what a learner gains.
 
 1. **A cash-flow result** (slice 3). A payment on each review and an annualised return that reads when each was paid. The total paid is shown now; a return a year is left out with a coupon until this exists.
-2. **Fixed coupon** (slice 4, [docs/coupon.md](docs/coupon.md)): a coupon with no barrier, on its own schedule. The BofA fixed coupon autocall note is a source; it lists its coupon payment dates apart from its call observation dates.
+2. **Fixed coupon** (slice 4): done, section 40.
 3. **The category of a coupon note.** The Swiss taxonomy may place an autocall that pays a coupon in Yield Enhancement; the reference still places it by its payoff alone. To verify before changing.
 4. **Checks not done.** Keyboard use of the review table and the redemption and coupon rows; screen-reader checks; how a 120-review monthly schedule behaves in the interface; the book's chapters 17, 19 and 20 read in the running book at narrow width.
 5. **Smaller items.** Thresholds listed date by date with uneven steps; a rate-times-elapsed-time call price stated as a table; a hint so a learner can find the shark fin. (The example menu is section 36.)
@@ -485,6 +485,20 @@ The book view has a search box above the contents (`/` focuses it, Esc clears it
 ## 39. Research the certificate
 
 The Wrapper dropdown lists Certificate and Warrant as two entries, both unavailable, in place of one "Certificate or warrant". Three public certificates were read: a Swiss capital protection certificate, a German express certificate and a German open-end certificate. With a denomination, a certificate is a debt security whose payment rules are the note's, so it gets no wrapper value of its own: Certificate stays unavailable, and the wrapper chapter explains the name under Note. The open-end certificate's differences (no fixed term, holder redemption, a ratio-based payment with no principal amount, a fee) each belong to another concept. The findings and open questions are in [docs/certificate.md](docs/certificate.md). The warrant is not researched yet.
+
+## 40. Add a fixed coupon
+
+A fixed coupon is interest at a fixed rate a year, paid on every coupon review whatever the underlier does, until the product ends. Three public fixed coupon autocallable notes on the worst of several stocks were read for it. The proposal, the sources and the decisions are in [docs/coupon.md](docs/coupon.md), which replaces the earlier proposal written for a fixed deposit.
+
+- **A coupon with no barrier**, as the contingent coupon work planned: `coupon: { schedule, rate }`. No `kind`. Memory needs a barrier, since no fixed coupon is missed. A product has a fixed or a contingent coupon, not both: no public note with both was found.
+- **It reads no level.** Its reviews are not among the dates a scenario reads, so a bullet note with one has no review table, and an autocall reads its call reviews only. The review table shows a fixed coupon on the call reviews it falls on. A bullet note with a fixed coupon can carry a barrier observed on every close; with a call it cannot, for the call's own reason.
+- **The payment.** Every review pays principal × rate × months ÷ 12; a call on a coupon review pays that coupon with it; the payment at the end of the term adds the last coupon at every final level, so the chart's line moves up by one coupon with no step.
+- **Names.** No name of its own: "reverse convertible" also describes settlement, which belongs with issuance and is not modelled, and "RevCons" is a brand. The Contingent coupon note chip, the Express certificate and the SSPA 1140 sentence now need a coupon barrier. A fixed coupon in place of upside is Yield Enhancement.
+- **Interface.** The Coupon row offers None, Fixed and Contingent; Fixed shows the reviews and the rate, and the barrier and memory keep their values for Contingent.
+- **Sample.** Worst-of fixed coupon autocallable note, from the 2019 Morgan Stanley Finance note: 18 months, worst of three, 11.72% a year quarterly, a call from review 2 at 95% stepping down 5% to 80%, a 60% downside barrier. The 2024 Morgan Stanley note is a preliminary supplement and the Barclays note contradicts itself, so both are sources only ([docs/sample-products.md](docs/sample-products.md)).
+- **Book.** A fixed coupon section, worked example and chart in chapter 20; notes in chapters 1, 17, 18 and 21.
+- **Checked** by tests from the worked example, the 2019 note's tables and the Barclays examples, and by driving the running app: the option, switching kinds, both schedule combinations, a bullet note with a daily barrier, phone width, and the sample's address on a production build under `/spire/`. Keyboard and screen-reader use are not checked.
+- **Not done:** a fixed and a contingent coupon together, a fixed coupon for an initial period then a contingent one, settlement, and the BofA note re-read for a coupon on a different schedule from the call.
 
 ## Later direction: a composable form
 

@@ -1,6 +1,6 @@
 # Fixed coupon
 
-Agreed on 25 October 2026, not yet built. A fixed coupon is interest at a fixed rate a year, paid on every coupon review whatever the underlier does, until the product ends. It is built as a coupon with no barrier, beside the contingent coupon of [contingent-coupon.md](contingent-coupon.md). It does not cover floating, range-accrual or step-up coupons, or interest added to the balance.
+Agreed and built on 25 October 2026, as proposed below. A fixed coupon is interest at a fixed rate a year, paid on every coupon review whatever the underlier does, until the product ends. It is built as a coupon with no barrier, beside the contingent coupon of [contingent-coupon.md](contingent-coupon.md). It does not cover floating, range-accrual or step-up coupons, or interest added to the balance.
 
 This document replaces an earlier proposal written for a fixed deposit, which is no longer modelled because it is not a structured product ([deposit.md](deposit.md)). Its arithmetic carries over; its sources were deposit material and are replaced by the three notes below.
 
