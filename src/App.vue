@@ -39,7 +39,7 @@ const hints = {
   'call-amount': 'What a call pays above principal, as a share of principal. It is paid in full whenever the product is called, or for each year the product has lasted, as the choice below says.',
   'call-basis': 'Flat pays the call amount whenever the product is called. Per year treats it as a rate for each year the product has lasted, as a term sheet states “10% per annum”: a call after six months pays half of it, and a call after three years pays three times it.',
   'final-call': 'The last review is the end of the term. It pays the maturity payoff, or it is a call too: a level at or above the trigger on that review pays principal plus the call amount in place of the maturity payoff. With an upside participation, a trigger above the initial level draws the payoff as a shark fin: it climbs, then drops to the call amount.',
-  coupon: 'A contingent coupon: interest paid on a review only when the underlier is at or above the coupon barrier. It is stated as a rate a year, and each review pays its share: 12% a year on monthly reviews is 1% of principal a review. It is tested on each of its own reviews, including those in a call’s non-call period and the last, until the product ends. A call on a date that is also a coupon review pays principal plus that review’s coupon.',
+  coupon: 'Interest paid on the coupon’s own reviews. A fixed coupon is paid on every review, whatever the underlier does; a contingent coupon only on a review where the underlier is at or above the coupon barrier. It is stated as a rate a year, and each review pays its share: 12% a year on monthly reviews is 1% of principal a review. It is paid or tested on each of its own reviews, including those in a call’s non-call period and the last, until the product ends. A call on a date that is also a coupon review pays principal plus that review’s coupon.',
   'coupon-schedule': 'How often the coupon is tested. The coupon has its own reviews, apart from the call’s: they can be the same, or the coupon can be reviewed more often, such as monthly beside a quarterly call. Same as the calls copies the call’s frequency once; changing either later does not change the other.',
   'coupon-barrier': 'The level, as a share of the initial level, at or above which a review pays its coupon. It is its own level, apart from the call trigger and the downside barrier, though a note may set two of them equal.',
   memory: 'With memory, a coupon missed on a review below the barrier is remembered, and paid with the coupon of the next review at or above it. Without memory a missed coupon is never paid. Remembered coupons that no later review pays are never paid either.',
@@ -140,8 +140,11 @@ const nonCallReviewCount = ref(0)
 const triggerStepPercent = ref(0)
 const callAmountBasis = ref<'flat' | 'per-year'>('flat')
 const callOnFinal = ref(false)
-// A contingent coupon, tested on the autocall's reviews. Its terms keep their last values while it is off.
-const couponSelected = ref(false)
+// A coupon on its own reviews: fixed, paid on every review, or contingent, paid on a review at or above its barrier. Its terms keep
+// their last values while it is off, and the barrier and memory theirs while it is fixed.
+const couponKind = ref<'none' | 'fixed' | 'contingent'>('none')
+const couponSelected = computed(() => couponKind.value !== 'none')
+const contingentCoupon = computed(() => couponKind.value === 'contingent')
 const couponRatePercent = ref(firstFeatureValues.coupon)
 const couponBarrierPercent = ref(firstFeatureValues.couponBarrier)
 const couponMemory = ref(false)
@@ -307,7 +310,8 @@ const dailySelected = computed(() => lowestCloseWanted.value || highestCloseWant
 // Why a barrier cannot be observed daily, or null when it can: the same rules productIssues enforces.
 const dailyBlockedReason = (direction: ParticipationDirection) => {
   if (scheduled.value) return autocalled.value ? 'Not with an autocall' : 'Not with an issuer call'
-  if (couponSelected.value) return 'Not with a coupon'
+  // A contingent coupon reads levels the closes would have to agree with; a fixed coupon reads none.
+  if (contingentCoupon.value) return 'Not with a contingent coupon'
   if (lookingBack.value || isBasket.value) return 'Not with lookback or a basket'
   if (direction === 'downside' && absoluteSelected.value) return 'Not with absolute return'
   return null
@@ -348,7 +352,7 @@ const blockedReason = (id: FeatureId) => {
   if (id === 'absolute-both' && minimumSelected.value) return 'Not with a minimum return'
   if (id === 'absolute-both' && digitalSelected.value) return 'Not with a digital return'
   if (id === 'absolute-both' && scheduled.value) return autocalled.value ? 'Not with an autocall' : 'Not with an issuer call'
-  if (id === 'absolute-both' && couponSelected.value) return 'Not with a coupon'
+  if (id === 'absolute-both' && contingentCoupon.value) return 'Not with a contingent coupon'
   if (id === 'absolute-both' && (lookingBack.value || isBasket.value || averaging.value)) return 'Not with lookback, a basket or averaging'
   if (id === 'conditional' && !bothWaysSelected.value) return 'Needs absolute return in both directions'
   if (bothWaysSelected.value && (id === 'downside' || id === 'upside' || id === 'minimum' || id === 'digital')) return 'Not with absolute return in both directions'
@@ -509,7 +513,9 @@ const note = computed<Product>(() => ({
         callOnFinalReview: callOnFinal.value,
       }
     : 'bullet',
-  coupon: couponSelected.value ? { schedule: { frequency: couponFrequency.value }, rate: fractionFrom(couponRatePercent.value), barrier: fractionFrom(couponBarrierPercent.value), memory: couponMemory.value } : undefined,
+  coupon: !couponSelected.value ? undefined
+    : contingentCoupon.value ? { schedule: { frequency: couponFrequency.value }, rate: fractionFrom(couponRatePercent.value), barrier: fractionFrom(couponBarrierPercent.value), memory: couponMemory.value }
+      : { schedule: { frequency: couponFrequency.value }, rate: fractionFrom(couponRatePercent.value) },
   underlier: underlier.value,
   payoff: {
     participations: withSubFeatures(selectedDirections.value.map((direction) => ({ direction, rate: participationPercent[direction] / 100 })), {
@@ -535,7 +541,9 @@ const jsonLines = computed(() => structureLines(note.value))
 const formula = computed(() => [...paymentFormula(note.value).map((line) => scheduled.value && line.lead === 'Payment' ? { ...line, lead: 'At maturity' } : line), ...couponFormula(note.value), ...redemptionFormula(note.value)])
 const formulaWords = computed(() => {
   const words = paymentInWords(note.value)
-  const coupon = note.value.coupon ? ` On each coupon review at or above the coupon barrier it also pays a coupon${note.value.coupon.memory ? ', with any coupons missed before it' : ''}.` : ''
+  const coupon = !note.value.coupon ? ''
+    : note.value.coupon.barrier === undefined ? ' On each coupon review it also pays a fixed coupon, whatever the underlier does.'
+      : ` On each coupon review at or above the coupon barrier it also pays a coupon${note.value.coupon.memory ? ', with any coupons missed before it' : ''}.`
   return `${scheduled.value ? `If it is not called, ${words.startsWith('The ') ? `the ${words.slice(4)}` : words}` : words}${coupon}`
 })
 // What the final level on the chart belongs to: the asset, or the basket.
@@ -659,8 +667,16 @@ const loadPath = (event: Event) => {
   reviewAssetInputs.value = Object.fromEntries(path.reviewLevels.map((level, index) => [months[index], basketAssets.value.map(({ initialLevel }) => Math.round(initialLevel * level / basketStartingLevel * 100) / 100)]))
   if (path.finalLevel !== undefined) setFinalLevel(path.finalLevel)
 }
+// The coupon review that falls on a date, if any. A fixed coupon reads no level, so its reviews are not among the dates; one on a call
+// review's month is still paid there, so it is found by month.
+const couponReviewOn = (date: ReviewDate) => {
+  const { coupon } = note.value
+  if (date.coupon !== undefined || coupon === undefined || coupon.barrier !== undefined) return date.coupon
+  const months = monthsPerReview[coupon.schedule.frequency]
+  return date.month % months === 0 ? date.month / months : undefined
+}
 // What each date is a review of, for the review table: the call's review, the coupon's, or both.
-const reviewLabel = (date: ReviewDate) => [date.call === undefined ? '' : `Call ${date.call}`, date.coupon === undefined ? '' : `Coupon ${date.coupon}`].filter(Boolean).join(' · ')
+const reviewLabel = (date: ReviewDate) => [date.call === undefined ? '' : `Call ${date.call}`, couponReviewOn(date) === undefined ? '' : `Coupon ${couponReviewOn(date)}`].filter(Boolean).join(' · ')
 // The level a call review needs, as the call reads it: the trigger of that review, as a share of the initial level. None on a date that
 // is not a call review, or is in the non-call period.
 const reviewTrigger = (date: ReviewDate) => {
@@ -678,9 +694,10 @@ const reviewTest = (date: ReviewDate) => {
 // What a coupon review paid, for the review table, worked out from the rate, or that it missed. A review after
 // a call is not tested.
 const reviewCoupon = (date: ReviewDate) => {
-  if (!redemption.value || !note.value.coupon || date.coupon === undefined) return ''
+  const review = couponReviewOn(date)
+  if (!redemption.value || !note.value.coupon || review === undefined) return ''
   if (ended(date)) return 'Ended'
-  const test = redemption.value.coupons.find((candidate) => candidate.review === date.coupon)
+  const test = redemption.value.coupons.find((candidate) => candidate.review === review)
   return test ? couponCell(note.value, test) : '—'
 }
 // A product called before the last review never reaches its final date, so the final level does not set its payment. It is still
@@ -1133,7 +1150,7 @@ function loadProduct(product: Product) {
   nonCallReviewCount.value = autocall?.nonCallReviews ?? issuerCall?.nonCallReviews ?? 0
   callAmountBasis.value = autocall?.callAmountBasis ?? issuerCall?.callAmountBasis ?? 'flat'
   callOnFinal.value = autocall?.callOnFinalReview ?? false
-  couponSelected.value = coupon !== undefined
+  couponKind.value = coupon === undefined ? 'none' : coupon.barrier === undefined ? 'fixed' : 'contingent'
   couponRatePercent.value = coupon ? percent(coupon.rate) : firstFeatureValues.coupon
   couponBarrierPercent.value = coupon?.barrier !== undefined ? percent(coupon.barrier) : firstFeatureValues.couponBarrier
   couponMemory.value = coupon?.memory ?? false
@@ -1320,7 +1337,7 @@ const chooseSample = (event: Event) => {
                 <li :class="['node', { sel: highlighted('coupon') }]" :style="conceptStyle('coupon')">
                   <div class="nrow" @click="select('coupon')" @focusin="focusRow('coupon')">
                     <span class="nlabel">Coupon<HintToggle id="coupon" about="the coupon" :text="hints.coupon" :active="activeHint === 'coupon'" @toggle="toggleHint('coupon')" /></span>
-                    <span class="ctrl pick"><select id="coupon-kind" v-model="couponSelected" aria-label="Coupon"><option :value="false">None</option><option :value="true" :disabled="!couponSelected && !!couponBlockedReason">Contingent{{ !couponSelected && couponBlockedReason ? ` (${couponBlockedReason})` : '' }}</option></select></span>
+                    <span class="ctrl pick"><select id="coupon-kind" v-model="couponKind" aria-label="Coupon"><option value="none">None</option><option value="fixed">Fixed</option><option value="contingent" :disabled="!contingentCoupon && !!couponBlockedReason">Contingent{{ !contingentCoupon && couponBlockedReason ? ` (${couponBlockedReason})` : '' }}</option></select></span>
                   </div>
                   <ul v-if="couponSelected">
                     <li :class="['node', { sel: highlighted('coupon-schedule') }]" :style="conceptStyle('coupon-schedule')">
@@ -1337,13 +1354,13 @@ const chooseSample = (event: Event) => {
                         <span class="ctrl"><NumberInput id="coupon-rate" v-model="couponRatePercent" class="num rate" aria-label="Coupon rate (% of principal a year)" /><span class="unit">% a year</span></span>
                       </div>
                     </li>
-                    <li :class="['node', { sel: highlighted('coupon-barrier') }]" :style="conceptStyle('coupon-barrier')">
+                    <li v-if="contingentCoupon" :class="['node', { sel: highlighted('coupon-barrier') }]" :style="conceptStyle('coupon-barrier')">
                       <div class="nrow" @click="select('coupon-barrier')" @focusin="focusRow('coupon-barrier')">
                         <span class="nlabel">Coupon barrier<HintToggle id="coupon-barrier" about="the coupon barrier" :text="hints['coupon-barrier']" :active="activeHint === 'coupon-barrier'" @toggle="toggleHint('coupon-barrier')" /></span>
                         <span class="ctrl"><NumberInput id="coupon-barrier" v-model="couponBarrierPercent" class="num rate" aria-label="Coupon barrier: level (% of the initial level)" /><span class="unit">%</span></span>
                       </div>
                     </li>
-                    <li :class="['node', { sel: highlighted('memory') }]" :style="conceptStyle('memory')">
+                    <li v-if="contingentCoupon" :class="['node', { sel: highlighted('memory') }]" :style="conceptStyle('memory')">
                       <div class="nrow" @click="select('memory')" @focusin="focusRow('memory')">
                         <span class="nlabel">Memory<HintToggle id="memory" about="memory" :text="hints.memory" :active="activeHint === 'memory'" @toggle="toggleHint('memory')" /></span>
                         <span class="ctrl pick"><select id="coupon-memory" v-model="couponMemory" aria-label="Memory"><option :value="false">Without memory</option><option :value="true">With memory</option></select></span>
