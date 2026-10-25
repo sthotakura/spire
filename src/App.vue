@@ -1135,7 +1135,7 @@ function loadProduct(product: Product) {
   callOnFinal.value = autocall?.callOnFinalReview ?? false
   couponSelected.value = coupon !== undefined
   couponRatePercent.value = coupon ? percent(coupon.rate) : firstFeatureValues.coupon
-  couponBarrierPercent.value = coupon ? percent(coupon.barrier) : firstFeatureValues.couponBarrier
+  couponBarrierPercent.value = coupon?.barrier !== undefined ? percent(coupon.barrier) : firstFeatureValues.couponBarrier
   couponMemory.value = coupon?.memory ?? false
   chosenCouponFrequency.value = coupon?.schedule.frequency ?? null
   // The single asset's terms, and a basket's assets with their weights. A basket that has no weights is given equal ones, which are

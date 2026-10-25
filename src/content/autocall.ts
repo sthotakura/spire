@@ -139,6 +139,10 @@ function couponEntries(note: Product, outcome: RedemptionOutcome): Array<{ month
   const count = reviewCount({ term: note.term, schedule: coupon.schedule })
   return outcome.coupons.map((test) => {
     const title = `Coupon on review ${test.review} of ${count}, month ${test.month}`
+    // A fixed coupon reads no level: every review pays.
+    if (coupon.barrier === undefined || test.level === undefined || test.barrierLevel === undefined) {
+      return { month: test.month, step: { title, how: `A fixed coupon, paid whatever the level: ${couponWorking(note, test.coupons)}`, value: units(test.paid), concept: 'coupon' as const } }
+    }
     const level = test.month === note.term.months ? `Final level ${units(test.level)}` : units(test.level)
     const barrier = `the coupon barrier, ${percent(coupon.barrier)} × initial level = ${units(test.barrierLevel)}`
     if (!test.met) {
@@ -223,7 +227,9 @@ export function explainCoupons(note: Product, outcome: RedemptionOutcome): strin
   const tested = outcome.coupons.length
   const met = outcome.coupons.filter((test) => test.met).length
   const paid = outcome.coupons.reduce((sum, test) => sum + test.paid, 0)
-  const barrier = units(outcome.coupons[0].barrierLevel)
+  const barrierLevel = outcome.coupons[0].barrierLevel
+  if (barrierLevel === undefined) return `It paid a fixed coupon on each of the ${tested} coupon reviews it lasted for, ${units(paid)} in coupons.${total}`
+  const barrier = units(barrierLevel)
   const opening = met === 0
     ? `None of the ${tested} coupon reviews it lasted for was at or above the ${barrier} coupon barrier, so it paid no coupon.`
     : `${met} of the ${tested} coupon reviews it lasted for ${met === 1 ? 'was' : 'were'} at or above the ${barrier} coupon barrier, paying ${units(paid)} in coupons.`
@@ -324,8 +330,9 @@ function callPaths(redemption: Autocall, initialLevel: number, reviews: number, 
 // With a coupon, two paths that are never called: one below the coupon barrier on the first half of the dates and at it after, so memory
 // shows, and one below it throughout. The first is left out when a level at the barrier would call on some review, as the call reads it:
 // at or above that review's trigger, outside the non-call period, and on the last review only when it is a call too.
+// A fixed coupon reads no level, so it has none.
 function couponPaths(note: Product, initialLevel: number, dates: ReviewDate[], below: (review: number) => number, endsBelow: (level: number) => number, calls: (review: number, level: number) => boolean): PathScenario[] {
-  if (note.coupon === undefined) return []
+  if (note.coupon?.barrier === undefined) return []
   const earlier = dates.slice(0, -1)
   const barrier = barrierLevelAt(note.coupon.barrier, initialLevel)
   const missing = ({ call }: ReviewDate) => Math.min(call === undefined ? Number.POSITIVE_INFINITY : below(call), barrier * 0.9)

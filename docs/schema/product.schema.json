@@ -1412,28 +1412,27 @@
         },
         "rate": {
           "type": "number",
-          "description": "The coupon as a rate a year, as a fraction of principal. Each review that meets the barrier pays principal × rate × the months between reviews ÷ 12: 12% a year on monthly reviews is 1% of principal a review.",
+          "description": "The coupon as a rate a year, as a fraction of principal. Each review that pays a coupon pays principal × rate × the months between reviews ÷ 12: 12% a year on monthly reviews is 1% of principal a review.",
           "exclusiveMinimum": 0
         },
         "barrier": {
           "type": "number",
-          "description": "The level at or above which a review pays its coupon, as a fraction of the initial level. This reference accepts up to 2, a rise of 100%; that is a limit of this reference, not of the product type.",
+          "description": "The level at or above which a review pays its coupon, as a fraction of the initial level, for a contingent coupon. Absent for a fixed coupon, which every review pays. This reference accepts up to 2, a rise of 100%; that is a limit of this reference, not of the product type.",
           "exclusiveMinimum": 0,
           "maximum": 2
         },
         "memory": {
           "type": "boolean",
-          "description": "Whether a coupon missed on a review below the barrier is paid later, with the coupon of the next review that meets it. Without memory a missed coupon is never paid. Remembered coupons that no later review pays are never paid either.",
+          "description": "Whether a coupon missed on a review below the barrier is paid later, with the coupon of the next review that meets it. Without memory a missed coupon is never paid. Remembered coupons that no later review pays are never paid either. Only a coupon with a barrier can miss, so memory needs one.",
           "default": false
         }
       },
       "required": [
         "schedule",
-        "rate",
-        "barrier"
+        "rate"
       ],
       "additionalProperties": false,
-      "description": "A contingent coupon: interest paid on a review only when the underlier's level is at or above the coupon barrier. It is tested on every review of its own schedule, including those in a call's non-call period and the last, until the product ends. A product called on a date that is also a coupon review pays that review's coupon with the call, if the review meets the barrier."
+      "description": "Interest paid on each review of the coupon's own schedule, including those in a call's non-call period and the last, until the product ends. With a barrier the coupon is contingent: a review pays only when the underlier's level is at or above it. Without one the coupon is fixed: every review pays, whatever the underlier does, and no level is read for it. A product called on a date that is also a coupon review pays that review's coupon with the call, if the review pays one."
     },
     "Underlier": {
       "oneOf": [

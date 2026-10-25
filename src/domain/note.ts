@@ -426,31 +426,34 @@ export interface IssuerCall {
   callAmountBasis?: 'flat' | 'per-year'
 }
 
-// See docs/contingent-coupon.md.
+// See docs/contingent-coupon.md and docs/coupon.md.
 /**
- * A contingent coupon: interest paid on a review only when the underlier's level is at or above the coupon barrier. It is tested on
- * every review of its own schedule, including those in a call's non-call period and the last, until the product ends. A product called
- * on a date that is also a coupon review pays that review's coupon with the call, if the review meets the barrier.
+ * Interest paid on each review of the coupon's own schedule, including those in a call's non-call period and the last, until the
+ * product ends. With a barrier the coupon is contingent: a review pays only when the underlier's level is at or above it. Without one
+ * the coupon is fixed: every review pays, whatever the underlier does, and no level is read for it. A product called on a date that is
+ * also a coupon review pays that review's coupon with the call, if the review pays one.
  */
 export interface Coupon {
   /** The reviews on which the coupon is tested. They need not be the call's: a coupon can be reviewed monthly and a call quarterly. */
   schedule: Schedule
   /**
-   * The coupon as a rate a year, as a fraction of principal. Each review that meets the barrier pays principal × rate × the months
+   * The coupon as a rate a year, as a fraction of principal. Each review that pays a coupon pays principal × rate × the months
    * between reviews ÷ 12: 12% a year on monthly reviews is 1% of principal a review.
    * @exclusiveMinimum 0
    */
   rate: number
   /**
-   * The level at or above which a review pays its coupon, as a fraction of the initial level. This reference accepts up to 2, a rise
-   * of 100%; that is a limit of this reference, not of the product type.
+   * The level at or above which a review pays its coupon, as a fraction of the initial level, for a contingent coupon. Absent for a
+   * fixed coupon, which every review pays. This reference accepts up to 2, a rise of 100%; that is a limit of this reference, not of
+   * the product type.
    * @exclusiveMinimum 0
    * @maximum 2
    */
-  barrier: number
+  barrier?: number
   /**
    * Whether a coupon missed on a review below the barrier is paid later, with the coupon of the next review that meets it. Without
-   * memory a missed coupon is never paid. Remembered coupons that no later review pays are never paid either.
+   * memory a missed coupon is never paid. Remembered coupons that no later review pays are never paid either. Only a coupon with a
+   * barrier can miss, so memory needs one.
    * @default false
    */
   memory?: boolean
@@ -642,8 +645,8 @@ export interface ReviewDate {
   coupon?: number
 }
 
-// The dates on which a level is read, in order: the reviews of an autocall and those of a coupon, a date on both once. An issuer call
-// reads no level, so its reviews are not among them. The last is the end of the term, which reads the final level. Empty when nothing
+// The dates on which a level is read, in order: the reviews of an autocall and those of a contingent coupon, a date on both once. An
+// issuer call and a fixed coupon read no level, so their reviews are not among them. The last is the end of the term, which reads the final level. Empty when nothing
 // reads a level, or when a schedule does not divide the term.
 export function reviewDates(note: Product): ReviewDate[] {
   const dates = new Map<number, ReviewDate>()
@@ -658,7 +661,7 @@ export function reviewDates(note: Product): ReviewDate[] {
   }
   const { redemption, coupon } = note
   if (redemption !== 'bullet' && redemption.kind === 'autocall' && redemption.schedule !== undefined && !add(redemption.schedule, 'call')) return []
-  if (coupon?.schedule !== undefined && !add(coupon.schedule, 'coupon')) return []
+  if (coupon?.schedule !== undefined && coupon.barrier !== undefined && !add(coupon.schedule, 'coupon')) return []
   return [...dates.values()].sort((a, b) => a.month - b.month)
 }
 
@@ -703,8 +706,9 @@ function redemptionIssues(note: Product): ProductIssue[] {
   return issues
 }
 
-// A contingent coupon reads the underlier on the reviews of its own schedule, with any redemption. Like an autocall, it reads levels on
-// dates that the closes of a daily barrier are not tied to, so it is not combined with one.
+// A coupon is paid on the reviews of its own schedule, with any redemption. A contingent coupon reads the underlier on them. Like an
+// autocall, it reads levels on dates that the closes of a daily barrier are not tied to, so it is not combined with one. A fixed coupon
+// reads no level, so it is.
 function couponIssues(note: Product): ProductIssue[] {
   const { coupon } = note
   if (coupon === undefined) return []
@@ -712,6 +716,11 @@ function couponIssues(note: Product): ProductIssue[] {
   if (coupon.schedule === undefined) issues.push({ field: 'couponSchedule', message: 'A coupon needs a review schedule.' })
   else if (reviewCount({ term: note.term, schedule: coupon.schedule }) === undefined) issues.push({ field: 'couponSchedule', message: 'The term must hold a whole number of coupon periods.' })
   if (!Number.isFinite(coupon.rate) || coupon.rate <= 0) issues.push({ field: 'coupon', message: 'Coupon rate must be greater than zero.' })
+  if (coupon.barrier === undefined) {
+    // A fixed coupon is paid on every review, so none is missed and there is nothing to remember.
+    if (coupon.memory) issues.push({ field: 'coupon', message: 'Memory needs a coupon barrier: a fixed coupon is paid on every review, so none is missed.' })
+    return issues
+  }
   if (!Number.isFinite(coupon.barrier) || coupon.barrier <= 0 || coupon.barrier > 2) issues.push({ field: 'coupon', message: 'Coupon barrier must be greater than 0% and at most 200% of the initial level.' })
   const { underlier, payoff } = note
   // Lookback is allowed on the assumption that the lookback period ends before the first coupon review, as for an autocall.
@@ -720,7 +729,7 @@ function couponIssues(note: Product): ProductIssue[] {
   return issues
 }
 
-// The coupon each review pays when it meets the barrier, as an amount: principal × rate × the months between coupon reviews ÷ 12.
+// The coupon each review pays, when it meets the barrier or for a fixed coupon always, as an amount: principal × rate × the months between coupon reviews ÷ 12.
 export const couponPerReview = (note: Product): number =>
   note.coupon?.schedule === undefined ? 0 : (note.principalAmount * note.coupon.rate * monthsPerReview[note.coupon.schedule.frequency]) / 12
 

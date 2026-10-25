@@ -156,11 +156,15 @@ export function summarize(note: Product): SummarySegment[] {
     { text: `a coupon of ${weightPercent(coupon.rate)} a year${couponMonths === undefined ? '' : ` (${weightPercent((coupon.rate * couponMonths) / 12)} a review)`}`, concept: 'coupon' },
     { text: ' on each ' },
     { text: coupon.schedule?.frequency ?? 'monthly', concept: 'coupon-schedule' },
-    { text: ' review ' },
-    { text: `at or above ${percent(coupon.barrier)} of the initial level`, concept: 'coupon-barrier' },
-    { text: ', ' },
-    { text: coupon.memory ? 'with memory' : 'without memory', concept: 'memory' },
-    { text: '.' },
+    ...(coupon.barrier === undefined
+      ? [{ text: ' review, whatever the underlier does.' }]
+      : [
+          { text: ' review ' },
+          { text: `at or above ${percent(coupon.barrier)} of the initial level`, concept: 'coupon-barrier' as const },
+          { text: ', ' },
+          { text: coupon.memory ? 'with memory' : 'without memory', concept: 'memory' as const },
+          { text: '.' },
+        ]),
   ]
 
   const term = termPhrase(note.term.months)

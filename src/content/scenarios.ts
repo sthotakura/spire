@@ -96,10 +96,12 @@ export function scenarioRows(note: Product, initialLevel: number, returns: numbe
     added(Math.max(0, level - 0.01 * initialLevel), digital.barrier.level - 1.01, { pastBarrier: 'below' })
   }
   // A coupon adds a row at its barrier, where the last coupon is paid, and one a percent of the initial level below it, where it is not.
+  // A fixed coupon has no barrier and pays the last coupon at every level, so it adds no row.
   const couponLevel = couponBarrierLevel(note, initialLevel)
-  if (note.coupon !== undefined && couponLevel !== undefined) {
-    added(couponLevel, note.coupon.barrier - 1, { atCouponBarrier: true })
-    if (note.coupon.barrier > 0.01) added(couponLevel - 0.01 * initialLevel, note.coupon.barrier - 1.01, {})
+  const couponBarrier = note.coupon?.barrier
+  if (couponBarrier !== undefined && couponLevel !== undefined) {
+    added(couponLevel, couponBarrier - 1, { atCouponBarrier: true })
+    if (couponBarrier > 0.01) added(couponLevel - 0.01 * initialLevel, couponBarrier - 1.01, {})
   }
   // A barrier observed daily also gets a row where it was reached and the underlier then moved back to halfway between the
   // barrier and the initial level. It stays beside the row at that final level that never reached the barrier.
@@ -114,7 +116,7 @@ export function scenarioRows(note: Product, initialLevel: number, returns: numbe
   if (bothWays?.upperBarrier.observation === 'daily-close') afterBreach(initialLevel, { highestClose: initialLevel * (bothWays.upperBarrier.level + 0.05) })
   return points.map(({ lowestClose, highestClose, ...point }) => {
     const levels = { initial: initialLevel, final: point.finalLevel, lowestClose, highestClose }
-    const lastCoupon = couponLevel !== undefined && point.finalLevel >= couponLevel ? couponPerReview(note) : 0
+    const lastCoupon = note.coupon !== undefined && (couponLevel === undefined || point.finalLevel >= couponLevel) ? couponPerReview(note) : 0
     return { ...point, breakdown: paymentBreakdown(note, levels), lastCoupon, endPayment: paymentAtEnd(note, levels) }
   })
 }
