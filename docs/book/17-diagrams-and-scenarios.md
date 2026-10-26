@@ -70,6 +70,27 @@ added at every level, so the line moves up by one coupon.
 
 For a product with an autocall, the chart still plots payment against the final level, which is what the product pays if no earlier review called it. Reviews are shown in a table beside the calculation, not on the chart. When the last review is also a call, the line jumps at its trigger to principal plus the call amount, so an upside participation with a high trigger draws as a shark fin. [Reviews and early redemption](19-reviews-and-early-redemption.md) explains both.
 
+## Building the line rule by rule
+
+The chart can build its line one rule at a time, in the order the calculation
+applies them. It starts as a payment that moves 1:1 with the underlier, and
+each rule, such as a buffer, a participation rate or a cap, reshapes the whole
+line until it is the payoff line. The lines before the last are not payments:
+they show what the rules applied so far would give, so the amount at the
+scenario's point on them is part of a calculation, not something the product
+pays.
+
+While the line is being built, the final-level marker stays on the line being
+drawn. For a barrier observed on every close it stays on the solid line, the
+payment when no close reached the barrier, even when the scenario's lowest or
+highest close would put the normal marker on the dashed line. A product that
+can be called draws its last review, so the closing steps are the call on the
+last review, if it can call there, and the last coupon.
+
+The last step adds what the scenario pays that the line cannot show: a close
+that reached the barrier, a call on an earlier review or by the issuer, coupons
+paid on earlier reviews, and remembered coupons paid at the end.
+
 ## Choosing scenarios
 
 Include a rise, no change, a modest fall, and a large fall. At a threshold,

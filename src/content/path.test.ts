@@ -39,8 +39,10 @@ function checkLines(note: Product, closes: (final: number) => Closes = () => ({}
     near(stages[stages.length - 1].amount, paymentAtEnd(note, levels))
     for (const stage of stages) {
       expect(Number.isFinite(stage.amount)).toBe(true)
-      // A product called on its last review lists no closing coupon step; the line still draws that coupon.
-      if (!(stage.step === 'Paid at maturity' && outcome?.calledAtReview !== undefined)) expect(titles).toContain(stage.step)
+      // A product called on its last review lists no closing coupon step; the line still draws that coupon. The list has no step for
+      // the call on the last review, which is a rule of the line, not how the scenario ended.
+      if (stage.step === 'Call on the last review') expect(titles).not.toContain(stage.step)
+      else if (!(stage.step === 'Paid at maturity' && outcome?.calledAtReview !== undefined)) expect(titles).toContain(stage.step)
     }
     first ??= shape(stages)
     expect(shape(stages)).toEqual(first)
@@ -80,8 +82,17 @@ describe('the calculation path', () => {
   it('closes with the call on the last review and its coupon', () => {
     checkLines(memory)
     const { levels, outcome, stages } = scenario(memory, 110, 50)
-    expect(stages.slice(-3).map(({ step, amount }) => [step, amount])).toEqual([['Payment at maturity', 1000], ['Redemption', 1000], ['Paid at maturity', 1020]])
+    expect(stages.slice(-3).map(({ step, amount }) => [step, amount])).toEqual([['Payment at maturity', 1000], ['Call on the last review', 1000], ['Paid at maturity', 1020]])
     expect(scenarioAside(memory, levels, outcome)).toBe('In this scenario it pays 1,080: it adds coupons remembered from earlier reviews, which the line does not show.')
+  })
+
+  // The list's Redemption step says the scenario was called on review 1; the line's call is the one on the last review, so the two
+  // must not share a title, or choosing the step would show the other rule.
+  it('keeps the call on the last review apart from an earlier call in the list', () => {
+    const { titles, stages } = scenario(memory, 110, 120)
+    expect(titles).toContain('Redemption')
+    expect(stages.map(({ step }) => step)).not.toContain('Redemption')
+    expect(stages.map(({ step }) => step)).toContain('Call on the last review')
   })
 
   it('says when the scenario pays what the line does not show', () => {

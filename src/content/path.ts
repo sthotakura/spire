@@ -5,7 +5,8 @@ import type { ConceptId } from './concepts'
 // One stage of the calculation path: the payment at one final level after the payoff's rules up to this one. Drawn at every final
 // level, the stages build the payoff line one rule at a time, from a payment moving 1:1 with the underlier to the line itself.
 export interface LineStage {
-  // The title of the calculation step the stage explains, as "How the payment is worked out" lists it.
+  // The title of the calculation step the stage explains, as "How the payment is worked out" lists it. The call on the last review has
+  // a title of its own: the list's Redemption step is how the scenario ended, which can be a call on an earlier review.
   step: string
   concept: ConceptId
   // What the rule does to every outcome, in a few words, for the bar under the chart. It reads the terms only, not the level.
@@ -125,7 +126,7 @@ export function lineStages(note: Product, b: PaymentBreakdown, levels: Determine
   if (redemption !== 'bullet' && call !== undefined) {
     const called = principal * (1 + callAmountAtReview(redemption, note.term.months))
     if (levels.final >= call) settled = called / principal - 1
-    add('Redemption', 'call-amount', `At or above the trigger on the last review, ${formatAmount(call)}, it is called: it pays ${formatAmount(called)}`)
+    add('Call on the last review', 'call-amount', `At or above the trigger on the last review, ${formatAmount(call)}, it is called: it pays ${formatAmount(called)}`)
   }
   if (note.coupon !== undefined) {
     const barrier = couponBarrierLevel(note, levels.initial)

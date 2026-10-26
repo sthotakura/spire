@@ -34,13 +34,13 @@ Memory does not change the condition. It only lets a missed coupon be paid late.
 
 ## The coupon and the call
 
-A coupon and an autocall test different levels. The call trigger is usually higher, such as 100% of the initial level, and the coupon barrier lower, such as 70%. A review at or above the barrier and below the trigger pays its coupon and the product continues. A review at or above the trigger calls the product, which repays principal plus that review's coupon, and with memory any remembered coupons, and ends. No later coupon is paid.
+A contingent coupon and an autocall test different levels. The call trigger is usually higher, such as 100% of the initial level, and the coupon barrier lower, such as 70%. A review at or above the barrier and below the trigger pays its coupon and the product continues. A review at or above the trigger calls the product, which repays principal plus that review's coupon, and with memory any remembered coupons, and ends. No later coupon is paid.
 
 When the two have different reviews, the dates are taken in order of month. A coupon review that falls on the date of a call pays with the call. A call on a date that is not a coupon review pays principal and any call amount, and the coupons tested before it have been paid on their own dates. With a monthly coupon and a quarterly call, a call in month 6 pays the month 6 coupon with it; with a quarterly coupon and a monthly call, a call in month 4 pays no coupon, the month 3 coupon having been paid already.
 
 In the public notes read for this chapter a call pays principal and the coupon and nothing more, so the call amount described in [Reviews and early redemption](19-reviews-and-early-redemption.md) is zero. The reference still allows a call amount beside a coupon, since the two are coherent together.
 
-If the product is not called, the last review pays the maturity payoff, and its coupon if the final level is at or above the barrier.
+If the product is not called, the last review pays the maturity payoff with its coupon: a contingent coupon if the final level is at or above the coupon barrier, a fixed coupon whatever the final level.
 
 The coupon barrier is its own level, apart from the trigger and from the downside barrier or buffer of the payoff. In the 70% note the coupon barrier and the downside barrier are both 70%. In the 50% note the downside barrier is lower, at 40%, so a final level between 40% and 50% repays principal and pays no coupon.
 
@@ -84,7 +84,7 @@ At 60 the downside barrier is not reached, since it is reached only below its le
 
 ## Seen against the final level
 
-The payoff chart draws what the product pays at the end of its term, if no earlier review called it, against the final level. With a coupon the line steps up at the coupon barrier by one coupon, the last review's own. The remembered coupons depend on the path, so they are not drawn; the review table and the calculation show them. The review table works out the coupon of each review before the last, such as 1,000 × 10% × 3/12 = 25 for a quarterly review, or 2 × 1,000 × 10% × 3/12 = 50 when a remembered coupon is paid with it. Only the result is rounded, so the sum is the one paid. The last review reads the final level, so its coupon is not in the table; the calculation works out every coupon the same way, the last included.
+The payoff chart draws what the product pays at the end of its term, if no earlier review called it, against the final level. With a contingent coupon the line steps up at the coupon barrier by one coupon, the last review's own. The remembered coupons depend on the path, so they are not drawn; the review table and the calculation show them. The review table works out the coupon of each review before the last, such as 1,000 × 10% × 3/12 = 25 for a quarterly review, or 2 × 1,000 × 10% × 3/12 = 50 when a remembered coupon is paid with it. Only the result is rounded, so the sum is the one paid. The last review reads the final level, so its coupon is not in the table; the calculation works out every coupon the same way, the last included.
 
 When the coupon barrier equals the downside barrier, the two steps are at the same level and add up. With quarterly reviews over a year, an 11.50% coupon (28.75 a review) and both barriers at 70%, a final level just below 70 pays 699.90 and a final level of 70 pays 1,028.75, as the 70% note's table of payments shows.
 
