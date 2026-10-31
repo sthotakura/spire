@@ -124,6 +124,12 @@ modelled on, on synthetic indices:
   coupon of 14.15% a year at an 80% barrier with memory, a call at 100% from
   review 6, and a 20% buffer at a rate of 1.25, so the loss reaches 100% when
   the worst index falls to zero.
+- [Worst-of autocallable contingent coupon note without memory](https://sthotakura.github.io/spire/?example=worst-of-autocallable-contingent-coupon-note-without-memory):
+  six monthly reviews of the worst of three indices, a coupon of 12% a year at
+  an 83.5% barrier without memory, a call at 100% on reviews 2 to 5, and a
+  16.5% buffer at a rate of 1 ÷ 0.835. The coupon barrier and the buffer
+  threshold are both 83.5%: at maturity, a worst index at 83.5% pays 1,010,
+  principal and the last coupon, and one just below it pays just under 1,000.
 - [Worst-of fixed coupon autocallable note](https://sthotakura.github.io/spire/?example=worst-of-fixed-coupon-autocallable-note):
   a fixed coupon of 11.72% a year paid every quarter for 18 months on the worst
   of three indices, a call from review 2 at 95% stepping down 5% a review to

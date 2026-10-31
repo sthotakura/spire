@@ -166,6 +166,17 @@ export const sampleGroups: SampleGroup[] = [
           underlier: worstOf('Index A', 'Index B'),
         }),
       },
+      // The filing defines its downside leverage factor as 1 / (1 - 16.5%) and prints it as 1.19761; this takes the definition.
+      {
+        slug: 'worst-of-autocallable-contingent-coupon-note-without-memory',
+        name: 'Worst-of autocallable contingent coupon note without memory',
+        source: { title: 'JPMorgan auto callable contingent interest note on three indices, 2026', url: 'https://www.sec.gov/Archives/edgar/data/19617/000121390026112963/ea0309828-01_424b2.htm', note: 'The filing’s downside leverage factor is printed as 1.19761; this takes its definition, 1 ÷ 0.835.' },
+        product: product(6, { participations: [{ direction: 'downside', buffer: 0.165, rate: 1 / 0.835 }] }, {
+          redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, nonCallReviews: 1, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false },
+          coupon: { schedule: { frequency: 'monthly' }, rate: 0.12, barrier: 0.835, memory: false },
+          underlier: worstOf('Index A', 'Index B', 'Index C'),
+        }),
+      },
       // The filing's first call test is in month 6, so review 1 is the non-call period; its triggers of 95% to 80% are a trigger of
       // 100% on review 1 stepping down 5% a review.
       {
