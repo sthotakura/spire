@@ -1,8 +1,8 @@
 // See docs/underlier-model.md.
 /**
  * The kind of asset tracked: a single equity, an equity index, or a strategy index. A strategy index follows published rules to hold
- * and rebalance exposure to other instruments, such as futures, and can target a volatility or deduct a fixed amount a year. The payoff
- * reads its level as it reads any other.
+ * and rebalance exposure to other instruments, such as futures, and can aim at a target volatility or deduct a fixed percentage of
+ * its level a year. The payoff reads its level as it reads any other.
  */
 export type AssetKind = 'equity' | 'equity-index' | 'strategy-index'
 export type ParticipationDirection = 'downside' | 'upside'

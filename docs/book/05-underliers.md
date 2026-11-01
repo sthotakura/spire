@@ -81,13 +81,16 @@ Three rules are common:
 - **Excess return.** The index holds futures, not the shares. A futures
   position earns the market's move less the cost of financing it, and no
   dividends, so it tends to rise less than the share index it follows.
-- **Volatility target.** The index scales its exposure so that its own
-  volatility stays near a target. When the market is calm it holds more than
-  100% of the futures; when it is volatile, less. The exposure is reset on a
-  schedule, so it lags the market: exposure set in a calm week is still held
-  if the market falls sharply the week after.
-- **Decrement.** A fixed amount a year is deducted from the index's level,
-  whatever the market does.
+- **Volatility target.** The index scales its exposure to aim at a target
+  volatility. It sets the exposure from a measure of expected volatility, such
+  as the implied volatility of the share index, so when the market is expected
+  to be calm it holds more than 100% of the futures, and when it is expected to
+  be volatile, less. The target is an aim, not a result: the index's actual
+  volatility can be above or below it. The exposure is also reset on a
+  schedule, so it lags the market: exposure set in a calm week is still held if
+  the market falls sharply the week after.
+- **Decrement.** A fixed percentage rate a year, such as 6%, is deducted from
+  the index's level, whatever the market does.
 
 A decrement compounds against the holder. Take Synthetic Strategy Index,
 starting at 100, on a market that ends a year exactly where it started, with
