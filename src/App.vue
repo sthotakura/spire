@@ -83,6 +83,7 @@ const redemptionOptions = [
   { id: 'bullet', label: 'Bullet', description: 'One payment at scheduled maturity; no early call.', available: true },
   { id: 'issuer-call', label: 'Issuer callable', description: 'The issuer may redeem the product early, on a review it chooses.', available: true },
   { id: 'puttable', label: 'Puttable', description: 'The holder may require redemption under defined terms.', available: false },
+  { id: 'puttable-callable', label: 'Puttable and callable', description: 'The issuer may redeem the product early on its call dates, and the holder may require redemption on its put dates.', available: false },
 ] as const
 const reviewFrequencyOptions: ReadonlyArray<{ id: ReviewFrequency; label: string }> = [
   { id: 'monthly', label: 'Monthly' },
