@@ -96,11 +96,13 @@ This is the same shape as an upside barrier with a rebate, where the call amount
 
 ## An issuer call
 
-An **issuer call** is the issuer's option to redeem a product early. An autocall is an obligation that follows from the underlier's level. An issuer call has no level test: on a review that can be called, the issuer may redeem the product in whole, and nothing in the terms says when it will. The Swiss Structured Products Association calls this a softcall ([SSPA](https://sspa.ch/en/lab/)).
+An **issuer call** is the issuer's option to redeem a product early. An autocall is an obligation that follows from the underlier's level. An issuer call has no level test: on a review that can be called, the issuer may redeem the product in whole, and the underlier's level alone does not decide whether it will. The Swiss Structured Products Association calls this a softcall ([SSPA](https://sspa.ch/en/lab/)).
 
 The reference models it with three terms: the review frequency, a non-call period (the number of reviews at the start on which the issuer cannot call), and a call amount, paid above principal and stated as for an autocall, flat or per year. The last review is the end of the term and is not a call. Because the issuer's decision is not a term of the product, a scenario states it: the review the issuer calls on, or that it does not call.
 
 Two public notes show the shape. In a callable contingent interest note on three indices, "We, at our election, may redeem the notes early", on any interest payment date except the first five and the last, with no condition on the index level ([JPMorgan Financial, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390023083784/ea165015_424b2.htm)). In an issuer callable yield note on the S&P 500, the issuer may call quarterly from a first call date, at its "sole option", and the call right is not tied to the index level ([BofA Finance, 424B2](https://www.sec.gov/Archives/edgar/data/1682472/000148105724004907/form424b2.htm)). Both have a non-call period at the start, which is why the reference reuses the one it has for an autocall.
+
+Some notes go further and write the decision into the terms as a rule. In a callable contingent income note on two indices, an early redemption "will occur ... if and only if" a risk neutral valuation model, run shortly before the observation date and fed with prevailing levels, volatilities and correlations and the issuer's credit spreads as of the pricing date, "indicates that redeeming on such date is economically rational for us as compared to not redeeming" ([Morgan Stanley Finance, 424B2](https://www.sec.gov/Archives/edgar/data/895421/000183988226049760/ms19348_424b2-33763.htm)). The call is then not at the issuer's discretion, but it is still not a level test: its inputs are market data and a model that the terms do not publish, so a holder cannot work out from the terms and the index levels whether the note will be called. The filing's risk factors draw the consequence: the issuer is "more likely" to redeem when the note is "paying an above-market coupon", that is, when holding on would be worth more to the holder. The reference has no pricing or market data, so it treats this kind of call as it treats an election: a scenario states the review called on.
 
 ### An example
 
@@ -116,10 +118,10 @@ A call after 5 months that pays 2% above principal annualises to 4.87% a year, b
 
 ### What the reference does not say
 
-- **Why the issuer would call.** Neither public note says. The decision is the issuer's, outside the terms, so the reference leaves it to the reader to state and suggests no reason.
-- **A premium.** Neither note pays one above principal and the coupon, so the call amount starts at zero. A call price above principal is coherent, and the reference allows it, but no public note read for this chapter states one.
-- **Coupons.** The call price in both notes is principal plus that review's coupon when it was earned, and a call stops the remaining coupons. With a coupon ([Coupons](20-coupons.md)), a call on a coupon review pays principal, any call amount and that review's coupon.
-- **Notice and dates.** Both notes state a notice period and a payment date after the review. The reference has no calendar dates.
+- **Why the issuer would call.** Two of the notes leave it to the issuer's election and give no reason. The third ties it to a valuation model whose inputs the reference does not have. Either way the reference leaves the decision to the reader to state, and does not calculate when a call would be rational.
+- **A premium.** None of the three notes pays one above principal and the coupon, so the call amount starts at zero. A call price above principal is coherent, and the reference allows it, but no public note read for this chapter states one.
+- **Coupons.** In all three notes the call price is principal plus that review's coupon when it was earned, and a call stops the remaining coupons. With a coupon ([Coupons](20-coupons.md)), a call on a coupon review pays principal, any call amount and that review's coupon.
+- **Notice and dates.** All three notes state a notice period and a payment date after the review. The reference has no calendar dates.
 - **An issuer call and an autocall together** are not modelled. A product has one or the other.
 
 An issuer call is not available with a barrier observed on every close or with barrier absolute return, for the reason an autocall is not: a called product ends before the observation period does. Lookback is allowed, since nothing is read on the reviews. Averaging is allowed, and the final level is read only if the issuer does not call.
@@ -158,6 +160,7 @@ public notes they are modelled on:
 ## Assumptions and sources
 
 - The calls and reviews follow public auto-callable notes, such as an auto-callable contingent interest note whose automatic call can occur from a later review ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)), and a step-down trigger autocallable note whose call threshold falls on each observation date, whose call return grows with time, and whose final valuation date is also tested for a call ([UBS AG, 424B2](https://www.sec.gov/Archives/edgar/data/1114446/000183988225047092/ubs_424b2-26373.htm)).
+- An issuer call can be an election or a rule read from a valuation model. The reference states the call in a scenario either way, and does not model the decision ([Morgan Stanley Finance, 424B2](https://www.sec.gov/Archives/edgar/data/895421/000183988226049760/ms19348_424b2-33763.htm)).
 - The Swiss Structured Products Association describes an autocall as an obligation to repay early when the underlyings are above the trigger on a predetermined observation date, and a softcall as an issuer option on such dates ([SSPA](https://sspa.ch/en/lab/)).
 - The reviews are evenly spaced whole numbers of months. Public notes list dates that shift with weekends and holidays.
 - The call amount is either one flat amount, or a rate per year. Public notes that pay more the longer they last state it as a rate and a table of call prices; the reference states the rate, and works out the price for each review.
