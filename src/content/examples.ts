@@ -212,8 +212,8 @@ export const sampleGroups: SampleGroup[] = [
       // Ten years with no review in the first: quarterly from month 12, 37 reviews. The premium of 17% a year is 4.25% a quarter, so
       // a call pays 17% after a year and 170% on the last review. A 40% buffer at a rate of 1 limits the loss to 60%.
       {
-        slug: 'long-dated-autocallable-buffered-note',
-        name: 'Long-dated autocallable buffered note',
+        slug: 'long-dated-snowball-autocallable-buffered-note',
+        name: 'Long-dated snowball autocallable buffered note',
         source: { title: 'Citigroup Global Markets Holdings autocallable securities linked to a futures volatility-targeted index, due 2036', url: 'https://www.sec.gov/Archives/edgar/data/200245/000191870426031411/form424b2.htm', note: 'The filing is a preliminary pricing supplement, and its premium was to be set at pricing at 17% a year or more; this takes 17%. Its underlier is an index of equity futures that targets a volatility of 35% and deducts 6% a year, shown here as a synthetic strategy index.' },
         product: product(120, { participations: [{ direction: 'downside', buffer: 0.4, rate: 1 }] }, {
           redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, firstReviewMonth: 12, triggerStep: 0, callAmount: 0.17, callAmountBasis: 'per-year', callOnFinalReview: true },

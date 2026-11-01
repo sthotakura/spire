@@ -49,8 +49,8 @@ describe('sample products', () => {
 })
 
 // The 2036 Citigroup note's own examples and call table, on a hypothetical initial level of 100.
-describe('the long-dated autocallable buffered note', () => {
-  const { product } = sampleBySlug('long-dated-autocallable-buffered-note')!
+describe('the long-dated snowball autocallable buffered note', () => {
+  const { product } = sampleBySlug('long-dated-snowball-autocallable-buffered-note')!
   const notCalled = Array.from({ length: 36 }, () => 90)
 
   it('has 37 reviews, quarterly from month 12', () => {

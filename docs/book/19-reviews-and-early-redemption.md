@@ -147,7 +147,7 @@ public notes they are modelled on:
   trigger of 100% that steps down by 5% to 75% on the last review, which is a
   call too. A call pays 37.5% for each year elapsed: 1,187.50 on review 1, up to
   2,125 on the last. Not called, a downside barrier at 50% applies.
-- [Long-dated autocallable buffered note](https://sthotakura.github.io/spire/?example=long-dated-autocallable-buffered-note):
+- [Long-dated snowball autocallable buffered note](https://sthotakura.github.io/spire/?example=long-dated-snowball-autocallable-buffered-note):
   ten years on a synthetic strategy index ([Underliers](05-underliers.md)), reviewed every quarter from month 12,
   so 37 reviews. It is called at or above its starting level, including on the last review, and a call pays 17%
   for each year elapsed: 1,170 after a year, up to 2,700 at the end of the term. Not called, a 40% buffer

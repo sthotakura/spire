@@ -131,4 +131,4 @@ the total return performance of the S&P 500® Index", because of the cost of
 the financed position, and that "the decrement will be a significant drag on
 the performance of the Index". The builder
 opens a note modelled on it, on a synthetic strategy index: the
-[Long-dated autocallable buffered note](https://sthotakura.github.io/spire/?example=long-dated-autocallable-buffered-note).
+[Long-dated snowball autocallable buffered note](https://sthotakura.github.io/spire/?example=long-dated-snowball-autocallable-buffered-note).
