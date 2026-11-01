@@ -31,9 +31,9 @@ A fourth note, the BofA fixed income auto-callable yield note ([424B2](https://w
 
 | Note | Maps to | Sample |
 | :--- | :--- | :--- |
-| MS 2019 | 18 months; a worst-of basket of three; quarterly autocall with one non-call review, trigger 100% stepping −5% so review 2 is 95% and review 5 is 80%, no call amount, final review not a call; a fixed coupon of 11.72% a year, quarterly; downside participation 100% with a 60% barrier on the final date | Yes. A final pricing supplement whose examples reconcile with its terms. |
-| MS 2024 | 24 months; worst of four; monthly autocall, five non-call reviews, trigger 100%; 12.90% a year, monthly; 50% barrier | Not now. A preliminary supplement with the rate stated as "at least 12.90%" and the levels blank. A final supplement would make it one. |
-| BofA 2023 | 36 months; worst of three; monthly autocall, five non-call reviews, trigger 100%, final review not a call; 14.50% a year, monthly; 50% barrier | Yes. A final pricing supplement whose table agrees with its terms; the payment below the threshold is read from the table. |
+| MS 2019 | 18 months; a worst-of basket of three; quarterly autocall from month 6, trigger 95% stepping −5% so month 15 is 80%, no call amount, final review not a call; a fixed coupon of 11.72% a year, quarterly; downside participation 100% with a 60% barrier on the final date | Yes. A final pricing supplement whose examples reconcile with its terms. |
+| MS 2024 | 24 months; worst of four; monthly autocall from month 6, trigger 100%; 12.90% a year, monthly; 50% barrier | Not now. A preliminary supplement with the rate stated as "at least 12.90%" and the levels blank. A final supplement would make it one. |
+| BofA 2023 | 36 months; worst of three; monthly autocall from month 6, trigger 100%, final review not a call; 14.50% a year, monthly; 50% barrier | Yes. A final pricing supplement whose table agrees with its terms; the payment below the threshold is read from the table. |
 | Barclays 2026 | 12 months; worst of three; quarterly autocall from review 1, trigger 100%; 14.42% a year, quarterly; 60% barrier | No; a source only. Its call test reads "greater than or equal to" on the cover and "above" in its risk factors and an example, and its tax section refers to a physical settlement option that its payment terms do not have. |
 
 Settlement, cash or delivery of the underlier, is not part of the product model: it belongs with issuance, which the reference does not model. The name "reverse convertible" is therefore not shown, since the Swiss type includes delivery (see [call-and-coupon-names.md](call-and-coupon-names.md)).
@@ -65,15 +65,15 @@ paid(r)  = coupon
 
 ## Synthetic worked example
 
-A note of 1,000 on a synthetic stock with an initial level of 100, shaped like the 2019 note. An 18-month term; a fixed coupon of 12% a year, quarterly, so 30.00 a review over six reviews; a quarterly autocall with no call on review 1, a trigger of 100% stepping −5% (95% on review 2, 80% on review 5), no call amount and no call on the final review; 100% downside participation with a 60% barrier read on the final date.
+A note of 1,000 on a synthetic stock with an initial level of 100, shaped like the 2019 note. An 18-month term; a fixed coupon of 12% a year, quarterly, so 30.00 a review over six reviews; a quarterly autocall from month 6, a trigger of 95% stepping −5% (95% in month 6, 80% in month 15), no call amount and no call on the final review; 100% downside participation with a 60% barrier read on the final date.
 
 Called early:
 
-| Review | Level | Trigger | Call | Paid |
+| Month | Level | Trigger | Call | Paid |
 | ---: | ---: | ---: | :--- | ---: |
-| 1 | 80 | — | No; non-call period | 30.00 |
-| 2 | 92 | 95% | No | 30.00 |
-| 3 | 91 | 90% | Yes | 1,000 + 30.00 |
+| 3 | 80 | — | No; not a call review | 30.00 |
+| 6 | 92 | 95% | No | 30.00 |
+| 9 | 91 | 90% | Yes | 1,000 + 30.00 |
 
 The holder receives 1,090.00 over nine months, 90.00 of it in coupons.
 
@@ -112,7 +112,7 @@ A 12-month bullet note with a fixed coupon of 6% a year, monthly, pays 5.00 a mo
 
 ## Open questions
 
-1. **A coupon and a call on different schedules** in a fixed coupon note. None of the four notes read has one: the BofA note, which looked like one, calls monthly on its coupon dates after a non-call period. The model allows it, as the BofA issuer callable contingent coupon note (monthly coupon, quarterly call) needs.
+1. **A coupon and a call on different schedules** in a fixed coupon note. None of the four notes read has one: the BofA note, which looked like one, calls monthly on its coupon dates from month 6. The model allows it, as the BofA issuer callable contingent coupon note (monthly coupon, quarterly call) needs.
 2. **A fixed coupon for an initial period, then a contingent one.** Not seen in a public note.
 3. **Interest added to the balance and paid at the end** is a fixed return in the payoff, not a coupon, and is not modelled.
 4. **Broken periods**, a short or long first or last coupon period. Not modelled.

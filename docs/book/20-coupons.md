@@ -24,7 +24,7 @@ The reference states the coupon with three terms:
 - the **coupon barrier**, a share of the initial level, such as 70%, read at or above;
 - **memory**, on or off.
 
-It is tested on its own **reviews**, a frequency such as monthly or quarterly, as the call's are. Each coupon review the product reaches is tested, including those in a call's non-call period, which cannot call but can pay a coupon, and the last review, which reads the final level. The coupon's reviews can be the same as the call's, and in the three notes above they are, but they need not be: a coupon can be reviewed monthly beside a quarterly call.
+It is tested on its own **reviews**, a frequency such as monthly or quarterly, as the call's are. Each coupon review the product reaches is tested, including those before a call's first review, which cannot call but can pay a coupon, and the last review, which reads the final level. The coupon's reviews can be the same as the call's, and in the three notes above they are, but they need not be: a coupon can be reviewed monthly beside a quarterly call.
 
 ## Memory
 
@@ -46,31 +46,31 @@ The coupon barrier is its own level, apart from the trigger and from the downsid
 
 ## Worked example: a contingent coupon
 
-A synthetic note with principal of 1,000, a term of 12 months, monthly reviews and an initial level of 100. The coupon is 12% a year, so 10 a review, with a 70% barrier. The autocall has a 100% trigger, no call amount and a non-call period of 3 reviews. The payoff is 100% downside participation with a 60% downside barrier read on the final date.
+A synthetic note with principal of 1,000, a term of 12 months, monthly reviews and an initial level of 100. The coupon is 12% a year, so 10 a review, with a 70% barrier. The autocall has a 100% trigger, no call amount and its first review in month 4, so months 1 to 3 are coupon reviews only. The payoff is 100% downside participation with a 60% downside barrier read on the final date.
 
-| Review | Level | Barrier met | Paid with memory | Paid without memory |
+| Month | Level | Barrier met | Paid with memory | Paid without memory |
 | ---: | ---: | :--- | ---: | ---: |
 | 1 | 95 | Yes | 10 | 10 |
 | 2 | 65 | No | 0 | 0 |
-| 3 | 102 | Yes; in the non-call period, so no call | 20 | 10 |
-| 4 | 68 | No | 0 | 0 |
+| 3 | 102 | Yes; not a call review, so no call | 20 | 10 |
+| 4 | 68 | No; not called | 0 | 0 |
 | 5 | 104 | Yes; called | 1,000 + 20 | 1,000 + 10 |
 
-With memory the note pays 1,050 over five months, 50 of it in coupons. Without memory it pays 1,030. On review 3 the level is above the trigger, but the review is in the non-call period, so it pays its coupon and the note continues.
+With memory the note pays 1,050 over five months, 50 of it in coupons. Without memory it pays 1,030. In month 3 the level is above the trigger, but the call's first review is in month 4, so month 3 pays its coupon and the note continues.
 
 If the note is never called, the last review decides two things at once. Say the earlier coupons have been paid. A final level of 75 is above the downside barrier, so the payoff repays 1,000, and it is above the coupon barrier, so the last coupon of 10 is paid with it: 1,010, plus any remembered coupons. A final level of 55 is below the downside barrier, so the payoff pays 550, and it is below the coupon barrier, so the last coupon is missed and any remembered coupons are lost.
 
 ## Worked example: a fixed coupon
 
-A synthetic note with principal of 1,000, a term of 18 months, quarterly reviews and an initial level of 100, shaped like the 11.72% note. The fixed coupon is 12% a year, so 30 a review over six reviews. The autocall cannot call on review 1, and its trigger is 100% stepping down 5% a review: 95% on review 2, 90% on review 3, down to 80% on review 5. It has no call amount, and the last review is not a call. The payoff is 100% downside participation with a 60% downside barrier read on the final date.
+A synthetic note with principal of 1,000, a term of 18 months, quarterly reviews and an initial level of 100, shaped like the 11.72% note. The fixed coupon is 12% a year, so 30 a review over six reviews. The autocall's first review is in month 6, and its trigger is 95% stepping down 5% a review: 95% in month 6, 90% in month 9, down to 80% in month 15. It has no call amount, and the last review is not a call. The payoff is 100% downside participation with a 60% downside barrier read on the final date.
 
-| Review | Level | Trigger | Call | Paid |
+| Month | Level | Trigger | Call | Paid |
 | ---: | ---: | ---: | :--- | ---: |
-| 1 | 80 | — | No; in the non-call period | 30 |
-| 2 | 92 | 95% | No | 30 |
-| 3 | 91 | 90% | Yes | 1,000 + 30 |
+| 3 | 80 | — | No; not a call review | 30 |
+| 6 | 92 | 95% | No | 30 |
+| 9 | 91 | 90% | Yes | 1,000 + 30 |
 
-The note pays 1,090 over nine months, 90 of it in coupons. Review 1 pays its coupon at 80, and would have at any level.
+The note pays 1,090 over nine months, 90 of it in coupons. Month 3 pays its coupon, and would have at any level.
 
 If the note is never called, it has paid five coupons, 150, before the last review, which pays the payoff and the last coupon of 30:
 
@@ -117,26 +117,26 @@ modelled on, on synthetic indices:
 
 - [Autocallable contingent coupon note](https://sthotakura.github.io/spire/?example=autocallable-contingent-coupon-note):
   the 50% note. Three years of monthly reviews, a coupon of 17.35% a year at a
-  50% barrier with memory, a call at 100% from review 6, and a downside barrier
+  50% barrier with memory, a call at 100% from month 6, and a downside barrier
   at 40%.
 - [Worst-of autocallable contingent coupon note with a buffer](https://sthotakura.github.io/spire/?example=worst-of-autocallable-contingent-coupon-note):
   the note on two funds. Twelve monthly reviews of the worst of two indices, a
   coupon of 14.15% a year at an 80% barrier with memory, a call at 100% from
-  review 6, and a 20% buffer at a rate of 1.25, so the loss reaches 100% when
+  month 6, and a 20% buffer at a rate of 1.25, so the loss reaches 100% when
   the worst index falls to zero.
 - [Worst-of autocallable contingent coupon note without memory](https://sthotakura.github.io/spire/?example=worst-of-autocallable-contingent-coupon-note-without-memory):
   six monthly reviews of the worst of three indices, a coupon of 12% a year at
-  an 83.5% barrier without memory, a call at 100% on reviews 2 to 5, and a
+  an 83.5% barrier without memory, a call at 100% in months 2 to 5, and a
   16.5% buffer at a rate of 1 ÷ 0.835. The coupon barrier and the buffer
   threshold are both 83.5%: at maturity, a worst index at 83.5% pays 1,010,
   principal and the last coupon, and one just below it pays just under 1,000.
 - [Worst-of fixed coupon autocallable note](https://sthotakura.github.io/spire/?example=worst-of-fixed-coupon-autocallable-note):
   a fixed coupon of 11.72% a year paid every quarter for 18 months on the worst
-  of three indices, a call from review 2 at 95% stepping down 5% a review to
+  of three indices, a call from month 6 at 95% stepping down 5% a review to
   80%, and a downside barrier at 60%.
 - [Monthly worst-of fixed coupon autocallable note](https://sthotakura.github.io/spire/?example=monthly-worst-of-fixed-coupon-autocallable-note):
   a fixed coupon of 14.50% a year paid every month for three years on the worst
-  of three indices, a call at 100% from review 6, and a downside barrier at 50%.
+  of three indices, a call at 100% from month 6, and a downside barrier at 50%.
 - [Callable contingent coupon note](https://sthotakura.github.io/spire/?example=callable-contingent-coupon-note): a
   coupon reviewed monthly on a note the issuer may call quarterly, as described
   in [Reviews and early redemption](19-reviews-and-early-redemption.md).
@@ -144,7 +144,7 @@ modelled on, on synthetic indices:
 ## Assumptions and sources
 
 - The coupon, its barrier read at or above, memory and the call that pays principal plus the coupon follow four public auto-callable contingent interest notes: the 50% note with memory, the 70% note without it, a note on two funds at 80% with memory ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)), and a note on three indices at 83.5% without memory ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026112963/ea0309828-01_424b2.htm)).
-- The coupon has its own schedule. The four contingent notes use one list of review dates for both. A fixed coupon note lists its coupon payment dates and its call dates separately, but each call falls on a coupon date from the sixth month on, so it is one monthly schedule with a non-call period ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm)). An issuer callable contingent coupon note does review its coupon monthly and can be called only quarterly ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/1682472/000148105724004907/form424b2.htm)).
+- The coupon has its own schedule. The four contingent notes use one list of review dates for both. A fixed coupon note lists its coupon payment dates and its call dates separately, but each call falls on a coupon date from the sixth month on, so the call is a monthly schedule from month 6 beside a monthly coupon ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm)). An issuer callable contingent coupon note does review its coupon monthly and can be called only quarterly ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/1682472/000148105724004907/form424b2.htm)).
 - The fixed coupon, paid on every review until a call or the end of the term and with the payment on the review the product ends, follows three public fixed coupon autocallable notes on the worst of several stocks: the 11.72% note, a monthly note at 12.90% a year or more ([Morgan Stanley Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/1666268/000183988224003876/ms997_424b2-02307.htm)), and the note that pays 536.05 at half its initial level. A fourth, monthly at 14.50% a year, is described in the next point. In all four the coupon and the call share one schedule, and a call pays principal plus that review's coupon and nothing more.
 - The coupon on a review is the rate a year times the months between reviews, divided by 12. The reference does not round it; public notes state a rounded amount. Two of the fixed coupon notes state a 30/360 day count, which over whole months gives the same amount.
 - The reviews are evenly spaced whole numbers of months, and payments are made at the review. Public notes pay a few days after.
@@ -155,4 +155,4 @@ A fixed and a contingent coupon on one product, a coupon barrier that steps, a c
 
 ## Related concepts
 
-Reviews and early redemption explains the schedule, the autocall and the non-call period the coupon reads. Barrier explains a level read on the final date, as the downside barrier at the end of the term is. Underliers explains how a basket level is read.
+Reviews and early redemption explains the schedule, the autocall and the first review of a call, before which the coupon is still read. Barrier explains a level read on the final date, as the downside barrier at the end of the term is. Underliers explains how a basket level is read.

@@ -4,9 +4,9 @@ import { basketLevelFrom, productIssues, reviewDates, validateProduct, type Auto
 import { startingProduct } from './starting-note'
 
 // Synthetic: the worked example in docs/coupon.md, shaped like the 2019 fixed coupon autocall. An 18-month note of 1,000 on one stock
-// with an initial level of 100, a fixed coupon of 12% a year paid quarterly (30 a review), a quarterly autocall that cannot call on
-// review 1, a trigger of 100% stepping −5% a review, and a 60% downside barrier read on the final date.
-const autocall = (terms: Partial<Autocall> = {}): Autocall => ({ kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, triggerStep: -0.05, nonCallReviews: 1, callAmount: 0, ...terms })
+// with an initial level of 100, a fixed coupon of 12% a year paid quarterly (30 a review), a quarterly autocall whose first review is
+// in month 6, a trigger of 95% stepping −5% a review, and a 60% downside barrier read on the final date.
+const autocall = (terms: Partial<Autocall> = {}): Autocall => ({ kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 0.95, triggerStep: -0.05, firstReviewMonth: 6, callAmount: 0, ...terms })
 const fixed = (terms: Partial<Coupon> = {}): Coupon => ({ schedule: { frequency: 'quarterly' }, rate: 0.12, ...terms })
 const withFixedCoupon = (overrides: Partial<Product> = {}): Product => ({
   ...startingProduct,
@@ -18,8 +18,8 @@ const withFixedCoupon = (overrides: Partial<Product> = {}): Product => ({
 })
 const fieldsOf = (product: Product) => productIssues(product).map(({ field }) => field)
 const dailyBarrier: Product['payoff'] = { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.6, observation: 'daily-close' } }] }
-// Below the trigger on every review that can call: 95%, 90%, 85% and 80% on reviews 2 to 5.
-const neverCalled = [80, 90, 85, 80, 75]
+// Below the trigger on every call review before the last: 95%, 90%, 85% and 80% in months 6 to 15.
+const neverCalled = [90, 85, 80, 75]
 
 describe('validation of a fixed coupon', () => {
   it('accepts a coupon with no barrier, with any redemption', () => {
@@ -53,15 +53,15 @@ describe('the dates a level is read on, with a fixed coupon', () => {
 
   it('are the call reviews alone for an autocall, even when the coupon is reviewed more often', () => {
     const monthly = withFixedCoupon({ coupon: fixed({ schedule: { frequency: 'monthly' } }) })
-    expect(reviewDates(monthly).map(({ month }) => month)).toEqual([3, 6, 9, 12, 15, 18])
+    expect(reviewDates(monthly).map(({ month }) => month)).toEqual([6, 9, 12, 15, 18])
     expect(reviewDates(monthly).every((date) => date.coupon === undefined)).toBe(true)
   })
 })
 
 describe('the worked example', () => {
-  it('pays 30 on reviews 1 and 2, then 1,000 + 30 when review 3 calls it at its 90% trigger: 1,090 in nine months', () => {
-    const outcome = redemptionOutcome(withFixedCoupon(), [80, 92, 91, 90, 90], { initial: 100, final: 90 })
-    expect(outcome.tests.map(({ review, called }) => [review, called])).toEqual([[1, false], [2, false], [3, true]])
+  it('pays 30 on coupon reviews 1 and 2, then 1,000 + 30 when the call review in month 9 calls it at its 90% trigger: 1,090 in nine months', () => {
+    const outcome = redemptionOutcome(withFixedCoupon(), [92, 91, 90, 90], { initial: 100, final: 90 })
+    expect(outcome.tests.map(({ review, month, called }) => [review, month, called])).toEqual([[1, 6, false], [2, 9, true]])
     expect(outcome.coupons.map(({ review, month, paid }) => [review, month, paid])).toEqual([[1, 3, 30], [2, 6, 30], [3, 9, 30]].map(([review, month, paid]) => [review, month, expect.closeTo(paid, 9)]))
     expect(outcome.coupons.every(({ met, level, barrierLevel }) => met && level === undefined && barrierLevel === undefined)).toBe(true)
     expect(outcome.payment).toBeCloseTo(1030, 9)
@@ -114,7 +114,7 @@ describe('the payment at the end of the term with a fixed coupon', () => {
 
 describe('the 2019 worst-of fixed coupon autocall, with synthetic assets', () => {
   // The note's hypothetical initial levels of 200, 300 and 10, its 11.72% a year paid quarterly (29.30 a quarter) over 18 months, a
-  // call from review 2 at 95% stepping down 5% a review to 80%, and a 60% downside threshold on the worst asset.
+  // call from month 6 at 95% stepping down 5% a review to 80%, and a 60% downside threshold on the worst asset.
   const underlier: BasketUnderlier = {
     kind: 'basket',
     components: [{ asset: { kind: 'equity', name: 'Stock A' } }, { asset: { kind: 'equity', name: 'Stock B' } }, { asset: { kind: 'equity', name: 'Stock C' } }],
@@ -125,14 +125,14 @@ describe('the 2019 worst-of fixed coupon autocall, with synthetic assets', () =>
 
   it('is a valid product, with a coupon of 29.30 a quarter', () => {
     expect(validateProduct(note)).toEqual([])
-    const outcome = redemptionOutcome(note, [100, 100, 100, 100, 100], { initial: 100, final: 100 })
+    const outcome = redemptionOutcome(note, [100, 100, 100, 100], { initial: 100, final: 100 })
     expect(outcome.coupons[0].paid).toBeCloseTo(29.3, 9)
   })
 
   it('is not called on its first call test with one asset at 85%, and is called on the next at 92.75% against 90%: 1,029.30', () => {
-    // The filing's determination dates 1 and 2 are the note's reviews 2 and 3; review 1 is in the non-call period.
-    const outcome = redemptionOutcome(note, [100, level(195, 295, 8.5), level(185.5, 280, 9.5), 100, 100], { initial: 100, final: 100 })
-    expect(outcome.calledAtReview).toBe(3)
+    // The filing's determination dates 1 and 2 are the note's call reviews 1 and 2, in months 6 and 9.
+    const outcome = redemptionOutcome(note, [level(195, 295, 8.5), level(185.5, 280, 9.5), 100, 100], { initial: 100, final: 100 })
+    expect(outcome).toMatchObject({ calledAtReview: 2, months: 9 })
     expect(outcome.payment).toBeCloseTo(1029.3, 9)
     expect(outcome.totalPaid).toBeCloseTo(1000 + 3 * 29.3, 9)
   })
@@ -144,7 +144,7 @@ describe('the 2019 worst-of fixed coupon autocall, with synthetic assets', () =>
     [[100, 165, 8.5], 500],
     [[80, 165, 5], 400],
   ])('never called, with final levels %j: the payoff pays %s, plus the last coupon', (finals, payoff) => {
-    const outcome = redemptionOutcome(note, [50, 50, 50, 50, 50], { initial: 100, final: level(finals[0], finals[1], finals[2]) })
+    const outcome = redemptionOutcome(note, [50, 50, 50, 50], { initial: 100, final: level(finals[0], finals[1], finals[2]) })
     expect(outcome.maturity.payment).toBeCloseTo(payoff, 9)
     expect(outcome.payment).toBeCloseTo(payoff + 29.3, 9)
     expect(outcome.totalPaid).toBeCloseTo(payoff + 6 * 29.3, 9)
@@ -152,24 +152,25 @@ describe('the 2019 worst-of fixed coupon autocall, with synthetic assets', () =>
 })
 
 describe('the 2023 BofA fixed income auto-callable yield note\'s table, on one synthetic stock', () => {
-  // 36 months, 14.50% a year paid monthly (the filing rounds 12.0833 up to 12.084), a monthly call at 100% from review 6 that is not
+  // 36 months, 14.50% a year paid monthly (the filing rounds 12.0833 up to 12.084), a monthly call at 100% from month 6 that is not
   // tested on the last review, and a 50% threshold below which the holder bears the whole fall.
   const note = withFixedCoupon({
     term: { months: 36 },
-    redemption: autocall({ schedule: { frequency: 'monthly' }, triggerStep: 0, nonCallReviews: 5 }),
+    redemption: autocall({ schedule: { frequency: 'monthly' }, trigger: 1, triggerStep: 0, firstReviewMonth: 6 }),
     coupon: fixed({ schedule: { frequency: 'monthly' }, rate: 0.145 }),
     payoff: { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.5, observation: 'final' } }] },
   })
-  const neverCalledMonthly = Array.from({ length: 35 }, () => 90)
+  // A level on each of the 30 call reviews before the last, in months 6 to 35.
+  const neverCalledMonthly = Array.from({ length: 30 }, () => 90)
 
   it.each([[160, 1012.08], [100, 1012.08], [50, 1012.08], [49.99, 511.98], [0, 12.08]])('a final level of %s pays %s with the last coupon', (final, payment) => {
     expect(validateProduct(note)).toEqual([])
     expect(redemptionOutcome(note, neverCalledMonthly, { initial: 100, final }).payment).toBeCloseTo(payment, 2)
   })
 
-  it('cannot be called before review 6, and pays principal and that month\'s coupon when it is', () => {
-    const outcome = redemptionOutcome(note, [100, 100, 100, 100, 100, 100, ...Array.from({ length: 29 }, () => 90)], { initial: 100, final: 90 })
-    expect(outcome.calledAtReview).toBe(6)
+  it('is first reviewed in month 6, and pays principal and that month\'s coupon when it is called then', () => {
+    const outcome = redemptionOutcome(note, [100, ...Array.from({ length: 29 }, () => 90)], { initial: 100, final: 90 })
+    expect(outcome).toMatchObject({ calledAtReview: 1, months: 6 })
     expect(outcome.payment).toBeCloseTo(1012.08, 2)
     expect(outcome.totalPaid).toBeCloseTo(1000 + 6 * 12.0833, 2)
   })
@@ -177,7 +178,7 @@ describe('the 2023 BofA fixed income auto-callable yield note\'s table, on one s
 
 describe('the 2026 Barclays fixed coupon autocall examples, on one synthetic stock', () => {
   // A 12-month note, 3.605% a quarter (14.42% a year, 36.05 on 1,000), a quarterly call at 100% from review 1, and a 60% threshold.
-  const note = withFixedCoupon({ term: { months: 12 }, redemption: autocall({ triggerStep: 0, nonCallReviews: 0 }), coupon: fixed({ rate: 0.1442 }) })
+  const note = withFixedCoupon({ term: { months: 12 }, redemption: autocall({ trigger: 1, triggerStep: 0, firstReviewMonth: undefined }), coupon: fixed({ rate: 0.1442 }) })
 
   it('example 1: called on review 2 at the initial level, paying 1,036.05', () => {
     const outcome = redemptionOutcome(note, [90, 100, 100], { initial: 100, final: 100 })

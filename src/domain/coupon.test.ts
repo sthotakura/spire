@@ -4,8 +4,8 @@ import { couponPerReview, productIssues, reviewDates, validateProduct, type Auto
 import { startingProduct } from './starting-note'
 
 // Synthetic: the worked example in docs/contingent-coupon.md. A 12-month note of 1,000 on one index with an initial level of 100,
-// reviewed monthly, a 12% coupon a year (10 a review) at a 70% barrier, called at 100% from review 4, and a 60% downside barrier.
-const autocall = (terms: Partial<Autocall> = {}): Autocall => ({ kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, nonCallReviews: 3, callAmount: 0, ...terms })
+// reviewed monthly, a 12% coupon a year (10 a review) at a 70% barrier, called at 100% from month 4, and a 60% downside barrier.
+const autocall = (terms: Partial<Autocall> = {}): Autocall => ({ kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 4, callAmount: 0, ...terms })
 const coupon = (terms: Partial<Coupon> = {}): Coupon => ({ schedule: { frequency: 'monthly' }, rate: 0.12, barrier: 0.7, memory: true, ...terms })
 const withCoupon = (overrides: Partial<Product> = {}): Product => ({
   ...startingProduct,
@@ -16,7 +16,7 @@ const withCoupon = (overrides: Partial<Product> = {}): Product => ({
   ...overrides,
 })
 const fieldsOf = (product: Product) => productIssues(product).map(({ field }) => field)
-// The worked example's path: 95, 65, 102 (in the non-call period), 68, then 104, which calls it. The reviews after a call are not read.
+// The worked example's path: 95, 65, 102 (before the first call review), 68, then 104, which calls it. The reviews after a call are not read.
 const path = [95, 65, 102, 68, 104, 90, 90, 90, 90, 90, 90]
 // A path that is never called: every review below the trigger.
 const neverCalled = [95, 65, 60, 68, 90, 50, 80, 90, 90, 90, 65]
@@ -62,7 +62,7 @@ describe('validation of a contingent coupon', () => {
 
 describe('the dates a level is read on', () => {
   it('are the call reviews and the coupon reviews, a date on both once, in order of month', () => {
-    const product = withCoupon({ redemption: autocall({ schedule: { frequency: 'quarterly' }, nonCallReviews: 0 }), coupon: coupon({ schedule: { frequency: 'monthly' } }) })
+    const product = withCoupon({ redemption: autocall({ schedule: { frequency: 'quarterly' }, firstReviewMonth: undefined }), coupon: coupon({ schedule: { frequency: 'monthly' } }) })
     const dates = reviewDates(product)
     expect(dates.map(({ month }) => month)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
     expect(dates[2]).toEqual({ month: 3, call: 1, coupon: 3 })
@@ -70,7 +70,7 @@ describe('the dates a level is read on', () => {
   })
 
   it('can have call reviews that are not coupon reviews', () => {
-    const product = withCoupon({ redemption: autocall({ schedule: { frequency: 'monthly' }, nonCallReviews: 0 }), coupon: coupon({ schedule: { frequency: 'quarterly' } }) })
+    const product = withCoupon({ redemption: autocall({ schedule: { frequency: 'monthly' }, firstReviewMonth: undefined }), coupon: coupon({ schedule: { frequency: 'quarterly' } }) })
     expect(reviewDates(product).filter((date) => date.coupon === undefined)).toHaveLength(8)
   })
 
@@ -93,7 +93,7 @@ describe('the coupon on each review', () => {
 
   it('pays the worked example with memory: 10, 0, 20, 0, then 1,000 + 20 on the call', () => {
     const outcome = redemptionOutcome(withCoupon(), path, { initial: 100, final: 90 })
-    expect(outcome.calledAtReview).toBe(5)
+    expect(outcome.calledAtReview).toBe(2)
     expect(outcome.coupons.map(({ paid }) => paid)).toEqual([10, 0, 20, 0, 20].map((amount) => expect.closeTo(amount, 9)))
     expect(outcome.coupons.map(({ remembered }) => remembered)).toEqual([0, 1, 0, 1, 0])
     expect(outcome.payment).toBeCloseTo(1020, 9)
@@ -109,10 +109,10 @@ describe('the coupon on each review', () => {
     expect(outcome.totalPaid).toBeCloseTo(1030, 9)
   })
 
-  it('is tested in the non-call period, where a review at or above the trigger is not called', () => {
+  it('is tested before the first call review, where a level at or above the trigger is not a call test', () => {
     const outcome = redemptionOutcome(withCoupon(), path, { initial: 100, final: 90 })
-    expect(outcome.tests[2]).toMatchObject({ review: 3, callable: false, called: false })
-    expect(outcome.coupons[2]).toMatchObject({ met: true, coupons: 2 })
+    expect(outcome.tests.map(({ review, month, called }) => [review, month, called])).toEqual([[1, 4, false], [2, 5, true]])
+    expect(outcome.coupons[2]).toMatchObject({ month: 3, met: true, coupons: 2 })
   })
 
   it('is met at the barrier and missed just below it', () => {
@@ -159,17 +159,19 @@ describe('the coupon with a call on the final review', () => {
   it('pays principal, the call amount and the last coupon when the final level calls it', () => {
     const product = withCoupon({ redemption: autocall({ callOnFinalReview: true, callAmount: 0.05 }), coupon: coupon({ memory: false }) })
     const outcome = redemptionOutcome(product, neverCalled, { initial: 100, final: 100 })
-    expect(outcome.calledAtReview).toBe(12)
+    // The last of the 9 call reviews, from month 4 to month 12.
+    expect(outcome.calledAtReview).toBe(9)
     expect(outcome.payment).toBeCloseTo(1060, 9)
   })
 })
 
 describe('a call on a review that misses the coupon', () => {
   it('pays no coupon on that review when the trigger has stepped below the barrier, and loses what was remembered', () => {
-    // The trigger starts at 100% and falls 8 points a review, to 68% on review 5, below the 70% coupon barrier.
-    const product = withCoupon({ redemption: autocall({ triggerStep: -0.08 }) })
+    // The trigger starts at 76% on the first call review, in month 4, and falls 8 points a review, to 68% in month 5, below the 70%
+    // coupon barrier.
+    const product = withCoupon({ redemption: autocall({ trigger: 0.76, triggerStep: -0.08 }) })
     const outcome = redemptionOutcome(product, [95, 65, 50, 40, 69, 90, 90, 90, 90, 90, 90], { initial: 100, final: 90 })
-    expect(outcome.calledAtReview).toBe(5)
+    expect(outcome).toMatchObject({ calledAtReview: 2, months: 5 })
     expect(outcome.coupons[4]).toMatchObject({ met: false, paid: 0, remembered: 4 })
     expect(outcome.payment).toBeCloseTo(1000, 9)
     expect(outcome.totalPaid).toBeCloseTo(1010, 9)
@@ -185,7 +187,7 @@ describe('the payment at the end of the term with a coupon', () => {
   it('drops at a coupon barrier equal to the downside barrier, as the Apple note\'s table does', () => {
     // Synthetic version of that table: quarterly reviews over a year, 11.5% a year (28.75 a review), both barriers at 70%.
     const product = withCoupon({
-      redemption: autocall({ schedule: { frequency: 'quarterly' }, nonCallReviews: 0 }),
+      redemption: autocall({ schedule: { frequency: 'quarterly' }, firstReviewMonth: undefined }),
       coupon: coupon({ schedule: { frequency: 'quarterly' }, rate: 0.115, memory: false }),
       payoff: { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.7, observation: 'final' } }] },
     })
@@ -200,7 +202,7 @@ describe('the payment at the end of the term with a coupon', () => {
 
 describe('a coupon on its own schedule', () => {
   // A quarterly call that can call from its first review, and a monthly coupon with memory: twelve dates, the call on months 3, 6 and 9.
-  const quarterlyCall = withCoupon({ redemption: autocall({ schedule: { frequency: 'quarterly' }, nonCallReviews: 0 }) })
+  const quarterlyCall = withCoupon({ redemption: autocall({ schedule: { frequency: 'quarterly' }, firstReviewMonth: undefined }) })
 
   it('tests the coupon every month and the call every quarter, and pays the coupon of the call month with the call', () => {
     // Month 3 is below the trigger; month 6 calls it. Months 2 and 4 are below the coupon barrier.
@@ -214,7 +216,7 @@ describe('a coupon on its own schedule', () => {
   })
 
   it('pays no coupon with a call on a month that is not a coupon review', () => {
-    const monthlyCall = withCoupon({ redemption: autocall({ schedule: { frequency: 'monthly' }, nonCallReviews: 0 }), coupon: coupon({ schedule: { frequency: 'quarterly' } }) })
+    const monthlyCall = withCoupon({ redemption: autocall({ schedule: { frequency: 'monthly' }, firstReviewMonth: undefined }), coupon: coupon({ schedule: { frequency: 'quarterly' } }) })
     // Called in month 4. The coupon was tested in month 3 only, a quarter's coupon of 30.
     const outcome = redemptionOutcome(monthlyCall, [95, 95, 95, 104, 90, 90, 90, 90, 90, 90, 90], { initial: 100, final: 90 })
     expect(outcome.calledAtReview).toBe(4)

@@ -298,6 +298,17 @@ describe('names for a call and a coupon', () => {
     expect(namesWith({ principalProtection: 1, participations: [up(1)] }, { redemption: autocall })).toEqual(['Principal-protected note', 'Autocallable note'])
   })
 
+  it('calls an autocall whose call amount grows for each year elapsed a snowball autocall', () => {
+    const snowball = marketingNames(withTerms({}, { redemption: { ...autocall, callAmount: 0.17, callAmountBasis: 'per-year' } }))
+    expect(snowball.map(({ name }) => name)).toEqual(['Autocallable note', 'Snowball autocall'])
+    expect(snowball[1]).toMatchObject({ vocabulary: 'Market usage', concepts: ['redemption', 'call-amount'] })
+    expect(snowball[1].reason).toContain('A call pays 17% for each year elapsed')
+    // A flat call amount, a per-year basis that pays nothing, and an issuer call get no snowball name.
+    expect(namesWith({}, { redemption: { ...autocall, callAmount: 0.17, callAmountBasis: 'flat' } })).not.toContain('Snowball autocall')
+    expect(namesWith({}, { redemption: { ...autocall, callAmount: 0, callAmountBasis: 'per-year' } })).not.toContain('Snowball autocall')
+    expect(namesWith({}, { redemption: { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0.1, callAmountBasis: 'per-year' } })).not.toContain('Snowball autocall')
+  })
+
   it('calls a note with an issuer call callable', () => {
     expect(namesWith({ participations: [down(1)] }, { redemption: issuerCall })).toEqual(['Callable note'])
   })

@@ -4,7 +4,7 @@ Some products are tested on a series of dates through their life, not only at th
 
 ## Reviews
 
-A review schedule says how often a call is reviewed. A coupon has a schedule of its own ([Coupons](20-coupons.md)), which can be the same or not. Public notes call these dates "observation dates" or "review dates". The reference calls them reviews to keep them apart from the observations that set the initial and final levels, such as the dates averaged into a final level, and from a barrier observed on every close. In public pricing supplements the reviews are listed as dates, roughly monthly or quarterly. The reference models them as a frequency and a count: the reviews are evenly spaced through the term and numbered from 1, and the last review is the end of the term.
+A review schedule says how often a call is reviewed. A coupon has a schedule of its own ([Coupons](20-coupons.md)), which can be the same or not. Public notes call these dates "observation dates" or "review dates". The reference calls them reviews to keep them apart from the observations that set the initial and final levels, such as the dates averaged into a final level, and from a barrier observed on every close. In public pricing supplements the reviews are listed as dates, roughly monthly or quarterly. The reference models them as a frequency and a count: the reviews are evenly spaced through the term and numbered from 1, and the last review is the end of the term. The first review is one period in, unless a call states a later one, as the section on a period with no calls describes.
 
 A 12-month term reviewed monthly has 12 reviews. A 36-month term reviewed quarterly has 12. The term must hold a whole number of periods: an 18-month term cannot be reviewed annually.
 
@@ -55,16 +55,19 @@ The call amount can be stated in one of two ways. **Flat** pays the same amount 
 
 ## A period with no calls
 
-Some notes cannot be called at the start, even if the condition holds. One public note is reviewed monthly for a year but allows an automatic call only from the sixth review ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)). The reference states it as a **non-call period**, a number of reviews at the start. A review in the period is read, but it cannot call, even when its level meets the trigger. A period of 0 reviews lets the product be called from the first review, as in the first example.
+Some notes cannot be called at the start, even if the condition holds. One public note is reviewed monthly for a year but allows an automatic call only from the sixth month ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)). Another, a ten-year note, has its first valuation date a year after pricing and one every quarter after that, 37 in all ([Citigroup Global Markets Holdings Inc., 424B2](https://www.sec.gov/Archives/edgar/data/200245/000191870426031411/form424b2.htm)). The months before the first call date are a **non-call period**.
 
-Take the first example with a non-call period of 5 reviews, so reviews 1 to 5 cannot call and the first call is on review 6.
+The reference states it as the month of the **first review**. The call's reviews start there and follow the review frequency to the end of the term, so the period before it has no call review in it: nothing is tested there, and there is nothing to read. Without a stated first review, the first review is one period in, as in the first example. The first review must be a whole number of periods in, so a quarterly call can start in month 6 or month 12 but not month 4.
+
+Take the first example with its first review in month 6. The call then has 7 reviews, in months 6 to 12, numbered from 1.
 
 | Scenario | What happens | Months | Payment |
 | :--- | :--- | ---: | ---: |
-| The level is 120 on reviews 1 to 5, below 100 on every later review, then ends at 110 | Reviews 1 to 5 cannot call, whatever the level. No later review reaches the trigger, so it runs to the end and the payoff pays principal | 12 | 1,000 |
-| The level is 120 on reviews 1 to 5, then 100 on review 6 | Review 6 is the first that can call, and it is at the trigger: principal plus 8% | 6 | 1,080 |
+| Below 100 on every review, then ends at 110 | No review reaches the trigger, so it runs to the end and the payoff pays principal | 12 | 1,000 |
+| The level is 100 on review 1, in month 6 | The first review is at the trigger: principal plus 8% | 6 | 1,080 |
+| Below 100 on reviews 1 and 2, then 100 on review 3, in month 8 | Called on review 3: principal plus 8% | 8 | 1,080 |
 
-The trigger is counted from review 1, not from the end of the period, so a trigger that steps down by 5% from 100% is 85% on review 4 whatever the period is. The period must leave at least one review that can call: at most the last but one, or the last when the final review is a call too. The public note also pays a coupon on every review, including those in the period, as [Coupons](20-coupons.md) explains.
+Whatever the level does in months 1 to 5, the note cannot be called then, because it has no review. A trigger that steps moves from the first review, so a trigger of 95% that steps down by 5% is 95% in month 6 and 90% on the next review, as public notes state the threshold of each call date. The first review must leave at least one review that can call: the last but one, or the last when the final review is a call too. A call amount per year still counts the years from the start of the term, not from the first review: at 17% a year, a call on the Citigroup note's first valuation date, after a year, pays 17%. The JPMorgan note also pays a coupon every month, including the five months before its first call date. The coupon has reviews of its own, as [Coupons](20-coupons.md) explains, so those months are coupon reviews and not call reviews.
 
 ## A call on the final review
 
@@ -98,21 +101,21 @@ This is the same shape as an upside barrier with a rebate, where the call amount
 
 An **issuer call** is the issuer's option to redeem a product early. An autocall is an obligation that follows from the underlier's level. An issuer call has no level test: on a review that can be called, the issuer may redeem the product in whole, and the underlier's level alone does not decide whether it will. The Swiss Structured Products Association calls this a softcall ([SSPA](https://sspa.ch/en/lab/)).
 
-The reference models it with three terms: the review frequency, a non-call period (the number of reviews at the start on which the issuer cannot call), and a call amount, paid above principal and stated as for an autocall, flat or per year. The last review is the end of the term and is not a call. Because the issuer's decision is not a term of the product, a scenario states it: the review the issuer calls on, or that it does not call.
+The reference models it with three terms: the review frequency, the month of the first review on which the issuer may call, and a call amount, paid above principal and stated as for an autocall, flat or per year. The last review is the end of the term and is not a call. Because the issuer's decision is not a term of the product, a scenario states it: the review the issuer calls on, or that it does not call.
 
-Two public notes show the shape. In a callable contingent interest note on three indices, "We, at our election, may redeem the notes early", on any interest payment date except the first five and the last, with no condition on the index level ([JPMorgan Financial, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390023083784/ea165015_424b2.htm)). In an issuer callable yield note on the S&P 500, the issuer may call quarterly from a first call date, at its "sole option", and the call right is not tied to the index level ([BofA Finance, 424B2](https://www.sec.gov/Archives/edgar/data/1682472/000148105724004907/form424b2.htm)). Both have a non-call period at the start, which is why the reference reuses the one it has for an autocall.
+Two public notes show the shape. In a callable contingent interest note on three indices, "We, at our election, may redeem the notes early", on any interest payment date except the first five and the last, with no condition on the index level ([JPMorgan Financial, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390023083784/ea165015_424b2.htm)). In an issuer callable yield note on the S&P 500, the issuer may call quarterly from a first call date, at its "sole option", and the call right is not tied to the index level ([BofA Finance, 424B2](https://www.sec.gov/Archives/edgar/data/1682472/000148105724004907/form424b2.htm)). Both have a non-call period at the start, which is why the reference states a first review for an issuer call as it does for an autocall.
 
 Some notes go further and write the decision into the terms as a rule. In a callable contingent income note on two indices, an early redemption "will occur ... if and only if" a risk neutral valuation model, run shortly before the observation date and fed with prevailing levels, volatilities and correlations and the issuer's credit spreads as of the pricing date, "indicates that redeeming on such date is economically rational for us as compared to not redeeming" ([Morgan Stanley Finance, 424B2](https://www.sec.gov/Archives/edgar/data/895421/000183988226049760/ms19348_424b2-33763.htm)). The call is then not at the issuer's discretion, but it is still not a level test: its inputs are market data and a model that the terms do not publish, so a holder cannot work out from the terms and the index levels whether the note will be called. Some judgment also remains: the calculation agent selects the business day the model is run on, any day from three business days before the observation date up to that date, and runs the model itself. The filing's risk factors draw the consequence: the issuer is "more likely" to redeem when the note is "paying an above-market coupon", that is, when holding on would be worth more to the holder. The reference has no pricing or market data, so it treats this kind of call as it treats an election: a scenario states the review called on.
 
 ### An example
 
-A synthetic note with principal of 1,000, a term of 12 months, monthly reviews, a non-call period of 2 reviews, a call amount of 2%, an initial level of 100 and 100% downside participation. The issuer can call on reviews 3 to 11.
+A synthetic note with principal of 1,000, a term of 12 months, monthly reviews from month 3, a call amount of 2%, an initial level of 100 and 100% downside participation. The issuer can call on reviews 1 to 9, in months 3 to 11.
 
 | Scenario | What happens | Months | Payment |
 | :--- | :--- | ---: | ---: |
 | The issuer does not call, and the level ends at 110 | The note runs to the end of its term. The payoff pays principal on a rise | 12 | 1,000 |
 | The issuer does not call, and the level ends at 70 | Downside participation: 1,000 × (1 − 30%) | 12 | 700 |
-| The issuer calls on review 5, and the level is 70 | Called: principal plus 2%. The level does not matter | 5 | 1,020 |
+| The issuer calls on review 3, in month 5, and the level is 70 | Called: principal plus 2%. The level does not matter | 5 | 1,020 |
 
 A call after 5 months that pays 2% above principal annualises to 4.87% a year, because the return is read over the months the product lasted, as for an autocall. With no call amount a call repays principal only and annualises to 0%.
 
@@ -144,22 +147,27 @@ public notes they are modelled on:
   trigger of 100% that steps down by 5% to 75% on the last review, which is a
   call too. A call pays 37.5% for each year elapsed: 1,187.50 on review 1, up to
   2,125 on the last. Not called, a downside barrier at 50% applies.
+- [Long-dated autocallable buffered note](https://sthotakura.github.io/spire/?example=long-dated-autocallable-buffered-note):
+  ten years on a synthetic strategy index ([Underliers](05-underliers.md)), reviewed every quarter from month 12,
+  so 37 reviews. It is called at or above its starting level, including on the last review, and a call pays 17%
+  for each year elapsed: 1,170 after a year, up to 2,700 at the end of the term. Not called, a 40% buffer
+  applies, so it repays principal down to 60% of the starting level and loses at most 60%.
 - [Autocallable basket note with a buffer and a digital return](https://sthotakura.github.io/spire/?example=autocallable-basket-note-with-buffer-and-digital-return):
   an equally weighted basket of four stocks over two years, called after the first annual review if the basket is
   at or above its starting level, paying 23.72%. Not called, the final level averages five dates and a digital
   return of 47.44% and a 15% buffer apply, as the [Barrier chapter](12-barrier.md) describes.
 - [Callable contingent coupon note](https://sthotakura.github.io/spire/?example=callable-contingent-coupon-note): three
-  years, which the issuer may call on any quarterly review from the second. The
+  years, which the issuer may call on any quarterly review from month 6. The
   coupon of 8.20% a year is reviewed monthly at a 70% barrier, without memory,
   and a downside barrier at 70% applies at the end of the term.
 - [Worst-of callable contingent coupon note](https://sthotakura.github.io/spire/?example=worst-of-callable-contingent-coupon-note):
   the worst of three indices, two years, which the issuer may call on any
-  monthly review from the sixth. The coupon of 11.30% a year is paid at a 75%
+  monthly review from month 6. The coupon of 11.30% a year is paid at a 75%
   barrier, without memory, and a downside barrier at 70% applies.
 
 ## Assumptions and sources
 
-- The calls and reviews follow public auto-callable notes, such as an auto-callable contingent interest note whose automatic call can occur from a later review ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)), and a step-down trigger autocallable note whose call threshold falls on each observation date, whose call return grows with time, and whose final valuation date is also tested for a call ([UBS AG, 424B2](https://www.sec.gov/Archives/edgar/data/1114446/000183988225047092/ubs_424b2-26373.htm)).
+- The calls and reviews follow public auto-callable notes, such as an auto-callable contingent interest note whose automatic call can occur only from a later date ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)), a ten-year autocallable note first valued after a year and quarterly after that ([Citigroup Global Markets Holdings Inc., 424B2](https://www.sec.gov/Archives/edgar/data/200245/000191870426031411/form424b2.htm)), and a step-down trigger autocallable note whose call threshold falls on each observation date, whose call return grows with time, and whose final valuation date is also tested for a call ([UBS AG, 424B2](https://www.sec.gov/Archives/edgar/data/1114446/000183988225047092/ubs_424b2-26373.htm)).
 - An issuer call can be an election or a rule read from a valuation model. The reference states the call in a scenario either way, and does not model the decision ([Morgan Stanley Finance, 424B2](https://www.sec.gov/Archives/edgar/data/895421/000183988226049760/ms19348_424b2-33763.htm)).
 - The Swiss Structured Products Association describes an autocall as an obligation to repay early when the underlyings are above the trigger on a predetermined observation date, and a softcall as an issuer option on such dates ([SSPA](https://sspa.ch/en/lab/)).
 - The reviews are evenly spaced whole numbers of months. Public notes list dates that shift with weekends and holidays.

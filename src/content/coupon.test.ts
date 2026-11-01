@@ -12,7 +12,7 @@ import { summarize } from './summary'
 const product = (coupon: Partial<Coupon> = {}): Product => ({
   ...startingProduct,
   term: { months: 12 },
-  redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, nonCallReviews: 3, callAmount: 0 },
+  redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 4, callAmount: 0 },
   coupon: { schedule: { frequency: 'monthly' }, rate: 0.12, barrier: 0.7, memory: true, ...coupon },
   payoff: { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.6, observation: 'final' } }] },
 })
@@ -64,9 +64,9 @@ describe('the coupon in the calculation', () => {
     expect(steps.filter((step) => step.concept === 'coupon' && step.title.startsWith('Coupon on')).map((step) => step.value)).toEqual(['10', '0', '20', '0', '20'])
     expect(steps.find((step) => step.title === 'Coupon on review 3 of 12, month 3')?.how).toBe('102 is at or above the coupon barrier, 70% × initial level = 70: 2 × 1,000 × 12% × 1/12 = 20, this review’s coupon and 1 coupon remembered')
     expect(steps.find((step) => step.title === 'Coupon on review 1 of 12, month 1')?.how).toBe('95 is at or above the coupon barrier, 70% × initial level = 70: 1,000 × 12% × 1/12 = 10')
-    // In order of month, the coupon before the call on a month that is both.
-    expect(steps.slice(0, 4).map(({ title }) => title)).toEqual(['Coupon on review 1 of 12, month 1', 'Review 1 of 12, month 1', 'Coupon on review 2 of 12, month 2', 'Review 2 of 12, month 2'])
-    expect(steps.find((step) => step.title === 'Redemption')).toMatchObject({ how: 'Called on review 5, after 5 months: principal × (1 + 0%) + coupon 20', value: '1,020' })
+    // In order of month, the coupon before the call on a month that is both. The call's first review is in month 4.
+    expect(steps.slice(0, 6).map(({ title }) => title)).toEqual(['Coupon on review 1 of 12, month 1', 'Coupon on review 2 of 12, month 2', 'Coupon on review 3 of 12, month 3', 'Coupon on review 4 of 12, month 4', 'Review 1 of 9, month 4', 'Coupon on review 5 of 12, month 5'])
+    expect(steps.find((step) => step.title === 'Redemption')).toMatchObject({ how: 'Called on review 2, after 5 months: principal × (1 + 0%) + coupon 20', value: '1,020' })
     expect(steps.find((step) => step.title === 'Total paid')).toMatchObject({ value: '1,050' })
   })
 
@@ -98,7 +98,8 @@ describe('the coupon in the calculation', () => {
   it('has no closing steps for a called product, or without a coupon', () => {
     expect(couponClosingSteps(product(), redemptionOutcome(product(), called, { initial: 100, final: 90 }))).toEqual([])
     const plain = { ...product(), coupon: undefined }
-    expect(couponClosingSteps(plain, redemptionOutcome(plain, neverCalled, { initial: 100, final: 75 }))).toEqual([])
+    // Without a coupon the levels read are the call's, from month 4.
+    expect(couponClosingSteps(plain, redemptionOutcome(plain, neverCalled.slice(3), { initial: 100, final: 75 }))).toEqual([])
   })
 })
 
@@ -138,7 +139,7 @@ describe('the coupon paths', () => {
   })
 
   it('keeps the memory path with a final review that calls, when the barrier is below the last trigger', () => {
-    const near: Product = { ...product({ barrier: 0.97 }), redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, nonCallReviews: 3, callAmount: 0, callOnFinalReview: true } }
+    const near: Product = { ...product({ barrier: 0.97 }), redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 4, callAmount: 0, callOnFinalReview: true } }
     const memory = pathScenarios(near, 100).find((path) => path.name === 'Misses coupons, then pays them by memory')
     expect(memory).toBeDefined()
     expect(redemptionOutcome(near, memory!.reviewLevels, { initial: 100, final: memory!.finalLevel! }).calledAtReview).toBeUndefined()
@@ -198,7 +199,8 @@ describe('a coupon on its own schedule in the calculation', () => {
 describe('the coupon in the review table', () => {
   it('works out the coupon from the rate, and multiplies it by the coupons a review pays with memory', () => {
     const quarterly = product({ schedule: { frequency: 'quarterly' }, rate: 0.1 })
-    const outcome = redemptionOutcome(quarterly, [90, 65, 90, 90, 90, 90, 90, 90, 90, 90, 90], { initial: 100, final: 90 })
+    // A level on the coupon reviews in months 3, 6 and 9 and the call reviews in months 4 to 11.
+    const outcome = redemptionOutcome(quarterly, [90, 65, 90, 90, 90, 90, 90, 90, 90], { initial: 100, final: 90 })
     const cells = outcome.coupons.map((test) => couponCell(quarterly, test))
     expect(cells[0]).toBe('1,000 × 10% × 3/12 = 25')
   })

@@ -74,7 +74,7 @@ describe('the calculation path', () => {
   // An autocall that calls on its last review, with a remembered coupon: the line draws the call and the last coupon, not the memory.
   const memory: Product = {
     wrapper: 'note', principalAmount: 1000, term: { months: 12 },
-    redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, nonCallReviews: 0, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: true },
+    redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, firstReviewMonth: 3, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: true },
     coupon: { schedule: { frequency: 'quarterly' }, rate: 0.08, barrier: 0.7, memory: true },
     underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },
     payoff: { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.6, observation: 'final' } }] },

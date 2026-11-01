@@ -219,6 +219,16 @@ function callAndCouponNames(note: Product): MarketingName[] {
       concepts: ['redemption'],
     })
   }
+  // A call amount for each year elapsed grows the longer the product goes uncalled, which sellers call a snowball. Market usage only,
+  // and some sellers' snowballs add a barrier observed every day, so the reason says this one's fall is as its payoff states.
+  if (redemption !== 'bullet' && redemption.kind === 'autocall' && redemption.callAmountBasis === 'per-year' && isRate(redemption.callAmount)) {
+    names.push({
+      name: 'Snowball autocall',
+      vocabulary: 'Market usage',
+      reason: `A call pays ${percentText(redemption.callAmount)} for each year elapsed, so every review the product is not called adds to what the next call pays, and the payment snowballs. Sellers use the name; some of their snowballs also have a barrier observed on every close, while what this one pays below the trigger at maturity is as its payoff states.`,
+      concepts: ['redemption', 'call-amount'],
+    })
+  }
   if (redemption !== 'bullet' && redemption.kind === 'issuer-call') {
     names.push({
       name: 'Callable note',

@@ -54,20 +54,20 @@ paid(r)         = met(r) ? coupon × (1 + missed) : 0       missed counts only w
 missed          = met(r) ? 0 : missed + 1                    without memory, missed stays 0
 ```
 
-- **Every review is tested**, including those in the non-call period and the last.
+- **Every review is tested**, including those before the call's first review and the last.
 - **The call is tested after the coupon.** A call on review `r` pays principal, plus the call amount, plus `paid(r)`. No later review is tested.
 - **The last review**, if the product was not called, pays the maturity payment plus `paid(last)`. With the final review as a call, a final level at or above the trigger pays principal, the call amount and `paid(last)`.
 - **Averaging.** The last review reads the averaged final level, as the JPM index note's coupon and maturity tests read its average ([observation-dates.md](observation-dates.md)).
 
 ## Synthetic worked example
 
-A note of 1,000 on a synthetic stock with an initial level of 100. Twelve monthly reviews, a coupon of 12% a year (10.00 a review) with a 70% barrier, an autocall at 100% with no call amount and no call on reviews 1 to 3, and a 60% downside barrier on 100% downside participation.
+A note of 1,000 on a synthetic stock with an initial level of 100. Twelve monthly reviews, a coupon of 12% a year (10.00 a review) with a 70% barrier, an autocall at 100% with no call amount, reviewed monthly from month 4, and a 60% downside barrier on 100% downside participation.
 
-| Review | Level | Barrier met | Paid with memory | Paid without memory |
+| Month | Level | Barrier met | Paid with memory | Paid without memory |
 | ---: | ---: | :--- | ---: | ---: |
 | 1 | 95 | Yes | 10.00 | 10.00 |
 | 2 | 65 | No | 0 | 0 |
-| 3 | 102 | Yes; no call in the non-call period | 20.00 | 10.00 |
+| 3 | 102 | Yes; not a call review, so no call | 20.00 | 10.00 |
 | 4 | 68 | No | 0 | 0 |
 | 5 | 104 | Yes; called | 1,000 + 20.00 | 1,000 + 10.00 |
 

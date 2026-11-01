@@ -162,72 +162,71 @@ describe('a trigger that steps down, a call amount for each year and a call on t
   })
 })
 
-// Twelve monthly reviews, the first five of which cannot call.
-const delayed: Product = { ...callable, redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, nonCallReviews: 5, callAmount: 0.08 } }
-const delayedFrom = (firstCall: number): Product => ({ ...delayed, redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, nonCallReviews: firstCall - 1, callAmount: 0.08 } })
+/// Monthly reviews from month 6 of a 12-month term: seven reviews, the months before the first a non-call period.
+const delayed: Product = { ...callable, redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 6, callAmount: 0.08 } }
+const delayedFrom = (firstReviewMonth: number): Product => ({ ...delayed, redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth, callAmount: 0.08 } })
 
-describe('a non-call period', () => {
-  it('says from which review the product can be called, in the summary', () => {
-    expect(text(delayed)).toContain('on any monthly review from the 6th before maturity')
-    expect(text(delayedFrom(2))).toContain('from the 2nd')
-    expect(text(delayedFrom(3))).toContain('from the 3rd')
-    expect(text(delayedFrom(11))).toContain('from the 11th')
-    expect(text(callable)).not.toContain(' from the ')
+describe('a first review later than one period in', () => {
+  it('says from which month the product can be called, in the summary', () => {
+    expect(text(delayed)).toContain('on any monthly review from month 6 before maturity')
+    expect(text(delayedFrom(11))).toContain('from month 11')
+    expect(text(delayedFrom(1))).not.toContain(' from month')
+    expect(text(callable)).not.toContain(' from month')
   })
 
   it('tags the phrase with its own concept', () => {
-    expect(summarize(delayed).filter(({ concept }) => concept === 'non-call').map(({ text }) => text)).toEqual([' from the 6th'])
+    expect(summarize(delayed).filter(({ concept }) => concept === 'first-review').map(({ text }) => text)).toEqual([' from month 6'])
   })
 
-  it('writes the call rule from the first review that can call', () => {
+  it('writes the call rule from the month of the first review', () => {
     const [line] = redemptionFormula(delayed)
-    expect(line.segments.map(({ text }) => text).join('')).toBe('On a review from review 6 to the last but one, if Level ≥ Trigger × Initial level, pay Principal × (1 + Call amount) and end')
-    const [withFinal] = redemptionFormula({ ...delayed, redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, nonCallReviews: 5, callAmount: 0.08, callOnFinalReview: true } })
-    expect(withFinal.segments[0].text).toBe('On every review from review 6, if ')
+    expect(line.segments.map(({ text }) => text).join('')).toBe('On a review from month 6 to the last but one, if Level ≥ Trigger × Initial level, pay Principal × (1 + Call amount) and end')
+    const [withFinal] = redemptionFormula({ ...delayed, redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 6, callAmount: 0.08, callOnFinalReview: true } })
+    expect(withFinal.segments[0].text).toBe('On every review from month 6, if ')
   })
 
-  it('shows a review in the non-call period as unable to call, whatever its level', () => {
-    const steps = redemptionSteps(delayed, redemptionOutcome(delayed, [150, 150, 90, 90, 90, 100, ...Array(5).fill(90)], levels))
-    expect(steps.slice(0, 3).map(({ title, value, how }) => [title, value, how])).toEqual([
-      ['Review 1 of 12', 'No call', '150: in the non-call period, the first 5 reviews cannot call'],
-      ['Review 2 of 12', 'No call', '150: in the non-call period, the first 5 reviews cannot call'],
-      ['Review 3 of 12', 'No call', '90: in the non-call period, the first 5 reviews cannot call'],
+  it('has a step only for each review from the first, with its month', () => {
+    const steps = redemptionSteps(delayed, redemptionOutcome(delayed, [90, 90, 100, 90, 90, 90], levels))
+    expect(steps.map(({ title, value }) => [title, value])).toEqual([
+      ['Review 1 of 7, month 6', 'Not called'],
+      ['Review 2 of 7, month 7', 'Not called'],
+      ['Review 3 of 7, month 8', 'Called'],
+      ['Redemption', '1,080'],
+      ['Annualised return', expect.any(String)],
+      ['If it had run to maturity', ''],
     ])
-    expect(steps[5].value).toBe('Called')
   })
 
-  it('explains a product no review that could call called', () => {
-    const outcome = redemptionOutcome(delayed, [150, 150, 150, 150, 150, ...Array(6).fill(90)], levels)
-    expect(explainRedemption(delayed, outcome)).toBe('No review that could call was at or above the 100 trigger, so the product ran to the end of its term.')
+  it('explains a product no review called', () => {
+    const outcome = redemptionOutcome(delayed, Array(6).fill(90), levels)
+    expect(explainRedemption(delayed, outcome)).toBe('No review before the last was at or above the 100 trigger, so the product ran to the end of its term.')
   })
 
-  it('gives paths that show the period: the early reviews are at the trigger and do not call', () => {
+  it('gives paths from the first review', () => {
     expect(validateProduct(delayed)).toEqual([])
     const paths = pathScenarios(delayed, 100)
     const results = Object.fromEntries(paths.map(({ name, reviewLevels, finalLevel }) => [name, redemptionOutcome(delayed, reviewLevels, { initial: 100, final: finalLevel ?? 100 }).calledAtReview]))
     expect(results).toEqual({
-      'Called on the first review that can call': 6,
-      'Called on review 11': 11,
-      'Falls first, then recovers: called late': 11,
+      'Called on the first review': 1,
+      'Called on review 6': 6,
+      'Falls first, then recovers: called late': 6,
       'Never called, ends 20% up': undefined,
       'Never called, ends flat': undefined,
       'Never called, ends 40% down': undefined,
     })
-    // The first five reviews of the path called on review 6 are at the trigger, so they would call if they could.
-    expect(paths[0].reviewLevels.slice(0, 5)).toEqual([100, 100, 100, 100, 100])
   })
 
-  it('tags the non-call period in the structure JSON with its own concept', () => {
-    expect(structureLines(delayed).filter(({ concept }) => concept === 'non-call').map(({ text }) => text.trim())).toEqual(['"nonCallReviews": 5,'])
+  it('tags the first review month in the structure JSON with its own concept', () => {
+    expect(structureLines(delayed).filter(({ concept }) => concept === 'first-review').map(({ text }) => text.trim())).toEqual(['"firstReviewMonth": 6,'])
   })
 })
 
-// An issuer call on twelve monthly reviews, the first two of which cannot be called.
-const issuer: Product = { ...callable, redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, nonCallReviews: 2, callAmount: 0.02 } }
+// An issuer call on monthly reviews from month 3 of a 12-month term: ten reviews.
+const issuer: Product = { ...callable, redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, firstReviewMonth: 3, callAmount: 0.02 } }
 
 describe('an issuer call', () => {
   it('says when the issuer may call, with no level, and what it pays', () => {
-    expect(text(issuer)).toBe('A 1-year note that the issuer may call early on any monthly review from the 3rd before maturity, paying 2% above principal, and otherwise redeems at maturity and repays its principal, linked to Synthetic Index, measured point-to-point from 100.')
+    expect(text(issuer)).toBe('A 1-year note that the issuer may call early on any monthly review from month 3 before maturity, paying 2% above principal, and otherwise redeems at maturity and repays its principal, linked to Synthetic Index, measured point-to-point from 100.')
     expect(text({ ...issuer, redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0 } })).toContain('on any monthly review before maturity, repaying principal, and otherwise')
     expect(text({ ...issuer, redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0.1, callAmountBasis: 'per-year' } })).toContain('paying 10% for each year elapsed above principal')
   })
@@ -235,7 +234,7 @@ describe('an issuer call', () => {
   it('tags each term with its own concept', () => {
     const tagged = (concept: string) => summarize(issuer).filter((segment) => segment.concept === concept).map(({ text }) => text)
     expect(tagged('schedule')).toEqual(['monthly'])
-    expect(tagged('non-call')).toEqual([' from the 3rd'])
+    expect(tagged('first-review')).toEqual([' from month 3'])
     expect(tagged('call-amount')).toEqual(['paying 2% above principal'])
     expect(tagged('trigger')).toEqual([])
   })
@@ -244,40 +243,41 @@ describe('an issuer call', () => {
     const lines = structureLines(issuer)
     expect(lines.map(({ text }) => text).join('\n')).toBe(JSON.stringify(issuer, null, 2))
     const tagged = (concept: string) => lines.filter((line) => line.concept === concept).map(({ text }) => text.trim())
-    expect(tagged('non-call')).toEqual(['"nonCallReviews": 2,'])
+    expect(tagged('first-review')).toEqual(['"firstReviewMonth": 3,'])
     expect(tagged('call-amount')).toEqual(['"callAmount": 0.02'])
   })
 
   it('writes the call rule with no level in it', () => {
     const [line] = redemptionFormula(issuer)
-    expect(line.segments.map(({ text }) => text).join('')).toBe('On a review from review 3 before the last, if the issuer calls, pay Principal × (1 + Call amount) and end')
+    expect(line.segments.map(({ text }) => text).join('')).toBe('On a review from month 3 before the last, if the issuer calls, pay Principal × (1 + Call amount) and end')
     expect(redemptionFormula({ ...issuer, redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0.02 } })[0].segments[0].text).toBe('On a review before the last, if the issuer calls, pay ')
   })
 
   it('explains a call and a product the issuer left alone', () => {
-    expect(explainRedemption(issuer, redemptionOutcome(issuer, [], levels, 5))).toBe('The issuer called the product on review 5 of 12, after 5 months, and it pays 1,020, 20 more than principal.')
+    expect(explainRedemption(issuer, redemptionOutcome(issuer, [], levels, 3))).toBe('The issuer called the product on review 3 of 10, after 5 months, and it pays 1,020, 20 more than principal.')
     expect(explainRedemption(issuer, redemptionOutcome(issuer, [], levels))).toBe('The issuer did not call, so the product ran to the end of its term.')
     expect(explainRedemption({ ...issuer, redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0 } }, redemptionOutcome({ ...issuer, redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0 } }, [], levels, 5))).toContain('pays 1,000, the same as principal')
   })
 
-  it('shows the non-call period, the call, its annualised return and the comparison', () => {
-    const steps = redemptionSteps(issuer, redemptionOutcome(issuer, [], levels, 5))
-    expect(steps.map(({ title, value }) => [title, value])).toEqual([['Non-call period', '2 reviews'], ['Issuer call', '1,020'], ['Annualised return', '4.87% a year'], ['If it had run to maturity', '']])
-    expect(steps[1].how).toBe('The issuer called on review 5, after 5 months: principal × (1 + 2%)')
+  it('shows the first review, the call, its annualised return and the comparison', () => {
+    const steps = redemptionSteps(issuer, redemptionOutcome(issuer, [], levels, 3))
+    expect(steps.map(({ title, value }) => [title, value])).toEqual([['First review', 'Month 3'], ['Issuer call', '1,020'], ['Annualised return', '4.87% a year'], ['If it had run to maturity', '']])
+    expect(steps[0].how).toBe('The issuer cannot call before month 3')
+    expect(steps[1].how).toBe('The issuer called on review 3, after 5 months: principal × (1 + 2%)')
     expect(steps[1].result).toBe(true)
     expect(steps[3].heading).toBe(true)
   })
 
   it('shows only that the issuer did not call when it ran to maturity', () => {
     const steps = redemptionSteps(issuer, redemptionOutcome(issuer, [], levels))
-    expect(steps.map(({ title, value }) => [title, value])).toEqual([['Non-call period', '2 reviews'], ['Issuer call', 'Not called']])
+    expect(steps.map(({ title, value }) => [title, value])).toEqual([['First review', 'Month 3'], ['Issuer call', 'Not called']])
   })
 
-  it('has no step for the period when there is none, and says one review in the singular', () => {
+  it('has no step for the first review when it is one period in', () => {
     const none = { ...issuer, redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0.02 } } as Product
     expect(redemptionSteps(none, redemptionOutcome(none, [], levels)).map(({ title }) => title)).toEqual(['Issuer call'])
-    const one = { ...issuer, redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, nonCallReviews: 1, callAmount: 0.02 } } as Product
-    expect(redemptionSteps(one, redemptionOutcome(one, [], levels))[0]).toMatchObject({ how: 'The first 1 review cannot be called', value: '1 review' })
+    const stated = { ...issuer, redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, firstReviewMonth: 1, callAmount: 0.02 } } as Product
+    expect(redemptionSteps(stated, redemptionOutcome(stated, [], levels)).map(({ title }) => title)).toEqual(['Issuer call'])
   })
 
   it('has no paths of levels', () => {

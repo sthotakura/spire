@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { startingProduct } from '../domain/starting-note'
+import { redemptionOutcome } from '../domain/autocall'
+import { reviewDates } from '../domain/note'
 import { sameProduct, sampleBySlug, sampleGroups, sampleProducts } from './examples'
 
 describe('sample products', () => {
@@ -43,5 +45,25 @@ describe('sample products', () => {
 
   it('opens no sample as the starting note', () => {
     expect(sampleProducts.some(({ product }) => sameProduct(product, startingProduct))).toBe(false)
+  })
+})
+
+// The 2036 Citigroup note's own examples and call table, on a hypothetical initial level of 100.
+describe('the long-dated autocallable buffered note', () => {
+  const { product } = sampleBySlug('long-dated-autocallable-buffered-note')!
+  const notCalled = Array.from({ length: 36 }, () => 90)
+
+  it('has 37 reviews, quarterly from month 12', () => {
+    expect(reviewDates(product).map(({ month }) => month)).toEqual(Array.from({ length: 37 }, (_, index) => 12 + 3 * index))
+  })
+
+  it.each([[370, 2700], [80, 1000], [30, 700], [0, 400]])('a final level of %s pays %s at maturity', (final, payment) => {
+    expect(redemptionOutcome(product, notCalled, { initial: 100, final }).payment).toBeCloseTo(payment, 9)
+  })
+
+  it.each([[1, 12, 1170], [36, 117, 2657.5]])('pays the filing\'s call price on review %s, in month %s: %s', (review, months, payment) => {
+    const outcome = redemptionOutcome(product, notCalled.map((level, index) => (index + 1 === review ? 100 : level)), { initial: 100, final: 90 })
+    expect(outcome).toMatchObject({ calledAtReview: review, months })
+    expect(outcome.payment).toBeCloseTo(payment, 9)
   })
 })

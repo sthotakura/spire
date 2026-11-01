@@ -16,7 +16,7 @@ The maturity payoff is already expressible: worst-of determination, upside and d
 
 ## Current behaviour
 
-The autocall takes a review frequency (monthly, quarterly, semi-annual, annual), a non-call period counted in reviews, a trigger and trigger step, and a call amount. A three-year product with annual reviews therefore gets call opportunities at years one and two, then final redemption at year three.
+The autocall takes a review frequency (monthly, quarterly, semi-annual, annual), the month of the first review, a trigger and trigger step, and a call amount. A three-year product with annual reviews therefore gets call opportunities at years one and two, then final redemption at year three.
 
 That cannot reproduce the note above: it adds a year-two opportunity.
 

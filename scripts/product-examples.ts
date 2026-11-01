@@ -94,10 +94,10 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     }),
   ],
   [
-    'an autocall reviewed monthly on a worst-of basket that cannot be called before the sixth review, with a buffer at the end of the term',
+    'an autocall reviewed monthly from month 6 on a worst-of basket, with a buffer at the end of the term',
     note({ participations: [{ direction: 'downside', buffer: 0.2, rate: 1.25 }] }, {
       term: { months: 12 },
-      redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, nonCallReviews: 5, callAmount: 0.08 },
+      redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 6, callAmount: 0.08 },
       underlier: {
         kind: 'basket',
         components: [{ asset: asset('Index A') }, { asset: asset('Index B') }],
@@ -106,15 +106,23 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     }),
   ],
   [
-    'an issuer call on a quarterly review, with a non-call period of two reviews and a 2% call amount, on a worst-of basket with a barrier',
+    'an issuer call on a quarterly review from month 9, with a 2% call amount, on a worst-of basket with a barrier',
     note({ participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }] }, {
       term: { months: 36 },
-      redemption: { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, nonCallReviews: 2, callAmount: 0.02 },
+      redemption: { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, firstReviewMonth: 9, callAmount: 0.02 },
       underlier: {
         kind: 'basket',
         components: [{ asset: asset('Index A') }, { asset: asset('Index B') }],
         determination: { initial: { kind: 'given', levels: [{ asset: 'Index A', level: 100 }, { asset: 'Index B', level: 50 }] }, final: { kind: 'final-date' }, basketReturn: { kind: 'worst-of' } },
       },
+    }),
+  ],
+  [
+    'a ten-year autocall on a strategy index, reviewed quarterly from month 12, paying 17% for each year elapsed, with a call on the final review and a buffer',
+    note({ participations: [{ direction: 'downside', buffer: 0.4, rate: 1 }] }, {
+      term: { months: 120 },
+      redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, firstReviewMonth: 12, callAmount: 0.17, callAmountBasis: 'per-year', callOnFinalReview: true },
+      underlier: { kind: 'single', components: [{ asset: { kind: 'strategy-index', name: 'Synthetic Strategy Index' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },
     }),
   ],
   [
@@ -133,7 +141,7 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     'an autocall reviewed monthly with a contingent coupon of 17.35% a year at a 50% barrier, with memory, that cannot be called before the sixth review, and a 40% downside barrier at the end of the term',
     note({ participations: [{ direction: 'downside', barrier: { level: 0.4, observation: 'final' }, rate: 1 }] }, {
       term: { months: 36 },
-      redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, nonCallReviews: 5, callAmount: 0 },
+      redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 6, callAmount: 0 },
       coupon: { schedule: { frequency: 'monthly' }, rate: 0.1735, barrier: 0.5, memory: true },
     }),
   ],
@@ -141,7 +149,7 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     'an autocall reviewed quarterly with a contingent coupon reviewed monthly, on its own schedule',
     note({ participations: [{ direction: 'downside', barrier: { level: 0.6, observation: 'final' }, rate: 1 }] }, {
       term: { months: 24 },
-      redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, nonCallReviews: 1, callAmount: 0 },
+      redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, firstReviewMonth: 6, callAmount: 0 },
       coupon: { schedule: { frequency: 'monthly' }, rate: 0.12, barrier: 0.7 },
     }),
   ],
@@ -156,7 +164,7 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     'an autocall reviewed quarterly on a worst-of basket, with a fixed coupon of 11.72% a year paid on every review, a trigger stepping down from 95% and a 60% downside barrier at the end of the term',
     note({ participations: [{ direction: 'downside', barrier: { level: 0.6, observation: 'final' }, rate: 1 }] }, {
       term: { months: 18 },
-      redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, triggerStep: -0.05, nonCallReviews: 1, callAmount: 0 },
+      redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 0.95, triggerStep: -0.05, firstReviewMonth: 6, callAmount: 0 },
       coupon: { schedule: { frequency: 'quarterly' }, rate: 0.1172 },
       underlier: {
         kind: 'basket',

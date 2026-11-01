@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://sthotakura.github.io/spire/product.schema.json",
   "title": "SPIRe product",
-  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A digital return is for notes only, is less than any cap, and cannot be combined with an upside barrier, barrier absolute return or a minimum return.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- The term must hold a whole number of periods of each schedule: at least two for an autocall or an issuer call, and at least one for a coupon.\n- An autocall, an issuer call or a contingent coupon cannot be combined with a barrier observed on every close.\n- Memory needs a coupon barrier: a fixed coupon, which has none, is paid on every review.\n- An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The non-call period of an autocall or an issuer call leaves at least one review that can call.",
+  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A digital return is for notes only, is less than any cap, and cannot be combined with an upside barrier, barrier absolute return or a minimum return.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- The term must hold a whole number of periods of each schedule: at least two for an autocall or an issuer call, and at least one for a coupon.\n- An autocall, an issuer call or a contingent coupon cannot be combined with a barrier observed on every close.\n- Memory needs a coupon barrier: a fixed coupon, which has none, is paid on every review.\n- An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The first review of an autocall or an issuer call is a whole number of periods in, and leaves at least one review that can call.",
   "type": "object",
   "properties": {
     "wrapper": {
@@ -892,7 +892,7 @@
           "frequency": "monthly"
         },
         "trigger": 1,
-        "nonCallReviews": 5,
+        "firstReviewMonth": 6,
         "callAmount": 0.08
       },
       "underlier": {
@@ -954,7 +954,7 @@
         "schedule": {
           "frequency": "quarterly"
         },
-        "nonCallReviews": 2,
+        "firstReviewMonth": 9,
         "callAmount": 0.02
       },
       "underlier": {
@@ -1003,6 +1003,53 @@
               "level": 0.7,
               "observation": "final"
             },
+            "rate": 1
+          }
+        ]
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 120
+      },
+      "redemption": {
+        "kind": "autocall",
+        "schedule": {
+          "frequency": "quarterly"
+        },
+        "trigger": 1,
+        "firstReviewMonth": 12,
+        "callAmount": 0.17,
+        "callAmountBasis": "per-year",
+        "callOnFinalReview": true
+      },
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "strategy-index",
+              "name": "Synthetic Strategy Index"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "level": 100
+          },
+          "final": {
+            "kind": "final-date"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "buffer": 0.4,
             "rate": 1
           }
         ]
@@ -1098,7 +1145,7 @@
           "frequency": "monthly"
         },
         "trigger": 1,
-        "nonCallReviews": 5,
+        "firstReviewMonth": 6,
         "callAmount": 0
       },
       "underlier": {
@@ -1154,7 +1201,7 @@
           "frequency": "quarterly"
         },
         "trigger": 1,
-        "nonCallReviews": 1,
+        "firstReviewMonth": 6,
         "callAmount": 0
       },
       "underlier": {
@@ -1256,9 +1303,9 @@
         "schedule": {
           "frequency": "quarterly"
         },
-        "trigger": 1,
+        "trigger": 0.95,
         "triggerStep": -0.05,
-        "nonCallReviews": 1,
+        "firstReviewMonth": 6,
         "callAmount": 0
       },
       "underlier": {
@@ -1367,7 +1414,7 @@
               "$ref": "#/definitions/Schedule"
             }
           ],
-          "description": "The reviews on which the call is tested. There must be at least two, so the product can be called before the last."
+          "description": "How often the call is tested, from its first review. The term must hold at least two periods."
         },
         "trigger": {
           "type": "number",
@@ -1375,15 +1422,14 @@
           "exclusiveMinimum": 0,
           "maximum": 2
         },
-        "nonCallReviews": {
+        "firstReviewMonth": {
           "type": "integer",
-          "description": "The number of reviews at the start on which the product cannot be called, even when the level meets that review's trigger: a non-call period. 0 lets the product be called from the first review. It must leave at least one review that can call: the last but one, or the last when the final review is a call too.",
-          "minimum": 0,
-          "default": 0
+          "description": "The month of the first review, counted from the start of the term. Later reviews follow it at the schedule's frequency to the end of the term, so the months before it are a non-call period with no review in it. Absent, the first review is one period in. It must be a whole number of periods, and leave a review that can call: the last but one, or the last when the final review is a call too.",
+          "minimum": 1
         },
         "triggerStep": {
           "type": "number",
-          "description": "How much the trigger changes on each review after the first, as a fraction of the initial level. A negative step lowers the trigger: a trigger of 1 with a step of -0.05 is 100% on review 1, 95% on review 2, and so on. A positive step raises it. Absent or zero keeps the trigger the same on every review. The trigger must stay above zero, and at most 2, on every review that is tested.",
+          "description": "How much the trigger changes on each review after the first, as a fraction of the initial level. A negative step lowers the trigger: a trigger of 1 with a step of -0.05 is 100% on the first review, 95% on the second, and so on. A positive step raises it. Absent or zero keeps the trigger the same on every review. The trigger must stay above zero, and at most 2, on every review that is tested.",
           "default": 0
         },
         "callAmount": {
@@ -1426,7 +1472,7 @@
         "frequency"
       ],
       "additionalProperties": false,
-      "description": "Reviews: the dates on which a condition of the product is tested. They are evenly spaced through the term and numbered from 1, and the last is the end of the term. The term must hold a whole number of periods. A call and a coupon each have their own."
+      "description": "Reviews: the dates on which a condition of the product is tested. They are evenly spaced through the term and numbered from 1, and the last is the end of the term. The term must hold a whole number of periods. A call and a coupon each have their own. The first review is one period in, unless a call states a later first review month."
     },
     "ReviewFrequency": {
       "type": "string",
@@ -1451,13 +1497,12 @@
               "$ref": "#/definitions/Schedule"
             }
           ],
-          "description": "The reviews on which the issuer may call. There must be at least two, so the product can be called before the last."
+          "description": "How often the issuer may call, from its first review. The term must hold at least two periods."
         },
-        "nonCallReviews": {
+        "firstReviewMonth": {
           "type": "integer",
-          "description": "The number of reviews at the start on which the issuer cannot call: a non-call period. 0 lets the issuer call from the first review. It must leave at least one review that can call, which is any review before the last.",
-          "minimum": 0,
-          "default": 0
+          "description": "The month of the first review on which the issuer may call, counted from the start of the term. Later reviews follow it at the schedule's frequency to the end of the term, so the months before it are a non-call period. Absent, the first review is one period in. It must be a whole number of periods, and leave a review before the last.",
+          "minimum": 1
         },
         "callAmount": {
           "type": "number",
@@ -1515,7 +1560,7 @@
         "rate"
       ],
       "additionalProperties": false,
-      "description": "Interest paid on each review of the coupon's own schedule, including those in a call's non-call period and the last, until the product ends. With a barrier the coupon is contingent: a review pays only when the underlier's level is at or above it. Without one the coupon is fixed: every review pays, whatever the underlier does, and no level is read for it. A product called on a date that is also a coupon review pays that review's coupon with the call, if the review pays one."
+      "description": "Interest paid on each review of the coupon's own schedule, including those before a call's first review and the last, until the product ends. With a barrier the coupon is contingent: a review pays only when the underlier's level is at or above it. Without one the coupon is fixed: every review pays, whatever the underlier does, and no level is read for it. A product called on a date that is also a coupon review pays that review's coupon with the call, if the review pays one."
     },
     "Underlier": {
       "oneOf": [
@@ -1591,9 +1636,10 @@
       "type": "string",
       "enum": [
         "equity",
-        "equity-index"
+        "equity-index",
+        "strategy-index"
       ],
-      "description": "The kind of asset tracked: a single equity, or an equity index."
+      "description": "The kind of asset tracked: a single equity, an equity index, or a strategy index. A strategy index follows published rules to hold and rebalance exposure to other instruments, such as futures, and can target a volatility or deduct a fixed amount a year. The payoff reads its level as it reads any other."
     },
     "Determination": {
       "type": "object",

@@ -64,7 +64,9 @@ underlier, so a call or a coupon rules them out. Names that describe the
 payment at maturity, such as “buffered note”, still apply, and their reason
 says that a call can end the product earlier or that a coupon is paid as well.
 The call and the coupon have names of their own: “autocallable note”,
-“callable note” and “contingent coupon note”. A fixed coupon has no name of its
+“callable note” and “contingent coupon note”. An autocall whose call amount is a
+rate for each year elapsed, so that each review it is not called adds to what the
+next call pays, is what sellers call a “snowball autocall”. A fixed coupon has no name of its
 own here: the name usually given to it, “reverse convertible”, also describes
 how the note is settled, which this reference does not model. An unprotected
 autocall that pays contingent coupons instead of a share in a rise, with a

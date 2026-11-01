@@ -25,7 +25,7 @@ const rulesInValidator = [
   'The term must hold a whole number of periods of each schedule: at least two for an autocall or an issuer call, and at least one for a coupon.',
   'An autocall, an issuer call or a contingent coupon cannot be combined with a barrier observed on every close.',
   'Memory needs a coupon barrier: a fixed coupon, which has none, is paid on every review.',
-  'An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The non-call period of an autocall or an issuer call leaves at least one review that can call.',
+  'An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The first review of an autocall or an issuer call is a whole number of periods in, and leaves at least one review that can call.',
 ]
 
 // Names for the variants a union spells out inline, keyed by the value of the key that tells them apart. A variant that is a named

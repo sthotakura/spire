@@ -24,7 +24,7 @@ Findings from three US pricing supplements and the SSPA's material.
 |---|---|
 | **One schedule is tested by several features.** A 12-month note lists 12 review dates. The contingent interest barrier is tested on all 12, the automatic call on reviews 6 to 11, and the last review is also the final valuation. | [JPM contingent interest note](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm) |
 | **Payment dates follow review dates by a short lag**, and a call settles on the next interest payment date. They are not observation dates. | same note; [JPM index note](https://www.sec.gov/Archives/edgar/data/1000275/000095010325003784/dp226660_424b2-jpmeln570lly.htm), "three business days following each Observation Date" |
-| **Call dates can be a subset of review dates**, with a non-call period at the start. | same note: the earliest call is review 6 |
+| **Call dates can be a subset of review dates**, with a non-call period at the start. | same note: the earliest call is in month 6 |
 | **The final level can be an average**: eight quarterly observation dates, and the final underlier value is the average of five closes ending on the last observation date. The coupon and maturity tests read that average. | [JPM index note](https://www.sec.gov/Archives/edgar/data/1000275/000095010325003784/dp226660_424b2-jpmeln570lly.htm) |
 | **The call trigger can step down**, here from 100% to 75% of the initial level in 5-point steps over six dates, and **the call payment rises with elapsed time**. This note pays no coupon. | [UBS step-down note](https://www.sec.gov/Archives/edgar/data/1114446/000183988225047092/ubs_424b2-26373.htm) |
 | **A call trigger need not step down.** The index note uses the initial level on every call date, and a fixed coupon barrier. | [JPM index note](https://www.sec.gov/Archives/edgar/data/1000275/000095010325003784/dp226660_424b2-jpmeln570lly.htm) |
@@ -112,7 +112,7 @@ Each slice needs a public source, a book chapter, a schema example and tests, an
 | 3 | **Cash-flow result** | JPM contingent interest note | A payment per review, total paid, annualised return on actual length |
 | 4 | **Fixed coupon on the schedule** | [coupon.md](coupon.md) | A coupon always paid; the schedule replaces coupon.md's own frequency. Built as a coupon with no barrier: [coupon.md](coupon.md) |
 | 5 | **Issuer call** | SSPA softcall; two public callable notes | An issuer option on stated reviews, which tests no level. Built without coupons: [issuer-call.md](issuer-call.md) |
-| — | **Non-call period** | JPM contingent interest note | Its own feature, built as `nonCallReviews`: [non-call-period.md](non-call-period.md) |
+| — | **Non-call period** | JPM contingent interest note | Its own feature, built as `firstReviewMonth`: [non-call-period.md](non-call-period.md) |
 | — | **Call amount from a rate and elapsed time; trigger step-down; final review as a call** | UBS step-down note | Added to slice 1. The three together reproduce the UBS note's call schedule |
 
 Slice 1 is first because it needs no coupon logic and still forces the hard parts: the schedule, the path scenario, and a result that is not one payment.
@@ -162,7 +162,7 @@ Questions raised earlier in this proposal, and how they were settled.
 | Question | Answer |
 |---|---|
 | **Call amount** | A flat amount on each call date first. A rate times elapsed time (the UBS form) was added afterwards, as `callAmountBasis: 'per-year'`. |
-| **Non-call period** | A separate feature, planned in [non-call-period.md](non-call-period.md). Slice 1 can call from the first review. |
+| **Non-call period** | A separate feature, built as the call's first review month ([non-call-period.md](non-call-period.md)). Slice 1 can call from the first review. |
 | **Call test at the final review** | The last review is the schedule's last date, the final valuation date and the maturity. The call is tested only on earlier reviews, and the final review pays the payoff. |
 | **Strike date versus pricing date** | Not distinguished. The initial level is the initial level. Separate strike and pricing dates are issuance. |
 | **Term after a call** | The term is the scheduled length. A called note ends earlier, and the result states the actual length. See below. |

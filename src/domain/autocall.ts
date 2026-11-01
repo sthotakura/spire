@@ -1,4 +1,4 @@
-import { barrierLevelAt, callAmountAtReview, callReviewCount, couponPerReview, firstCallReview, lastCallReview, maturityPayment, monthsPerReview, reviewDates, scheduleReviews, triggerAtReview, paymentBreakdown, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
+import { barrierLevelAt, callAmountAtReview, callReviewCount, callReviewMonth, couponPerReview, lastCallReview, maturityPayment, reviewDates, scheduleReviews, triggerAtReview, paymentBreakdown, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
 
 // The level at or above which the final review calls the product, from the determined initial level. Undefined when the final review
 // is not a call.
@@ -40,8 +40,6 @@ export interface ReviewTest {
   level: number
   // The trigger as an underlier level on this review, and whether the review's level is at or above it.
   triggerLevel: number
-  // Whether the review can call. A review in the non-call period cannot, whatever its level.
-  callable: boolean
   called: boolean
   // What a call on this review would pay above principal, as a fraction of principal.
   callAmount: number
@@ -120,10 +118,9 @@ export function redemptionOutcome(note: Product, reviewLevels: number[], levels:
   const tests: ReviewTest[] = []
   let called: { review: number; month: number; callAmount: number } | undefined
   if (redemption !== 'bullet' && redemption.kind === 'issuer-call' && issuerCallsOnReview !== undefined) {
-    const first = firstCallReview(redemption)
     const last = lastCallReview(redemption, reviews)
-    if (!Number.isInteger(issuerCallsOnReview) || issuerCallsOnReview < first || issuerCallsOnReview > last) throw new Error(`The issuer can call on reviews ${first} to ${last}.`)
-    const month = issuerCallsOnReview * monthsPerReview[redemption.schedule.frequency]
+    if (!Number.isInteger(issuerCallsOnReview) || issuerCallsOnReview < 1 || issuerCallsOnReview > last) throw new Error(`The issuer can call on reviews 1 to ${last}.`)
+    const month = callReviewMonth(redemption, issuerCallsOnReview)
     called = { review: issuerCallsOnReview, month, callAmount: callAmountAtReview(redemption, month) }
   }
   if (redemption !== 'bullet' && redemption.kind === 'autocall') {
@@ -132,8 +129,7 @@ export function redemptionOutcome(note: Product, reviewLevels: number[], levels:
       if (review === undefined || (review === reviews && !redemption.callOnFinalReview)) continue
       const level = levelOn(index)
       const triggerLevel = barrierLevelAt(triggerAtReview(redemption, review), levels.initial)
-      const callable = review > (redemption.nonCallReviews ?? 0)
-      const test = { review, month, level, triggerLevel, callable, called: callable && level >= triggerLevel, callAmount: callAmountAtReview(redemption, month) }
+      const test = { review, month, level, triggerLevel, called: level >= triggerLevel, callAmount: callAmountAtReview(redemption, month) }
       tests.push(test)
       if (test.called) {
         called = test

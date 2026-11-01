@@ -107,7 +107,7 @@ export const sampleGroups: SampleGroup[] = [
         name: 'Autocallable basket note with a buffer and a digital return',
         source: { title: 'The Bank of Nova Scotia autocallable digital buffer notes on an equally weighted basket of four stocks, due 2028', url: 'https://www.sec.gov/Archives/edgar/data/9631/000183988226019286/bns_424b3-12372.htm', note: 'The filing is an amended preliminary pricing supplement. Its one review date, 12 months after the strike date, is read as an annual review, and the final level averages five dates. The 24 months run from the strike date.' },
         product: product(24, { participations: [{ direction: 'downside', buffer: 0.15, rate: 1 / 0.85 }, { direction: 'upside', rate: 1.5 }], digitalReturn: { amount: 0.4744, barrier: { level: 1, observation: 'final' } } }, {
-          redemption: { kind: 'autocall', schedule: { frequency: 'annual' }, trigger: 1, nonCallReviews: 0, triggerStep: 0, callAmount: 0.2372, callAmountBasis: 'flat', callOnFinalReview: false },
+          redemption: { kind: 'autocall', schedule: { frequency: 'annual' }, trigger: 1, firstReviewMonth: 12, triggerStep: 0, callAmount: 0.2372, callAmountBasis: 'flat', callOnFinalReview: false },
           underlier: averagedBasket(['Stock A', 'Stock B', 'Stock C', 'Stock D'], 5),
         }),
       },
@@ -151,7 +151,7 @@ export const sampleGroups: SampleGroup[] = [
         name: 'Autocallable contingent coupon note',
         source: { title: 'JPMorgan auto callable contingent interest note on one stock, 2026', url: 'https://www.sec.gov/Archives/edgar/data/19617/000121390026045661/ea0286921-01_424b2.htm' },
         product: product(36, { participations: [{ direction: 'downside', barrier: { level: 0.4, observation: 'final' }, rate: 1 }] }, {
-          redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, nonCallReviews: 5, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false },
+          redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 6, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false },
           coupon: { schedule: { frequency: 'monthly' }, rate: 0.1735, barrier: 0.5, memory: true },
         }),
       },
@@ -161,7 +161,7 @@ export const sampleGroups: SampleGroup[] = [
         name: 'Worst-of autocallable contingent coupon note with a buffer',
         source: { title: 'JPMorgan auto callable contingent interest note on two funds, 2026', url: 'https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm', note: 'The filing’s underliers are two funds.' },
         product: product(12, { participations: [{ direction: 'downside', buffer: 0.2, rate: 1.25 }] }, {
-          redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, nonCallReviews: 5, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false },
+          redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 6, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false },
           coupon: { schedule: { frequency: 'monthly' }, rate: 0.1415, barrier: 0.8, memory: true },
           underlier: worstOf('Index A', 'Index B'),
         }),
@@ -172,19 +172,19 @@ export const sampleGroups: SampleGroup[] = [
         name: 'Worst-of autocallable contingent coupon note without memory',
         source: { title: 'JPMorgan auto callable contingent interest note on three indices, 2026', url: 'https://www.sec.gov/Archives/edgar/data/19617/000121390026112963/ea0309828-01_424b2.htm', note: 'The filing’s downside leverage factor is printed as 1.19761; this takes its definition, 1 ÷ 0.835.' },
         product: product(6, { participations: [{ direction: 'downside', buffer: 0.165, rate: 1 / 0.835 }] }, {
-          redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, nonCallReviews: 1, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false },
+          redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 2, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false },
           coupon: { schedule: { frequency: 'monthly' }, rate: 0.12, barrier: 0.835, memory: false },
           underlier: worstOf('Index A', 'Index B', 'Index C'),
         }),
       },
-      // The filing's first call test is in month 6, so review 1 is the non-call period; its triggers of 95% to 80% are a trigger of
-      // 100% on review 1 stepping down 5% a review.
+      // The filing's first call test is in month 6, so the call's first review is in month 6; its triggers of 95% to 80% are a trigger
+      // of 95% there stepping down 5% a review.
       {
         slug: 'worst-of-fixed-coupon-autocallable-note',
         name: 'Worst-of fixed coupon autocallable note',
         source: { title: 'Morgan Stanley Finance worst of fixed coupon auto-callable securities on three stocks, 2019', url: 'https://www.sec.gov/Archives/edgar/data/1666268/000095010319017010/dp117426_424b2-ps2983.htm', note: 'The filing’s underliers are three stocks. Its coupon is about $29.30 a quarter, set on a 30/360 basis.' },
         product: product(18, { participations: [{ direction: 'downside', barrier: { level: 0.6, observation: 'final' }, rate: 1 }] }, {
-          redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, nonCallReviews: 1, triggerStep: -0.05, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false },
+          redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 0.95, firstReviewMonth: 6, triggerStep: -0.05, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false },
           coupon: { schedule: { frequency: 'quarterly' }, rate: 0.1172 },
           underlier: worstOf('Index A', 'Index B', 'Index C'),
         }),
@@ -195,7 +195,7 @@ export const sampleGroups: SampleGroup[] = [
         name: 'Monthly worst-of fixed coupon autocallable note',
         source: { title: 'BofA Finance fixed income auto-callable yield notes on three stocks, 2023', url: 'https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm', note: 'The filing’s underliers are three stocks. Its coupon is stated as $12.084 a month, 14.50% a year rounded up. Its payment below the threshold is read from its table, as the formula is printed as an image.' },
         product: product(36, { participations: [{ direction: 'downside', barrier: { level: 0.5, observation: 'final' }, rate: 1 }] }, {
-          redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, nonCallReviews: 5, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false },
+          redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 6, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false },
           coupon: { schedule: { frequency: 'monthly' }, rate: 0.145 },
           underlier: worstOf('Index A', 'Index B', 'Index C'),
         }),
@@ -205,8 +205,19 @@ export const sampleGroups: SampleGroup[] = [
         name: 'Worst-of step-down autocallable note',
         source: { title: 'UBS trigger autocallable note, 2025', url: 'https://www.sec.gov/Archives/edgar/data/1114446/000183988225047092/ubs_424b2-26373.htm', note: 'The filing’s call prices, $1,187.50 to $2,125, are what this pays on a call.' },
         product: product(36, { participations: [{ direction: 'downside', barrier: { level: 0.5, observation: 'final' }, rate: 1 }] }, {
-          redemption: { kind: 'autocall', schedule: { frequency: 'semi-annual' }, trigger: 1, nonCallReviews: 0, triggerStep: -0.05, callAmount: 0.375, callAmountBasis: 'per-year', callOnFinalReview: true },
+          redemption: { kind: 'autocall', schedule: { frequency: 'semi-annual' }, trigger: 1, firstReviewMonth: 6, triggerStep: -0.05, callAmount: 0.375, callAmountBasis: 'per-year', callOnFinalReview: true },
           underlier: worstOf('Index A', 'Index B', 'Index C'),
+        }),
+      },
+      // Ten years with no review in the first: quarterly from month 12, 37 reviews. The premium of 17% a year is 4.25% a quarter, so
+      // a call pays 17% after a year and 170% on the last review. A 40% buffer at a rate of 1 limits the loss to 60%.
+      {
+        slug: 'long-dated-autocallable-buffered-note',
+        name: 'Long-dated autocallable buffered note',
+        source: { title: 'Citigroup Global Markets Holdings autocallable securities linked to a futures volatility-targeted index, due 2036', url: 'https://www.sec.gov/Archives/edgar/data/200245/000191870426031411/form424b2.htm', note: 'The filing is a preliminary pricing supplement, and its premium was to be set at pricing at 17% a year or more; this takes 17%. Its underlier is an index of equity futures that targets a volatility of 35% and deducts 6% a year, shown here as a synthetic strategy index.' },
+        product: product(120, { participations: [{ direction: 'downside', buffer: 0.4, rate: 1 }] }, {
+          redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, firstReviewMonth: 12, triggerStep: 0, callAmount: 0.17, callAmountBasis: 'per-year', callOnFinalReview: true },
+          underlier: { kind: 'single', components: [{ asset: { kind: 'strategy-index', name: 'Synthetic Strategy Index' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },
         }),
       },
     ],
@@ -217,9 +228,9 @@ export const sampleGroups: SampleGroup[] = [
       {
         slug: 'callable-contingent-coupon-note',
         name: 'Callable contingent coupon note',
-        source: { title: 'BofA Finance issuer callable yield note, 2024', url: 'https://www.sec.gov/Archives/edgar/data/1682472/000148105724004907/form424b2.htm', note: 'Issued 10 April 2024 and first callable 10 October 2024, read here as one quarterly review without a call.' },
+        source: { title: 'BofA Finance issuer callable yield note, 2024', url: 'https://www.sec.gov/Archives/edgar/data/1682472/000148105724004907/form424b2.htm', note: 'Issued 10 April 2024 and first callable 10 October 2024, read here as a first quarterly review in month 6.' },
         product: product(36, { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }] }, {
-          redemption: { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, nonCallReviews: 1, callAmount: 0, callAmountBasis: 'flat' },
+          redemption: { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, firstReviewMonth: 6, callAmount: 0, callAmountBasis: 'flat' },
           coupon: { schedule: { frequency: 'monthly' }, rate: 0.082, barrier: 0.7, memory: false },
         }),
       },
@@ -228,7 +239,7 @@ export const sampleGroups: SampleGroup[] = [
         name: 'Worst-of callable contingent coupon note',
         source: { title: 'JPMorgan callable contingent interest note on three indices, 2023', url: 'https://www.sec.gov/Archives/edgar/data/19617/000121390023083784/ea165015_424b2.htm', note: 'The coupon rate was set at pricing at 11.30% a year or more; this takes 11.30%.' },
         product: product(24, { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }] }, {
-          redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, nonCallReviews: 5, callAmount: 0, callAmountBasis: 'flat' },
+          redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, firstReviewMonth: 6, callAmount: 0, callAmountBasis: 'flat' },
           coupon: { schedule: { frequency: 'monthly' }, rate: 0.113, barrier: 0.75, memory: false },
           underlier: worstOf('Index A', 'Index B', 'Index C'),
         }),

@@ -20,7 +20,7 @@ export function structureLines(note: Product): StructureLine[] {
     // Each term of the redemption is its own part, and its reviews are the schedule the call is tested on. The coupon has its own.
     if (top === 'redemption') {
       if (second === 'schedule') return 'schedule'
-      if (second === 'nonCallReviews') return 'non-call'
+      if (second === 'firstReviewMonth') return 'first-review'
       if (second === 'trigger') return 'trigger'
       if (second === 'triggerStep') return 'trigger-step'
       if (second === 'callAmount' || second === 'callAmountBasis') return 'call-amount'

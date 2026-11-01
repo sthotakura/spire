@@ -1,5 +1,4 @@
-import { downsideOf, firstCallReview, monthsPerReview, upsideOf, type Product } from '../domain/note'
-import { ordinal } from './autocall'
+import { downsideOf, firstReviewMonthOf, monthsPerReview, upsideOf, type Product } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface SummarySegment {
@@ -124,7 +123,7 @@ export function summarize(note: Product): SummarySegment[] {
       { text: ' on any ' },
       { text: terms.schedule?.frequency ?? 'monthly', concept: 'schedule' },
       { text: ' review' },
-      ...(firstCallReview(terms) > 1 ? [{ text: ` from the ${ordinal(firstCallReview(terms))}`, concept: 'non-call' as const }] : []),
+      ...(firstReviewMonthOf(terms) > monthsPerReview[terms.schedule.frequency] ? [{ text: ` from month ${firstReviewMonthOf(terms)}`, concept: 'first-review' as const }] : []),
     ]
     const paying: SummarySegment[] = [
       { text: ', ' },

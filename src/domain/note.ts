@@ -1,5 +1,10 @@
-/** The kind of asset tracked: a single equity, or an equity index. */
-export type AssetKind = 'equity' | 'equity-index'
+// See docs/underlier-model.md.
+/**
+ * The kind of asset tracked: a single equity, an equity index, or a strategy index. A strategy index follows published rules to hold
+ * and rebalance exposure to other instruments, such as futures, and can target a volatility or deduct a fixed amount a year. The payoff
+ * reads its level as it reads any other.
+ */
+export type AssetKind = 'equity' | 'equity-index' | 'strategy-index'
 export type ParticipationDirection = 'downside' | 'upside'
 
 /**
@@ -336,7 +341,8 @@ export type ReviewFrequency = 'monthly' | 'quarterly' | 'semi-annual' | 'annual'
 
 /**
  * Reviews: the dates on which a condition of the product is tested. They are evenly spaced through the term and numbered from 1,
- * and the last is the end of the term. The term must hold a whole number of periods. A call and a coupon each have their own.
+ * and the last is the end of the term. The term must hold a whole number of periods. A call and a coupon each have their own. The
+ * first review is one period in, unless a call states a later first review month.
  */
 export interface Schedule {
   frequency: ReviewFrequency
@@ -349,7 +355,7 @@ export interface Schedule {
  */
 export interface Autocall {
   kind: 'autocall'
-  /** The reviews on which the call is tested. There must be at least two, so the product can be called before the last. */
+  /** How often the call is tested, from its first review. The term must hold at least two periods. */
   schedule: Schedule
   /**
    * The level at or above which the product is called on the first review, as a fraction of the initial level. This reference
@@ -359,17 +365,17 @@ export interface Autocall {
    */
   trigger: number
   /**
-   * The number of reviews at the start on which the product cannot be called, even when the level meets that review's trigger: a
-   * non-call period. 0 lets the product be called from the first review. It must leave at least one review that can call: the last
-   * but one, or the last when the final review is a call too.
+   * The month of the first review, counted from the start of the term. Later reviews follow it at the schedule's frequency to the end
+   * of the term, so the months before it are a non-call period with no review in it. Absent, the first review is one period in. It
+   * must be a whole number of periods, and leave a review that can call: the last but one, or the last when the final review is a call
+   * too.
    * @asType integer
-   * @minimum 0
-   * @default 0
+   * @minimum 1
    */
-  nonCallReviews?: number
+  firstReviewMonth?: number
   /**
    * How much the trigger changes on each review after the first, as a fraction of the initial level. A negative step lowers the
-   * trigger: a trigger of 1 with a step of -0.05 is 100% on review 1, 95% on review 2, and so on. A positive step raises it. Absent
+   * trigger: a trigger of 1 with a step of -0.05 is 100% on the first review, 95% on the second, and so on. A positive step raises it. Absent
    * or zero keeps the trigger the same on every review. The trigger must stay above zero, and at most 2, on every review that is
    * tested.
    * @default 0
@@ -403,16 +409,16 @@ export interface Autocall {
  */
 export interface IssuerCall {
   kind: 'issuer-call'
-  /** The reviews on which the issuer may call. There must be at least two, so the product can be called before the last. */
+  /** How often the issuer may call, from its first review. The term must hold at least two periods. */
   schedule: Schedule
   /**
-   * The number of reviews at the start on which the issuer cannot call: a non-call period. 0 lets the issuer call from the first
-   * review. It must leave at least one review that can call, which is any review before the last.
+   * The month of the first review on which the issuer may call, counted from the start of the term. Later reviews follow it at the
+   * schedule's frequency to the end of the term, so the months before it are a non-call period. Absent, the first review is one
+   * period in. It must be a whole number of periods, and leave a review before the last.
    * @asType integer
-   * @minimum 0
-   * @default 0
+   * @minimum 1
    */
-  nonCallReviews?: number
+  firstReviewMonth?: number
   /**
    * What a call pays above principal, as a fraction of principal. Zero repays principal only. With the basis 'flat' it is the same
    * amount whenever the issuer calls; with 'per-year' it is the amount for each year the product has lasted.
@@ -428,7 +434,7 @@ export interface IssuerCall {
 
 // See docs/contingent-coupon.md and docs/coupon.md.
 /**
- * Interest paid on each review of the coupon's own schedule, including those in a call's non-call period and the last, until the
+ * Interest paid on each review of the coupon's own schedule, including those before a call's first review and the last, until the
  * product ends. With a barrier the coupon is contingent: a review pays only when the underlier's level is at or above it. Without one
  * the coupon is fixed: every review pays, whatever the underlier does, and no level is read for it. A product called on a date that is
  * also a coupon review pays that review's coupon with the call, if the review pays one.
@@ -520,7 +526,7 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
     ? { direction: 'downside', buffer, barrier, absoluteReturn, rate: participation.rate }
     : { direction: 'upside', barrier: upsideBarrier, rate: participation.rate, cap })
 
-export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'digitalReturn' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'nonCallReviews' | 'triggerStep' | 'callAmount' | 'coupon' | 'couponSchedule'
+export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'digitalReturn' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'firstReviewMonth' | 'triggerStep' | 'callAmount' | 'coupon' | 'couponSchedule'
 
 // A barrier as an underlier level: its fraction of the level the return is measured from. Rounded to nine decimals, because
 // 1.1 × 100 is 110.00000000000001 in floating point, which would put a final level of 110 on the wrong side of a barrier at 110%.
@@ -607,19 +613,13 @@ export const triggerAtReview = (redemption: Autocall, review: number): number =>
 
 const triggerAllowed = (trigger: number) => Number.isFinite(trigger) && trigger > 0 && trigger <= 2
 
-// The number of the first review that can call, after the non-call period.
-export const firstCallReview = (redemption: Autocall | IssuerCall): number => (redemption.nonCallReviews ?? 0) + 1
-
 // The last review that can call: the last but one, or the last when the final review is a call too.
 export const lastCallReview = (redemption: Autocall | IssuerCall, reviews: number): number => (redemption.kind === 'autocall' && redemption.callOnFinalReview ? reviews : reviews - 1)
 
-// Whether the trigger stays within what this reference accepts on every review that can call, from the first call to the last. The
-// trigger moves in a straight line, so those two reviews are the extremes. It is counted from review 1, as public notes state it.
-const triggersAllowed = (redemption: Autocall, reviews: number): boolean => {
-  const skipped = redemption.nonCallReviews ?? 0
-  // A non-call period that is not a count of reviews is its own issue, so the trigger is not also checked from it.
-  return triggerAllowed(redemption.trigger) && (!Number.isInteger(skipped) || skipped < 0 || triggerAllowed(triggerAtReview(redemption, skipped + 1))) && triggerAllowed(triggerAtReview(redemption, lastCallReview(redemption, reviews)))
-}
+// Whether the trigger stays within what this reference accepts on every review that can call, from the first to the last that can.
+// The trigger moves in a straight line, so those two reviews are the extremes.
+const triggersAllowed = (redemption: Autocall, reviews: number): boolean =>
+  triggerAllowed(redemption.trigger) && triggerAllowed(triggerAtReview(redemption, lastCallReview(redemption, reviews)))
 
 // What a call on a review pays above principal, as a fraction of principal.
 export const callAmountAtReview = (redemption: Autocall | IssuerCall, monthsElapsed: number): number =>
@@ -628,28 +628,38 @@ export const callAmountAtReview = (redemption: Autocall | IssuerCall, monthsElap
 // The months between reviews, as each frequency names them.
 export const monthsPerReview: Record<ReviewFrequency, number> = { monthly: 1, quarterly: 3, 'semi-annual': 6, annual: 12 }
 
-// The number of reviews of a schedule over a term, the last of which is the end of the term. Undefined when the schedule does not divide
-// the term into whole periods. With no schedule there is one review: the final date.
-export function reviewCount({ term, schedule }: { term: Term; schedule: Schedule | undefined }): number | undefined {
+// The number of reviews of a schedule over a term, from its first review, the last of which is the end of the term. The first review is
+// one period in unless a first month is given. Undefined when the schedule does not divide the term into whole periods, or the first
+// month is not a whole number of periods within the term. With no schedule there is one review: the final date.
+export function reviewCount({ term, schedule, firstMonth }: { term: Term; schedule: Schedule | undefined; firstMonth?: number }): number | undefined {
   if (schedule === undefined) return 1
   const months = monthsPerReview[schedule.frequency]
-  if (months === undefined || !Number.isInteger(term.months)) return undefined
-  return term.months % months === 0 ? term.months / months : undefined
+  if (months === undefined || !Number.isInteger(term.months) || term.months % months !== 0) return undefined
+  const first = firstMonth ?? months
+  if (!Number.isInteger(first) || first < months || first > term.months || first % months !== 0) return undefined
+  return (term.months - first) / months + 1
 }
 
-// The reviews of a schedule over a term, numbered from 1, with their months; the last is the end of the term. Undefined when the
-// schedule does not divide the term into whole periods.
-export function scheduleReviews(term: Term, schedule: Schedule): Array<{ review: number; month: number }> | undefined {
-  const count = reviewCount({ term, schedule })
+// The reviews of a schedule over a term, numbered from 1 at the first review, with their months; the last is the end of the term.
+// Undefined when reviewCount is.
+export function scheduleReviews(term: Term, schedule: Schedule, firstMonth?: number): Array<{ review: number; month: number }> | undefined {
+  const count = reviewCount({ term, schedule, firstMonth })
   if (count === undefined) return undefined
-  return Array.from({ length: count }, (_, index) => ({ review: index + 1, month: (index + 1) * monthsPerReview[schedule.frequency] }))
+  const months = monthsPerReview[schedule.frequency]
+  const first = firstMonth ?? months
+  return Array.from({ length: count }, (_, index) => ({ review: index + 1, month: first + index * months }))
 }
 
-// The call's schedule, or none for a bullet product.
-export const callScheduleOf = (note: Product): Schedule | undefined => (note.redemption === 'bullet' ? undefined : note.redemption.schedule)
+// The month of a call's first review: as stated, or one period in.
+export const firstReviewMonthOf = (redemption: Autocall | IssuerCall): number => redemption.firstReviewMonth ?? monthsPerReview[redemption.schedule.frequency]
 
-// The number of the call's reviews: one, the final date, for a bullet product.
-export const callReviewCount = (note: Product): number | undefined => reviewCount({ term: note.term, schedule: callScheduleOf(note) })
+// The number of the call's reviews, from its first: one, the final date, for a bullet product.
+export const callReviewCount = (note: Product): number | undefined =>
+  note.redemption === 'bullet' || note.redemption.schedule === undefined ? 1 : reviewCount({ term: note.term, schedule: note.redemption.schedule, firstMonth: firstReviewMonthOf(note.redemption) })
+
+// The month of a call's review, numbered from 1 at its first review.
+export const callReviewMonth = (redemption: Autocall | IssuerCall, review: number): number =>
+  firstReviewMonthOf(redemption) + (review - 1) * monthsPerReview[redemption.schedule.frequency]
 
 // One date on which a level of the underlier is read, by its month from the start of the term, and the number of the call review and
 // the coupon review that fall on it. A date can be on both schedules.
@@ -664,14 +674,14 @@ export interface ReviewDate {
 // reads a level, or when a schedule does not divide the term.
 export function reviewDates(note: Product): ReviewDate[] {
   const dates = new Map<number, ReviewDate>()
-  const add = (schedule: Schedule, key: 'call' | 'coupon'): boolean => {
-    const reviews = scheduleReviews(note.term, schedule)
+  const add = (schedule: Schedule, key: 'call' | 'coupon', firstMonth?: number): boolean => {
+    const reviews = scheduleReviews(note.term, schedule, firstMonth)
     if (reviews === undefined) return false
     for (const { review, month } of reviews) dates.set(month, { ...(dates.get(month) ?? { month }), [key]: review })
     return true
   }
   const { redemption, coupon } = note
-  if (redemption !== 'bullet' && redemption.kind === 'autocall' && redemption.schedule !== undefined && !add(redemption.schedule, 'call')) return []
+  if (redemption !== 'bullet' && redemption.kind === 'autocall' && redemption.schedule !== undefined && !add(redemption.schedule, 'call', firstReviewMonthOf(redemption))) return []
   if (coupon?.schedule !== undefined && coupon.barrier !== undefined && !add(coupon.schedule, 'coupon')) return []
   return [...dates.values()].sort((a, b) => a.month - b.month)
 }
@@ -693,17 +703,24 @@ function redemptionIssues(note: Product): ProductIssue[] {
   if (redemption === 'bullet') return issues
   const { schedule } = redemption
   const named = redemption.kind === 'autocall' ? 'An autocall' : 'An issuer call'
-  const count = schedule === undefined ? undefined : reviewCount({ term: note.term, schedule })
+  const periods = schedule === undefined ? undefined : reviewCount({ term: note.term, schedule })
   if (schedule === undefined) issues.push({ field: 'schedule', message: `${named} needs a review schedule.` })
-  else if (count === undefined) issues.push({ field: 'schedule', message: 'The term must hold a whole number of review periods.' })
-  else if (count < 2) issues.push({ field: 'schedule', message: `${named} needs at least two reviews, so the product can be called before the last.` })
+  else if (periods === undefined) issues.push({ field: 'schedule', message: 'The term must hold a whole number of review periods.' })
+  else if (periods < 2) issues.push({ field: 'schedule', message: `${named} needs at least two reviews, so the product can be called before the last.` })
   if (redemption.kind === 'autocall') {
     if (!Number.isFinite(redemption.trigger) || redemption.trigger <= 0 || redemption.trigger > 2) issues.push({ field: 'trigger', message: 'Call trigger must be greater than 0% and at most 200% of the initial level.' })
   }
-  if (redemption.nonCallReviews !== undefined) {
-    if (!Number.isInteger(redemption.nonCallReviews) || redemption.nonCallReviews < 0) issues.push({ field: 'nonCallReviews', message: 'The non-call period must be a whole number of reviews, 0 or more.' })
-    else if (count !== undefined && redemption.nonCallReviews > lastCallReview(redemption, count) - 1) issues.push({ field: 'nonCallReviews', message: `The non-call period must leave a review that can call: from 0 to ${lastCallReview(redemption, count) - 1} reviews.` })
+  // The first review is a whole number of periods in, and leaves a review that can call: the last but one, or the last when the final
+  // review is a call too. It is checked once the schedule fits the term.
+  const { firstReviewMonth } = redemption
+  if (firstReviewMonth !== undefined && schedule !== undefined && periods !== undefined && periods >= 2) {
+    const period = monthsPerReview[schedule.frequency]
+    const latest = redemption.kind === 'autocall' && redemption.callOnFinalReview ? note.term.months : note.term.months - period
+    const months = (n: number) => `${n} ${n === 1 ? 'month' : 'months'}`
+    if (!Number.isInteger(firstReviewMonth) || firstReviewMonth < period || firstReviewMonth % period !== 0) issues.push({ field: 'firstReviewMonth', message: `The first review must be a whole number of review periods in: a multiple of ${months(period)}.` })
+    else if (firstReviewMonth > latest) issues.push({ field: 'firstReviewMonth', message: `The first review must leave a review that can call: from month ${period} to month ${latest}.` })
   }
+  const count = callReviewCount(note)
   if (redemption.kind === 'autocall') {
     if (redemption.triggerStep !== undefined && !Number.isFinite(redemption.triggerStep)) issues.push({ field: 'triggerStep', message: 'Trigger step must be a number.' })
     else if (triggerAllowed(redemption.trigger) && count !== undefined && !triggersAllowed(redemption, count)) issues.push({ field: 'triggerStep', message: 'The trigger must stay above 0% and at most 200% of the initial level on every review that can call, after its step.' })

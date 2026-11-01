@@ -8,17 +8,18 @@ import { marketingNames, productCategory } from './names'
 import { summarize } from './summary'
 
 // Synthetic: the worked example in docs/coupon.md. An 18-month note of 1,000, a fixed coupon of 12% a year paid quarterly (30 a review),
-// a quarterly autocall that cannot call on review 1 with a trigger of 100% stepping −5%, and a 60% downside barrier.
+// a quarterly autocall from month 6 with a trigger of 95% stepping −5%, and a 60% downside barrier.
 const product = (coupon: Partial<Coupon> = {}): Product => ({
   ...startingProduct,
   term: { months: 18 },
-  redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, triggerStep: -0.05, nonCallReviews: 1, callAmount: 0 },
+  redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 0.95, triggerStep: -0.05, firstReviewMonth: 6, callAmount: 0 },
   coupon: { schedule: { frequency: 'quarterly' }, rate: 0.12, ...coupon },
   payoff: { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.6, observation: 'final' } }] },
 })
 const bullet: Product = { ...product({ schedule: { frequency: 'monthly' }, rate: 0.06 }), term: { months: 12 }, redemption: 'bullet' }
-const called = [80, 92, 91, 90, 90]
-const neverCalled = [80, 90, 85, 80, 75]
+// A level on each call review before the last, in months 6 to 15.
+const called = [92, 91, 90, 90]
+const neverCalled = [90, 85, 80, 75]
 const text = (segments: Array<{ text: string }>) => segments.map((segment) => segment.text).join('')
 
 describe('a fixed coupon in the summary', () => {
@@ -40,7 +41,7 @@ describe('a fixed coupon in the calculation', () => {
     const steps = redemptionSteps(product(), redemptionOutcome(product(), called, { initial: 100, final: 90 }))
     const couponSteps = steps.filter((step) => step.title.startsWith('Coupon on'))
     expect(couponSteps.map(({ title, how, value }) => [title, how, value])).toEqual([1, 2, 3].map((review) => [`Coupon on review ${review} of 6, month ${review * 3}`, 'Fixed, paid whatever the level: 1,000 × 12% × 3/12 = 30', '30']))
-    expect(steps.find((step) => step.title === 'Redemption')).toMatchObject({ how: 'Called on review 3, after 9 months: principal × (1 + 0%) + coupon 30', value: '1,030' })
+    expect(steps.find((step) => step.title === 'Redemption')).toMatchObject({ how: 'Called on review 2, after 9 months: principal × (1 + 0%) + coupon 30', value: '1,030' })
     expect(steps.find((step) => step.title === 'Total paid')).toMatchObject({ value: '1,090' })
   })
 
