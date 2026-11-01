@@ -228,6 +228,13 @@ function callAndCouponNames(note: Product): MarketingName[] {
       reason: `A call pays ${percentText(redemption.callAmount)} for each year elapsed, so every review the product is not called adds to what the next call pays, and the payment snowballs. Sellers use the name; some of their snowballs also have a barrier observed on every close, while what this one pays below the trigger at maturity is as its payoff states.`,
       concepts: ['redemption', 'call-amount'],
     })
+    // The same call payment under an issuer's title. "Step up" in other titles is a fixed return at maturity, so the reason says which.
+    names.push({
+      name: 'Autocallable note with step-up premium',
+      vocabulary: 'Market usage',
+      reason: `The call premium steps up by ${percentText(redemption.callAmount)} for each year elapsed, so it rises on every review the product is not called. Some issuers put this in the title. It is not a step-up note, whose step-up is a fixed return paid at maturity.`,
+      concepts: ['redemption', 'call-amount'],
+    })
   }
   if (redemption !== 'bullet' && redemption.kind === 'issuer-call') {
     names.push({
