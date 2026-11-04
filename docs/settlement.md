@@ -10,7 +10,7 @@ Delivery does not change what the payment is worth on the final date. The share 
 
 ## Established concepts
 
-Eight public documents that deliver, and one that does not, were read on 4 November 2026. The seven SEC filings were read through a summarising fetch tool, not as raw text. The two Swiss documents were read as text extracted from their PDFs.
+These are reverse convertibles with a barrier or a buffer. The classic form, with neither, has its section below. All were read on 4 November 2026. The SEC filings were read through a summarising fetch tool, not as raw text. The Swiss documents and the two explainers were read as text extracted from their PDFs.
 
 | Document | Underlier | Downside | Coupon and call | What it delivers |
 | :--- | :--- | :--- | :--- | :--- |
@@ -27,7 +27,7 @@ A ninth document points the other way. The [RBC 2020 geared buffered reverse con
 
 | Finding | Evidence |
 | :--- | :--- |
-| **Delivery happens only where the holder bears a fall.** A call, a coupon, and a payment of principal or more are always cash. | All eight |
+| **In a reverse convertible, delivery happens only where the holder bears a fall.** A call, a coupon, and a payment of principal or more are always cash. | All eight, and the classic form below. The ELKS below is not a reverse convertible and delivers on a rise too. |
 | **It does not depend on the coupon or the call.** It appears with a fixed coupon, a contingent coupon and none, with an autocall and with no call. | The table above |
 | **It does not depend on the wrapper.** Notes and Swiss and German certificates all deliver. | The table; [certificate.md](certificate.md) |
 | **A barrier reached is not enough.** If the barrier was reached during the term but the final level is at or above the initial level, the holder receives cash. | JPMorgan 2014; ZKB 2026 |
@@ -36,6 +36,37 @@ A ninth document points the other way. The [RBC 2020 geared buffered reverse con
 | **The issuer can often pay cash instead**, of equal value at the final level. Not all reserve this: TD only falls back to cash if delivery is prohibited or impractical. | Credit Suisse; all three RBC delivering notes; JPMorgan 2014 |
 | **The holder bears the price move from the final date to payment.** The filings state the value on the valuation date. | TD 2025 warns of this directly |
 | **An index is settled in cash**, even under the name "reverse convertible". | RBC 2020 |
+
+## The classic reverse convertible
+
+The documents above protect the holder until a barrier or a buffer gives way. The classic form does not. It has a **strike** and nothing else: at or above the strike the holder receives principal, and below it the holder receives shares, whatever happened during the term.
+
+| Source | What it says |
+| :--- | :--- |
+| [SSPA Swiss Derivative Map, 2025](https://www.six-structured-products.com/arcmsdownload/e543551679ac2d6cfe0e8281c309a4e1/CONTENT.pdf/en_sspaswissmap_2025.pdf) | Reverse Convertible (1220): "If the underlying is below the strike at maturity: delivery underlying and/or cash settlement plus coupon". Barrier Reverse Convertible (1230): "When touching the barrier the product becomes a Reverse Convertible (1220)", and "the coupon is lower than for a reverse convertible (1220) with otherwise identical product conditions". |
+| [Vontobel 1220, 10% on three stocks](https://data.payoff.ch/termsheets/CH1400444175_en_20250617_193023.pdf) | 33 months, worst of three, quarterly fixed coupon, no barrier, **strike 80%**. Number of underlyings 11.84413, 93.5979 and 25.02503, which are 1,000 ÷ each strike. |
+| [Vontobel 1220, 4.576% on three stocks](https://data.payoff.ch/termsheets/CH1449118699_de_20250830_014205.pdf) | 36 months, worst of three, monthly fixed coupon, no barrier, **strike 75%**. |
+| [Vontobel 1220, 7.616% quanto](https://data.payoff.ch/termsheets/CH1483484171_de_20251010_000100.pdf) | Worst of three, quarterly fixed coupon, no barrier, **strike 65%**. Its share count is nominal ÷ strike × an FX rate set at the final fixing. |
+| [JPMorgan explainer, Aktienanleihen](https://www.jpmorgan-zertifikate.de/globalassets/library/product-education/items/aktienanleihen_2024_02.pdf) | A fictional single stock: nominal 1,000, strike 10, 8%, 100 shares. At 9.50 the shares are worth 950. With a strike of 9 it refers to 111.1111 shares, and at a final price of 8 pays 111 shares worth 888 and 0.88 for the fraction. |
+
+How it differs from the barrier form, using the model's own payments on a note of 1,000 at an initial level of 10:
+
+| Final level | Classic, strike 100% | Barrier at 80%, strike 100% |
+| ---: | ---: | ---: |
+| 10.00 | 1,000.00 | 1,000.00 |
+| 9.50 | 950.00 **in shares** | 1,000.00 in cash |
+| 8.00 | 800.00 **in shares** | 1,000.00 in cash |
+| 7.99 | 799.00 **in shares** | 799.00 **in shares** |
+
+- **Its loss starts at the strike, with no jump.** The barrier form pays principal down to the barrier, and then drops. Below the barrier the two pay the same, as SSPA's "becomes" says.
+- **Its strike is often below the initial level.** The three Vontobel notes read set it at 65%, 75% and 80%. So its share count divides by the strike, not the initial level.
+- **The model can already state its payment.** A strike at the initial level is downside participation at rate 1 with no barrier or buffer. A strike `k` below it is a buffer of 1 − `k` at a rate of 1 ÷ `k`, the same arithmetic as the TD note, reached from another direction.
+
+No filing for a classic form on one stock was found. The searches and about a dozen termsheets found only worst-of forms; the single-stock example is the JPMorgan explainer's fictional one. Nor was a classic form found among US filings, which use a barrier or a buffer.
+
+### A delivery on a rise
+
+The [Citigroup ELKS on one stock, 2004](https://www.sec.gov/Archives/edgar/data/0000200245/000095012304005317/y96650bbe424b3.txt) has no strike below which it converts: it is mandatorily exchangeable. At or below its cap price, about 120% of the initial price, it delivers one share. Above that it delivers shares worth the cap price, or cash at the issuer's option. Unlike every note above, the holder receives shares when the stock has risen. The model states its payment as downside rate 1, upside rate 1 and a cap of 20%, but it is not a reverse convertible, and the proposed term would not cover it.
 
 ## The main finding: the terms already state the delivery
 
@@ -52,13 +83,14 @@ shares = principal × rate ÷ initial level
 cash   = principal × (1 − rate × (1 − buffer))
 ```
 
-No buffer means a buffer of 0. All three patterns in the filings are this one formula, from terms the model already has:
+No buffer means a buffer of 0. All the patterns read are this one formula, from terms the model already has:
 
 | Pattern | Rate | Buffer | Shares | Cash |
 | :--- | ---: | ---: | :--- | :--- |
 | Barrier (Credit Suisse, RBC 2019, JPMorgan) | 1 | 0 | principal ÷ initial | 0 |
 | Buffer at rate 1 (RBC 2009) | 1 | b | principal ÷ initial | principal × b |
-| Geared buffer (TD 2025) | 1 ÷ (1 − b) | b | principal ÷ buffer level | 0 |
+| Classic, strike at the initial level (JPMorgan explainer) | 1 | 0 | principal ÷ initial | 0 |
+| Classic, strike `k` below it (Vontobel), or geared buffer (TD 2025) | 1 ÷ `k` | 1 − `k` | principal ÷ strike | 0 |
 
 Each was run through `maturityPayment` in a throwaway script, and shares × final level + cash equals the model's payment:
 
@@ -69,8 +101,10 @@ Each was run through `maturityPayment` in a throwaway script, and shares × fina
 | RBC 2009 terms (1,000, 100) | 75 | 950.00 | 10 | 200 |
 | TD 2025 terms (10,000, 100) | 80 | 8,888.89 | 111.1111 | 0 |
 | JPMorgan 2014 terms (1,000, 83.45), lowest close 41.73 | 79.28 | 950.03 | 11.9832 | 0 |
+| JPMorgan explainer, strike 9 (1,000, 10) | 8 | 888.89 | 111.1111 | 0 |
+| Vontobel terms, strike 80% (1,000, 105.54) | 63.32 | 749.97 | 11.8441 | 0 |
 
-All five are the filings' own example values. So **delivery adds no arithmetic and no new number**: the payment stays as it is, and settlement only says what form it takes.
+The first six are the documents' own example values, the explainer's rounded to 888.88. The last checks the termsheet's stated share count, at a final level chosen here. So **delivery adds no arithmetic and no new number**: the payment stays as it is, and settlement only says what form it takes.
 
 ## Smallest model
 
@@ -91,7 +125,7 @@ Three homes were considered.
 
 | Home | For | Against |
 | :--- | :--- | :--- |
-| **On downside participation (recommended)** | Every document delivers only where the holder bears a fall. A note with no downside cannot state delivery at all, so a deposit and barrier absolute return are ruled out with no rule. It matches how the type already holds the features that only make sense with a fall. | It sits inside the payoff although it is not arithmetic. A delivery on a rise, if one exists, would not fit. |
+| **On downside participation (recommended)** | Every document delivers only where the holder bears a fall. A note with no downside cannot state delivery at all, so a deposit and barrier absolute return are ruled out with no rule. It matches how the type already holds the features that only make sense with a fall. | It sits inside the payoff although it is not arithmetic. The ELKS delivers on a rise too, so a product like it would need the same term on upside participation, with arithmetic of its own. |
 | A `settlement` field beside `payoff` | Termsheets list settlement as a term of its own. It would keep settlement visibly apart from the payoff. | It needs rules for what it applies to, and it reads as if the whole note were settled that way, which no document does. |
 | Under the wrapper | None | Settlement varies among notes with the same legal form. |
 
@@ -102,7 +136,7 @@ Three homes were considered.
 
 1. No call has ended the product.
 2. The final level is below the initial level.
-3. Downside participation sets the payment: the barrier was reached, or the fall is beyond the buffer, and no digital return's floor applies.
+3. Downside participation sets the payment: there is no barrier or it was reached, the fall is beyond any buffer, and no digital return's floor applies. A classic form has neither barrier nor buffer, or only the buffer that states its strike.
 
 Otherwise the payment is cash.
 
@@ -131,6 +165,9 @@ A note of 1,000 on Synthetic Stock, initial level 100, delivering.
 | Barrier at 45%, rate 1 | 40 | 400.00 | 10 shares |
 | Buffer of 20%, rate 1 | 75 | 950.00 | 10 shares and 200.00 in cash |
 | Buffer of 10%, rate 1 ÷ 0.9 | 80 | 888.89 | 11.1111 shares: 11 shares, with the fraction in cash |
+| Classic, strike at the initial level: no barrier, no buffer, rate 1 | 95 | 950.00 | 10 shares |
+| Classic, strike 80%: buffer of 20%, rate 1.25 | 80 | 1,000.00 | Cash |
+| Classic, strike 80%: buffer of 20%, rate 1.25 | 60 | 750.00 | 12.5 shares: 12 shares, with the fraction in cash |
 
 The worst of Stock A (initial level 200) and Stock B (initial level 50), a barrier at 45%, rate 1. Stock A ends at 150, down 25%, and Stock B at 20, down 60%. Stock B is the worst, so the holder receives 1,000 ÷ 50 = 20 shares of Stock B, worth 400.00 at the final level.
 
@@ -139,7 +176,7 @@ The worst of Stock A (initial level 200) and Stock B (initial level 50), a barri
 - **Domain.** The optional term, the validation above, and a pure function for shares, cash and asset. `paymentBreakdown` does not change.
 - **Schema.** JSDoc, `npm run schema`, an example for each pattern, boundary cases, and the rules added to the validator-only list.
 - **Interface.** A Settlement row under Downside participation, offering Cash and Delivery, with Delivery unavailable on an index. It must not shift the layout when selected. The calculation and outcome state the shares and the cash. The chart keeps drawing value at the final level.
-- **Book.** A new chapter, and notes in chapters 2, 5, 11, 12 and 21. It says that the value shown is on the final date and that a holder of shares bears later moves.
+- **Book.** A new chapter that sets out the classic and barrier forms side by side, and notes in chapters 2, 5, 11, 12 and 21. It says that the value shown is on the final date and that a holder of shares bears later moves.
 - **Samples.** A delivering sample needs synthetic stocks, since the worst-of samples use synthetic indices. The Credit Suisse note ([coupon.md](coupon.md), decision 6) would then show something new and could become one.
 - **The scope rule.** The docs that place settlement under issuance change to: *whether a note can deliver is structure; the mechanics of delivering are issuance*.
 
@@ -149,18 +186,22 @@ These appear in the documents above and belong to other concepts:
 
 - **Barrier edge and observation.** ZKB's knock-in is when a value "touches or falls below" the level, continuously, and Julius Baer's is "at or below" it. The model reads closes, strictly below ([daily-observation.md](daily-observation.md)).
 - **Lock-in and quanto.** Julius Baer's 105% lock-in pays cash once reached, and its share count includes an FX rate. Neither is modelled.
-- **A strike below the initial level.** See [certificate.md](certificate.md), open question 3.
+- **A strike below the initial level on an upside participation.** See [certificate.md](certificate.md), open question 3.
+- **A barrier beside a strike below the initial level.** The model can state a strike below the initial level, or a barrier, but not both: a barrier's rate applies to the whole fall from the initial level. Every barrier note read here has its strike at 100%.
+- **A strike above the initial level** would lose money on a rise, which downside participation cannot state. None was read.
 
 ## Assumptions
 
-- Eight documents from two markets are a modest sample, and three of them come from one issuer. "Only where the holder bears a fall" rests on them, and no search was made for notes that deliver on a rise, such as exchangeable notes.
+- The sample is modest, and leans on two issuers: three notes from RBC and three from Vontobel. "Only where the holder bears a fall" rests on the reverse convertibles read. One search for classic forms turned up the ELKS; exchangeable notes were not searched for as such.
+- The classic form is established by SSPA's definition, one issuer's worst-of termsheets and an explainer, not by a single-stock filing.
 - The US and Swiss documents describe the same concept, though their terms differ: physical delivery amount and ratio.
 - The summarising fetch tool produced most of the SEC quotations. The calculations above agree with them, but the quotations were not checked against the printed filings.
 
 ## Open questions
 
 1. **Does delivery count as structure?** This reverses the earlier decision. The proposal says yes, for the term only, on the ground that it changes what the holder ends up owning.
-2. **Is the term on downside participation?** Recommended above. It would need revisiting if a note that delivers on a rise is read.
-3. **Should the "Reverse convertible" name wait for this?** The name was held back because it was tied to delivery. RBC 2020 uses it for a cash-only note on an index, and SSPA's 1230 is a Yield Enhancement type whose ZKB example states "cash or physical settlement". So the name may belong to a coupon with downside participation and no upside, whatever the settlement. That can be decided without building delivery, but needs more reading of the SSPA and FINRA definitions.
+2. **Is the term on downside participation?** Recommended above. The ELKS shows a delivery on a rise exists. It is a different product, so the term can start on downside participation and could later appear on upside participation as well.
+3. **Should the "Reverse convertible" name wait for this?** The name was held back because it was tied to delivery, but SSPA's own 1220 reads "delivery underlying and/or cash settlement", and RBC 2020 uses the name for a cash-only note on an index. So the name need not depend on settlement, and [call-and-coupon-names.md](call-and-coupon-names.md) overstates it in saying the SSPA adds delivery. It could be shown without building delivery: Reverse Convertible (1220) for a fixed coupon with no barrier, no upside and a rate of 1 ÷ (1 − buffer), and Barrier Reverse Convertible (1230) for a fixed coupon, a barrier at rate 1, and no upside. This is a separate decision, and the rules need checking against SSPA's other terms and FINRA's.
 4. **Funds.** TD delivers shares of an exchange-traded fund, and the model's asset kinds are equity, equity index and strategy index. Delivery needs either a fund kind or `equity` read to include fund shares. The proposal leaves delivery on `equity` first, as the smallest step, which excludes TD's underlier.
 5. **Should the interface state a share count that is not whole?** The formula gives 11.1111 where a holder receives 11 and cash. The proposal shows the count to four decimal places, as TD does, and states that fractions are paid in cash.
+6. **Should the strike be a term of its own?** The model reaches a classic strike of 80% through a buffer of 20% and a rate of 125%. That needs no new field, and it is the same arithmetic, but a reader looking for a strike will not find one. The proposal keeps the model as it is and explains the equivalence in the book and a hint. A named strike would state the same thing twice.
