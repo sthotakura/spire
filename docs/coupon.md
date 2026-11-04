@@ -27,6 +27,10 @@ Three public notes were read on 25 October 2026. All are fixed coupon autocalls 
 
 A fourth note, the BofA fixed income auto-callable yield note ([424B2](https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm)), was re-read after the build, on 25 October 2026. It lists 36 monthly coupon payment dates and, separately, 30 call observation dates, which looked like a coupon and a call on different schedules. They are not: each call is paid on a coupon payment date, from month 6 to month 35, so the call is monthly with a non-call period of five reviews, and the valuation date in month 36 is not a call. It pays 14.50% a year, stated as $12.084 a month (14.50% ÷ 12 rounded up), the last coupon "regardless of the performance" of the worst stock, and bears the whole fall of the worst stock below 50%. Its formula below the threshold is printed as an image; its table (49.99 pays 511.984) shows the 1:1 loss.
 
+A fifth note, the Credit Suisse autocallable reverse convertible on the worst of two stocks, due 2024 ([424B2](https://www.sec.gov/Archives/edgar/data/1053092/000095010322016505/dp181209_424b2-f2006.htm)), was read on 4 November 2026 through a summarising fetch tool, since a direct download was refused. It pays $11.667 a month, "approximately 14.00% per annum", on every coupon date until it ends. A call needs each stock at or above its initial level on a call observation date, and pays principal plus the next coupon. A knock-in is tested only on the valuation date: a final level below 45% of the initial level, on either stock. It is the first note read that delivers shares after a knock-in: whole shares of the worst stock, cash for any fraction, and cash if that is less than one share. The issuer can pay cash instead, $1,000 ÷ initial level × final level. In its example, a final level of 40% gives 10 shares worth $400 on the valuation date.
+
+Its Key Dates table, checked as printed, has 24 rows: five coupon dates with no call observation, 18 rows pairing a call observation date with a coupon date, from 23 March 2023 to 23 August 2024, and the coupon at maturity. So the call is monthly from month 6, and the 24 coupons agree with the filing's total of $280.008 (24 × $11.667).
+
 ### Fit with the model
 
 | Note | Maps to | Sample |
@@ -34,9 +38,10 @@ A fourth note, the BofA fixed income auto-callable yield note ([424B2](https://w
 | MS 2019 | 18 months; a worst-of basket of three; quarterly autocall from month 6, trigger 95% stepping −5% so month 15 is 80%, no call amount, final review not a call; a fixed coupon of 11.72% a year, quarterly; downside participation 100% with a 60% barrier on the final date | Yes. A final pricing supplement whose examples reconcile with its terms. |
 | MS 2024 | 24 months; worst of four; monthly autocall from month 6, trigger 100%; 12.90% a year, monthly; 50% barrier | Not now. A preliminary supplement with the rate stated as "at least 12.90%" and the levels blank. A final supplement would make it one. |
 | BofA 2023 | 36 months; worst of three; monthly autocall from month 6, trigger 100%, final review not a call; 14.50% a year, monthly; 50% barrier | Yes. A final pricing supplement whose table agrees with its terms; the payment below the threshold is read from the table. |
+| Credit Suisse 2022 | 24 months; worst of two; monthly autocall from month 6, trigger 100%, no call amount, final review not a call; 14% a year, monthly; 45% barrier on the final date | No; a source only. It has the structure of the BofA sample, and the one new thing it shows, delivery of shares, is not modelled. The terms pass `validateProduct`, and `redemptionOutcome` reproduces its cash amounts: 45 pays 1,000 and 40 pays 400 on the valuation date. Coupons total 280.00 at 14% ÷ 12, against the filing's 280.008. |
 | Barclays 2026 | 12 months; worst of three; quarterly autocall from review 1, trigger 100%; 14.42% a year, quarterly; 60% barrier | No; a source only. Its call test reads "greater than or equal to" on the cover and "above" in its risk factors and an example, and its tax section refers to a physical settlement option that its payment terms do not have. |
 
-Settlement, cash or delivery of the underlier, is not part of the product model: it belongs with issuance, which the reference does not model. The name "reverse convertible" is therefore not shown, since the Swiss type includes delivery (see [call-and-coupon-names.md](call-and-coupon-names.md)).
+Settlement, cash or delivery of the underlier, is not part of the product model: it belongs with issuance, which the reference does not model. The name "reverse convertible" is therefore not shown, since the Swiss type includes delivery (see [call-and-coupon-names.md](call-and-coupon-names.md)). The Credit Suisse note uses the name and does deliver shares. The payment shown for it is its value on the valuation date, the same as the issuer's cash alternative; a holder who receives shares also bears any price move until maturity, which the reference does not show.
 
 ## Smallest model
 
@@ -109,10 +114,11 @@ A 12-month bullet note with a fixed coupon of 6% a year, monthly, pays 5.00 a mo
 3. **No name chip for a fixed coupon.** "Reverse convertible" depends on settlement, which belongs with issuance; "RevCons" is a brand.
 4. **Barclays is a source, not a sample**, since its filing contradicts itself.
 5. **The fixed coupon comes before the cash-flow result.** The total paid stays the result.
+6. **The Credit Suisse note is a source, not a sample.** It repeats the BofA sample's structure, and its delivery of shares is not modelled.
 
 ## Open questions
 
-1. **A coupon and a call on different schedules** in a fixed coupon note. None of the four notes read has one: the BofA note, which looked like one, calls monthly on its coupon dates from month 6. The model allows it, as the BofA issuer callable contingent coupon note (monthly coupon, quarterly call) needs.
+1. **A coupon and a call on different schedules** in a fixed coupon note. None of the five notes read has one: the BofA note, which looked like one, calls monthly on its coupon dates from month 6. The model allows it, as the BofA issuer callable contingent coupon note (monthly coupon, quarterly call) needs.
 2. **A fixed coupon for an initial period, then a contingent one.** Not seen in a public note.
 3. **Interest added to the balance and paid at the end** is a fixed return in the payoff, not a coupon, and is not modelled.
 4. **Broken periods**, a short or long first or last coupon period. Not modelled.
