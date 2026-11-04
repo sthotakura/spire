@@ -1,6 +1,6 @@
 # Settlement
 
-Proposed on 4 November 2026; nothing is built. The model calculates what a payment is worth, and treats all of it as cash. This proposal adds the term that says part of it can arrive as shares of the underlier. It reverses an earlier decision that settlement belongs with issuance ([coupon.md](coupon.md), [call-and-coupon-names.md](call-and-coupon-names.md)), so it needs agreement before any code.
+Proposed on 4 November 2026; nothing is built. The model calculates what a payment is worth, and treats all of it as cash. This proposal adds a term on the product that says part of it can arrive as shares of the underlier. It was agreed to be a term on the product, which changes an earlier decision that settlement belongs with issuance. The rest of the proposal still needs agreement before any code.
 
 ## What it means
 
@@ -108,10 +108,15 @@ The first six are the documents' own example values, the explainer's rounded to 
 
 ## Smallest model
 
-A term on downside participation, beside the buffer and the barrier:
+A term on the product, beside the redemption and the coupon:
 
 ```json
-{ "direction": "downside", "barrier": { "level": 0.45, "observation": "final" }, "rate": 1, "settlement": "delivery" }
+{
+  "wrapper": "note",
+  "redemption": "bullet",
+  "settlement": "delivery",
+  "payoff": { "participations": [{ "direction": "downside", "barrier": { "level": 0.45, "observation": "final" }, "rate": 1 }] }
+}
 ```
 
 - **`settlement?: 'cash' | 'delivery'`**, with cash when absent, in the style of `callAmountBasis`.
@@ -121,12 +126,14 @@ A term on downside participation, beside the buffer and the barrier:
 
 ### Where it goes
 
-Three homes were considered.
+**Decided: on the product.** Delivery may be a result of what participation does, but how the product settles is an attribute of the product. Participation says how much is owed. Settlement says how the product pays it. Termsheets agree, listing "Mode of settlement" or "Settlement" among the product's terms.
+
+The term therefore states the product's method, and the payoff states when it comes into play. A product with delivery settlement still pays a coupon, a call and principal in cash, as the rules below say.
 
 | Home | For | Against |
 | :--- | :--- | :--- |
-| **On downside participation (recommended)** | Every document delivers only where the holder bears a fall. A note with no downside cannot state delivery at all, so a deposit and barrier absolute return are ruled out with no rule. It matches how the type already holds the features that only make sense with a fall. | It sits inside the payoff although it is not arithmetic. The ELKS delivers on a rise too, so a product like it would need the same term on upside participation, with arithmetic of its own. |
-| A `settlement` field beside `payoff` | Termsheets list settlement as a term of its own. It would keep settlement visibly apart from the payoff. | It needs rules for what it applies to, and it reads as if the whole note were settled that way, which no document does. |
+| **On the product (decided)** | It keeps settlement apart from the payoff arithmetic, and matches how termsheets list it. A later product such as the ELKS can use it too, with a rule of its own. | It needs validation for what it applies to, since a product with no downside participation has nothing to deliver. |
+| On downside participation | A product with no downside could not state delivery at all. | It makes the method of payment a part of the participation, and the ELKS delivers on a rise too. |
 | Under the wrapper | None | Settlement varies among notes with the same legal form. |
 
 
@@ -146,6 +153,7 @@ Otherwise the payment is cash.
 
 | Combination | Result | Why |
 | :--- | :--- | :--- |
+| No downside participation, which also rules out a deposit and barrier absolute return | Rejected | Nothing would be delivered. A product could state delivery and never deliver, so it is an issue, not ignored. |
 | Rate × (1 − buffer) above 1 | Rejected | The cash would be negative: the holder would owe the issuer. Compare with a tolerance, since (1 ÷ 0.9) × 0.9 may not be exactly 1 in floating point. |
 | An index or strategy index, including any such component of a worst-of | Rejected | It cannot be delivered, and any component can end up the worst. |
 | A weighted or best-of basket | Rejected | No public note read does this, and it is not settled which assets would be delivered. |
@@ -175,7 +183,7 @@ The worst of Stock A (initial level 200) and Stock B (initial level 50), a barri
 
 - **Domain.** The optional term, the validation above, and a pure function for shares, cash and asset. `paymentBreakdown` does not change.
 - **Schema.** JSDoc, `npm run schema`, an example for each pattern, boundary cases, and the rules added to the validator-only list.
-- **Interface.** A Settlement row under Downside participation, offering Cash and Delivery, with Delivery unavailable on an index. It must not shift the layout when selected. The calculation and outcome state the shares and the cash. The chart keeps drawing value at the final level.
+- **Interface.** A Settlement row at product level, beside Redemption, offering Cash and Delivery, with Delivery unavailable on an index or with no downside participation. It must not shift the layout when selected. The calculation and outcome state the shares and the cash. The chart keeps drawing value at the final level.
 - **Book.** A new chapter that sets out the classic and barrier forms side by side, and notes in chapters 2, 5, 11, 12 and 21. It says that the value shown is on the final date and that a holder of shares bears later moves.
 - **Samples.** A delivering sample needs synthetic stocks, since the worst-of samples use synthetic indices. The Credit Suisse note ([coupon.md](coupon.md), decision 6) would then show something new and could become one.
 - **The scope rule.** The docs that place settlement under issuance change to: *whether a note can deliver is structure; the mechanics of delivering are issuance*.
@@ -197,11 +205,14 @@ These appear in the documents above and belong to other concepts:
 - The US and Swiss documents describe the same concept, though their terms differ: physical delivery amount and ratio.
 - The summarising fetch tool produced most of the SEC quotations. The calculations above agree with them, but the quotations were not checked against the printed filings.
 
+## Decisions
+
+1. **Settlement is a term on the product**, not on participation or the wrapper. Agreed on 4 November 2026.
+2. **The reverse convertible names do not wait for it.** SSPA's and FINRA's wording allow cash or shares. Built on 4 November 2026 ([call-and-coupon-names.md](call-and-coupon-names.md)).
+
 ## Open questions
 
-1. **Does delivery count as structure?** This reverses the earlier decision. The proposal says yes, for the term only, on the ground that it changes what the holder ends up owning.
-2. **Is the term on downside participation?** Recommended above. The ELKS shows a delivery on a rise exists. It is a different product, so the term can start on downside participation and could later appear on upside participation as well.
-3. **Should the "Reverse convertible" name wait for this?** The name was held back because it was tied to delivery, but SSPA's own 1220 reads "delivery underlying and/or cash settlement", and RBC 2020 uses the name for a cash-only note on an index. So the name need not depend on settlement, and [call-and-coupon-names.md](call-and-coupon-names.md) overstates it in saying the SSPA adds delivery. It could be shown without building delivery: Reverse Convertible (1220) for a fixed coupon with no barrier, no upside and a rate of 1 ÷ (1 − buffer), and Barrier Reverse Convertible (1230) for a fixed coupon, a barrier at rate 1, and no upside. This is a separate decision, and the rules need checking against SSPA's other terms and FINRA's.
-4. **Funds.** TD delivers shares of an exchange-traded fund, and the model's asset kinds are equity, equity index and strategy index. Delivery needs either a fund kind or `equity` read to include fund shares. The proposal leaves delivery on `equity` first, as the smallest step, which excludes TD's underlier.
-5. **Should the interface state a share count that is not whole?** The formula gives 11.1111 where a holder receives 11 and cash. The proposal shows the count to four decimal places, as TD does, and states that fractions are paid in cash.
-6. **Should the strike be a term of its own?** The model reaches a classic strike of 80% through a buffer of 20% and a rate of 125%. That needs no new field, and it is the same arithmetic, but a reader looking for a strike will not find one. The proposal keeps the model as it is and explains the equivalence in the book and a hint. A named strike would state the same thing twice.
+1. **How much should the term say?** It is a plain value today, cash or delivery, leaving rounding, fractions and an issuer's cash option to a hint. If the product should state how it delivers, the value becomes an object with those terms. They do not change the value on the final date, so the proposal keeps the plain value.
+2. **Funds.** TD delivers shares of an exchange-traded fund, and the model's asset kinds are equity, equity index and strategy index. Delivery needs either a fund kind or `equity` read to include fund shares. The proposal leaves delivery on `equity` first, as the smallest step, which excludes TD's underlier.
+3. **Should the interface state a share count that is not whole?** The formula gives 11.1111 where a holder receives 11 and cash. The proposal shows the count to four decimal places, as TD does, and states that fractions are paid in cash.
+4. **Should the strike be a term of its own?** The model reaches a classic strike of 80% through a buffer of 20% and a rate of 125%. That needs no new field, and it is the same arithmetic, but a reader looking for a strike will not find one. The proposal keeps the model as it is and explains the equivalence in the book and a hint. A named strike would state the same thing twice.

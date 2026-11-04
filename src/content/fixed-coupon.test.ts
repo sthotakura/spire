@@ -91,7 +91,7 @@ describe('a fixed coupon in the chart labels', () => {
 })
 
 describe('the names of a note with a fixed coupon', () => {
-  it('gives no coupon name, no Express certificate, and keeps the autocall and Yield Enhancement', () => {
+  it('gives no contingent coupon name, no Express certificate, and keeps the autocall and Yield Enhancement', () => {
     const names = marketingNames(product()).map(({ name }) => name)
     expect(names).toContain('Autocallable note')
     expect(names).not.toContain('Contingent coupon note')

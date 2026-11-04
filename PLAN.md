@@ -522,8 +522,16 @@ The Scenarios tab under the chart listed fixed final levels (−40%, 0, +10%, +3
 Settlement is the form a payment takes: cash, or delivery of shares of the underlier. Barrier and buffer reverse convertibles, the classic form and one exchangeable note were read for it, and nothing is built. The proposal, the sources and the open questions are in [docs/settlement.md](docs/settlement.md). It reverses the decision that settlement belongs with issuance, so it waits for agreement.
 
 - **Finding.** In a reverse convertible, delivery appears only where the holder bears a fall, whatever the coupon, call or wrapper. The classic form has no barrier: below its strike, which is often under the initial level, it delivers shares. The model already states its payment, with a buffer and a rate for a strike below the initial level. Its share count and any cash follow from the rate and the buffer: shares = principal × rate ÷ initial level, and cash = principal × (1 − rate × (1 − buffer)). This reproduces the barrier, buffer, geared buffer and classic patterns, and the payment does not change.
-- **Proposed model.** `settlement?: 'cash' | 'delivery'` on downside participation. No share count, rounding or cash election.
-- **Still to decide.** Whether delivery counts as structure, where the term goes, whether the "Reverse convertible" names can be shown without it, how fund shares are treated, and whether a strike should be a named term.
+- **Proposed model.** `settlement?: 'cash' | 'delivery'` as a term on the product, as agreed. No share count, rounding or cash election.
+- **Still to decide.** How much the term says, how fund shares are treated, and whether a strike should be a named term.
+
+## 44. Add the reverse convertible names
+
+Two name chips, independent of settlement: Reverse convertible (SSPA 1220), a fixed coupon with the holder bearing the fall below a strike, and Barrier reverse convertible (SSPA 1230), where that waits for a downside barrier. SSPA says "delivery underlying and/or cash settlement" and FINRA says "cash or a predetermined number of shares", so the name does not need delivery. The rules are in [docs/call-and-coupon-names.md](docs/call-and-coupon-names.md).
+
+- **A strike is read from the terms.** A strike at the initial level is rate 1 with no buffer or barrier; one below it is a buffer at a rate of 1 ÷ (1 − buffer).
+- **Samples.** Both fixed coupon autocallable samples with a downside barrier now show Barrier reverse convertible. No sample shows Reverse convertible.
+- **Not done:** a name for a buffer at rate 1, a contingent coupon form, or a sample of the classic form.
 
 ## Later direction: a composable form
 

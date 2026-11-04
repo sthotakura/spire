@@ -67,9 +67,12 @@ The call and the coupon have names of their own: “autocallable note”,
 “callable note” and “contingent coupon note”. An autocall whose call amount is a
 rate for each year elapsed, so that each review it is not called adds to what the
 next call pays, is what sellers call a “snowball autocall”; one issuer calls it an
-autocallable note with a “step-up premium”. A fixed coupon has no name of its
-own here: the name usually given to it, “reverse convertible”, also describes
-how the note is settled, which this reference does not model. An unprotected
+autocallable note with a “step-up premium”. A fixed coupon in place of a share
+in a rise is a “reverse convertible” when the holder bears the fall below a
+strike, and a “barrier reverse convertible” when that waits for a barrier. An
+issuer may pay these in cash or in shares of the underlier; the reference shows
+the value on the final date. A strike below the initial level appears here as a
+buffer and a rate: a strike of 80% is a 20% buffer at a rate of 1 ÷ 0.8. An unprotected
 autocall that pays contingent coupons instead of a share in a rise, with a
 downside barrier, is what the Swiss taxonomy calls an Express certificate. A note whose downside barrier leaves
 at least principal until it is reached, and then follows the underlier, is what that

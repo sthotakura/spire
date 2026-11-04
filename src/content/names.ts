@@ -244,7 +244,6 @@ function callAndCouponNames(note: Product): MarketingName[] {
       concepts: ['redemption'],
     })
   }
-  // A fixed coupon gets no name of its own: "reverse convertible" also describes settlement, which the reference does not model.
   if (coupon?.barrier !== undefined) {
     names.push({
       name: 'Contingent coupon note',
@@ -268,6 +267,31 @@ function callAndCouponNames(note: Product): MarketingName[] {
       // The autocall is what makes it an Express certificate, so the chip highlights the redemption, not the whole payoff.
       concepts: ['redemption'],
     })
+  }
+
+  // The Swiss Reverse Convertible (1220) and Barrier Reverse Convertible (1230): a fixed coupon in place of upside, and shares or their
+  // value below a strike. Neither name depends on settlement, since the Swiss type allows either and a US note on an index pays cash. The
+  // rules and sources are in docs/call-and-coupon-names.md.
+  if (coupon !== undefined && coupon.barrier === undefined && unprotected && upsideOf(note) === undefined && note.payoff.barrierAbsoluteReturn === undefined && note.payoff.digitalReturn === undefined && downside !== undefined && downside.absoluteReturn === undefined) {
+    const settled = 'Otherwise issuers settle in cash or in shares of the underlier, and the payment shown is the value on the final date.'
+    const strike = 1 - (downside.buffer ?? 0)
+    // A strike below the initial level pays principal × final ÷ strike, which is a buffer at a rate of 1 ÷ strike. The tolerance lets a rate
+    // typed to two decimal places of a percentage, such as 111.11%, state a strike of 90%.
+    if (downside.barrier === undefined && Math.abs(downside.rate * strike - 1) < 1e-4) {
+      names.push({
+        name: 'Reverse convertible',
+        vocabulary: 'SSPA',
+        reason: `A fixed coupon is paid whatever the underlier does, with no share in a rise. Principal is repaid at or above ${strike === 1 ? 'a strike at the initial level' : `a strike of ${percentText(strike)} of the initial level`}, with no barrier to reach first. ${settled} The Swiss taxonomy calls this a Reverse Convertible (1220); US documents also say reverse exchangeable.`,
+        concepts: ['coupon', 'downside'],
+      })
+    } else if (downside.barrier !== undefined && downside.buffer === undefined && downside.rate === 1) {
+      names.push({
+        name: 'Barrier reverse convertible',
+        vocabulary: 'SSPA',
+        reason: `A fixed coupon is paid whatever the underlier does, with no share in a rise. Principal is repaid unless the underlier has reached the ${percentText(downside.barrier.level)} barrier and ends below its initial level. ${settled} The Swiss taxonomy calls this a Barrier Reverse Convertible (1230); US documents call the barrier a knock-in.`,
+        concepts: ['coupon', 'barrier'],
+      })
+    }
   }
 
   return names

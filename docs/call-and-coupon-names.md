@@ -20,6 +20,9 @@ Built, with the rules below as proposed and the recommended answer to each open 
 | Express Certificate (1255, 1260) | SSPA, Yield Enhancement: "Coupon payment depends on conditions", "Limited profit opportunity (cap)", and "Usually equipped with an autocall trigger: If the underlying is quoted above the autocall trigger on the observation date, the nominal amount plus any coupon is repaid early". The barrier version (1260) adds: "Touching the barrier results in an underlying delivery and/or cash settlement". What the version without a barrier (1255) pays at maturity below the strike is not stated. |
 | Capital Protection Certificate with Coupon (1140) | SSPA, Capital Protection: "Minimum redemption at expiry equivalent to the capital protection", "The coupon amount is dependent on the performance of the underlying", "Periodic coupon payment is expected". |
 | Yield Enhancement | SSPA category holding the Express and reverse convertible types. FINRA describes a reverse convertible as a note with "an attractive periodic fixed coupon" and principal "generally at risk". |
+| Reverse Convertible (1220) | SSPA, Yield Enhancement: "The coupon is being paid regardless of the performance of the underlying", "Limited profit opportunity (cap)", and "If the underlying is below the strike at maturity: delivery underlying and/or cash settlement plus coupon". |
+| Barrier Reverse Convertible (1230) | SSPA: the same coupon and cap. "If the underlying is above the strike at maturity or if the barrier has not been touched, the investor receives the maximum redemption amount (cap)", and "When touching the barrier the product becomes a Reverse Convertible (1220)". |
+| Reverse convertible, reverse exchangeable | [FINRA](https://www.finra.org/investors/insights/reverse-convertibles-complex-investments): also called "reverse convertible notes" or "reverse exchangeable securities". A debt component "pays a fixed, above-market periodic coupon"; the holder receives "your principal back in cash or a predetermined number of shares"; the reference can be a stock, "a stock index" or a basket. It describes a "knock-in" level, and does not describe a note without one. |
 | Phoenix | Educational pages: an autocallable whose conditional coupons are paid on each observation date, often with memory, unlike a "classic" autocall that pays them together on the call. The sources disagree on whether memory is part of the name. |
 
 ## Rules
@@ -34,6 +37,8 @@ Example-specific assumptions, as in [marketing-names.md](marketing-names.md). Ea
 | On a note: the redemption is an issuer call | Callable note | SSPA glossary, US descriptive | The reason says the issuer may call and need not; the scenario chooses. |
 | On a note: a contingent coupon | Contingent coupon note | US descriptive (issuer titles), SSPA *Conditional Coupon* | The reason adds "with memory" when the coupon has it. The three US titles use three words; "coupon" is the one the model and the SSPA use. |
 | On a note: an autocall, a contingent coupon, a downside barrier, no upside participation, no protection | Express certificate | SSPA (1260 Express-Barrier-Certificate) | The cap SSPA lists is the absence of upside participation: the return is the coupons. A buffer instead of a barrier, or no downside feature, gets no Express name, since 1255's maturity payment is unverified. |
+| On a note: a fixed coupon, downside participation with no barrier at a rate of 1 ÷ (1 − buffer), or 1 with no buffer, no upside participation, no protection, digital return or absolute return | Reverse convertible | SSPA (1220), US descriptive | The strike is 1 − buffer. A rate within 0.0001 counts, so a rate typed to two decimal places of a percentage states a strike. Any redemption, since issuers sell autocallable and callable forms. |
+| On a note: a fixed coupon, a downside barrier at rate 1 with no buffer, no upside participation, no protection, digital return or absolute return | Barrier reverse convertible | SSPA (1230), US descriptive | The strike is the initial level. Any barrier observation: SSPA lists a barrier read only on the final date as a feature of 1230. Any redemption. |
 
 Category:
 
@@ -45,12 +50,16 @@ An unprotected note with a call and no coupon, or a coupon beside upside partici
 
 With 100% protection and a contingent coupon, the Principal-protected note reason adds that the Swiss taxonomy calls this a Capital Protection Certificate with Coupon, as it already names 1100 for participation. A fixed coupon does not get that sentence, since 1140's coupon "is dependent on the performance of the underlying".
 
-A fixed coupon gets no chip of its own, and no Express certificate, whose coupon "depends on conditions".
+A fixed coupon gets no chip for the coupon alone, and no Express certificate, whose coupon "depends on conditions". The reverse convertible names need its downside as well.
+
+Neither reverse convertible name depends on settlement: SSPA says "delivery underlying and/or cash settlement", FINRA says "cash or a predetermined number of shares", and [RBC's 2020 geared buffered reverse convertible](https://www.sec.gov/Archives/edgar/data/1000275/000114036120009067/form424b2.htm) on an index pays only cash. The reason says so, and that the payment shown is the value on the final date. A delivering note would carry the same name ([settlement.md](settlement.md)).
+
+A contingent coupon gets neither name, since both sources describe a coupon paid regardless. A buffer at rate 1 gets neither either: RBC's 2009 note is titled a buffered reverse convertible, but it adds cash beside the shares, which is not SSPA's type. Those remain open.
 
 ## Not shown
 
 - **Phoenix.** Market usage whose sources disagree on memory. It could be added later as market usage for an autocall with a coupon and memory, like the shark fin note.
-- **Reverse convertible.** FINRA and the SSPA describe a fixed coupon, paid whatever the underlier does, and the SSPA adds delivery of the underlier. The model now has a fixed coupon ([coupon.md](coupon.md)), but settlement, cash or delivery, belongs with issuance, which the reference does not model, so the name is not shown. "RevCons" is a brand.
+- **RevCons.** A brand.
 - **One combined name** such as "Autocallable contingent coupon note". The US titles combine the parts in different orders; separate chips say the same and match each part.
 
 ## Open questions
