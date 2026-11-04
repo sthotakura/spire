@@ -208,11 +208,11 @@ These appear in the documents above and belong to other concepts:
 ## Decisions
 
 1. **Settlement is a term on the product**, not on participation or the wrapper. Agreed on 4 November 2026.
-2. **The reverse convertible names do not wait for it.** SSPA's and FINRA's wording allow cash or shares. Built on 4 November 2026 ([call-and-coupon-names.md](call-and-coupon-names.md)).
+2. **The term is a plain value, cash or delivery.** Rounding, fractions and an issuer's cash option do not change the value on the final date, so a hint states them. Agreed on 4 November 2026.
+3. **The reverse convertible names do not wait for it.** SSPA's and FINRA's wording allow cash or shares. Built on 4 November 2026 ([call-and-coupon-names.md](call-and-coupon-names.md)).
 
 ## Open questions
 
-1. **How much should the term say?** It is a plain value today, cash or delivery, leaving rounding, fractions and an issuer's cash option to a hint. If the product should state how it delivers, the value becomes an object with those terms. They do not change the value on the final date, so the proposal keeps the plain value.
-2. **Funds.** TD delivers shares of an exchange-traded fund, and the model's asset kinds are equity, equity index and strategy index. Delivery needs either a fund kind or `equity` read to include fund shares. The proposal leaves delivery on `equity` first, as the smallest step, which excludes TD's underlier.
-3. **Should the interface state a share count that is not whole?** The formula gives 11.1111 where a holder receives 11 and cash. The proposal shows the count to four decimal places, as TD does, and states that fractions are paid in cash.
-4. **Should the strike be a term of its own?** The model reaches a classic strike of 80% through a buffer of 20% and a rate of 125%. That needs no new field, and it is the same arithmetic, but a reader looking for a strike will not find one. The proposal keeps the model as it is and explains the equivalence in the book and a hint. A named strike would state the same thing twice.
+1. **Funds.** TD delivers shares of an exchange-traded fund, and the model's asset kinds are equity, equity index and strategy index. Delivery needs either a fund kind or `equity` read to include fund shares. The proposal leaves delivery on `equity` first, as the smallest step, which excludes TD's underlier.
+2. **Should the interface state a share count that is not whole?** The formula gives 11.1111 where a holder receives 11 and cash. The proposal shows the count to four decimal places, as TD does, and states that fractions are paid in cash.
+3. **Should the strike be a term of its own?** The model reaches a classic strike of 80% through a buffer of 20% and a rate of 125%. That needs no new field, and it is the same arithmetic, but a reader looking for a strike will not find one. The proposal keeps the model as it is and explains the equivalence in the book and a hint. A named strike would state the same thing twice.

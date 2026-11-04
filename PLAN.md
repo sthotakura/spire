@@ -522,8 +522,8 @@ The Scenarios tab under the chart listed fixed final levels (−40%, 0, +10%, +3
 Settlement is the form a payment takes: cash, or delivery of shares of the underlier. Barrier and buffer reverse convertibles, the classic form and one exchangeable note were read for it, and nothing is built. The proposal, the sources and the open questions are in [docs/settlement.md](docs/settlement.md). It reverses the decision that settlement belongs with issuance, so it waits for agreement.
 
 - **Finding.** In a reverse convertible, delivery appears only where the holder bears a fall, whatever the coupon, call or wrapper. The classic form has no barrier: below its strike, which is often under the initial level, it delivers shares. The model already states its payment, with a buffer and a rate for a strike below the initial level. Its share count and any cash follow from the rate and the buffer: shares = principal × rate ÷ initial level, and cash = principal × (1 − rate × (1 − buffer)). This reproduces the barrier, buffer, geared buffer and classic patterns, and the payment does not change.
-- **Proposed model.** `settlement?: 'cash' | 'delivery'` as a term on the product, as agreed. No share count, rounding or cash election.
-- **Still to decide.** How much the term says, how fund shares are treated, and whether a strike should be a named term.
+- **Agreed model.** `settlement?: 'cash' | 'delivery'` as a term on the product. No share count, rounding or cash election.
+- **Still to decide.** How fund shares are treated, and whether a strike should be a named term.
 
 ## 44. Add the reverse convertible names
 
