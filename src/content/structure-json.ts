@@ -28,6 +28,7 @@ export function structureLines(note: Product): StructureLine[] {
       return 'redemption'
     }
     if (top === 'coupon') return second === 'schedule' ? 'coupon-schedule' : second === 'barrier' ? 'coupon-barrier' : second === 'memory' ? 'memory' : 'coupon'
+    if (top === 'settlement') return 'settlement'
     if (top === 'underlier') {
       if (second === 'components' && typeof third === 'number') return 'asset'
       if (second === 'determination') return third === 'initial' ? 'initial-level' : third === 'final' ? 'final-level' : third === 'basketReturn' ? 'basket-return' : 'determination'

@@ -12,12 +12,13 @@ import type { ConceptId } from './content/concepts'
 import { marketingNames, productCategory, type MarketingName } from './content/names'
 import { paymentFormula, paymentInWords } from './content/formula'
 import { explainOutcome } from './content/outcome'
+import { explainDelivery, settlementFormula } from './content/settlement'
 import { sameProduct, sampleBySlug, sampleGroups } from './content/examples'
 import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
 import { finalCallLevel, paymentAtEnd, redemptionOutcome } from './domain/autocall'
-import { barrierLevelAt, basketBreakdown, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, scheduleReviews, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
+import { type Settlement, barrierLevelAt, basketBreakdown, deliveryFrom, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, scheduleReviews, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
@@ -27,6 +28,7 @@ const activeHint = ref<string | null>(null)
 const toggleHint = (hint: string) => { activeHint.value = activeHint.value === hint ? null : hint }
 const hints = {
   wrapper: 'The legal form sets what the holder owns and who owes the payments. A note is a debt of its issuer, so every payment depends on the issuer’s ability to pay. A deposit is held by a bank and repaid in full at the end of its term. It is usually insured up to a limit; any payment above the limit depends on the bank’s ability to pay.',
+  settlement: 'How the product pays where the holder bears a fall. Cash pays the amount. Delivery hands over shares of the underlier, a count fixed when the product is priced: principal × downside rate ÷ initial level, of the worst stock in a worst-of. They are worth the payment on the final date, with any cash the terms add, and the holder then bears their price. A fraction of a share is paid in cash, and an issuer may keep the right to pay cash instead. A coupon, a call and a payment of principal or more are always in cash.',
   redemption: 'Sets when the product ends and principal is paid back: at scheduled maturity, or earlier if its terms allow a call or a put. Bullet redemption pays once, at maturity.',
   term: 'The length of the product, stated as a duration such as 3 years. Principal is repaid at the end of the term. The issue and maturity dates that put the term on a calendar are set when the product is issued.',
   underlier: 'What the payoff reads: the asset it tracks and how its change is measured, from where it starts. A single underlier tracks one asset. A basket tracks several and combines their changes into one return.',
@@ -151,6 +153,7 @@ const callOnFinal = ref(false)
 const couponKind = ref<'none' | 'fixed' | 'contingent'>('none')
 const couponSelected = computed(() => couponKind.value !== 'none')
 const contingentCoupon = computed(() => couponKind.value === 'contingent')
+const settlementKind = ref<Settlement>('cash')
 const couponRatePercent = ref(firstFeatureValues.coupon)
 const couponBarrierPercent = ref(firstFeatureValues.couponBarrier)
 const couponMemory = ref(false)
@@ -260,7 +263,7 @@ const observedLevels = ref<number[]>([startingFinalLevel])
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
 const select = (concept: ConceptId) => { selected.value = concept }
-const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', schedule: '#2c8ea3', trigger: '#1f8a70', 'trigger-step': '#7a9a1e', 'call-amount': '#0f766e', 'final-call': '#3d7ea6', 'first-review': '#4d7c9b', coupon: '#b5446e', 'coupon-schedule': '#9b4d7a', 'coupon-barrier': '#8a5a00', memory: '#55708a', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', 'minimum-return': '#4338ca', 'digital-return': '#c2255c', 'digital-barrier': '#087f5b', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa', 'absolute-return': '#d4a017' }
+const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', schedule: '#2c8ea3', trigger: '#1f8a70', 'trigger-step': '#7a9a1e', 'call-amount': '#0f766e', 'final-call': '#3d7ea6', 'first-review': '#4d7c9b', coupon: '#b5446e', 'coupon-schedule': '#9b4d7a', 'coupon-barrier': '#8a5a00', memory: '#55708a', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', 'minimum-return': '#4338ca', 'digital-return': '#c2255c', 'digital-barrier': '#087f5b', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa', 'absolute-return': '#d4a017', settlement: '#8d5a3b' }
 const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
@@ -350,6 +353,18 @@ const redemptionBlockedReason = (id: string) => {
   return null
 }
 const couponBlockedReason = computed(() => dailySelected.value || bothWaysSelected.value ? 'not with a daily barrier' : null)
+// Why delivery cannot be chosen, or null: the same rules productIssues enforces, in short. Once chosen it stays available, and the issues say what no longer fits.
+const deliveryBlockedReason = computed(() => {
+  const { payoff, underlier: chosen } = note.value
+  const downside = payoff.participations.find((participation): participation is DownsideParticipation => participation.direction === 'downside')
+  if (downside === undefined) return 'needs downside participation'
+  if (chosen.components.some(({ asset }) => asset.kind !== 'equity')) return 'stocks only'
+  if (chosen.kind === 'basket' && chosen.determination.basketReturn.kind !== 'worst-of') return 'one stock or worst-of'
+  if (chosen.determination.final.kind === 'averaging') return 'not with averaging'
+  if ((payoff.principalProtection ?? 0) > 0) return 'not with protection'
+  if (downside.rate * (1 - (downside.buffer ?? 0)) > 1 + 1e-9) return 'downside rate too high'
+  return null
+})
 const blockedReason = (id: FeatureId) => {
   if (wrapper.value === 'deposit' && depositExcludes.includes(id)) return 'Not on a deposit'
   if (wrapper.value !== 'deposit' && id === 'minimum') return 'Deposits only'
@@ -522,6 +537,7 @@ const note = computed<Product>(() => ({
   coupon: !couponSelected.value ? undefined
     : contingentCoupon.value ? { schedule: { frequency: couponFrequency.value }, rate: fractionFrom(couponRatePercent.value), barrier: fractionFrom(couponBarrierPercent.value), memory: couponMemory.value }
       : { schedule: { frequency: couponFrequency.value }, rate: fractionFrom(couponRatePercent.value) },
+  settlement: settlementKind.value === 'delivery' ? 'delivery' : undefined,
   underlier: underlier.value,
   payoff: {
     participations: withSubFeatures(selectedDirections.value.map((direction) => ({ direction, rate: participationPercent[direction] / 100 })), {
@@ -544,7 +560,7 @@ const note = computed<Product>(() => ({
 }))
 const jsonLines = computed(() => structureLines(note.value))
 // With an autocall the payment rule is what is paid at maturity, when the product has not been called.
-const formula = computed(() => [...paymentFormula(note.value).map((line) => scheduled.value && line.lead === 'Payment' ? { ...line, lead: 'At maturity' } : line), ...couponFormula(note.value), ...redemptionFormula(note.value)])
+const formula = computed(() => [...paymentFormula(note.value).map((line) => scheduled.value && line.lead === 'Payment' ? { ...line, lead: 'At maturity' } : line), ...settlementFormula(note.value), ...couponFormula(note.value), ...redemptionFormula(note.value)])
 const formulaWords = computed(() => {
   const words = paymentInWords(note.value)
   const coupon = !note.value.coupon ? ''
@@ -722,9 +738,13 @@ const finalUnused = computed(() => {
   if (!outcome || outcome.calledAtReview === undefined || outcome.calledAtReview >= outcome.reviews) return ''
   return `Not used for the payment: the product was called on review ${outcome.calledAtReview}, before the final date. It still sets the chart's dot and the comparison under "If it had run to maturity".`
 })
+// What the holder receives in shares at the end of the term. A product called earlier has paid in cash.
+const delivery = computed(() => breakdown.value && redemption.value?.calledAtReview === undefined
+  ? deliveryFrom(note.value, breakdown.value, scenarioLevels.value.final, basketMeasure.value ?? undefined)
+  : undefined)
 const outcomeSentence = computed(() => {
   if (!breakdown.value) return ''
-  const maturity = explainOutcome(note.value, breakdown.value)
+  const maturity = [explainOutcome(note.value, breakdown.value), explainDelivery(note.value, delivery.value)].filter(Boolean).join(' ')
   if (!redemption.value) return maturity
   const early = explainRedemption(note.value, redemption.value)
   const coupons = explainCoupons(note.value, redemption.value)
@@ -739,7 +759,8 @@ const chartDescription = computed(() => {
   const withCoupon = !coupon ? ''
     : coupon.barrier === undefined ? ' At every final level, the payment at the end of the term also includes the last review’s fixed coupon.'
       : ' At and above the coupon barrier, the payment at the end of the term also includes the last review’s coupon.'
-  return `${payoffDescription.value}${withCoupon}`
+  const withDelivery = note.value.settlement === 'delivery' ? ' Where shares are delivered, the line shows their value on the final date.' : ''
+  return `${payoffDescription.value}${withCoupon}${withDelivery}`
 })
 const payoffDescription = computed(() => {
   if (!hasFeatures.value) return 'Contractual maturity payment stays at principal for every final level.'
@@ -1288,6 +1309,7 @@ function loadProduct(product: Product) {
   callAmountBasis.value = autocall?.callAmountBasis ?? issuerCall?.callAmountBasis ?? 'flat'
   callOnFinal.value = autocall?.callOnFinalReview ?? false
   couponKind.value = coupon === undefined ? 'none' : coupon.barrier === undefined ? 'fixed' : 'contingent'
+  settlementKind.value = product.settlement ?? 'cash'
   couponRatePercent.value = coupon ? percent(coupon.rate) : firstFeatureValues.coupon
   couponBarrierPercent.value = coupon?.barrier !== undefined ? percent(coupon.barrier) : firstFeatureValues.couponBarrier
   couponMemory.value = coupon?.memory ?? false
@@ -1505,6 +1527,13 @@ const chooseSample = (event: Event) => {
                     </li>
                   </ul>
                   <ul v-if="issuesFor('coupon').length" class="errors" role="alert"><li v-for="message in issuesFor('coupon')" :key="message">{{ message }}</li></ul>
+                </li>
+                <li :class="['node', { sel: highlighted('settlement') }]" :style="conceptStyle('settlement')">
+                  <div class="nrow" @click="select('settlement')" @focusin="focusRow('settlement')">
+                    <span class="nlabel">Settlement<HintToggle id="settlement" about="settlement" :text="hints.settlement" :active="activeHint === 'settlement'" @toggle="toggleHint('settlement')" /></span>
+                    <span class="ctrl pick"><select id="settlement-kind" v-model="settlementKind" aria-label="Settlement"><option value="cash">Cash</option><option value="delivery" :disabled="settlementKind !== 'delivery' && !!deliveryBlockedReason">Delivery{{ settlementKind !== 'delivery' && deliveryBlockedReason ? ` (${deliveryBlockedReason})` : '' }}</option></select></span>
+                  </div>
+                  <ul v-if="issuesFor('settlement').length" class="errors" role="alert"><li v-for="message in issuesFor('settlement')" :key="message">{{ message }}</li></ul>
                 </li>
                 <li :class="['node', { sel: highlighted('underlier') }]" :style="conceptStyle('underlier')">
                   <div class="nrow" @click="select('underlier')" @focusin="focusRow('underlier')">

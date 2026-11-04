@@ -41,6 +41,10 @@ The fixed coupon, always paid, is proposed in [coupon.md](coupon.md).
 - **Puttable and callable:** an issuer call and a holder put on the same note, each on its own dates; whichever is exercised first ends it. Listed in the interface as Puttable and callable, unavailable. Not yet researched: the public notes found with both are fixed-rate debt (for example [AIG, 424B2](https://www.sec.gov/Archives/edgar/data/0000005272/000095012307015841/y40350re424b2.htm)), not equity-linked.
 - All sit beside bullet redemption, not under the payoff.
 
+### Settlement
+
+- **Cash or delivery.** A term on the product: how it pays where the holder bears a fall. It changes no amount. Modelled ([settlement.md](settlement.md)).
+
 ### Feature switch (working label)
 
 "Switch" is a working label here, not a verified public product name. Two public cases change features during a note's life, and they differ:

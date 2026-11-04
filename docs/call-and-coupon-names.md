@@ -52,7 +52,7 @@ With 100% protection and a contingent coupon, the Principal-protected note reaso
 
 A fixed coupon gets no chip for the coupon alone, and no Express certificate, whose coupon "depends on conditions". The reverse convertible names need its downside as well.
 
-Neither reverse convertible name depends on settlement: SSPA says "delivery underlying and/or cash settlement", FINRA says "cash or a predetermined number of shares", and [RBC's 2020 geared buffered reverse convertible](https://www.sec.gov/Archives/edgar/data/1000275/000114036120009067/form424b2.htm) on an index pays only cash. The reason says so, and that the payment shown is the value on the final date. A delivering note would carry the same name ([settlement.md](settlement.md)).
+Neither reverse convertible name depends on settlement: SSPA says "delivery underlying and/or cash settlement", FINRA says "cash or a predetermined number of shares", and [RBC's 2020 geared buffered reverse convertible](https://www.sec.gov/Archives/edgar/data/1000275/000114036120009067/form424b2.htm) on an index pays only cash. The reason says so, and that the payment shown is the value on the final date. A delivering note carries the same name, and its reason says it delivers ([settlement.md](settlement.md)).
 
 A contingent coupon gets neither name, since both sources describe a coupon paid regardless. A buffer at rate 1 gets neither either: RBC's 2009 note is titled a buffered reverse convertible, but it adds cash beside the shares, which is not SSPA's type. Those remain open.
 

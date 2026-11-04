@@ -1,6 +1,6 @@
 # Settlement
 
-Proposed on 4 November 2026; nothing is built. The model calculates what a payment is worth, and treats all of it as cash. This proposal adds a term on the product that says part of it can arrive as shares of the underlier. It was agreed to be a term on the product, which changes an earlier decision that settlement belongs with issuance. The rest of the proposal still needs agreement before any code.
+Agreed and built on 4 November 2026, for stocks. The model calculates what a payment is worth. A term on the product says whether, where the holder bears a fall, that arrives as shares of the underlier. It changes an earlier decision that settlement belongs with issuance. The reader-facing chapter is [book/22-settlement.md](book/22-settlement.md).
 
 ## What it means
 
@@ -149,7 +149,7 @@ Otherwise the payment is cash.
 
 **What is delivered.** `shares = principal × rate ÷ initial level` of the single asset or the worst-of asset with the lowest return, using that asset's own initial level, and `cash = principal × (1 − rate × (1 − buffer))`.
 
-**Validation.**
+**Validation.** `validateProduct` enforces these; the rule is also listed among those only the validator checks in the schema.
 
 | Combination | Result | Why |
 | :--- | :--- | :--- |
@@ -179,14 +179,15 @@ A note of 1,000 on Synthetic Stock, initial level 100, delivering.
 
 The worst of Stock A (initial level 200) and Stock B (initial level 50), a barrier at 45%, rate 1. Stock A ends at 150, down 25%, and Stock B at 20, down 60%. Stock B is the worst, so the holder receives 1,000 ÷ 50 = 20 shares of Stock B, worth 400.00 at the final level.
 
-## Consequences if agreed
+## Consequences
 
-- **Domain.** The optional term, the validation above, and a pure function for shares, cash and asset. `paymentBreakdown` does not change.
-- **Schema.** JSDoc, `npm run schema`, an example for each pattern, boundary cases, and the rules added to the validator-only list.
+- **Domain.** The optional term, the validation above, and a pure function, `deliveryFrom`, for shares, cash and asset. An upside barrier's rebate, paid beside a fall, is added to the cash, so what is delivered is still worth the payment. The payment does not change, as a test checks.
+- **A bug found on the way.** A final level exactly on a downside barrier could count as reached through floating-point noise, at 14 of the 99 whole-percent levels on a worst-of basket, which paid a fall the filings do not. Levels are now rounded to nine decimals, as `barrierLevelAt` does elsewhere.
+- **Schema.** JSDoc, `npm run schema`, an example, and the rule added to the validator-only list.
 - **Interface.** A Settlement row at product level, beside Redemption, offering Cash and Delivery, with Delivery unavailable on an index or with no downside participation. It must not shift the layout when selected. The calculation and outcome state the shares and the cash. The chart keeps drawing value at the final level.
 - **Book.** A new chapter that sets out the classic and barrier forms side by side, and notes in chapters 2, 5, 11, 12 and 21. It says that the value shown is on the final date and that a holder of shares bears later moves.
-- **Samples.** A delivering sample needs synthetic stocks, since the worst-of samples use synthetic indices. The Credit Suisse note ([coupon.md](coupon.md), decision 6) would then show something new and could become one.
-- **The scope rule.** The docs that place settlement under issuance change to: *whether a note can deliver is structure; the mechanics of delivering are issuance*.
+- **Samples.** Worst-of reverse convertible, from the Vontobel note, and Autocallable worst-of barrier reverse convertible, from the Credit Suisse note, each on synthetic stocks.
+- **The scope rule.** Whether a note can deliver is structure. The mechanics of delivering are issuance.
 
 ## Differences this does not cover
 
@@ -210,9 +211,12 @@ These appear in the documents above and belong to other concepts:
 1. **Settlement is a term on the product**, not on participation or the wrapper. Agreed on 4 November 2026.
 2. **The term is a plain value, cash or delivery.** Rounding, fractions and an issuer's cash option do not change the value on the final date, so a hint states them. Agreed on 4 November 2026.
 3. **The reverse convertible names do not wait for it.** SSPA's and FINRA's wording allow cash or shares. Built on 4 November 2026 ([call-and-coupon-names.md](call-and-coupon-names.md)).
+4. **Stocks only, first.** An index or a fund is rejected. Agreed on 4 November 2026.
+5. **No separate strike term.** A strike of 80% stays a 20% buffer at a rate of 1.25, explained in the book and a name's reason. It was recommended and not objected to, so it stands until a reader needs otherwise.
+6. **A share count to four places.** The count states fractions, as TD's does, and the hint says they are paid in cash.
 
 ## Open questions
 
-1. **Funds.** TD delivers shares of an exchange-traded fund, and the model's asset kinds are equity, equity index and strategy index. Delivery needs either a fund kind or `equity` read to include fund shares. The proposal leaves delivery on `equity` first, as the smallest step, which excludes TD's underlier.
-2. **Should the interface state a share count that is not whole?** The formula gives 11.1111 where a holder receives 11 and cash. The proposal shows the count to four decimal places, as TD does, and states that fractions are paid in cash.
-3. **Should the strike be a term of its own?** The model reaches a classic strike of 80% through a buffer of 20% and a rate of 125%. That needs no new field, and it is the same arithmetic, but a reader looking for a strike will not find one. The proposal keeps the model as it is and explains the equivalence in the book and a hint. A named strike would state the same thing twice.
+1. **Funds.** TD delivers shares of an exchange-traded fund, and the model's asset kinds are equity, equity index and strategy index. Delivering one needs a fund kind, or `equity` read to include fund shares.
+2. **A named strike.** A reader looking for a strike will not find one in the structure. If that proves confusing, it could be a term that states the buffer and rate together.
+3. **A delivery on a rise**, such as the ELKS, is not modelled.

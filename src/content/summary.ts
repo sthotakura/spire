@@ -166,6 +166,13 @@ export function summarize(note: Product): SummarySegment[] {
         ]),
   ]
 
+  // Delivery is how the product pays, not part of what it pays, so it is a sentence of its own.
+  const settling: SummarySegment[] = note.settlement !== 'delivery' ? [] : [
+    { text: ' Where the holder bears a fall, it ' },
+    { text: `delivers shares of ${basket ? 'the worst asset' : note.underlier.components[0].asset.name}`, concept: 'settlement' },
+    { text: '.' },
+  ]
+
   const term = termPhrase(note.term.months)
   return [
     { text: term.article },
@@ -178,5 +185,6 @@ export function summarize(note: Product): SummarySegment[] {
     ...features,
     { text: '.' },
     ...couponing,
+    ...settling,
   ]
 }

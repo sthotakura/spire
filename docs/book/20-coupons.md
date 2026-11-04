@@ -151,7 +151,7 @@ modelled on, on synthetic indices:
 
 ## What is not modelled
 
-A fixed and a contingent coupon on one product, a coupon barrier that steps, a coupon barrier set differently for each asset, an annualised return over payments made on several dates, payment dates, and settlement by delivery of the underlier.
+A fixed and a contingent coupon on one product, a coupon barrier that steps, a coupon barrier set differently for each asset, an annualised return over payments made on several dates, and payment dates. A coupon is always paid in cash, even on a product that delivers shares at the end of its term ([Settlement](22-settlement.md)).
 
 ## Related concepts
 

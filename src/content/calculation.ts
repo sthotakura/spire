@@ -1,5 +1,6 @@
-import { annualisedReturn, downsideOf, type BarrierAbsoluteReturn, finalLevelFrom, initialLevelFrom, upsideOf, type BasketBreakdown, type ParticipationDirection, type PaymentBreakdown, type Product, type SingleProduct } from '../domain/note'
+import { annualisedReturn, deliveryFrom, downsideOf, type BarrierAbsoluteReturn, finalLevelFrom, initialLevelFrom, upsideOf, type BasketBreakdown, type ParticipationDirection, type PaymentBreakdown, type Product, type SingleProduct } from '../domain/note'
 import type { ConceptId } from './concepts'
+import { deliveryStep } from './settlement'
 
 export interface CalculationStep {
   n: number
@@ -231,6 +232,7 @@ export function calculationSteps(note: Product, breakdown: PaymentBreakdown, obs
   ].filter(Boolean)
   const combine = limits.length ? `${formatAmount(b.uncappedPayment)}, ${limits.join(' and ')}` : `Same as the payment before minimum`
   steps.push({ title: 'Payment at maturity', how: combine, value: formatAmount(b.payment), result: true })
+  if (note.settlement === 'delivery') steps.push(deliveryStep(note, deliveryFrom(note, b, basket ? basket.levels.final : finalLevelFrom(note.underlier.determination.final, observedLevels), basket)))
   // Derived from the term, as issuers state an annual yield beside each payment. It is not a term of the product.
   const years = note.term.months / 12
   steps.push({ title: 'Annualised return', how: `(${formatAmount(b.payment)} ÷ ${formatAmount(principal)})^(1 ÷ ${formatAmount(years)} ${years === 1 ? 'year' : 'years'}) − 1`, value: `${twoDecimalPercent(annualisedReturn(b.payment, principal, note.term.months))} a year` })

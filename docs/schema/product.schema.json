@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://sthotakura.github.io/spire/product.schema.json",
   "title": "SPIRe product",
-  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A digital return is for notes only, is less than any cap, and cannot be combined with an upside barrier, barrier absolute return or a minimum return.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- The term must hold a whole number of periods of each schedule: at least two for an autocall or an issuer call, and at least one for a coupon.\n- An autocall, an issuer call or a contingent coupon cannot be combined with a barrier observed on every close.\n- Memory needs a coupon barrier: a fixed coupon, which has none, is paid on every review.\n- An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The first review of an autocall or an issuer call is a whole number of periods in, and leaves at least one review that can call.",
+  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- A digital return is for notes only, is less than any cap, and cannot be combined with an upside barrier, barrier absolute return or a minimum return.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- The term must hold a whole number of periods of each schedule: at least two for an autocall or an issuer call, and at least one for a coupon.\n- An autocall, an issuer call or a contingent coupon cannot be combined with a barrier observed on every close.\n- Memory needs a coupon barrier: a fixed coupon, which has none, is paid on every review.\n- Delivery needs downside participation; one stock or a worst-of basket of stocks; a final level on the final date; no principal protection; and downside rate × (1 − buffer) of at most 1.\n- An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The first review of an autocall or an issuer call is a whole number of periods in, and leaves at least one review that can call.",
   "type": "object",
   "properties": {
     "wrapper": {
@@ -39,6 +39,15 @@
         }
       ],
       "description": "A coupon on each review of its own schedule, with any redemption: fixed, paid on every review, or contingent, paid on a review that meets its barrier."
+    },
+    "settlement": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/Settlement"
+        }
+      ],
+      "description": "How the product pays where the holder bears a fall: in cash, or by delivering shares of the underlier. Absent means cash. The share count follows from the principal, the downside rate and the initial level, so it is not a term.",
+      "default": "cash"
     },
     "underlier": {
       "$ref": "#/definitions/Underlier"
@@ -195,6 +204,78 @@
       "payoff": {
         "participations": []
       }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 33
+      },
+      "redemption": "bullet",
+      "underlier": {
+        "kind": "basket",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity",
+              "name": "Stock A"
+            }
+          },
+          {
+            "asset": {
+              "kind": "equity",
+              "name": "Stock B"
+            }
+          },
+          {
+            "asset": {
+              "kind": "equity",
+              "name": "Stock C"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "levels": [
+              {
+                "asset": "Stock A",
+                "level": 100
+              },
+              {
+                "asset": "Stock B",
+                "level": 100
+              },
+              {
+                "asset": "Stock C",
+                "level": 100
+              }
+            ]
+          },
+          "final": {
+            "kind": "final-date"
+          },
+          "basketReturn": {
+            "kind": "worst-of"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "buffer": 0.2,
+            "rate": 1.25
+          }
+        ]
+      },
+      "coupon": {
+        "schedule": {
+          "frequency": "quarterly"
+        },
+        "rate": 0.1
+      },
+      "settlement": "delivery"
     },
     {
       "wrapper": "note",
@@ -1561,6 +1642,14 @@
       ],
       "additionalProperties": false,
       "description": "Interest paid on each review of the coupon's own schedule, including those before a call's first review and the last, until the product ends. With a barrier the coupon is contingent: a review pays only when the underlier's level is at or above it. Without one the coupon is fixed: every review pays, whatever the underlier does, and no level is read for it. A product called on a date that is also a coupon review pays that review's coupon with the call, if the review pays one."
+    },
+    "Settlement": {
+      "type": "string",
+      "enum": [
+        "cash",
+        "delivery"
+      ],
+      "description": "How the product pays where the holder bears a fall. Cash pays the amount. Delivery hands over shares of the underlier, worth that amount on the final date, and any cash the amount needs beside them. A coupon, a call and a payment of principal or more stay in cash."
     },
     "Underlier": {
       "oneOf": [

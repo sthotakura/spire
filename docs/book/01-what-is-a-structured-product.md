@@ -70,8 +70,8 @@ next call pays, is what sellers call a “snowball autocall”; one issuer calls
 autocallable note with a “step-up premium”. A fixed coupon in place of a share
 in a rise is a “reverse convertible” when the holder bears the fall below a
 strike, and a “barrier reverse convertible” when that waits for a barrier. An
-issuer may pay these in cash or in shares of the underlier; the reference shows
-the value on the final date. A strike below the initial level appears here as a
+issuer may pay these in cash or in shares of the underlier, which the
+[Settlement](22-settlement.md) chapter explains. A strike below the initial level appears here as a
 buffer and a rate: a strike of 80% is a 20% buffer at a rate of 1 ÷ 0.8. An unprotected
 autocall that pays contingent coupons instead of a share in a rise, with a
 downside barrier, is what the Swiss taxonomy calls an Express certificate. A note whose downside barrier leaves

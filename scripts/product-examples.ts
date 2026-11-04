@@ -19,8 +19,18 @@ const note = (payoff: Product['payoff'], overrides: Partial<Product> = {}): Prod
   ...overrides,
 })
 
+const stocks = (...names: string[]): Product['underlier'] => ({
+  kind: 'basket',
+  components: names.map((name) => ({ asset: { kind: 'equity' as const, name } })),
+  determination: { initial: { kind: 'given', levels: names.map((name) => ({ asset: name, level: 100 })) }, final: { kind: 'final-date' }, basketReturn: { kind: 'worst-of' } },
+})
+
 export const productExamples: ReadonlyArray<readonly [string, Product]> = [
   ['the starting note, which only repays principal', startingProduct],
+  [
+    'settled by delivery: a fixed coupon, and shares of the worst of three stocks below a strike of 80%',
+    note({ participations: [{ direction: 'downside', buffer: 0.2, rate: 1.25 }] }, { term: { months: 33 }, coupon: { schedule: { frequency: 'quarterly' }, rate: 0.1 }, settlement: 'delivery', underlier: stocks('Stock A', 'Stock B', 'Stock C') }),
+  ],
   ['both participations with principal protection', note({ participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1.5 }], principalProtection: 0.9 })],
   ['a buffer on the downside and a cap on the upside', note({ participations: [{ direction: 'downside', buffer: 0.1, rate: 1 }, { direction: 'upside', rate: 1, cap: 0.2 }] })],
   [

@@ -19,6 +19,12 @@ const worstOf = (...names: string[]): Underlier => ({
   components: names.map((name) => ({ asset: index(name) })),
   determination: { initial: { kind: 'given', levels: names.map((asset) => ({ asset, level: 100 })) }, final: { kind: 'final-date' }, basketReturn: { kind: 'worst-of' } },
 })
+// A worst-of basket of synthetic stocks, each starting at 100, as a product that delivers one of them needs.
+const worstOfStocks = (...names: string[]): Underlier => ({
+  kind: 'basket',
+  components: names.map((name) => ({ asset: { kind: 'equity' as const, name } })),
+  determination: { initial: { kind: 'given', levels: names.map((asset) => ({ asset, level: 100 })) }, final: { kind: 'final-date' }, basketReturn: { kind: 'worst-of' } },
+})
 // An equally weighted basket of synthetic stocks, each starting at 100, whose final level is the average of several observed levels.
 const averagedBasket = (names: string[], observationCount: number): Underlier => ({
   kind: 'basket',
@@ -218,6 +224,34 @@ export const sampleGroups: SampleGroup[] = [
         product: product(120, { participations: [{ direction: 'downside', buffer: 0.4, rate: 1 }] }, {
           redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, firstReviewMonth: 12, triggerStep: 0, callAmount: 0.17, callAmountBasis: 'per-year', callOnFinalReview: true },
           underlier: { kind: 'single', components: [{ asset: { kind: 'strategy-index', name: 'Synthetic Strategy Index' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },
+        }),
+      },
+    ],
+  },
+  {
+    label: 'Reverse convertibles',
+    samples: [
+      // A strike of 80% is a buffer of 20% at a rate of 1 ÷ 0.8, so the holder bears the fall below the strike, and from it is delivered 1,000 ÷ 80.
+      {
+        slug: 'worst-of-reverse-convertible',
+        name: 'Worst-of reverse convertible',
+        source: { title: 'Vontobel reverse convertible on three stocks, SSPA 1220, 2024', url: 'https://data.payoff.ch/termsheets/CH1400444175_en_20250617_193023.pdf', note: 'The filing’s underliers are three stocks. It rounds each strike to the penny, and its first coupon is 2.5278% for a slightly longer first period. It may pay cash instead of shares.' },
+        product: product(33, { participations: [{ direction: 'downside', buffer: 0.2, rate: 1.25 }] }, {
+          coupon: { schedule: { frequency: 'quarterly' }, rate: 0.1 },
+          settlement: 'delivery',
+          underlier: worstOfStocks('Stock A', 'Stock B', 'Stock C'),
+        }),
+      },
+      // The filing's first call observation is in month 6, and its valuation date, in month 24, is not a call.
+      {
+        slug: 'autocallable-worst-of-barrier-reverse-convertible',
+        name: 'Autocallable worst-of barrier reverse convertible',
+        source: { title: 'Credit Suisse autocallable reverse convertible on two stocks, 2022', url: 'https://www.sec.gov/Archives/edgar/data/1053092/000095010322016505/dp181209_424b2-f2006.htm', note: 'The filing’s underliers are two stocks. Its coupon is stated as $11.667 a month, 14% a year rounded up. It may pay cash instead of shares.' },
+        product: product(24, { participations: [{ direction: 'downside', barrier: { level: 0.45, observation: 'final' }, rate: 1 }] }, {
+          redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 6, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false },
+          coupon: { schedule: { frequency: 'monthly' }, rate: 0.14 },
+          settlement: 'delivery',
+          underlier: worstOfStocks('Stock A', 'Stock B'),
         }),
       },
     ],

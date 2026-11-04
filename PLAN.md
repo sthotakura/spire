@@ -519,7 +519,7 @@ The Scenarios tab under the chart listed fixed final levels (−40%, 0, +10%, +3
 
 ## 43. Propose settlement
 
-Settlement is the form a payment takes: cash, or delivery of shares of the underlier. Barrier and buffer reverse convertibles, the classic form and one exchangeable note were read for it, and nothing is built. The proposal, the sources and the open questions are in [docs/settlement.md](docs/settlement.md). It reverses the decision that settlement belongs with issuance, so it waits for agreement.
+Settlement is the form a payment takes: cash, or delivery of shares of the underlier. Barrier and buffer reverse convertibles, the classic form and one exchangeable note were read for it; section 45 built it. The proposal, the sources and the open questions are in [docs/settlement.md](docs/settlement.md). It reverses the decision that settlement belongs with issuance, so it waits for agreement.
 
 - **Finding.** In a reverse convertible, delivery appears only where the holder bears a fall, whatever the coupon, call or wrapper. The classic form has no barrier: below its strike, which is often under the initial level, it delivers shares. The model already states its payment, with a buffer and a rate for a strike below the initial level. Its share count and any cash follow from the rate and the buffer: shares = principal × rate ÷ initial level, and cash = principal × (1 − rate × (1 − buffer)). This reproduces the barrier, buffer, geared buffer and classic patterns, and the payment does not change.
 - **Agreed model.** `settlement?: 'cash' | 'delivery'` as a term on the product. No share count, rounding or cash election.
@@ -531,7 +531,19 @@ Two name chips, independent of settlement: Reverse convertible (SSPA 1220), a fi
 
 - **A strike is read from the terms.** A strike at the initial level is rate 1 with no buffer or barrier; one below it is a buffer at a rate of 1 ÷ (1 − buffer).
 - **Samples.** Both fixed coupon autocallable samples with a downside barrier now show Barrier reverse convertible. No sample shows Reverse convertible.
-- **Not done:** a name for a buffer at rate 1, a contingent coupon form, or a sample of the classic form.
+- **Not done:** a name for a buffer at rate 1, or a contingent coupon form.
+
+## 45. Add delivery
+
+`settlement?: 'cash' | 'delivery'` on the product. The payment does not change: `deliveryFrom` reports the shares and any cash beside them, derived from the principal, the downside rate, the buffer and the initial level.
+
+- **Stocks only.** One stock or a worst-of basket of stocks, with downside participation, a final level on the final date, no principal protection, and downside rate × (1 − buffer) of at most 100%.
+- **Cash stays cash.** A coupon, a call, a payment of principal or more, a fall within a buffer or paid as a gain, and a digital return's floor.
+- **Interface.** A Settlement row beside the coupon. The summary, the outcome, the delivery rule and a calculation step state the shares. The chart keeps drawing value, and its description says so.
+- **Samples.** Worst-of reverse convertible (Vontobel) and Autocallable worst-of barrier reverse convertible (Credit Suisse).
+- **Book.** Chapter 22, with a chart.
+- **A fix found on the way.** A final level exactly on a downside barrier could count as reached through floating-point noise, on a basket at 14 of the 99 whole-percent levels. Levels are rounded to nine decimals.
+- **Not done:** funds, a named strike, rounding to whole shares, the issuer's cash option, and a delivery on a rise.
 
 ## Later direction: a composable form
 

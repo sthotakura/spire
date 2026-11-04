@@ -474,6 +474,13 @@ export interface Coupon {
  */
 export type Wrapper = 'note' | 'deposit'
 
+// See docs/settlement.md.
+/**
+ * How the product pays where the holder bears a fall. Cash pays the amount. Delivery hands over shares of the underlier, worth that
+ * amount on the final date, and any cash the amount needs beside them. A coupon, a call and a payment of principal or more stay in cash.
+ */
+export type Settlement = 'cash' | 'delivery'
+
 /** A structured product, composed of a wrapper, a term, an underlier and a payoff. */
 export interface Product {
   wrapper: Wrapper
@@ -490,6 +497,12 @@ export interface Product {
    * meets its barrier.
    */
   coupon?: Coupon
+  /**
+   * How the product pays where the holder bears a fall: in cash, or by delivering shares of the underlier. Absent means cash. The share
+   * count follows from the principal, the downside rate and the initial level, so it is not a term.
+   * @default "cash"
+   */
+  settlement?: Settlement
   underlier: Underlier
   /** The rules that turn the underlier's change into the maturity payment. With no features the product repays principal. */
   payoff: {
@@ -526,7 +539,7 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
     ? { direction: 'downside', buffer, barrier, absoluteReturn, rate: participation.rate }
     : { direction: 'upside', barrier: upsideBarrier, rate: participation.rate, cap })
 
-export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'digitalReturn' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'firstReviewMonth' | 'triggerStep' | 'callAmount' | 'coupon' | 'couponSchedule'
+export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'digitalReturn' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'firstReviewMonth' | 'triggerStep' | 'callAmount' | 'coupon' | 'couponSchedule' | 'settlement'
 
 // A barrier as an underlier level: its fraction of the level the return is measured from. Rounded to nine decimals, because
 // 1.1 × 100 is 110.00000000000001 in floating point, which would put a final level of 110 on the wrong side of a barrier at 110%.
@@ -757,6 +770,27 @@ function couponIssues(note: Product): ProductIssue[] {
   return issues
 }
 
+// Rate × (1 − buffer) does not always reach exactly 1 in floating point: 1 ÷ 0.9 × 0.9 is one such case.
+const deliveryTolerance = 1e-9
+
+// A delivery is shares at the final level plus fixed cash, so it needs one asset to deliver, whose close is what the payment reads. The
+// full reasons are in docs/settlement.md.
+function settlementIssues(note: Product): ProductIssue[] {
+  if (note.settlement !== 'delivery') return []
+  const issues: ProductIssue[] = []
+  const downside = downsideOf(note)
+  if (downside === undefined) issues.push({ field: 'settlement', message: 'Delivery needs downside participation: without it no fall is borne, so nothing would be delivered.' })
+  // Any asset of a worst-of basket can end up the worst, so each must be deliverable.
+  const { underlier } = note
+  if (underlier.components.some(({ asset }) => asset.kind !== 'equity')) issues.push({ field: 'settlement', message: 'Delivery needs stocks: an index cannot be delivered.' })
+  if (underlier.kind === 'basket' && underlier.determination.basketReturn.kind !== 'worst-of') issues.push({ field: 'settlement', message: 'Delivery needs one stock or a worst-of basket, so that one asset is delivered.' })
+  if (underlier.determination.final.kind === 'averaging') issues.push({ field: 'settlement', message: 'Delivery cannot read an averaged final level: shares are worth their close, not an average.' })
+  // A floor is not a share count and fixed cash, and no public note read has both.
+  if ((note.payoff.principalProtection ?? 0) > 0) issues.push({ field: 'settlement', message: 'Delivery cannot be combined with principal protection.' })
+  if (downside !== undefined && downside.rate * (1 - (downside.buffer ?? 0)) > 1 + deliveryTolerance) issues.push({ field: 'settlement', message: 'Delivery needs downside rate × (1 − buffer) to be at most 100%: above it the holder would owe the issuer cash.' })
+  return issues
+}
+
 // The coupon each review pays, when it meets the barrier or for a fixed coupon always, as an amount: principal × rate × the months between coupon reviews ÷ 12.
 export const couponPerReview = (note: Product): number =>
   note.coupon?.schedule === undefined ? 0 : (note.principalAmount * note.coupon.rate * monthsPerReview[note.coupon.schedule.frequency]) / 12
@@ -835,7 +869,7 @@ export function productIssues(note: Product): ProductIssue[] {
     if (bothWays !== undefined) issues.push({ field: 'digitalReturn', message: 'A digital return cannot be combined with absolute return in both directions.' })
     if (note.payoff.minimumReturn !== undefined) issues.push({ field: 'digitalReturn', message: 'A digital return cannot be combined with a minimum return.' })
   }
-  issues.push(...redemptionIssues(note), ...couponIssues(note))
+  issues.push(...redemptionIssues(note), ...couponIssues(note), ...settlementIssues(note))
   // A deposit is repaid in full, so nothing may take the payment below principal, and principal needs no protection term.
   if (note.wrapper === 'deposit' && downsideOf(note)) issues.push({ field: 'participations', message: 'A deposit repays principal in full, so it cannot have downside participation.' })
   if (note.wrapper === 'deposit' && protection !== undefined) issues.push({ field: 'principalProtection', message: 'A deposit repays principal in full, so it has no principal protection term.' })
@@ -880,6 +914,10 @@ export function finalLevelFrom(determination: FinalDetermination, observedLevels
 
 // A basket's level starts here, as public notes state it, so the payoff reads a basket as it reads a single asset's levels.
 export const basketStartingLevel = 100
+
+// A basket's level from its return. Rounded to nine decimals as barrierLevelAt is, because 100 × (1 + (8 ÷ 100 − 1)) is
+// 7.9999999999999964 in floating point, which would put an asset that ended exactly on a barrier at 8% below it.
+const basketLevelAt = (basketReturn: number) => Math.round(basketStartingLevel * (1 + basketReturn) * 1e9) / 1e9
 
 export interface ComponentPerformance {
   asset: string
@@ -927,7 +965,7 @@ export function basketBreakdown(underlier: BasketUnderlier, observedLevels: numb
     return { asset: asset.name, weight, initialLevel, observedLevels: observedLevels[index], finalLevel, componentReturn: finalLevel / initialLevel - 1 }
   })
   const basketReturn = basketReturnFrom(rule.kind, components)
-  return { rule: rule.kind, components, basketReturn, levels: { initial: basketStartingLevel, final: basketStartingLevel * (1 + basketReturn) } }
+  return { rule: rule.kind, components, basketReturn, levels: { initial: basketStartingLevel, final: basketLevelAt(basketReturn) } }
 }
 
 // The basket's level on one date, from the level of each asset on it, in the order of the components. The same rule as
@@ -942,7 +980,7 @@ export function basketLevelFrom(underlier: BasketUnderlier, levels: number[]): n
     const initialLevel = initial.levels.find((term) => term.asset === asset.name)!.level
     return { asset: asset.name, weight, initialLevel, observedLevels: [levels[index]], finalLevel: levels[index], componentReturn: levels[index] / initialLevel - 1 }
   })
-  return basketStartingLevel * (1 + basketReturnFrom(rule.kind, components))
+  return basketLevelAt(basketReturnFrom(rule.kind, components))
 }
 
 // How the two barriers of barrier absolute return stand: each as an underlier level and whether it is reached, and whether either is,
@@ -1036,7 +1074,7 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
   const buffer = downsideOf(note)?.buffer
   const bufferAbsorbs = buffer === undefined ? undefined : Math.min(buffer, Math.max(0, -underlierReturn))
   const barrier = downsideOf(note)?.barrier
-  const barrierLevel = barrier === undefined ? undefined : barrier.level * levels.initial
+  const barrierLevel = barrier === undefined ? undefined : barrierLevelAt(barrier.level, levels.initial)
   const barrierReached = barrierLevel === undefined ? undefined : (barrier!.observation === 'daily-close' ? lowestClose : levels.final) < barrierLevel
   // At or above the barrier, downside participation does not apply, so a fall leaves principal unchanged.
   const barrierHolds = direction === 'downside' && barrierReached === false
@@ -1110,6 +1148,43 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
     floor,
     floorApplies: floor > unflooredPayment,
     payment: Math.max(floor, unflooredPayment),
+  }
+}
+
+// What a delivery hands over: shares of one asset, and any cash beside them. Shares × the asset's final level + cash is the payment.
+export interface Delivery {
+  asset: string
+  shares: number
+  cash: number
+  // The asset's own initial level, which the count divides by, and the level it ended on, which the shares are worth.
+  initialLevel: number
+  finalLevel: number
+}
+
+// What the holder receives in shares, or undefined when the payment is in cash. It reads the breakdown and changes nothing in it: the
+// payment is the same however it is settled. Downside participation has to set the payment, so a fall within a buffer, one that ends at
+// or above a barrier, one paid as a gain, and one a digital return's floor covers all pay in cash. A basket's asset comes from its
+// breakdown. The product must also have ended at the end of the term, which a caller with a call knows.
+//
+// shares = principal × rate ÷ initial level, and cash = principal × (1 − rate × (1 − buffer)), which rearranges the payment
+// principal × (1 − rate × (fall − buffer)) into an amount that moves with the final level and one that does not. See docs/settlement.md.
+export function deliveryFrom(note: Product, breakdown: PaymentBreakdown, finalLevel: number, basket?: BasketBreakdown): Delivery | undefined {
+  const downside = downsideOf(note)
+  if (note.settlement !== 'delivery' || downside === undefined) return undefined
+  const buffer = downside.buffer ?? 0
+  // Comparing levels keeps 85 ÷ 100 − 1 from falling just outside a 15% buffer, as the absolute return does.
+  const beyondBuffer = finalLevel < barrierLevelAt(1 - buffer, breakdown.initialLevel)
+  if (!beyondBuffer || breakdown.barrierReached === false || breakdown.absoluteReturnApplies || breakdown.floorApplies) return undefined
+  const worst = basket?.components.reduce((lowest, component) => (component.componentReturn < lowest.componentReturn ? component : lowest))
+  const initialLevel = worst?.initialLevel ?? breakdown.initialLevel
+  const beside = 1 - downside.rate * (1 - buffer)
+  return {
+    asset: worst?.asset ?? note.underlier.components[0].asset.name,
+    shares: (note.principalAmount * downside.rate) / initialLevel,
+    // An upside barrier observed daily can pay its rebate beside a fall, and it is cash.
+    cash: note.principalAmount * ((Math.abs(beside) <= deliveryTolerance ? 0 : beside) + breakdown.upsideTerm),
+    initialLevel,
+    finalLevel: worst?.finalLevel ?? finalLevel,
   }
 }
 
