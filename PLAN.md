@@ -517,6 +517,14 @@ The Scenarios tab under the chart listed fixed final levels (−40%, 0, +10%, +3
 - **What was given up:** several outcomes side by side, with exact payments on each side of a jump, and a text form of the whole line. The chart description sentence still states the shape in words.
 - **Where it could return:** a table of hypothetical payments, in the shape public filings use (final level, underlier return, payment), belongs with a fixed worked example in a book chapter, as chapter 19's tables do, or in a view of its own. Not beside the calculation.
 
+## 43. Propose settlement
+
+Settlement is the form a payment takes: cash, or delivery of shares of the underlier. Nine public documents were read for it, and nothing is built. The proposal, the sources and the open questions are in [docs/settlement.md](docs/settlement.md). It reverses the decision that settlement belongs with issuance, so it waits for agreement.
+
+- **Finding.** Delivery appears only where the holder bears a fall, whatever the coupon, call or wrapper. Its share count and any cash follow from the rate and the buffer: shares = principal × rate ÷ initial level, and cash = principal × (1 − rate × (1 − buffer)). This reproduces the filings' barrier, buffer and geared buffer patterns, and the payment does not change.
+- **Proposed model.** `settlement?: 'cash' | 'delivery'` on downside participation. No share count, rounding or cash election.
+- **Still to decide.** Whether delivery counts as structure, where the term goes, whether the "Reverse convertible" name still depends on it, and how fund shares are treated.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.
