@@ -271,6 +271,53 @@ starting value. It repays principal between 80% and 100%, and loses one for one 
 the two barriers fit the reference, but participation that starts at a level above the initial level is not a
 feature of it, so the note is not a sample.
 
+## Leverage above a digital return
+
+A digital return beside leveraged upside participation can be written two ways,
+with different payments. The difference is what the rise is measured from.
+
+**From the initial level**, the rate applies to the whole rise, and the digital
+return is a minimum beneath it. The payment is the greater of the two. This is
+the form above.
+
+**From the digital return**, the payment stays at the digital return until the
+underlier has risen by that much, and the rate applies only to the rise beyond
+that level, added to the digital return. That level is 100% plus the digital
+return. Issuers state it as a term of the note, the upside leverage threshold or
+the upside threshold value. A public note with a 56% digital return pays 56%
+from 100 to 156, and above 156 it pays the 56% plus 150% of the rise beyond 156:
+`$1,000 + ($1,000 × Contingent Digital Return) + [$1,000 × (Return − Contingent Digital Return) × Upside Leverage Factor]`.
+The [worst-of digital note with leverage above the digital return](https://sthotakura.github.io/spire/?example=worst-of-digital-note-with-leverage-above-the-digital-return) follows it.
+
+Assume principal of 1,000, an index that starts at 100, 150% upside
+participation, a 20% digital return with its barrier at 100%, and a 70% downside
+barrier at 100% downside participation. The threshold is 120.
+
+| Final level | From the digital return | From the initial level |
+| ---: | ---: | ---: |
+| 69 | 690 | 690 |
+| 70 | 1,000 | 1,000 |
+| 99 | 1,000 | 1,000 |
+| 100 | 1,200 | 1,200 |
+| 110 | 1,200 | 1,200 |
+| 120 | 1,200 | 1,300 |
+| 140 | 1,500 | 1,600 |
+| 160 | 1,800 | 1,900 |
+
+![Payoff with 150% upside participation measured from a 20% digital return at or above 100%, and a 70% downside barrier, at a final level of 140](charts/digital-return-leverage.svg)
+
+From the digital return, the line leaves the floor at 120, with no jump. From the
+initial level it leaves at about 113.33, where 150% of the rise overtakes 20%,
+which is not a term of the note. From 120 up the gap is a constant 100: principal
+× digital return × (rate − 1). At a rate of 100% there is no gap, and the two are
+the same payoff.
+
+In every note the reference has read, the threshold is 100% plus the digital
+return, so the reference works it out and it is not a term of its own. A flat
+range with no digital return, or a threshold at another level, cannot be written.
+No public note read has a cap with this form. The reference allows one, and it
+limits the whole payment.
+
 ## In the builder
 
 The [Capped barrier note](https://sthotakura.github.io/spire/?example=capped-barrier-note) has a final-date barrier at

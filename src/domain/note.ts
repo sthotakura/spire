@@ -104,9 +104,20 @@ export interface UpsideBarrier {
   rebate?: number
 }
 
+/**
+ * What a rise is measured from. The initial level shares the whole rise. The digital return shares only the rise beyond 100% plus the
+ * digital return, the level at which the rise equals the digital return, and adds that share to the digital return.
+ */
+export type UpsideMeasure = 'initial-level' | 'digital-return'
+
 /** Participation in a rise of the underlier. Its barrier and cap are features that only make sense with it. */
 export interface UpsideParticipation {
   direction: 'upside'
+  /**
+   * What the rise is measured from. Absent means the initial level. The digital return needs a digital return on the payoff.
+   * @default "initial-level"
+   */
+  measuredFrom?: UpsideMeasure
   /** Upside participation applies while the observed level is at or below this barrier, and ends above it. */
   barrier?: UpsideBarrier
   /**
@@ -534,10 +545,10 @@ export const downsideOf = (note: Product) => note.payoff.participations.find((pa
 export const upsideOf = (note: Product) => note.payoff.participations.find((participation): participation is UpsideParticipation => participation.direction === 'upside')
 
 // Puts a buffer, barrier or absolute return on downside participation and a barrier or cap on upside participation. Each is dropped when its direction is absent.
-export const withSubFeatures = (participations: Participation[], { buffer, barrier, absoluteReturn, upsideBarrier, cap }: { buffer?: number; barrier?: Barrier; absoluteReturn?: AbsoluteReturn; upsideBarrier?: UpsideBarrier; cap?: number }): Participation[] =>
+export const withSubFeatures = (participations: Participation[], { buffer, barrier, absoluteReturn, upsideBarrier, cap, measuredFrom }: { measuredFrom?: UpsideMeasure; buffer?: number; barrier?: Barrier; absoluteReturn?: AbsoluteReturn; upsideBarrier?: UpsideBarrier; cap?: number }): Participation[] =>
   participations.map((participation) => participation.direction === 'downside'
     ? { direction: 'downside', buffer, barrier, absoluteReturn, rate: participation.rate }
-    : { direction: 'upside', barrier: upsideBarrier, rate: participation.rate, cap })
+    : { direction: 'upside', ...(measuredFrom === undefined ? {} : { measuredFrom }), barrier: upsideBarrier, rate: participation.rate, cap })
 
 export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'digitalReturn' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'firstReviewMonth' | 'triggerStep' | 'callAmount' | 'coupon' | 'couponSchedule' | 'settlement'
 
@@ -856,6 +867,7 @@ export function productIssues(note: Product): ProductIssue[] {
     }
   }
   const digital = note.payoff.digitalReturn
+  if (upsideOf(note)?.measuredFrom === 'digital-return' && digital === undefined) issues.push({ field: 'participations', message: 'Upside participation measured from the digital return needs a digital return.' })
   if (digital !== undefined) {
     const { amount, barrier: digitalBarrier } = digital
     if (!Number.isFinite(amount) || amount <= 0) issues.push({ field: 'digitalReturn', message: 'Digital return must be greater than zero.' })
@@ -1027,6 +1039,8 @@ export interface PaymentBreakdown {
   barrierAbsolute?: BarrierAbsoluteBreakdown
   // Undefined when the note has no digital return.
   digitalReturn?: DigitalReturnBreakdown
+  // The level beyond which upside participation measured from the digital return applies. Undefined when it is measured from the initial level.
+  upsideThresholdLevel?: number
   // Undefined when the note has no absolute return. Otherwise whether the fall is paid as a gain: within the buffer, or ending
   // at or above the barrier.
   absoluteReturnApplies?: boolean
@@ -1102,7 +1116,14 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
   // The upside term is the rebate, or nothing, once the upside barrier is reached, and the participated rise otherwise. The downside
   // term is the fall's gain, nothing when the downside barrier holds, or the participated fall. Each side keeps its own rule, so an
   // upside barrier observed daily and reached early ends the upside whatever the final level, and a fall still gets its downside term.
-  const upsideTerm = upsideBarrierReached ? upsideBarrier!.rebate ?? 0 : direction === 'upside' ? (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0)) : 0
+  // Measured from the digital return, a rise pays nothing of its own until it passes the digital return. Beyond that level it pays the
+  // digital return and the rate on the rest, so the line leaves the digital floor at that level without a jump.
+  const digitalMeasure = upsideOf(note)?.measuredFrom === 'digital-return' ? note.payoff.digitalReturn?.amount : undefined
+  const upsideThresholdLevel = digitalMeasure === undefined ? undefined : barrierLevelAt(1 + digitalMeasure, levels.initial)
+  const upsideTerm = upsideBarrierReached ? upsideBarrier!.rebate ?? 0
+    : direction !== 'upside' ? 0
+      : digitalMeasure !== undefined ? (levels.final > upsideThresholdLevel! ? digitalMeasure + (participationRate ?? 0) * (underlierReturn - digitalMeasure) : 0)
+        : (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0))
   const downsideTerm = direction !== 'downside' ? 0 : absoluteReturnApplies ? absoluteReturn!.rate * -underlierReturn : barrierHolds ? 0 : (participationRate ?? 0) * (underlierReturn + (bufferAbsorbs ?? 0))
   const participatedReturn = barrierAbsolute !== undefined ? (barrierAbsolute.reached ? barrierAbsolute.conditionalReturn : bothWays!.rate * Math.abs(underlierReturn))
     : upsideTerm + downsideTerm
@@ -1132,6 +1153,7 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
     barrierReached,
     upsideBarrierLevel,
     upsideBarrierReached,
+    upsideThresholdLevel,
     lowestClose: barrier?.observation === 'daily-close' || bothWays?.lowerBarrier.observation === 'daily-close' ? lowestClose : undefined,
     highestClose: upsideBarrier?.observation === 'daily-close' || bothWays?.upperBarrier.observation === 'daily-close' ? highestClose : undefined,
     barrierAbsolute,

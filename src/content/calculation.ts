@@ -38,6 +38,13 @@ function participationStep(note: Product, breakdown: PaymentBreakdown, direction
   // and the loss the downside's, and the payment is their sum.
   const contribution = knockedOut ? 0 : direction === 'upside' ? (breakdown.direction === 'upside' ? breakdown.upsideTerm : 0) : (breakdown.direction === 'downside' && !breakdown.absoluteReturnApplies ? breakdown.downsideTerm : 0)
   const buffer = direction === 'downside' ? downsideOf(note)?.buffer : undefined
+  const digitalMeasure = direction === 'upside' && breakdown.upsideThresholdLevel !== undefined ? note.payoff.digitalReturn?.amount : undefined
+  if (digitalMeasure !== undefined) {
+    const excess = `${signedPercent(breakdown.underlierReturn)} − ${formatPercent(digitalMeasure)}`
+    return contribution === 0
+      ? { title, how: `${formatPercent(rate)} × max(${excess}, 0) · applies only above ${formatAmount(breakdown.upsideThresholdLevel!)}, 100% plus the digital return`, value: '0%', muted: true, concept: direction }
+      : { title, how: `${formatPercent(digitalMeasure)} + ${formatPercent(rate)} × (${excess}), above ${formatAmount(breakdown.upsideThresholdLevel!)}`, value: signedPercent(contribution), concept: direction }
+  }
   const how = `${formatPercent(rate)} × ${direction === 'upside' ? 'max' : 'min'}(${signedPercent(breakdown.underlierReturn)}${buffer === undefined ? '' : ` + ${formatPercent(buffer)}`}, 0)`
   // The buffer and the barrier belong to downside participation, so only its step gives them as the reason.
   const reason = knockedOut ? 'the upside barrier is reached, so participation ends'

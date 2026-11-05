@@ -35,7 +35,9 @@ export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, s
   }
   if (upside) {
     const barrier = upside.barrier
-    labels.upside = `Each 1% rise${barrier === undefined ? '' : ` up to +${percent(barrier.level - 1)}`} adds ${perPoint(upside.rate)}`
+    const digitalMeasure = upside.measuredFrom === 'digital-return' ? product.payoff.digitalReturn?.amount : undefined
+    labels.upside = digitalMeasure !== undefined ? `Each 1% rise beyond +${percent(digitalMeasure)} adds ${perPoint(upside.rate)}`
+      : `Each 1% rise${barrier === undefined ? '' : ` up to +${percent(barrier.level - 1)}`} adds ${perPoint(upside.rate)}`
     // The rebate, or nothing added, from the barrier level on.
     // Observed on every close, the barrier is reached by any close at the level, so the dashed line is the payment after one did.
     if (barrier !== undefined) {
@@ -45,7 +47,7 @@ export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, s
     }
     // The horizontal axis ends at +100%. A cap reached beyond it is said where it is reached.
     if (upside.cap !== undefined) {
-      const reachedAt = upside.cap / upside.rate
+      const reachedAt = digitalMeasure !== undefined ? digitalMeasure + (upside.cap - digitalMeasure) / upside.rate : upside.cap / upside.rate
       labels.cap = `Capped at ${amount(principal * (1 + upside.cap))}${reachedAt > 1 ? `, reached at +${percent(reachedAt)}` : ''}`
     }
   }

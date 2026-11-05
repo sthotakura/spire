@@ -85,7 +85,9 @@ export function lineStages(note: Product, b: PaymentBreakdown, levels: Determine
       if (b.upsideBarrierReached !== true) settled += b.upsideTerm
       pending = 0
     }
-    add('Upside participation', 'upside', upside === undefined ? 'None: a rise leaves principal unchanged' : `A rise adds ${formatPercent(upside.rate)} of its size`)
+    add('Upside participation', 'upside', upside === undefined ? 'None: a rise leaves principal unchanged'
+      : upside.measuredFrom === 'digital-return' && note.payoff.digitalReturn ? `Beyond the digital return, a rise adds ${formatPercent(upside.rate)} of what lies beyond it, on top of the digital return`
+        : `A rise adds ${formatPercent(upside.rate)} of its size`)
   }
 
   if (upside?.cap !== undefined) {

@@ -123,6 +123,13 @@ export const sampleGroups: SampleGroup[] = [
         source: { title: 'Citigroup Global Markets enhanced barrier digital plus securities on the worst performing of three indices, due 2025', url: 'https://www.sec.gov/Archives/edgar/data/200245/000095010322019230/dp183917_424b2us2209155.htm', note: 'The filing is a preliminary pricing supplement. The 36 months run from pricing to valuation.' },
         product: product(36, { participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }], digitalReturn: { amount: 0.26, barrier: { level: 0.7, observation: 'final' } } }, { underlier: worstOf('Index A', 'Index B', 'Index C') }),
       },
+      // Above 156% the filing pays the digital return and 150% of the rise beyond it, so the rise is measured from the digital return.
+      {
+        slug: 'worst-of-digital-note-with-leverage-above-the-digital-return',
+        name: 'Worst-of digital note with leverage above the digital return',
+        source: { title: 'JPMorgan uncapped digital barrier notes on the lesser performing of two indices, due 2030', url: 'https://www.sec.gov/Archives/edgar/data/19617/000121390025027653/ea0236742-01_424b2.htm' },
+        product: product(60, { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.7, observation: 'final' } }, { direction: 'upside', rate: 1.5, measuredFrom: 'digital-return' }], digitalReturn: { amount: 0.56, barrier: { level: 1, observation: 'final' } } }, { underlier: worstOf('Index A', 'Index B') }),
+      },
       // The filing pays the digital return and nothing more on a rise, so there is no upside participation.
       {
         slug: 'worst-of-fixed-return-barrier-note',

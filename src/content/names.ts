@@ -203,7 +203,7 @@ export function marketingNames(note: Product): MarketingName[] {
     names.push({
       name: 'Leveraged participation note',
       vocabulary: 'US descriptive',
-      reason: `A rise pays ${percentText(upside)} of its size, more than one for one. US investor material calls this a leveraged or enhanced participation rate. The name describes the upside and says nothing about a fall.`,
+      reason: `${upsideOf(note)?.measuredFrom === 'digital-return' ? `Beyond the digital return, a rise pays ${percentText(upside)} of what lies beyond it` : `A rise pays ${percentText(upside)} of its size`}, more than one for one. US investor material calls this a leveraged or enhanced participation rate. The name describes the upside and says nothing about a fall.`,
       concepts: ['upside'],
     })
   }
@@ -258,8 +258,9 @@ function leveragedUpsideNames(note: Product): MarketingName[] {
   const oneForOne = rate === 1
 
   if (digital !== undefined) {
-    // The fixed return is a floor, so at or above a 100% barrier the note pays the greater of it and the leveraged rise.
-    if (!oneForOne || hasCap || buffer !== undefined || barrier !== undefined || absoluteReturn !== undefined || digital.barrier.level !== 1 || digital.barrier.observation !== 'final') return []
+    // The fixed return is a floor, so at or above a 100% barrier the note pays the greater of it and the leveraged rise. Measured from the
+    // digital return the leverage reads only what lies beyond it, which is not the payoff the title describes.
+    if (upside.measuredFrom === 'digital-return' || !oneForOne || hasCap || buffer !== undefined || barrier !== undefined || absoluteReturn !== undefined || digital.barrier.level !== 1 || digital.barrier.observation !== 'final') return []
     return [titled('Leveraged market-linked step up note', `At or above the initial level the payment is the greater of that and a fixed return of ${percentText(digital.amount)}. Below it a fall costs one for one.`, 'Barclays uses the title, where the step-up is a fixed return paid at maturity.', ['upside', 'digital-return'])]
   }
 

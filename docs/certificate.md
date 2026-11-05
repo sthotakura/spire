@@ -49,4 +49,4 @@ Only the open-end certificate differs from a note, and each difference belongs t
 
 1. **Does the reader need Certificate to be selectable?** If yes, it could be offered as another name for the note wrapper, with identical rules, rather than as a wrapper of its own. That would show the name without implying different behaviour.
 2. **The SIX Swiss Exchange describes certificates as bearer debt instruments** in search excerpts, but this was not confirmed on a page that could be read. A primary Swiss source for the legal form would strengthen the first finding.
-3. **A strike below the initial level**, as in the Swiss certificate's 95% strike, is not modelled. It mirrors the open question of upside participation that starts above the initial level ([digital-return.md](digital-return.md), open question 5).
+3. **A strike below the initial level**, as in the Swiss certificate's 95% strike, is not modelled. Upside participation measured from a digital return ([participation-above-digital.md](participation-above-digital.md)) does not cover it, since that level has no number of its own.

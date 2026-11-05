@@ -47,6 +47,10 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     note({ participations: [], barrierAbsoluteReturn: { rate: 1, lowerBarrier: { level: 0.8, observation: 'final' }, upperBarrier: { level: 1.25, observation: 'final' } } }),
   ],
   [
+    'upside participation measured from the digital return: a 56% digital return from the initial level, and 150% of the rise beyond 156%, with a downside barrier at 70%',
+    note({ participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.7, observation: 'final' } }, { direction: 'upside', rate: 1.5, measuredFrom: 'digital-return' }], digitalReturn: { amount: 0.56, barrier: { level: 1, observation: 'final' } } }),
+  ],
+  [
     'a digital return of 26% paid while the worst of three assets is at or above 70% of its initial level, beside 1:1 participation both ways',
     note({ participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }], digitalReturn: { amount: 0.26, barrier: { level: 0.7, observation: 'final' } } }, {
       underlier: {

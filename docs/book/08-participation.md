@@ -25,6 +25,12 @@ At a 100% downside rate, a 20% fall reduces principal by 20%, giving 800
 before any floor. At a 150% downside rate, it reduces principal by 30%, giving
 700. A buffer or barrier can change which fall that rate applies to.
 
+## Where a rise is measured from
+
+A rise is measured from the initial level. Beside a digital return it can instead
+be measured from the digital return, so the rate applies only to the rise beyond
+that level. The [Barrier chapter](12-barrier.md) compares the two.
+
 ## Separate choices
 
 In the synthetic model, upside only means a fall leaves principal unchanged.

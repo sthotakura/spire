@@ -83,6 +83,13 @@ export const slopeLevel = (initialLevel: number, cap?: number, upsideBarrier?: n
 // no upside participation, since the payment can then never reach a cap.
 export const capBindLevel = (initialLevel: number, cap: number, upsideRate?: number) => (upsideRate ? initialLevel * (1 + cap / upsideRate) : undefined)
 
+// Measured from the digital return the sloped part starts at 100% plus the digital return, so the slope handle sits this far beyond it:
+// halfway to the end of the axis, or to half the cap's reach, which keeps it on the slope as above. Zero when the slope starts past the axis.
+export const slopeGapAboveDigital = (digital: number, cap?: number) => Math.max(0, Math.min((levelAxisFactor - 1 - digital) / 2, cap === undefined ? Infinity : (cap - digital) / 2))
+// Dragging that handle sets the rate on the rise beyond the digital return.
+export const upsideRateAboveDigitalFromY = (y: number, principal: number, top: number, plot: Plot, digital: number, gap: number) =>
+  clampUpsideRate(Math.round((dragAmount(y, top, plot) / principal - 1 - digital) / gap * 100 / 5) * 5)
+
 // Dragging the slope handle sets the upside rate, snapped to 5%.
 export const upsideRateFromY = (y: number, principal: number, top: number, plot: Plot, cap?: number, upsideBarrier?: number) => {
   const rate = (dragAmount(y, top, plot) / principal - 1) / slopeReturn(cap, upsideBarrier) * 100

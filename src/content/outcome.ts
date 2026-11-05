@@ -68,6 +68,12 @@ export function explainOutcome(note: Product, breakdown: PaymentBreakdown): stri
   }
   else if (direction === 'upside' && upsideBarrierReached === false && highestClose !== undefined) participation = `No close was above the ${units(upsideBarrierLevel ?? 0)} upside barrier (the highest was ${units(highestClose)}), so upside participation of ${percent(participationRate)} adds ${percent(upsideTerm)} to principal.`
   else if (direction === 'upside' && upsideBarrierReached === false) participation = `It ended at or below the ${units(upsideBarrierLevel ?? 0)} upside barrier, so upside participation of ${percent(participationRate)} adds ${percent(upsideTerm)} to principal.`
+  else if (direction === 'upside' && breakdown.upsideThresholdLevel !== undefined) {
+    const amount = twoDecimalPercent(note.payoff.digitalReturn!.amount)
+    participation = upsideTerm === 0
+      ? `It ended at or below ${units(breakdown.upsideThresholdLevel)}, 100% plus the ${amount} digital return, so upside participation of ${percent(participationRate)} adds nothing.`
+      : `It ended above ${units(breakdown.upsideThresholdLevel)}, 100% plus the ${amount} digital return, so it pays that digital return and ${percent(participationRate)} of the rise beyond it, ${percent(upsideTerm)} in all.`
+  }
   else if (bufferAbsorbs && downsideTerm === 0) participation = `The ${percent(downsideOf(note)?.buffer ?? 0)} buffer absorbs the whole fall, so principal is unchanged.`
   else if (bufferAbsorbs) participation = `${absoluteReturnApplies === false ? 'The fall is beyond the buffer, so it pays no absolute return. ' : ''}The buffer absorbs the first ${percent(bufferAbsorbs)} of the fall, and downside participation of ${percent(participationRate)} deducts ${percent(downsideTerm)} from principal.`
   else {

@@ -69,6 +69,7 @@ export function summarize(note: Product): SummarySegment[] {
   } else if (upside || downside) {
     payoff.push({ text: ' and pays ' })
     if (upside) payoff.push({ text: `${percent(upside.rate)} of the upside`, concept: 'upside' })
+    if (upsideOf(note)?.measuredFrom === 'digital-return' && note.payoff.digitalReturn !== undefined) payoff.push({ text: ` beyond ${weightPercent(1 + note.payoff.digitalReturn.amount)} of the initial level`, concept: 'measured-from' })
     if (upside && downside) payoff.push({ text: ' and ' })
     if (downside) payoff.push({ text: `${percent(downside.rate)} of the downside`, concept: 'downside' })
     payoff.push({ text: ' of ' }, ...underlier)

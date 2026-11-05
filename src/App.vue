@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { amountToY, barrierFromX, bufferFromX, digitalBarrierFromX, digitalFromY, fitAmountAxis, bufferLevel, capBindLevel, capFromY, clamp, clampBarrier, clampBuffer, clampCap, clampDigital, clampDigitalBarrier, clampFinalLevel, clampMinimumReturn, clampProtection, clampUpsideBarrier, clampUpsideRate, differingRuns, finalLevelFromX, jumpsOf, keyDelta, leaderStart, levelAxisFactor, levelToX, minimumReturnFromY, placeLabels, protectionFromY, reachedPayment, regimeOf, regimeRuns, returnTicks, slopeLevel, splitAtJumps, splitByRegime, upsideBarrierFromX, upsideRateFromY, wrapWords, type Box, type Jump, type RegimeRun, type Sample, type AmountAxis, type Plot, type Regime } from './chart/geometry'
+import { amountToY, barrierFromX, bufferFromX, digitalBarrierFromX, digitalFromY, slopeGapAboveDigital, upsideRateAboveDigitalFromY, fitAmountAxis, bufferLevel, capBindLevel, capFromY, clamp, clampBarrier, clampBuffer, clampCap, clampDigital, clampDigitalBarrier, clampFinalLevel, clampMinimumReturn, clampProtection, clampUpsideBarrier, clampUpsideRate, differingRuns, finalLevelFromX, jumpsOf, keyDelta, leaderStart, levelAxisFactor, levelToX, minimumReturnFromY, placeLabels, protectionFromY, reachedPayment, regimeOf, regimeRuns, returnTicks, slopeLevel, splitAtJumps, splitByRegime, upsideBarrierFromX, upsideRateFromY, wrapWords, type Box, type Jump, type RegimeRun, type Sample, type AmountAxis, type Plot, type Regime } from './chart/geometry'
 import { payoffLabels, type PayoffLabelKey } from './content/chart-labels'
 import HintToggle from './components/HintToggle.vue'
 import NumberInput from './components/NumberInput.vue'
@@ -68,6 +68,7 @@ const hints = {
   cap: 'The most upside participation can add to principal, as a percentage of principal, however far the underlier rises.',
   protection: 'The minimum contractual maturity payment as a percentage of principal. Protection applies at maturity and depends on the issuer’s ability to pay.',
   digital: 'A fixed return on principal, paid as a minimum while the underlier ends at or above the digital barrier. The payment is the greater of this and whatever the rest of the payoff pays, so it is a floor that holds only at or above the barrier. Below it, the digital return pays nothing and the rest of the payoff applies as if it were absent.',
+  'measured-from': 'What a rise is measured from. From the initial level, the rate applies to the whole rise, and the digital return is a minimum beneath it. From the digital return level, the payment stays at the digital return until the underlier has risen by that much, and the rate applies only to the rise beyond that level, added to the digital return. That level is 100% plus the digital return. Issuers call it the upside leverage threshold or the upside threshold value.',
   'digital-barrier': 'A level of the underlier, as a percentage of the initial level, at most 100%. It is reached at or above its level, so a level exactly at it earns the digital return, and one just below it does not. It reads the final level only; a worst-of basket reaches it when every asset is at or above its level.',
   'minimum-return': 'The lowest return the deposit pays on principal, whatever the underlier does. The payment is the greater of the participated payment and principal plus this return, so it is a floor, not an addition.',
   'basket-return': 'How a basket’s asset returns make its one return. Weighted adds up each asset’s return times its weight. Worst of uses the return of the asset that performs worst, so a fall in any one asset counts in full. Best of uses the return of the asset that performs best. The basket level starts at 100 and moves by that return, and the payoff reads it as it reads a single asset’s level.',
@@ -263,7 +264,7 @@ const observedLevels = ref<number[]>([startingFinalLevel])
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
 const select = (concept: ConceptId) => { selected.value = concept }
-const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', schedule: '#2c8ea3', trigger: '#1f8a70', 'trigger-step': '#7a9a1e', 'call-amount': '#0f766e', 'final-call': '#3d7ea6', 'first-review': '#4d7c9b', coupon: '#b5446e', 'coupon-schedule': '#9b4d7a', 'coupon-barrier': '#8a5a00', memory: '#55708a', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', 'minimum-return': '#4338ca', 'digital-return': '#c2255c', 'digital-barrier': '#087f5b', upside: '#2b8a3e', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa', 'absolute-return': '#d4a017', settlement: '#8d5a3b' }
+const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', schedule: '#2c8ea3', trigger: '#1f8a70', 'trigger-step': '#7a9a1e', 'call-amount': '#0f766e', 'final-call': '#3d7ea6', 'first-review': '#4d7c9b', coupon: '#b5446e', 'coupon-schedule': '#9b4d7a', 'coupon-barrier': '#8a5a00', memory: '#55708a', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', 'minimum-return': '#4338ca', 'digital-return': '#c2255c', 'digital-barrier': '#087f5b', upside: '#2b8a3e', 'measured-from': '#5c7f1a', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa', 'absolute-return': '#d4a017', settlement: '#8d5a3b' }
 const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
@@ -329,6 +330,8 @@ const minimumSelected = ref(false)
 const minimumPercent = ref(firstFeatureValues.minimum)
 // A digital return: a fixed return on principal, paid as a floor at or above its barrier, which it owns. The barrier is read on the final date only.
 const digitalSelected = ref(false)
+// Whether upside participation is measured from the digital return. It has no terms of its own, and needs a digital return.
+const measuredFromDigital = ref(false)
 const digitalPercent = ref(firstFeatureValues.digital)
 const digitalBarrierPercent = ref(firstFeatureValues.digitalBarrier)
 // Barrier absolute return: a payoff of its own with a lower and an upper barrier, each with its own level and observation, and an
@@ -466,6 +469,7 @@ const removeFeature = async (id: FeatureId) => {
   if (id === 'downside') { bufferSelected.value = false; barrierSelected.value = false }
   if (id === 'downside' || id === 'buffer' || id === 'barrier') absoluteSelected.value = false
   if (id === 'upside') { capSelected.value = false; upsideBarrierSelected.value = false; rebateSelected.value = false }
+  if (id === 'upside' || id === 'digital') measuredFromDigital.value = false
   if (id === 'upside-barrier') rebateSelected.value = false
   if (id === 'absolute-both') conditionalSelected.value = false
   // The barrier concept belongs to both barriers, so it stays selected while either remains.
@@ -546,6 +550,7 @@ const note = computed<Product>(() => ({
       upsideBarrier: upsideBarrierSelected.value ? { level: fractionFrom(upsideBarrierPercent.value), observation: upsideBarrierObservation.value, rebate: rebateSelected.value ? fractionFrom(rebatePercent.value) : undefined } : undefined,
       absoluteReturn: absoluteSelected.value ? { rate: absolutePercent.value / 100 } : undefined,
       cap: capSelected.value ? capPercent.value / 100 : undefined,
+      measuredFrom: measuredFromDigital.value && digitalSelected.value ? 'digital-return' : undefined,
     }),
     barrierAbsoluteReturn: bothWaysSelected.value ? {
       rate: bothWaysRate.value / 100,
@@ -768,7 +773,7 @@ const payoffDescription = computed(() => {
   const fall = selectedParticipation.downside
     ? `${absoluteSelected.value ? `rises with falls ${barrierSelected.value ? 'that end at or above the downside barrier, then drops by the whole fall below it' : 'within the buffer, then drops at the buffer level'} and falls` : bufferSelected.value ? `stays at principal for falls within the buffer, then falls` : barrierSelected.value ? 'stays at principal for falls that end at or above the barrier, then drops by the whole fall below it and falls' : 'falls'} with negative underlier returns${protectionSelected.value ? ' until the protection floor applies' : ', but not below zero'}`
     : 'stays at principal for negative underlier returns'
-  const rise = selectedParticipation.upside ? `rises with positive underlier returns${capSelected.value ? ' until the cap applies' : upsideBarrierSelected.value ? `, until the upside barrier is reached, then drops to ${rebateSelected.value ? 'principal plus the rebate' : 'principal'}` : ''}` :'stays at principal for flat or positive underlier returns'
+  const rise = selectedParticipation.upside ? `rises with ${measuredFromDigital.value && digitalSelected.value ? 'underlier returns above the digital return' : 'positive underlier returns'}${capSelected.value ? ' until the cap applies' : upsideBarrierSelected.value ? `, until the upside barrier is reached, then drops to ${rebateSelected.value ? 'principal plus the rebate' : 'principal'}` : ''}` :'stays at principal for flat or positive underlier returns'
   const digitalText = digitalSelected.value ? ` At or above ${formatPercent(digitalBarrierPercent.value / 100)} of the ${lookingBack.value ? 'lookback' : 'initial'} level it pays at least ${formatAmount(principal.value * (1 + digitalPercent.value / 100))}, principal plus the digital return, so the payment jumps there.` : ''
   return `Contractual maturity payment ${fall}. It ${rise}.${digitalText}${minimumSelected.value ? ' It never falls below principal plus the minimum return.' : ''}${dailySelected.value ? ' A dashed line shows the payment if the barrier had been reached on an earlier close.' : ''}`
 })
@@ -966,7 +971,9 @@ const dragMove = (id: HandleId, event: PointerEvent) => {
   const top = chart.value?.axis.top ?? 0
   if (id === 'floor' && minimumSelected.value) minimumPercent.value = minimumReturnFromY(point.y, principal.value, top, plot)
   else if (id === 'floor') protectionPercent.value = protectionFromY(point.y, principal.value, top, plot)
-  else if (id === 'slope') participationPercent.upside = upsideRateFromY(point.y, principal.value, top, plot, capFraction.value, upsideBarrierFraction.value)
+  else if (id === 'slope') participationPercent.upside = digitalMeasure.value !== undefined
+    ? upsideRateAboveDigitalFromY(point.y, principal.value, top, plot, digitalMeasure.value, slopeGapAboveDigital(digitalMeasure.value, capFraction.value))
+    : upsideRateFromY(point.y, principal.value, top, plot, capFraction.value, upsideBarrierFraction.value)
   else if (id === 'cap') capPercent.value = capFromY(point.y, principal.value, top, plot)
   else if (id === 'digital') digitalPercent.value = digitalFromY(point.y, principal.value, top, plot)
   else if (id === 'digital-barrier') digitalBarrierPercent.value = digitalBarrierFromX(point.x, axisScale.value, plot, determinedInitialLevel.value)
@@ -1005,6 +1012,8 @@ const keyHandle = (id: HandleId, event: KeyboardEvent) => {
 const axisScale = computed(() => determinedInitialLevel.value)
 // The cap as a fraction of principal, or undefined when the note has none. The slope handle's position depends on it.
 const capFraction = computed(() => capSelected.value ? capPercent.value / 100 : undefined)
+// The digital return, as a fraction, when upside participation is measured from it. The slope and the handles on it start there.
+const digitalMeasure = computed(() => measuredFromDigital.value && digitalSelected.value ? digitalPercent.value / 100 : undefined)
 // The upside barrier as a fraction of the level the return is measured from, while it is above it. The slope handle stays below it.
 const upsideBarrierFraction = computed(() => upsideBarrierSelected.value && upsideBarrierPercent.value > 100 ? upsideBarrierPercent.value / 100 : undefined)
 const chartHighlight = computed(() => ({
@@ -1097,7 +1106,9 @@ const chart = computed(() => {
   // The cap handle sits where the line actually bends flat. When the upside rate is too low for that to be in view,
   // it falls back to a fixed spot on the cap's level instead of floating over the wrong-coloured segment.
   const upsideRate = selectedParticipation.upside ? participationPercent.upside / 100 : undefined
-  const bindLevel = capSelected.value ? capBindLevel(initial, upsideOf(note.value)?.cap ?? 0, upsideRate) : undefined
+  const measure = digitalMeasure.value
+  const cap = upsideOf(note.value)?.cap ?? 0
+  const bindLevel = capSelected.value ? (measure !== undefined && upsideRate ? initial * (1 + measure + (cap - measure) / upsideRate) : capBindLevel(initial, cap, upsideRate)) : undefined
   const capOnCurve = bindLevel !== undefined && bindLevel <= end
   const capHandleX = capSelected.value ? (capOnCurve ? x(bindLevel as number) : plot.left + (plot.right - plot.left) * 0.8) : null
   // The bubble normally sits above its dot. It drops below near the top of the plot, or when it would cover a handle.
@@ -1112,7 +1123,8 @@ const chart = computed(() => {
   const barrierX = barrierAt === undefined ? null : x(barrierAt)
   const barrierY = barrierAt !== undefined && absoluteSelected.value ? pinnedY(paymentAtEnd(note.value, at(barrierAt))) : y(principalAmount)
   const ring = handleRadius.value + 5
-  const slopeAt = slopeLevel(initial, capFraction.value, upsideBarrierFraction.value)
+  const slopeGap = measure === undefined ? undefined : slopeGapAboveDigital(measure, capFraction.value)
+  const slopeAt = measure === undefined ? slopeLevel(initial, capFraction.value, upsideBarrierFraction.value) : initial * (1 + measure + (slopeGap ?? 0))
   // The upside barrier handle sits on the end the barrier level pays, as the buffer handle does with absolute return: the
   // rebate, or principal, which is where the line continues from the jump.
   const upsideBarrierX = upsideBarrierAt === undefined ? null : x(upsideBarrierAt)
@@ -1129,11 +1141,11 @@ const chart = computed(() => {
   const digitalBarrierAt = digital === undefined ? undefined : barrierLevelAt(digital.barrier.level, initial)
   const digitalFloorAmount = digital === undefined ? 0 : principalAmount * (1 + digital.amount)
   const digitalBarrierHandle = digitalBarrierAt === undefined ? null : { x: x(digitalBarrierAt), y: pinnedY(paymentAtEnd(note.value, at(digitalBarrierAt))) }
-  const passesAt = digital !== undefined && upsideRate ? initial * (1 + digital.amount / upsideRate) : Infinity
+  const passesAt = digital !== undefined && measure !== undefined ? initial * (1 + digital.amount) : digital !== undefined && upsideRate ? initial * (1 + digital.amount / upsideRate) : Infinity
   const digitalHandle = digitalBarrierAt === undefined ? null : { x: x((digitalBarrierAt + Math.min(passesAt, end)) / 2), y: pinnedY(digitalFloorAmount) }
   const otherHandles = [
     capHandleX === null ? null : { x: capHandleX, y: pinnedY(capAmount) },
-    selectedParticipation.upside ? { x: x(slopeAt), y: pinnedY(paymentAtEnd(note.value, at(slopeAt))) } : null,
+    selectedParticipation.upside && slopeGap !== 0 ? { x: x(slopeAt), y: pinnedY(paymentAtEnd(note.value, at(slopeAt))) } : null,
     upsideBarrierX === null ? null : { x: upsideBarrierX, y: upsideBarrierY },
     digitalHandle,
     digitalBarrierHandle,
@@ -1353,6 +1365,7 @@ function loadProduct(product: Product) {
   barrierObservation.value = downside?.barrier?.observation ?? 'final'
   absoluteSelected.value = downside?.absoluteReturn !== undefined
   absolutePercent.value = downside?.absoluteReturn ? percent(downside.absoluteReturn.rate) : firstFeatureValues.absoluteReturn
+  measuredFromDigital.value = upside?.measuredFrom === 'digital-return'
   capSelected.value = upside?.cap !== undefined
   capPercent.value = upside?.cap !== undefined ? percent(upside.cap) : firstFeatureValues.cap
   upsideBarrierSelected.value = upside?.barrier !== undefined
@@ -1639,6 +1652,12 @@ const chooseSample = (event: Event) => {
                         <span class="ctrl"><NumberInput id="rate-upside" v-model="participationPercent.upside" class="num rate" aria-label="Upside participation rate (%)" /><span class="unit">%</span><button type="button" class="xbtn" aria-label="Remove upside participation" @click.stop="removeFeature('upside')">×</button></span>
                       </div>
                       <ul>
+                        <li v-if="digitalSelected" :class="['node', { sel: highlighted('measured-from') }]" :style="conceptStyle('measured-from')">
+                          <div class="nrow" @click="select('measured-from')" @focusin="focusRow('measured-from')">
+                            <span class="nlabel">Measured from<HintToggle id="measured-from" about="what a rise is measured from" :text="hints['measured-from']" :active="activeHint === 'measured-from'" @toggle="toggleHint('measured-from')" /></span>
+                            <span class="ctrl pick"><select id="measured-from" v-model="measuredFromDigital" aria-label="Upside participation is measured from"><option :value="false">Initial level</option><option :value="true">Digital return level ({{ formatPercent(1 + digitalPercent / 100) }})</option></select></span>
+                          </div>
+                        </li>
                         <li v-if="capSelected" :class="['node', { sel: highlighted('cap') }]" :style="conceptStyle('cap')">
                           <div class="nrow" @click="select('cap')" @focusin="focusRow('cap')">
                             <span class="nlabel">Cap<HintToggle id="cap" about="cap" :text="hints.cap" :active="activeHint === 'cap'" @toggle="toggleHint('cap')" /></span>

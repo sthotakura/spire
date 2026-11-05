@@ -555,6 +555,18 @@ A list of what a product pays and when, and a return a year that reads every pay
 - **Book.** Chapter 20 has a section on it; chapters 4 and 19 point to it; chapters 20 and 21 no longer say it is not given.
 - **Not done:** issue price, fees or a later purchase; a timeline of the reviews.
 
+## 47. Measure upside participation from the digital return
+
+A digital return, then a leveraged share of the rise beyond the level where that return has been earned. The proposal, four public sources and the decisions are in [docs/participation-above-digital.md](docs/participation-above-digital.md).
+
+- **`measuredFrom` on upside participation:** `'digital-return'`, or absent for the initial level. It holds no number. The threshold is derived as 100% plus the digital return, as it is in all four notes, and needs a digital return. A level of its own was rejected: the digital return is a greater-of floor, so a level from a filing would pay the wrong amount, and one that paid the right amount appears nowhere in the note.
+- **The payment.** Above the threshold, digital return + rate × (return − digital return); at or below it, nothing of its own, and the floor applies. Each filing's table is a test.
+- **Interface.** A Measured from row under upside participation, shown with a digital return. The calculation, the payment rule, the summary, the outcome, the chart's label and rate handle, and the path all follow it.
+- **Names.** Not a Leveraged market-linked step up note, which pays the greater of the two. No generic name of its own.
+- **Sample.** Worst-of digital note with leverage above the digital return (JPMorgan, 2025).
+- **Book.** A section in chapter 12 with a chart; chapters 8 and 18.
+- **Not done:** a threshold at another level, a flat range with no digital return, a second rate above a level, and a strike below the initial level.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.

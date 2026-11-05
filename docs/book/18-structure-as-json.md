@@ -140,6 +140,13 @@ final level, so the observation is always `"final"`:
 The amount is a return on principal, so `0.26` is 26%. The level is a fraction of
 the starting level, from above 0 up to `1`, and is met at or above it.
 
+Upside participation can measure the rise from the digital return, and it then
+needs one. Without the key, the rise is measured from the initial level:
+
+```json
+{ "direction": "upside", "rate": 1.5, "measuredFrom": "digital-return" }
+```
+
 The hypothetical final level is not stored in this structure. It is a
 scenario input, supplied when calculating a payment. Likewise, lookback and
 averaging observations are inputs rather than known future outcomes in the

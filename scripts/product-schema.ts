@@ -19,6 +19,7 @@ const rulesInValidator = [
   'A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.',
   'Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.',
   'A minimum return is less than any cap.',
+  'Upside participation measured from the digital return needs a digital return.',
   'A digital return is for notes only, is less than any cap, and cannot be combined with an upside barrier, barrier absolute return or a minimum return.',
   'A basket needs unique asset names and one initial level for each asset and no other.',
   'A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.',

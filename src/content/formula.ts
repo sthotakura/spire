@@ -46,7 +46,9 @@ export function paymentFormula(note: Product): FormulaLine[] {
   const absoluteReturn = downsideOf(note)?.absoluteReturn
 
   const terms: FormulaSegment[] = []
-  if (upside) terms.push({ text: 'Upside × max(Return, 0)', concept: 'upside' })
+  // Measured from the digital return, the rate reads only the rise beyond it, and is added to the digital return.
+  if (upside && upsideOf(note)?.measuredFrom === 'digital-return') terms.push({ text: '(Digital + Upside × (Return − Digital)', concept: 'upside' }, { text: ', when Return > Digital', concept: 'measured-from' }, { text: ')', concept: 'upside' })
+  else if (upside) terms.push({ text: 'Upside × max(Return, 0)', concept: 'upside' })
   if (upside && downside) terms.push({ text: ' + ' })
   // The buffer shifts where downside participation starts, so it sits inside the downside term.
   if (buffer !== undefined) terms.push({ text: 'Downside × min(Return + ', concept: 'downside' }, { text: 'Buffer', concept: 'buffer' }, { text: ', 0)', concept: 'downside' })
@@ -149,7 +151,10 @@ export function paymentInWords(note: Product): string {
   const riseOnlyBelow = upsideBarrier === undefined ? ''
     : upsideBarrier.observation === 'daily-close' ? `, but only if ${name} never closes above ${percent(upsideBarrier.level)} of its ${from} level`
     : `, but only if ${name} ends at or below ${percent(upsideBarrier.level)} of its ${from} level`
-  const rise = upside && `each 1% rise in ${name} adds ${perPoint(upside.rate)} of principal${riseOnlyBelow}`
+  const measuredFromDigital = upside?.measuredFrom === 'digital-return' && digital !== undefined
+  const rise = upside && (measuredFromDigital
+    ? `each 1% rise in ${name} beyond ${percent(1 + digital.amount)} of its ${from} level adds ${perPoint(upside.rate)} of principal to the digital return`
+    : `each 1% rise in ${name} adds ${perPoint(upside.rate)} of principal${riseOnlyBelow}`)
   const beyond = buffer === undefined ? '' : ` beyond the first ${percent(buffer)}`
   const fall = downside && (upside ? `each 1% fall${beyond} takes ${perPoint(downside.rate)} away` : `each 1% fall in ${name}${beyond} takes ${perPoint(downside.rate)} of principal away`)
   const onlyBelow = barrier === undefined ? ''
