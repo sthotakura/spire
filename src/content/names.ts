@@ -109,7 +109,7 @@ export function marketingNames(note: Product): MarketingName[] {
     if (downside === 1 && upside === 1) {
       names.push({ name: 'Tracker', vocabulary: 'SSPA', reason: 'Participation is one for one, up and down: a rate of 100% in each direction.', concepts: ['upside', 'downside'] })
       // The same payoff under the name in the titles of public notes. Seller usage, and the filings read do not define it, so the reason gives the general meaning of delta.
-      names.push({ name: 'Delta One', vocabulary: 'Market usage', reason: 'Participation is one for one, up and down: a rate of 100% in each direction. Delta is the change in an instrument’s value for each unit change in its underlier, so one for one is a delta of one. The name is in the titles of public notes, not a regulator’s or the Swiss taxonomy’s, and those notes often state an adjustment factor as well.', concepts: ['upside', 'downside'] })
+      names.push({ name: 'Delta One', vocabulary: 'Market usage', reason: 'Participation is one for one, up and down: a rate of 100% in each direction. The name refers to delta, the change in an instrument’s value for each unit change in its underlier, and a delta of one means one for one. The name is in the titles of public notes, not a regulator’s or the Swiss taxonomy’s, and those notes often state an adjustment factor as well, which scales the payment’s move without changing the title.', concepts: ['upside', 'downside'] })
     } else if (downside === 1 && upside > 1) {
       names.push({ name: 'Outperformance', vocabulary: 'SSPA', reason: 'Participation is more than one for one on a rise and one for one on a fall.', concepts: ['upside', 'downside'] })
     } else {

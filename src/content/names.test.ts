@@ -39,7 +39,9 @@ describe('marketing names', () => {
     expect(namesOf({ participations: [up(1), down(1)] })).toEqual(['Tracker', 'Delta One'])
     const deltaOne = marketingNames(noteWith({ participations: [up(1), down(1)] }))[1]
     expect(deltaOne).toMatchObject({ vocabulary: 'Market usage', concepts: ['upside', 'downside'] })
-    expect(deltaOne.reason).toContain('a delta of one')
+    expect(deltaOne.reason).toContain('a delta of one means one for one')
+    expect(deltaOne.reason).toContain('scales the payment’s move without changing the title')
+    expect(deltaOne.reason).not.toContain('so one for one is a delta of one')
   })
 
   it('shows Delta One on the delta one sample, and on no other rates', () => {
