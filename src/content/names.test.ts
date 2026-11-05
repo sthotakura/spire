@@ -32,11 +32,21 @@ describe('marketing names', () => {
 
   it('treats 0% protection as no protection', () => {
     expect(namesOf({ principalProtection: 0 })).toEqual([])
-    expect(namesOf({ principalProtection: 0, participations: [up(1), down(1)] })).toEqual(['Tracker'])
+    expect(namesOf({ principalProtection: 0, participations: [up(1), down(1)] })).toEqual(['Tracker', 'Delta One'])
   })
 
-  it('calls one-for-one participation both ways a tracker', () => {
-    expect(namesOf({ participations: [up(1), down(1)] })).toEqual(['Tracker'])
+  it('calls one-for-one participation both ways a tracker and delta one', () => {
+    expect(namesOf({ participations: [up(1), down(1)] })).toEqual(['Tracker', 'Delta One'])
+    const deltaOne = marketingNames(noteWith({ participations: [up(1), down(1)] }))[1]
+    expect(deltaOne).toMatchObject({ vocabulary: 'Market usage', concepts: ['upside', 'downside'] })
+    expect(deltaOne.reason).toContain('a delta of one')
+  })
+
+  it('shows Delta One on the delta one sample, and on no other rates', () => {
+    expect(marketingNames(sampleBySlug('delta-one-note')!.product).map(({ name }) => name)).toContain('Delta One')
+    expect(namesOf({ participations: [up(1.5), down(1)] })).not.toContain('Delta One')
+    expect(namesOf({ participations: [up(1), down(0.9)] })).not.toContain('Delta One')
+    expect(namesOf({ participations: [up(1)] })).not.toContain('Delta One')
   })
 
   it('calls upside above 100% with full downside participation outperformance', () => {
@@ -252,7 +262,7 @@ describe('marketing names with a call or a coupon', () => {
   it('gives no tracker, outperformance or participation note name when a call or a coupon is added', () => {
     for (const terms of [{ redemption: autocall }, { redemption: issuerCall }, { coupon }]) {
       for (const participations of [[up(1), down(1)], [up(1.5), down(1)], [up(1)]]) {
-        expect(namesWith({ participations }, terms)).not.toEqual(expect.arrayContaining([expect.stringMatching(/^(Tracker|Outperformance|Participation note)$/)]))
+        expect(namesWith({ participations }, terms)).not.toEqual(expect.arrayContaining([expect.stringMatching(/^(Tracker|Delta One|Outperformance|Participation note)$/)]))
       }
     }
   })

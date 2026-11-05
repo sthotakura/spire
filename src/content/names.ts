@@ -98,6 +98,8 @@ export function marketingNames(note: Product): MarketingName[] {
   if (note.wrapper === 'note' && note.redemption.kind === 'bullet' && note.coupon === undefined && note.payoff.digitalReturn === undefined && unprotected && buffer === undefined && barrier === undefined && upsideBarrier === undefined && cap === undefined && isRate(upside) && (downside === undefined || isRate(downside))) {
     if (downside === 1 && upside === 1) {
       names.push({ name: 'Tracker', vocabulary: 'SSPA', reason: 'The payment follows the underlier one for one, up and down.', concepts: ['upside', 'downside'] })
+      // The same payoff under the name in the titles of public notes. Seller usage, and the filings read do not define it, so the reason gives the general meaning of delta.
+      names.push({ name: 'Delta One', vocabulary: 'Market usage', reason: 'The payment moves one for one with the underlier, up and down. Delta is the change in an instrument’s value for each unit change in its underlier, so this is a delta of one. The name is in the titles of public notes, not a regulator’s or the Swiss taxonomy’s, and those notes often state an adjustment factor as well.', concepts: ['upside', 'downside'] })
     } else if (downside === 1 && upside > 1) {
       names.push({ name: 'Outperformance', vocabulary: 'SSPA', reason: 'The payment gains more than one for one when the underlier rises and follows it one for one when it falls.', concepts: ['upside', 'downside'] })
     } else {

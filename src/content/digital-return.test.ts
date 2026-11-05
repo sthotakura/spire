@@ -150,7 +150,7 @@ describe('digital return on the chart and in the outline', () => {
 
 describe('digital return and the generic names', () => {
   it('rules out the plain participation names, which describe a note that only follows the underlier', () => {
-    expect(marketingNames({ ...base, payoff: { participations: base.payoff.participations } }).map(({ name }) => name)).toEqual(['Tracker'])
+    expect(marketingNames({ ...base, payoff: { participations: base.payoff.participations } }).map(({ name }) => name)).toEqual(['Tracker', 'Delta One'])
     expect(marketingNames(base).map(({ name }) => name)).toEqual(['Digital return note'])
   })
 

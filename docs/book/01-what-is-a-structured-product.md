@@ -59,7 +59,7 @@ not place a product in Leverage.
 
 A **marketing name**, such as “principal-protected note”, is the label a seller
 puts on a product. Several can apply to one note, and no single authority
-defines them. Names such as “tracker” describe a note that only follows the
+defines them. Names such as “tracker” and “delta one” describe a note that only follows the
 underlier, so a call or a coupon rules them out. Names that describe the
 payment at maturity, such as “buffered note”, still apply, and their reason
 says that a call can end the product earlier or that a coupon is paid as well.

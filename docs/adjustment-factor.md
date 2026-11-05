@@ -19,6 +19,7 @@ The factor decides where the holder gets principal back. At 99.35% the underlier
 - **It defaults to 1, on every product.** Absent means 1, which changes nothing. The builder leaves it out of the structure at 100%, as it leaves out cash settlement.
 - **The delta one sample starts at 1.** Decided by the project owner. The sample's ⓘ states the filing's 99.35%, and the reader can set it under Redemption.
 - **The sample is one for one by composition.** It is 100% upside and 100% downside participation. There is no delta one type.
+- **Delta One is a marketing name.** Decided by the project owner. It is shown beside Tracker on the same rule, so any product that fits has it, as in [marketing-names.md](marketing-names.md). A factor other than 1 does not remove it, since the notes that carry the name state one.
 
 ## Assumptions
 
@@ -49,4 +50,3 @@ Read on 5 November 2026 through a fetch tool that returned about the first half 
 - **What "delta one" means.** None of the parts read defines the name. Reading it as a one-for-one move is the general meaning of delta, the change in an instrument's value per unit change in its underlier, and not a statement in these filings.
 - **A fee a year.** The Barclays update lists a fee of 1.75% a year, which would grow with time where a factor is fixed. How it applies is not stated there. To pursue if a term sheet for those notes is read.
 - **Whether a final-date barrier reads the adjusted level.** Unsettled, so not combined, until a public note states it.
-- **A marketing name.** The builder already names a product with 100% each way a Tracker. Whether to add "Delta one" beside it, as for other names in [marketing-names.md](marketing-names.md), is open.

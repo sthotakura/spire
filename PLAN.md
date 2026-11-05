@@ -581,6 +581,7 @@ A number the final level is multiplied by before the maturity payoff reads it, o
 - **Model.** `adjustmentFactor` on each redemption, 1 when absent. A bullet redemption becomes `{ kind: 'bullet' }`, so it can hold the term. Rejected beside a buffer, a barrier, a digital return, barrier absolute return or delivery.
 - **Interface.** An Adjustment factor row under Redemption, on every product. The calculation, the payment rule, the summary, the outcome and the path state it when it is not 100%, and the chart's cap and rate handles follow it.
 - **Sample.** A delta one note on Morgan Stanley No. 1,411, starting at a factor of 100%. That filing's table, at its 99.35%, is a test.
+- **Name.** A Delta One chip beside Tracker, on the same rule.
 
 ## Later direction: a composable form
 
