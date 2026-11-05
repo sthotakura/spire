@@ -144,11 +144,11 @@ The figure also has limits:
 These samples open in the builder with the terms of the public notes they are
 modelled on, on synthetic indices:
 
-- [Autocallable contingent coupon note](https://sthotakura.github.io/spire/?example=autocallable-contingent-coupon-note):
+- [Autocallable contingent coupon note with memory](https://sthotakura.github.io/spire/?example=autocallable-contingent-coupon-note):
   the 50% note. Three years of monthly reviews, a coupon of 17.35% a year at a
   50% barrier with memory, a call at 100% from month 6, and a downside barrier
   at 40%.
-- [Worst-of autocallable contingent coupon note with a buffer](https://sthotakura.github.io/spire/?example=worst-of-autocallable-contingent-coupon-note):
+- [Worst-of autocallable contingent coupon note with memory and a buffer](https://sthotakura.github.io/spire/?example=worst-of-autocallable-contingent-coupon-note):
   the note on two funds. Twelve monthly reviews of the worst of two indices, a
   coupon of 14.15% a year at an 80% barrier with memory, a call at 100% from
   month 6, and a 20% buffer at a rate of 1.25, so the loss reaches 100% when

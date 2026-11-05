@@ -161,7 +161,7 @@ export const sampleGroups: SampleGroup[] = [
     samples: [
       {
         slug: 'autocallable-contingent-coupon-note',
-        name: 'Autocallable contingent coupon note',
+        name: 'Autocallable contingent coupon note with memory',
         source: { title: 'JPMorgan auto callable contingent interest note on one stock, 2026', url: 'https://www.sec.gov/Archives/edgar/data/19617/000121390026045661/ea0286921-01_424b2.htm' },
         product: product(36, { participations: [{ direction: 'downside', barrier: { level: 0.4, observation: 'final' }, rate: 1 }] }, {
           redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 6, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false },
@@ -171,7 +171,7 @@ export const sampleGroups: SampleGroup[] = [
       // The 1.25 rate makes the loss reach 100% when the worst asset falls to zero.
       {
         slug: 'worst-of-autocallable-contingent-coupon-note',
-        name: 'Worst-of autocallable contingent coupon note with a buffer',
+        name: 'Worst-of autocallable contingent coupon note with memory and a buffer',
         source: { title: 'JPMorgan auto callable contingent interest note on two funds, 2026', url: 'https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm', note: 'The filing’s underliers are two funds.' },
         product: product(12, { participations: [{ direction: 'downside', buffer: 0.2, rate: 1.25 }] }, {
           redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 6, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false },

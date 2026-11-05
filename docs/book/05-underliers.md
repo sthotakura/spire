@@ -121,7 +121,7 @@ illustrates the initial basket level of 100 and weighted component returns.
 A [pricing supplement for a note linked to two funds](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)
 defines the "Lesser Performing Fund Return" as the lower of the two fund returns.
 The builder opens a note modelled on it, on two synthetic indices: the
-[Worst-of autocallable contingent coupon note with a buffer](https://sthotakura.github.io/spire/?example=worst-of-autocallable-contingent-coupon-note).
+[Worst-of autocallable contingent coupon note with memory and a buffer](https://sthotakura.github.io/spire/?example=worst-of-autocallable-contingent-coupon-note).
 
 A [pricing supplement for a ten-year autocallable note](https://www.sec.gov/Archives/edgar/data/200245/000191870426031411/form424b2.htm)
 is linked to an index of S&P 500 futures that targets a volatility of 35%,
