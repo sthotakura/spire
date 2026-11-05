@@ -197,6 +197,17 @@ export function marketingNames(note: Product): MarketingName[] {
     names.push({ name: 'Capped participation', vocabulary: 'US descriptive', reason: 'Upside participation stops at a maximum return, so the payment cannot rise past the cap.', concepts: ['upside', 'cap'] })
   }
 
+  // A rise shared at more than 100%, whatever else the note does. The name describes the upside only. A value that is present but invalid
+  // is not absent, so a draft with one gets no name here.
+  if (note.wrapper === 'note' && isRate(upside) && upside > 1 && (cap === undefined || hasCap) && (downside === undefined || isRate(downside))) {
+    names.push({
+      name: 'Leveraged participation note',
+      vocabulary: 'US descriptive',
+      reason: `A rise pays ${percentText(upside)} of its size, more than one for one. US investor material calls this a leveraged or enhanced participation rate. The name describes the upside and says nothing about a fall.`,
+      concepts: ['upside'],
+    })
+  }
+
   const maturityNames = names.map((name) => {
     const caveat = maturityOnlyNote(note, name.name)
     return caveat ? { ...name, reason: `${name.reason} ${caveat}` } : name
@@ -204,9 +215,9 @@ export function marketingNames(note: Product): MarketingName[] {
   return [...maturityNames, ...leveragedUpsideNames(note), ...callAndCouponNames(note)]
 }
 
-// Issuer titles for a rise shared at more than 100% with principal at risk. Each title belongs to a downside shape, so the shape picks the
-// names. The filings they come from pay only at maturity, in cash, so a call, a coupon, protection or delivery rules them all out, and an
-// upside alone, which risks no principal, gets none. The rules and sources are in docs/marketing-names.md.
+// Issuer titles for a rise shared at more than 100%. The plain titles describe the upside, so they apply whatever the fall does, and a note
+// that differs from the filings says so. A title that names a downside shape, such as Buffered PLUS, needs that shape and principal at risk.
+// The filings pay only at maturity, in cash, so a call, a coupon or delivery rules them all out. The rules and sources are in docs/marketing-names.md.
 function leveragedUpsideNames(note: Product): MarketingName[] {
   const { payoff } = note
   const upside = upsideOf(note)
@@ -214,8 +225,10 @@ function leveragedUpsideNames(note: Product): MarketingName[] {
   const protection = payoff.principalProtection
   const cap = upside?.cap
   if (note.wrapper !== 'note' || note.redemption !== 'bullet' || note.coupon !== undefined || note.settlement === 'delivery') return []
-  if ((protection !== undefined && protection !== 0) || payoff.minimumReturn !== undefined || payoff.barrierAbsoluteReturn !== undefined) return []
-  if (upside === undefined || !isRate(upside.rate) || upside.rate <= 1 || upside.barrier !== undefined || downside === undefined) return []
+  if (payoff.minimumReturn !== undefined || payoff.barrierAbsoluteReturn !== undefined) return []
+  if (protection !== undefined && !(Number.isFinite(protection) && protection >= 0 && protection <= 1)) return []
+  if (upside === undefined || !isRate(upside.rate) || upside.rate <= 1 || upside.barrier !== undefined) return []
+  if (downside !== undefined && !isRate(downside.rate)) return []
   if (cap !== undefined && !(Number.isFinite(cap) && cap > 0)) return []
 
   const hasCap = cap !== undefined
@@ -225,10 +238,24 @@ function leveragedUpsideNames(note: Product): MarketingName[] {
     const differs = capInSources === undefined || capInSources === hasCap ? '' : capInSources ? ' The filings read have a maximum return and this note has none, so the contract differs.' : ' The filings read have no maximum return and this note has a cap, so the contract differs.'
     return { name, vocabulary: 'Issuer title', reason: `${rise} ${terms} ${source}${differs}`, concepts }
   }
-  const { rate, buffer, barrier, absoluteReturn } = downside
-  const oneForOne = rate === 1
   const digital = payoff.digitalReturn
   const plusSource = 'Morgan Stanley uses the title; PLUS stands for Performance Leveraged Upside Securities, its service mark.'
+
+  if (digital === undefined && downside?.buffer === undefined && downside?.barrier === undefined && downside?.absoluteReturn === undefined) {
+    const isProtected = protection !== undefined && protection > 0
+    const fall = downside?.rate === 1 && !isProtected
+      ? 'A fall costs principal one for one.'
+      : `${downside === undefined && !isProtected ? 'A fall leaves principal unchanged here.' : 'A fall does not cost principal one for one here.'} The name describes the upside; the filings read lose principal one for one on a fall, so the contract differs.`
+    return [
+      titled('PLUS', fall, plusSource, ['upside'], true),
+      titled('Accelerated return note', fall, 'BofA uses the title; Accelerated Return Notes and ARNs are its registered service marks.', ['upside'], true),
+      titled('Return enhanced note', fall, 'JPMorgan uses the title.', ['upside'], true),
+    ]
+  }
+  // The other titles name a downside shape, so they need that shape and principal at risk.
+  if (downside === undefined || (protection !== undefined && protection !== 0)) return []
+  const { rate, buffer, barrier, absoluteReturn } = downside
+  const oneForOne = rate === 1
 
   if (digital !== undefined) {
     // The fixed return is a floor, so at or above a 100% barrier the note pays the greater of it and the leveraged rise.
@@ -262,13 +289,7 @@ function leveragedUpsideNames(note: Product): MarketingName[] {
     ]
   }
 
-  if (!oneForOne || absoluteReturn !== undefined) return []
-  const fall = 'A fall costs principal one for one.'
-  return [
-    titled('PLUS', fall, plusSource, ['upside', 'downside'], true),
-    titled('Accelerated return note', fall, 'BofA uses the title; Accelerated Return Notes and ARNs are its registered service marks.', ['upside', 'downside'], true),
-    titled('Return enhanced note', fall, 'JPMorgan uses the title.', ['upside', 'downside'], true),
-  ]
+  return []
 }
 
 // Names for how the product ends and what it pays while it lasts. Each is its own chip, beside the names for the maturity payment.
