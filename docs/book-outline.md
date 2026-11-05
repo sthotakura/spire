@@ -34,7 +34,7 @@ remain working research and design records. Reader-facing chapters belong in
 | 17. Payoff diagrams and scenarios | Draft | [Read chapter](book/17-diagrams-and-scenarios.md) | [Payoff chart](payoff-chart.md) |
 | 18. The structure as JSON | Draft | [Read chapter](book/18-structure-as-json.md) | [Underlier model](underlier-model.md) |
 | 19. Reviews and early redemption | Draft | [Read chapter](book/19-reviews-and-early-redemption.md) | [Observation dates](observation-dates.md), [Non-call period](non-call-period.md) |
-| 20. Coupons | Draft | [Read chapter](book/20-coupons.md) | [Fixed coupon](coupon.md), [Contingent coupon](contingent-coupon.md) |
+| 20. Coupons | Draft | [Read chapter](book/20-coupons.md) | [Fixed coupon](coupon.md), [Contingent coupon](contingent-coupon.md), [Cash-flow result](cash-flow-result.md) |
 | 21. Boundaries of the reference | Draft | [Read chapter](book/21-boundaries.md) | [README](../README.md) |
 | 22. Settlement | Draft | [Read chapter](book/22-settlement.md) | [Settlement](settlement.md), [Names for a call and a coupon](call-and-coupon-names.md) |
 
@@ -42,7 +42,7 @@ Draft means reader-facing text exists and is available in the book view; it
 does not mean editorial review is complete. Determination and deposits have
 their own chapters because each needs an explanation beyond the overview of
 underliers and wrappers. The Coupons chapter covers the fixed coupon and the
-contingent coupon.
+contingent coupon, and how a return a year reads payments on several dates.
 
 ## Chapter standard
 

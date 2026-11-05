@@ -782,8 +782,8 @@ const calculation = computed(() => {
   const early = redemptionSteps(note.value, redemption.value)
   const called = redemption.value.calledAtReview !== undefined
   // A called product's annualised return is the one over the months it lasted, in the early steps, so the maturity one is left out. With a
-  // coupon the product pays on several reviews, so there is no annualised return from one payment, and the payoff payment is not the
-  // last step: the closing steps add the last coupon and the total paid.
+  // coupon the product pays on several reviews, so the annualised return reads them all, and the payoff payment is not the last step:
+  // the closing steps add the last coupon, the total paid and the return.
   const couponed = note.value.coupon !== undefined
   const payoff = maturity.filter((step) => !((called || couponed) && step.title === 'Annualised return')).map((step) => ({ ...step, muted: step.muted || called, result: step.result && !called && !couponed }))
   // A heading has no number, so the steps are numbered without it.
@@ -1859,6 +1859,11 @@ const chooseSample = (event: Event) => {
             </div>
             <div class="formula" role="group" aria-label="Payment rule"><div v-for="(line, index) in formula" :key="index" :class="['fline', { limit: !line.lead }]"><span class="flead">{{ line.lead }}</span><span class="feq">{{ line.lead ? '=' : '' }}</span><span class="fexpr"><template v-for="(segment, part) in line.segments" :key="part"><span v-if="segment.concept" :class="['fterm', { on: highlighted(segment.concept) }]" :style="conceptStyle(segment.concept)">{{ segment.text }}</span><template v-else>{{ segment.text }}</template></template></span></div><p class="fwords"><b>In words:</b> {{ formulaWords }}</p></div>
             <ol class="calc-steps" aria-live="polite"><li v-for="step in calculation" :key="`${step.n}-${step.title}`" :class="{ hl: !step.heading && step.concept && highlighted(step.concept), muted: step.muted, result: step.result, heading: step.heading, traceable: !step.heading && stageOfStep.has(step.title), current: currentStage?.step === step.title }" :tabindex="!step.heading && stageOfStep.has(step.title) ? 0 : undefined" :aria-current="currentStage?.step === step.title ? 'step' : undefined" :title="!step.heading && stageOfStep.has(step.title) ? 'Show this step on the chart' : undefined" @click="jumpToStep(step.title)" @keydown.enter.prevent="jumpToStep(step.title)" @keydown.space.prevent="jumpToStep(step.title)"><template v-if="step.heading"><b>{{ step.title }}</b><span class="calc-how">{{ step.how }}</span></template><template v-else><span class="calc-n">{{ step.n }}</span><b>{{ step.title }}</b><span class="calc-value">{{ step.value }}</span><span class="calc-how">{{ step.how }}</span></template></li></ol>
+            <div v-if="note.coupon && redemption" class="payments">
+              <h4 id="payments-heading">Payments</h4>
+              <p class="payments-note">What it pays in this scenario, and when.{{ note.settlement === 'delivery' ? ' A delivery of shares is shown at its value on the final date.' : '' }}</p>
+              <div class="table-wrap basket-levels review-levels"><table aria-labelledby="payments-heading"><thead><tr><th scope="col">Month</th><th scope="col" class="payment-amount">Coupon</th><th scope="col" class="payment-amount">Redemption</th><th scope="col" class="payment-amount">Paid</th></tr></thead><tbody><tr v-for="(payment, index) in redemption.payments" :key="payment.month"><th scope="row">{{ payment.month }}</th><td class="payment-amount">{{ payment.coupon ? formatAmount(payment.coupon) : '—' }}</td><td class="payment-amount">{{ index === redemption.payments.length - 1 ? formatAmount(payment.redemption) : '—' }}</td><td class="payment-amount">{{ formatAmount(payment.amount) }}</td></tr></tbody></table></div>
+            </div>
             <p v-if="outcomeSentence" class="outcome" aria-live="polite">{{ outcomeSentence }}</p>
           </section>
           <p v-if="chart" class="explanation">All amounts are illustrative.</p>

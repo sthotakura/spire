@@ -65,6 +65,17 @@ interface CouponPayment {
   remembered: number
 }
 
+// One date on which the product pays, by month from the start of the term.
+export interface Payment {
+  month: number
+  // The coupons paid on this date, with any remembered ones.
+  coupon: number
+  // The call or the payoff, on the date the product ends. Zero on the dates before it.
+  redemption: number
+  // Coupon plus redemption.
+  amount: number
+}
+
 // How the product ends. A bullet product ends at maturity; an autocall ends on the first review that calls it, or at maturity.
 export interface RedemptionOutcome {
   // The number of the call review the product was called on, or undefined when it ran to the end of the term.
@@ -85,6 +96,8 @@ export interface RedemptionOutcome {
   coupons: CouponTest[]
   // Everything the product paid over its life: the coupons on the dates before it ended, and the payment.
   totalPaid: number
+  // What it paid and when: each earlier date that paid a coupon, and the date it ended, even if that paid nothing. They add up to totalPaid.
+  payments: Payment[]
 }
 
 // How a product ends in a scenario, and what its coupon pays. `reviewLevels` are the levels of the underlier on each date before the
@@ -144,9 +157,11 @@ export function redemptionOutcome(note: Product, reviewLevels: number[], levels:
     : dates.flatMap((date, index) => (date.coupon !== undefined && date.month <= months ? [{ review: date.coupon, month: date.month, level: levelOn(index) }] : []))
   const coupons = couponTests(note, couponReviews, levels.initial)
   const ending = coupons.find((test) => test.month === months)?.paid ?? 0
-  const earlier = coupons.filter((test) => test.month < months).reduce((sum, { paid }) => sum + paid, 0)
-  const payment = (called ? note.principalAmount * (1 + called.callAmount) : maturity.payment) + ending
-  return { calledAtReview: called?.review, reviews, tests, months, payment, maturity, coupons, totalPaid: earlier + payment }
+  const earlier = coupons.filter((test) => test.month < months && test.paid > 0).map(({ month, paid }): Payment => ({ month, coupon: paid, redemption: 0, amount: paid }))
+  const paidAtEnd = called ? note.principalAmount * (1 + called.callAmount) : maturity.payment
+  const payment = paidAtEnd + ending
+  const payments = [...earlier, { month: months, coupon: ending, redemption: paidAtEnd, amount: payment }]
+  return { calledAtReview: called?.review, reviews, tests, months, payment, maturity, coupons, totalPaid: payments.reduce((sum, { amount }) => sum + amount, 0), payments }
 }
 
 // The coupon on each of its reviews, in order, from its level. A review at or above the barrier pays its coupon and, with memory, every
@@ -165,4 +180,22 @@ function couponTests(note: Product, reviews: Array<{ review: number; month: numb
     remembered = met ? 0 : coupon.memory ? remembered + 1 : 0
     return { review, month, ...read, met, coupons, paid: coupons * each, remembered }
   })
+}
+
+// The rate a year at which the payments, each discounted from its month, add up to the principal paid at the start: the same
+// calculation as a bond's yield, compounded once a year. For one payment it equals annualisedReturn. No amount is below zero, so the
+// cash changes sign once and one rate above −100% solves it, which bisection finds. Nothing paid at all is −100%. The result is rounded
+// so that payments adding up to principal read exactly 0, not a tiny negative.
+export function annualisedReturnOfPayments(payments: Payment[], principalAmount: number): number {
+  if (payments.every(({ amount }) => amount === 0)) return -1
+  const valueAt = (rate: number) => payments.reduce((sum, { month, amount }) => sum + amount / (1 + rate) ** (month / 12), 0)
+  let low = -1
+  let high = 1
+  while (valueAt(high) > principalAmount) high *= 2
+  for (let i = 0; i < 200; i++) {
+    const middle = (low + high) / 2
+    if (valueAt(middle) > principalAmount) low = middle
+    else high = middle
+  }
+  return Math.round(((low + high) / 2) * 1e12) / 1e12 + 0
 }

@@ -448,7 +448,7 @@ A coupon tested on each review of an autocall, paid when the underlier is at or 
 
 Where the reviews, autocall and coupon work stands, and what follows. The order is by what a learner gains.
 
-1. **A cash-flow result** (slice 3). A payment on each review and an annualised return that reads when each was paid. The total paid is shown now; a return a year is left out with a coupon until this exists.
+1. **A cash-flow result** (slice 3): done, section 46.
 2. **Fixed coupon** (slice 4): done, section 40.
 3. **The category of a coupon note.** The Swiss taxonomy may place an autocall that pays a coupon in Yield Enhancement; the reference still places it by its payoff alone. To verify before changing.
 4. **Checks not done.** Keyboard use of the review table and the redemption and coupon rows; screen-reader checks; how a 120-review monthly schedule behaves in the interface; the book's chapters 17, 19 and 20 read in the running book at narrow width.
@@ -544,6 +544,16 @@ Two name chips, independent of settlement: Reverse convertible (SSPA 1220), a fi
 - **Book.** Chapter 22, with a chart.
 - **A fix found on the way.** A final level exactly on a downside barrier could count as reached through floating-point noise, on a basket at 14 of the 99 whole-percent levels. Levels are rounded to nine decimals.
 - **Not done:** funds, a named strike, rounding to whole shares, the issuer's cash option, and a delivery on a rise.
+
+## 46. Add the cash-flow result
+
+A list of what a product pays and when, and a return a year that reads every payment. The proposal, its source and the decisions are in [docs/cash-flow-result.md](docs/cash-flow-result.md). Nothing on the product changes, so the structure JSON and the schema do not.
+
+- **Payments.** `redemptionOutcome` returns `payments`: each earlier date that paid a coupon, and the date the product ended. They add up to `totalPaid`.
+- **Annualised return.** `annualisedReturnOfPayments` finds the rate a year at which the payments, each discounted from its month, add up to principal, compounded once a year. For one payment it equals `annualisedReturn`, so a product with no coupon keeps its figure. It is the same calculation as a bond's yield; one search found no note that states one over its coupons, so this is the reference's reading.
+- **Interface.** With a coupon, an Annualised return step after Total return, the figure in the outcome sentence, and a read-only Payments table under the calculation, scrolling inside its own area.
+- **Book.** Chapter 20 has a section on it; chapters 4 and 19 point to it; chapters 20 and 21 no longer say it is not given.
+- **Not done:** issue price, fees or a later purchase; a timeline of the reviews.
 
 ## Later direction: a composable form
 

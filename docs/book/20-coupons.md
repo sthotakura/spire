@@ -98,7 +98,36 @@ A fixed coupon has no barrier, so the last coupon is added at every final level.
 
 The calculation lists the coupon on each review the product reached, then the call tests, then how it ended. A called product's total is what it paid on earlier reviews plus the call. A product that ran to the end adds the last coupon to the payoff payment, and then gives the total.
 
-It does not give an annualised return when the product pays coupons. The return a year the reference gives for a single payment reads one amount at one date. Coupons arrive on many dates, and a figure that ignored when would mislead. The total paid and the **total return** are shown instead: what was paid less principal, as a share of principal, over the months the product lasted. In the worked example, called after five months with memory, the note pays 1,050 in all, a total return of 5% over 5 months. The total return is not a return a year, and a total return over 5 months cannot be compared with one over 3 years without saying so.
+The **total return** is what was paid less principal, as a share of principal, over the months the product lasted. In the worked example, called after five months with memory, the note pays 1,050 in all, a total return of 5% over 5 months. A total return over 5 months cannot be compared with one over 3 years without saying so, which is what a return a year is for.
+
+## What it pays, and when
+
+Coupons arrive on many dates, and the same total can arrive early or late. The Payments table lists each date that pays, and the **annualised return** reads them all. It is the rate a year at which the payments, each discounted from its month, add up to the principal paid at the start. For one payment this is the formula in [Term](04-term.md). It is the same calculation as a bond's yield to maturity, or its yield to call when the bond is called, which [FINRA describes](https://www.finra.org/investors/insights/bond-yield-and-return) as a discount rate that makes the future payments equal the price.
+
+The worked example, called in month 5, with and without memory:
+
+| | Payments | Total paid | Total return | A year |
+| :--- | :--- | ---: | ---: | ---: |
+| With memory | 10 in month 1, 20 in month 3, 1,020 in month 5 | 1,050 | +5% | 12.63% |
+| Without memory | 10 in month 1, 10 in month 3, 1,010 in month 5 | 1,030 | +3% | 7.44% |
+
+Timing matters even when the total does not change. Three notes of 1,000 that each pay 1,120 over 12 months:
+
+| What it pays | A year |
+| :--- | ---: |
+| 10 every month, and 1,000 at month 12 | 12.68% |
+| Nothing for six months, then 70 in month 7 by memory, 10 a month after that, and 1,000 at month 12 | 12.45% |
+| All 1,120 at month 12 | 12.00% |
+
+The first row shows why a 12% coupon repaid at par reads 12.68% and not 12%. The headline rate is the annual rate times the period, with no compounding. The annualised return compounds once a year, like the figure for one payment, and reads 10 received in month 1 as worth more than 10 received in month 12. A call in month 3 with three coupons also reads 12.68%, though its total return is only 3%: the rate was the same, and it was earned for less time.
+
+The figure also has limits:
+
+- **It describes one path.** It is what this scenario would return, not an expected return, a valuation or a guarantee of issuer payment.
+- **It treats the coupons as earning the same rate.** A holder can spend a coupon or reinvest it at another rate, and would then earn something else, so the figure is an estimate, as a bond's yield is.
+- **It assumes a start at principal.** The holder pays the principal at the start of the term, with no fee and no later purchase. Months are twelfths of a year, and each payment falls in its review's month.
+- **A short life reads large.** A call after one month that paid 8% reads about 152% a year, because it annualises what was earned in a month. The calculation says how many months it read.
+- **This is the reference's reading.** Notes headline the coupon's rate, and the reference has not found one that states a return a year over its coupons.
 
 ## Underliers and other features
 
@@ -151,7 +180,7 @@ modelled on, on synthetic indices:
 
 ## What is not modelled
 
-A fixed and a contingent coupon on one product, a coupon barrier that steps, a coupon barrier set differently for each asset, an annualised return over payments made on several dates, and payment dates. A coupon is always paid in cash, even on a product that delivers shares at the end of its term ([Settlement](22-settlement.md)).
+A fixed and a contingent coupon on one product, a coupon barrier that steps, a coupon barrier set differently for each asset, and payment dates. A coupon is always paid in cash, even on a product that delivers shares at the end of its term ([Settlement](22-settlement.md)).
 
 ## Related concepts
 

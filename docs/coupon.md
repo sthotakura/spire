@@ -103,7 +103,7 @@ A 12-month bullet note with a fixed coupon of 6% a year, monthly, pays 5.00 a mo
 - **Content.** Summary: "…and pays 12% a year in quarterly coupons". Payment rule and calculation: `Coupon = 1,000 × 12% × 3 / 12 = 30.00`, paid on each review until the product ends. Outcome, scenarios and chart labels say the coupon is paid whatever the level.
 - **Interface.** The Coupon row offers None, Fixed and Contingent. With Fixed, the coupon barrier and memory rows are not shown; switching keeps the reader's rate and schedule, and switching back to Contingent restores the barrier. For a fixed coupon the review table's coupon column shows what each review pays, with no barrier test.
 - **Names.** The Contingent coupon note chip needs a barrier. No chip for a fixed coupon alone; the reverse convertible names read it with the downside ([call-and-coupon-names.md](call-and-coupon-names.md)). The category follows the contingent coupon: an unprotected note with a coupon and no upside is Yield Enhancement.
-- **Annualised return.** Still left out with a coupon, until the cash-flow result.
+- **Annualised return.** Left out with a coupon at this point. Since built: [cash-flow-result.md](cash-flow-result.md).
 - **Samples.** "Worst-of fixed coupon autocallable note" from the 2019 note, and "Monthly worst-of fixed coupon autocallable note" from the BofA note, with synthetic underliers.
 - **Book.** A fixed coupon section in chapter 20, with a chart of the payment at the end of the term; chapters 19 and 21 and the outline updated.
 

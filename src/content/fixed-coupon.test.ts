@@ -51,6 +51,7 @@ describe('a fixed coupon in the calculation', () => {
       { title: 'Paid at maturity', how: '500 from the payoff + coupon 30 on the last review', value: '530' },
       { title: 'Total paid', value: '680' },
       { title: 'Total return', value: '−32%' },
+      { title: 'Annualised return', value: '−24.83% a year' },
     ])
   })
 
@@ -68,7 +69,7 @@ describe('a fixed coupon in the calculation', () => {
 
 describe('a fixed coupon in the outcome sentence', () => {
   it('says every review it lasted for paid, whatever the underlier did', () => {
-    expect(explainCoupons(product(), redemptionOutcome(product(), called, { initial: 100, final: 90 }))).toBe('It paid its fixed coupon on each of the 3 coupon reviews it lasted for, whatever the underlier did: 90 in coupons. In all it paid 1,090, a total return of +9% over 9 months.')
+    expect(explainCoupons(product(), redemptionOutcome(product(), called, { initial: 100, final: 90 }))).toBe('It paid its fixed coupon on each of the 3 coupon reviews it lasted for, whatever the underlier did: 90 in coupons. In all it paid 1,090, a total return of +9% over 9 months, or 12.55% a year.')
   })
 })
 

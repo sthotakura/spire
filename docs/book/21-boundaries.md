@@ -25,8 +25,7 @@ The products illustrated pay at scheduled maturity or when an autocall or an
 issuer call ends them early, and can also pay a fixed or a contingent coupon on
 reviews of its own, not both. Reviews are numbered and evenly spaced, not dated,
 and a payment is made at its review. An issuer call is the issuer's choice,
-stated by a scenario. A return a year over payments made on several dates is
-not calculated. A barrier can be observed on every close, but only through the
+stated by a scenario. A barrier can be observed on every close, but only through the
 one lowest or highest close a scenario states. It is not combined with an
 autocall, an issuer call or a contingent coupon. Settlement, in cash or by
 delivery of the underlier, is not modelled; the products illustrated pay cash. Conditions observed on calendar dates would need

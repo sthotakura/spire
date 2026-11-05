@@ -84,7 +84,7 @@ Two endings for the same note if it is never called, with the 11 earlier coupons
 - **Summary.** "…pays 12% a year, 1% a month, on each review at or above 70% of the initial level, with memory".
 - **Scenario.** The review table gains a coupon column for each review (paid, missed, or paid with remembered coupons). New named paths: coupons missed and then paid by memory; below the barrier to the end.
 - **Calculation.** The coupon steps for each review before the call steps, then the payoff steps. A called product lists principal, the call amount and the review's coupon.
-- **Result.** `redemptionOutcome` returns each review's coupon and the total paid. The annualised return is left out when there is a coupon until the cash-flow result (slice 3), which reads when each payment was made (decision 4).
+- **Result.** `redemptionOutcome` returns each review's coupon and the total paid. The annualised return is left out when there is a coupon until the cash-flow result (slice 3), which reads when each payment was made (decision 4). Since built: [cash-flow-result.md](cash-flow-result.md).
 - **Chart.** The payment at the end of the term, against the final level, includes the last review's own coupon: a step of one coupon at the barrier, and a larger one when the coupon barrier equals the downside barrier, as in the Apple note's table (699.90 below 70%, 1,028.75 at 70%). Remembered coupons depend on the path, so the chart leaves them out and the review table shows them.
 - **Validation.** Named issues for a rate of zero or less, a barrier at or below zero or above 2, a coupon with no review schedule, and a coupon with a redemption it does not yet combine with (decision 3).
 - **Schema, examples and book.** The `coupon` key with its JSDoc and the schema regenerated; an example product reproducing the Intel note's structure with synthetic levels; the Coupons chapter moves from Planned to Draft, covering the contingent coupon only, and chapter 19 says what a call pays with a coupon.
@@ -108,7 +108,7 @@ Two endings for the same note if it is never called, with the 11 earlier coupons
 1. **Memory in the same change** as the contingent coupon. Recommended.
 2. **No `kind`; the fixed coupon later is a coupon with no barrier**, so `barrier` is required now and becomes optional in slice 4. Recommended.
 3. **Which redemptions in this slice.** The autocall only, which all three contingent notes use. A coupon on a bullet note is coherent but needs a schedule on a product without a call, and a coupon on an issuer call needs the issuer call to read review levels, which it does not today. Recommended: the autocall now; the issuer call next, which also completes its call price ([issuer-call.md](issuer-call.md), open question 4); the bullet note after.
-4. **No annualised return with a coupon until slice 3.** Today's figure reads one payment at one date. With coupons the payments arrive over time, and a figure that ignores when would mislead. Recommended; the total paid and its months are shown.
+4. **No annualised return with a coupon until slice 3.** Today's figure reads one payment at one date. With coupons the payments arrive over time, and a figure that ignores when would mislead. Recommended; the total paid and its months are shown. Since built: [cash-flow-result.md](cash-flow-result.md).
 5. **The chart includes the last review's own coupon.** Recommended.
 
 ## Open questions

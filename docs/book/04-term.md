@@ -25,7 +25,9 @@ Annualised return = (payment ÷ principal)^(12 ÷ term in months) − 1
 A payment of 1,100 after 36 months gives approximately 3.23% a year. This
 calculation assumes principal at the start and one payment at the end, with
 no intervening cash flows, fees, or taxes. It does not predict what the product
-will pay or establish an issuer's quoted yield convention.
+will pay or establish an issuer's quoted yield convention. A product that pays
+on several dates uses the same idea for each payment, as
+[Coupons](20-coupons.md) explains.
 
 ## Scope
 
