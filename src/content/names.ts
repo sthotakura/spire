@@ -3,8 +3,8 @@ import type { ConceptId } from './concepts'
 
 export interface MarketingName {
   name: string
-  // Where the label comes from: plain-language regulator wording, or the Swiss Structured Products Association's product types.
-  vocabulary: 'US descriptive' | 'SSPA' | 'Market usage'
+  // Where the label comes from: plain-language regulator wording, the Swiss Structured Products Association's product types, or the title on one issuer's filings.
+  vocabulary: 'US descriptive' | 'SSPA' | 'Market usage' | 'Issuer title'
   reason: string
   // The parts of the note that make the name fit.
   concepts: ConceptId[]
@@ -201,7 +201,74 @@ export function marketingNames(note: Product): MarketingName[] {
     const caveat = maturityOnlyNote(note, name.name)
     return caveat ? { ...name, reason: `${name.reason} ${caveat}` } : name
   })
-  return [...maturityNames, ...callAndCouponNames(note)]
+  return [...maturityNames, ...leveragedUpsideNames(note), ...callAndCouponNames(note)]
+}
+
+// Issuer titles for a rise shared at more than 100% with principal at risk. Each title belongs to a downside shape, so the shape picks the
+// names. The filings they come from pay only at maturity, in cash, so a call, a coupon, protection or delivery rules them all out, and an
+// upside alone, which risks no principal, gets none. The rules and sources are in docs/marketing-names.md.
+function leveragedUpsideNames(note: Product): MarketingName[] {
+  const { payoff } = note
+  const upside = upsideOf(note)
+  const downside = downsideOf(note)
+  const protection = payoff.principalProtection
+  const cap = upside?.cap
+  if (note.wrapper !== 'note' || note.redemption !== 'bullet' || note.coupon !== undefined || note.settlement === 'delivery') return []
+  if ((protection !== undefined && protection !== 0) || payoff.minimumReturn !== undefined || payoff.barrierAbsoluteReturn !== undefined) return []
+  if (upside === undefined || !isRate(upside.rate) || upside.rate <= 1 || upside.barrier !== undefined || downside === undefined) return []
+  if (cap !== undefined && !(Number.isFinite(cap) && cap > 0)) return []
+
+  const hasCap = cap !== undefined
+  const rise = `A rise pays ${percentText(upside.rate)} of its size${hasCap ? `, up to the ${percentText(cap)} cap` : ''}.`
+  // A title is capped on every filing read, on none, or on some (left undefined). A note that differs says so, as the shark fin reason does for its barrier.
+  const titled = (name: string, terms: string, source: string, concepts: ConceptId[], capInSources?: boolean): MarketingName => {
+    const differs = capInSources === undefined || capInSources === hasCap ? '' : capInSources ? ' The filings read have a maximum return and this note has none, so the contract differs.' : ' The filings read have no maximum return and this note has a cap, so the contract differs.'
+    return { name, vocabulary: 'Issuer title', reason: `${rise} ${terms} ${source}${differs}`, concepts }
+  }
+  const { rate, buffer, barrier, absoluteReturn } = downside
+  const oneForOne = rate === 1
+  const digital = payoff.digitalReturn
+  const plusSource = 'Morgan Stanley uses the title; PLUS stands for Performance Leveraged Upside Securities, its service mark.'
+
+  if (digital !== undefined) {
+    // The fixed return is a floor, so at or above a 100% barrier the note pays the greater of it and the leveraged rise.
+    if (!oneForOne || hasCap || buffer !== undefined || barrier !== undefined || absoluteReturn !== undefined || digital.barrier.level !== 1 || digital.barrier.observation !== 'final') return []
+    return [titled('Leveraged market-linked step up note', `At or above the initial level the payment is the greater of that and a fixed return of ${percentText(digital.amount)}. Below it a fall costs one for one.`, 'Barclays uses the title, where the step-up is a fixed return paid at maturity.', ['upside', 'digital-return'])]
+  }
+
+  if (buffer !== undefined) {
+    if (!Number.isFinite(buffer) || buffer <= 0 || buffer >= 1) return []
+    const absorbed = `The first ${percentText(buffer)} of a fall is absorbed.`
+    if (absoluteReturn !== undefined) {
+      if (!oneForOne) return []
+      return [titled('Dual directional buffered PLUS', `${absorbed} A fall within the buffer is paid as a gain, and a larger one costs principal one for one past the buffer.`, plusSource, ['upside', 'buffer', 'absolute-return'])]
+    }
+    if (oneForOne) return [titled('Buffered PLUS', `${absorbed} A larger fall costs principal one for one past the buffer.`, plusSource, ['upside', 'buffer'], true)]
+    // JPMorgan's downside rate restores the whole fall once past the buffer. The tolerance matches a filing's printed 1.1765 for a 15% buffer.
+    if (Math.abs(rate * (1 - buffer) - 1) < 1e-4) return [titled('Buffered return enhanced note', `${absorbed} Past the buffer the rate of ${percentText(rate)} wins back what it absorbed, so a total loss is possible.`, 'JPMorgan uses the title, with or without a maximum return.', ['upside', 'buffer'])]
+    return []
+  }
+
+  if (barrier !== undefined) {
+    if (!oneForOne || barrier.observation !== 'final') return []
+    if (absoluteReturn !== undefined) {
+      return [titled('Dual directional trigger PLUS', `A fall that ends at or above ${percentText(barrier.level)} of the initial level is paid as a gain, ${percentText(absoluteReturn.rate)} of its size, and below that the whole fall counts one for one.`, `${plusSource} The trigger is this barrier.`, ['upside', 'barrier', 'absolute-return'])]
+    }
+    const held = `Principal is repaid while the final level is at or above ${percentText(barrier.level)} of the initial level, and below that the whole fall counts one for one.`
+    return [
+      titled('Trigger PLUS', held, `${plusSource} The trigger is this barrier.`, ['upside', 'barrier']),
+      titled('Accelerated barrier note', held, 'JPMorgan uses the title.', ['upside', 'barrier'], false),
+      titled('Enhanced return note', held, 'BofA uses the title, where the barrier is called a threshold value, on the least performing of several underliers.', ['upside', 'barrier'], false),
+    ]
+  }
+
+  if (!oneForOne || absoluteReturn !== undefined) return []
+  const fall = 'A fall costs principal one for one.'
+  return [
+    titled('PLUS', fall, plusSource, ['upside', 'downside'], true),
+    titled('Accelerated return note', fall, 'BofA uses the title; Accelerated Return Notes and ARNs are its registered service marks.', ['upside', 'downside'], true),
+    titled('Return enhanced note', fall, 'JPMorgan uses the title.', ['upside', 'downside'], true),
+  ]
 }
 
 // Names for how the product ends and what it pays while it lasts. Each is its own chip, beside the names for the maturity payment.

@@ -64,7 +64,14 @@ underlier, so a call or a coupon rules them out. Names that describe the
 payment at maturity, such as “buffered note”, still apply, and their reason
 says that a call can end the product earlier or that a coupon is paid as well.
 The call and the coupon have names of their own: “autocallable note”,
-“callable note” and “contingent coupon note”. An autocall whose call amount is a
+“callable note” and “contingent coupon note”. A note that shares a rise at more
+than 100%, with principal at risk, is usually sold under an issuer’s own title,
+which follows the downside: “PLUS”, “accelerated return note” and “return enhanced
+note” for a fall that costs one for one, “buffered PLUS” and “buffered return
+enhanced note” with a buffer, “trigger PLUS”, “accelerated barrier note” and
+“enhanced return note” with a barrier. Beside a fixed return at a 100% barrier it is
+a “leveraged market-linked step up note”. These are the issuers’ titles, and
+filings under one title can differ. An autocall whose call amount is a
 rate for each year elapsed, so that each review it is not called adds to what the
 next call pays, is what sellers call a “snowball autocall”; one issuer calls it an
 autocallable note with a “step-up premium”. A fixed coupon in place of a share

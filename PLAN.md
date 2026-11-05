@@ -57,7 +57,7 @@ This plan covers the first useful, public, browser-only version. It records deci
 
 - Show the generic names a structure is commonly sold under, as chips under the summary sentence. Each chip opens a short reason. Rules and sources are in [docs/marketing-names.md](docs/marketing-names.md).
 - Derive names from the note's terms in a pure function, `src/content/names.ts`. Several names can apply at once, and a note that fits none shows none.
-- Use only generic public names: plain-language US investor material and the Swiss Structured Products Association's product types. Exclude branded names, and names whose definition has not been checked, such as Phoenix.
+- Use only generic public names: plain-language US investor material and the Swiss Structured Products Association's product types. Exclude branded names, and names whose definition has not been checked, such as Phoenix. The exception is the issuer titles for a rise shared at more than 100%, such as PLUS and Accelerated return note, each attributed to its issuer in the reason.
 - Give Tracker, Outperformance and Participation note only to a bullet note with no coupon. Other names describe the maturity payment; with a call or a coupon their reason says so, and an unprotected product with a call and no coupon gets no category.
 - Name the call and the coupon on their own chips (Autocallable note, Callable note, Contingent coupon note), and an unprotected autocall with a coupon, a downside barrier and no upside an Express certificate. Place an unprotected note with a coupon and no upside in Yield Enhancement. Sources and open questions are in [docs/call-and-coupon-names.md](docs/call-and-coupon-names.md).
 - Treat names as hints. The structure the reader built remains the authoritative description.

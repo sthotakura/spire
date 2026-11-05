@@ -40,7 +40,7 @@ describe('marketing names', () => {
   })
 
   it('calls upside above 100% with full downside participation outperformance', () => {
-    expect(namesOf({ participations: [up(1.5), down(1)] })).toEqual(['Outperformance'])
+    expect(namesOf({ participations: [up(1.5), down(1)] })).toEqual(['Outperformance', 'PLUS', 'Accelerated return note', 'Return enhanced note'])
   })
 
   it('calls any other pair of participation rates a participation note', () => {
@@ -66,7 +66,7 @@ describe('marketing names', () => {
   })
 
   it('does not call a capped or protected note a tracker or outperformance', () => {
-    expect(namesOf({ participations: [up(1.5), down(1)], cap: 0.2 })).toEqual(['Capped participation'])
+    expect(namesOf({ participations: [up(1.5), down(1)], cap: 0.2 })).toEqual(['Capped participation', 'PLUS', 'Accelerated return note', 'Return enhanced note'])
     expect(namesOf({ participations: [up(1), down(1)], principalProtection: 0.9 })).toEqual(['Partially principal-protected note'])
     expect(namesOf({ participations: [up(0.8), down(1)], principalProtection: 0.9 })).toEqual(['Partially principal-protected note'])
   })
@@ -97,14 +97,14 @@ describe('marketing names', () => {
   })
 
   it('combines the buffered name with the others that apply', () => {
-    expect(namesOf({ participations: [up(1.5), down(1)], buffer: 0.1, cap: 0.2 })).toEqual(['Buffered note', 'Capped participation'])
+    expect(namesOf({ participations: [up(1.5), down(1)], buffer: 0.1, cap: 0.2 })).toEqual(['Buffered note', 'Capped participation', 'Buffered PLUS'])
     expect(namesOf({ participations: [up(1), down(1)], buffer: 0.1, principalProtection: 0.9 })).toEqual(['Partially principal-protected note', 'Buffered note'])
   })
 
   it('does not call a note with a barrier a tracker or outperformance, and names it for the Swiss bonus types instead', () => {
     const barriered = (participations: Participation[]) => marketingNames({ ...noteWith({ participations }), payoff: { participations: withSubFeatures(participations, { barrier: { level: 0.7, observation: 'final' as const } }) } }).map(({ name }) => name)
     expect(barriered([up(1), down(1)])).toEqual(['Bonus certificate'])
-    expect(barriered([up(1.5), down(1)])).toEqual(['Bonus outperformance certificate'])
+    expect(barriered([up(1.5), down(1)])).toEqual(['Bonus outperformance certificate', 'Trigger PLUS', 'Accelerated barrier note', 'Enhanced return note'])
     // Other rates are not what the Swiss types describe.
     expect(barriered([up(0.8), down(1)])).toEqual([])
     expect(barriered([up(1.5), down(0.9)])).toEqual([])
@@ -445,7 +445,7 @@ describe('marketing names for a barrier on downside participation', () => {
 
   it('calls an uncapped barrier note with 1:1 upside a bonus certificate, and a leveraged one a bonus outperformance certificate', () => {
     expect(names(barriered())).toEqual(['Bonus certificate'])
-    expect(names(barriered({ up: 1.7 }))).toEqual(['Bonus outperformance certificate'])
+    expect(names(barriered({ up: 1.7 }))).toEqual(['Bonus outperformance certificate', 'Trigger PLUS', 'Accelerated barrier note', 'Enhanced return note'])
   })
 
   it('says the Swiss barrier is observed during the life, and that this one is read on the final date, unless it is observed on every close', () => {
@@ -494,6 +494,81 @@ describe('marketing names for a digital return', () => {
 
   it('is not given to a deposit', () => {
     expect(marketingNames({ ...digital, wrapper: 'deposit' }).map(({ name }) => name)).not.toContain('Digital return note')
+  })
+})
+
+describe('issuer titles for a rise shared at more than 100%', () => {
+  const plain = ['PLUS', 'Accelerated return note', 'Return enhanced note']
+  const product = (participations: Participation[], payoff: Partial<Product['payoff']> = {}, terms: Partial<Product> = {}): Product => ({ ...noteWith({}), payoff: { participations, ...payoff }, ...terms })
+  const barrier = { level: 0.7, observation: 'final' as const }
+  const titles = (item: Product) => marketingNames(item).filter(({ vocabulary }) => vocabulary === 'Issuer title')
+  const titleNames = (item: Product) => titles(item).map(({ name }) => name)
+
+  it('gives the plain titles above 100% and none at 100% or below', () => {
+    expect(titleNames(product([up(1.01), down(1)]))).toEqual(plain)
+    expect(titleNames(product([up(1), down(1)]))).toEqual([])
+    expect(titleNames(product([up(0.8), down(1)]))).toEqual([])
+    expect(titles(product([up(3), down(1)]))[0].reason).toContain('A rise pays 300% of its size.')
+  })
+
+  it('gives none where principal is not at risk as the filings state, or where the filings do not pay this way', () => {
+    expect(titleNames(product([up(1.5)]))).toEqual([])
+    expect(titleNames(product([up(1.5), down(0.5)]))).toEqual([])
+    expect(titleNames(product([up(1.5), down(1)], { principalProtection: 0.9 }))).toEqual([])
+    expect(titleNames(product([up(1.5), down(1)], {}, { coupon: { schedule: { frequency: 'quarterly' }, rate: 0.08 } }))).toEqual([])
+    expect(titleNames(product([up(1.5), down(1)], {}, { redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0 } }))).toEqual([])
+    expect(titleNames(product([up(1.5), down(1)], {}, { settlement: 'delivery' }))).toEqual([])
+    expect(titleNames(product([up(1.5), down(1)], {}, { wrapper: 'deposit' }))).toEqual([])
+    expect(titleNames(product([{ direction: 'upside', rate: 1.5, barrier: { level: 1.3, observation: 'final' } }, down(1)]))).toEqual([])
+    expect(titleNames(product([{ direction: 'upside', rate: 1.5, cap: -0.1 }, down(1)]))).toEqual([])
+    expect(titleNames(product([up(Number.NaN), down(1)]))).toEqual([])
+  })
+
+  it('says when a title capped in its filings has no cap here, and states the cap when it has one', () => {
+    for (const { reason } of titles(product([up(3), down(1)]))) expect(reason).toContain('have a maximum return and this note has none')
+    for (const { reason } of titles(product([{ direction: 'upside', rate: 3, cap: 0.13 }, down(1)]))) {
+      expect(reason).toContain('up to the 13% cap')
+      expect(reason).not.toContain('the contract differs')
+    }
+  })
+
+  it('names a buffer at rate 1 a buffered PLUS, and one at the rate that restores the fall a buffered return enhanced note', () => {
+    const buffered = (rate: number) => titleNames(product([{ direction: 'downside', rate, buffer: 0.15 }, up(1.26)]))
+    expect(buffered(1)).toEqual(['Buffered PLUS'])
+    expect(buffered(1.1765)).toEqual(['Buffered return enhanced note'])
+    expect(buffered(1.5)).toEqual([])
+  })
+
+  it('names a barrier read on the final date for all three issuers, and gives a barrier read every close none', () => {
+    expect(titleNames(product([{ direction: 'downside', rate: 1, barrier }, up(1.5)]))).toEqual(['Trigger PLUS', 'Accelerated barrier note', 'Enhanced return note'])
+    expect(titleNames(product([{ direction: 'downside', rate: 1, barrier: { level: 0.7, observation: 'daily-close' } }, up(1.5)]))).toEqual([])
+    const capped = titles(product([{ direction: 'downside', rate: 1, barrier }, { direction: 'upside', rate: 1.5, cap: 0.3 }]))
+    expect(capped.find(({ name }) => name === 'Trigger PLUS')?.reason).not.toContain('the contract differs')
+    expect(capped.find(({ name }) => name === 'Enhanced return note')?.reason).toContain('have no maximum return and this note has a cap')
+  })
+
+  it('names absolute return on a fall dual directional, and only for PLUS', () => {
+    expect(titleNames(product([{ direction: 'downside', rate: 1, buffer: 0.2, absoluteReturn: { rate: 1 } }, up(1.39)]))).toEqual(['Dual directional buffered PLUS'])
+    expect(titleNames(product([{ direction: 'downside', rate: 1, barrier, absoluteReturn: { rate: 0.5 } }, up(1.25)]))).toEqual(['Dual directional trigger PLUS'])
+  })
+
+  it('names a digital return at a 100% barrier beside leverage a leveraged market-linked step up note', () => {
+    const stepUp = (level: number, participations: Participation[] = [up(1.24), down(1)]) => product(participations, { digitalReturn: { amount: 0.16, barrier: { level, observation: 'final' } } })
+    const [title] = titles(stepUp(1))
+    expect(title.name).toBe('Leveraged market-linked step up note')
+    expect(title.reason).toContain('a fixed return of 16%')
+    expect(marketingNames(stepUp(1)).map(({ name }) => name)).toEqual(['Digital return note', 'Leveraged market-linked step up note'])
+    expect(titleNames(stepUp(0.9))).toEqual([])
+    expect(titleNames(stepUp(1, [up(1), down(1)]))).toEqual([])
+    expect(titleNames(stepUp(1, [{ direction: 'upside', rate: 1.24, cap: 0.5 }, down(1)]))).toEqual([])
+  })
+
+  it('gives the samples built from such filings the title on the filing', () => {
+    const of = (slug: string) => titleNames(sampleBySlug(slug)!.product)
+    expect(of('worst-of-dual-directional-buffered-note')).toEqual(['Dual directional buffered PLUS'])
+    expect(of('worst-of-dual-directional-barrier-note')).toEqual(['Dual directional trigger PLUS'])
+    expect(of('lookback-barrier-note')).toContain('Accelerated barrier note')
+    expect(of('dual-directional-buffered-note')).toEqual([])
   })
 })
 
