@@ -43,11 +43,12 @@ function maturityOnlyNote(note: Product, name: string): string {
 
 // A name's rates read the return the adjustment factor produces, so a factor other than 100% scales the move they describe.
 // The name stays, as the public notes titled Delta One state a factor (docs/adjustment-factor.md), and the reason says what it does.
+// A reason a factor can reach states the rate and not the resulting move, so this sentence does not contradict it.
 function adjustmentFactorNote(note: Product): string {
   const factor = note.redemption.adjustmentFactor
   if (!isRate(factor) || factor === 1) return ''
   const percent = (factor * 100).toLocaleString('en-US', { maximumFractionDigits: 2 })
-  return `The adjustment factor of ${percent}% multiplies the final level first, so each rate applies to ${percent}% of the underlier’s move: at a 100% rate, a move of 1% of the initial level changes the payment by ${factor.toLocaleString('en-US', { maximumFractionDigits: 4 })}% of principal.`
+  return `The adjustment factor of ${percent}% multiplies the final level first, so each rate applies to ${percent}% of the underlier’s move: where a 100% rate sets the payment, a move of 1% of the initial level changes it by ${factor.toLocaleString('en-US', { maximumFractionDigits: 4 })}% of principal.`
 }
 
 // Names a structure like this one is commonly sold under. They are hints, not definitions, and several can apply at once.
@@ -106,11 +107,11 @@ export function marketingNames(note: Product): MarketingName[] {
   const unprotected = protection === undefined || protection === 0
   if (note.wrapper === 'note' && note.redemption.kind === 'bullet' && note.coupon === undefined && note.payoff.digitalReturn === undefined && unprotected && buffer === undefined && barrier === undefined && upsideBarrier === undefined && cap === undefined && isRate(upside) && (downside === undefined || isRate(downside))) {
     if (downside === 1 && upside === 1) {
-      names.push({ name: 'Tracker', vocabulary: 'SSPA', reason: 'The payment follows the underlier one for one, up and down.', concepts: ['upside', 'downside'] })
+      names.push({ name: 'Tracker', vocabulary: 'SSPA', reason: 'Participation is one for one, up and down: a rate of 100% in each direction.', concepts: ['upside', 'downside'] })
       // The same payoff under the name in the titles of public notes. Seller usage, and the filings read do not define it, so the reason gives the general meaning of delta.
-      names.push({ name: 'Delta One', vocabulary: 'Market usage', reason: 'The payment moves one for one with the underlier, up and down. Delta is the change in an instrument’s value for each unit change in its underlier, so one for one is a delta of one. The name is in the titles of public notes, not a regulator’s or the Swiss taxonomy’s, and those notes often state an adjustment factor as well.', concepts: ['upside', 'downside'] })
+      names.push({ name: 'Delta One', vocabulary: 'Market usage', reason: 'Participation is one for one, up and down: a rate of 100% in each direction. Delta is the change in an instrument’s value for each unit change in its underlier, so one for one is a delta of one. The name is in the titles of public notes, not a regulator’s or the Swiss taxonomy’s, and those notes often state an adjustment factor as well.', concepts: ['upside', 'downside'] })
     } else if (downside === 1 && upside > 1) {
-      names.push({ name: 'Outperformance', vocabulary: 'SSPA', reason: 'The payment gains more than one for one when the underlier rises and follows it one for one when it falls.', concepts: ['upside', 'downside'] })
+      names.push({ name: 'Outperformance', vocabulary: 'SSPA', reason: 'Participation is more than one for one on a rise and one for one on a fall.', concepts: ['upside', 'downside'] })
     } else {
       names.push({
         name: 'Participation note',
@@ -214,7 +215,7 @@ export function marketingNames(note: Product): MarketingName[] {
     names.push({
       name: 'Leveraged participation note',
       vocabulary: 'US descriptive',
-      reason: `${upsideOf(note)?.measuredFrom === 'digital-return' ? `Beyond the digital return, a rise pays ${percentText(upside)} of what lies beyond it` : `A rise pays ${percentText(upside)} of its size`}, more than one for one. US investor material calls this a leveraged or enhanced participation rate. The name describes the upside and says nothing about a fall.`,
+      reason: `${upsideOf(note)?.measuredFrom === 'digital-return' ? `Beyond the digital return, a rise pays ${percentText(upside)} of what lies beyond it` : `A rise is shared at a rate of ${percentText(upside)}`}, more than one for one. US investor material calls this a leveraged or enhanced participation rate. The name describes the upside and says nothing about a fall.`,
       concepts: ['upside'],
     })
   }
@@ -246,7 +247,7 @@ function leveragedUpsideNames(note: Product): MarketingName[] {
   if (cap !== undefined && !(Number.isFinite(cap) && cap > 0)) return []
 
   const hasCap = cap !== undefined
-  const rise = `A rise pays ${percentText(upside.rate)} of its size${hasCap ? `, up to the ${percentText(cap)} cap` : ''}.`
+  const rise = `A rise is shared at a rate of ${percentText(upside.rate)}${hasCap ? `, up to the ${percentText(cap)} cap` : ''}.`
   // A title is capped on every filing read, on none, or on some (left undefined). A note that differs says so, as the shark fin reason does for its barrier.
   const titled = (name: string, terms: string, source: string, concepts: ConceptId[], capInSources?: boolean): MarketingName => {
     const differs = capInSources === undefined || capInSources === hasCap ? '' : capInSources ? ' The filings read have a maximum return and this note has none, so the contract differs.' : ' The filings read have no maximum return and this note has a cap, so the contract differs.'
@@ -258,7 +259,7 @@ function leveragedUpsideNames(note: Product): MarketingName[] {
   if (digital === undefined && downside?.buffer === undefined && downside?.barrier === undefined && downside?.absoluteReturn === undefined) {
     const isProtected = protection !== undefined && protection > 0
     const fall = downside?.rate === 1 && !isProtected
-      ? 'A fall costs principal one for one.'
+      ? 'A fall costs principal at a rate of 100%, one for one.'
       : `${downside === undefined && !isProtected ? 'A fall leaves principal unchanged here.' : 'A fall does not cost principal one for one here.'} The name describes the upside; the filings read lose principal one for one on a fall, so the contract differs.`
     return [
       titled('PLUS', fall, plusSource, ['upside'], true),

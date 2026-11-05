@@ -54,14 +54,18 @@ describe('marketing names', () => {
     const adjusted: Product = { ...base, redemption: { kind: 'bullet', adjustmentFactor: 0.99 } }
     const names = marketingNames(adjusted)
     expect(names.map(({ name }) => name)).toEqual(['Tracker', 'Delta One'])
-    for (const { reason } of names) expect(reason).toContain('a move of 1% of the initial level changes the payment by 0.99% of principal')
+    for (const { reason } of names) {
+      expect(reason).toContain('where a 100% rate sets the payment, a move of 1% of the initial level changes it by 0.99% of principal')
+      expect(reason).toContain('a rate of 100% in each direction')
+      expect(reason).not.toMatch(/payment (follows|moves)/)
+    }
     const payment = (final: number) => paymentBreakdown(adjusted, { initial: 100, final }).payment
     expect((payment(101) - payment(100)) / 1000).toBeCloseTo(0.0099, 10)
   })
 
   it('states the factor exactly, and on every name with a rate, not on one without', () => {
     const withFactor = (payoff: Parameters<typeof noteWith>[0], adjustmentFactor: number) => marketingNames({ ...noteWith(payoff), redemption: { kind: 'bullet', adjustmentFactor } })
-    expect(withFactor({ participations: [up(1), down(1)] }, 0.9935)[0].reason).toContain('The adjustment factor of 99.35% multiplies the final level first, so each rate applies to 99.35% of the underlier’s move: at a 100% rate, a move of 1% of the initial level changes the payment by 0.9935% of principal.')
+    expect(withFactor({ participations: [up(1), down(1)] }, 0.9935)[0].reason).toContain('The adjustment factor of 99.35% multiplies the final level first, so each rate applies to 99.35% of the underlier’s move: where a 100% rate sets the payment, a move of 1% of the initial level changes it by 0.9935% of principal.')
     for (const { reason } of withFactor({ participations: [up(1.5), down(1)] }, 1.01)) expect(reason).toContain('adjustment factor of 101%')
     expect(withFactor({ principalProtection: 1 }, 0.99)[0].reason).not.toContain('adjustment factor')
     expect(withFactor({ participations: [up(1), down(1)] }, 1)[0].reason).not.toContain('adjustment factor')
@@ -544,7 +548,7 @@ describe('issuer titles for a rise shared at more than 100%', () => {
     expect(titleNames(product([up(1.01), down(1)]))).toEqual(plain)
     expect(titleNames(product([up(1), down(1)]))).toEqual([])
     expect(titleNames(product([up(0.8), down(1)]))).toEqual([])
-    expect(titles(product([up(3), down(1)]))[0].reason).toContain('A rise pays 300% of its size.')
+    expect(titles(product([up(3), down(1)]))[0].reason).toContain('A rise is shared at a rate of 300%.')
   })
 
   it('keeps the plain titles whatever a fall does, since they describe the upside, and says when the contract differs', () => {
@@ -554,7 +558,7 @@ describe('issuer titles for a rise shared at more than 100%', () => {
     }
     expect(titles(product([up(1.5)]))[0].reason).toContain('A fall leaves principal unchanged here.')
     expect(titles(product([up(1.5), down(0.5)]))[0].reason).toContain('A fall does not cost principal one for one here.')
-    expect(titles(product([up(1.5), down(1)]))[0].reason).toContain('A fall costs principal one for one.')
+    expect(titles(product([up(1.5), down(1)]))[0].reason).toContain('A fall costs principal at a rate of 100%, one for one.')
     expect(titles(product([up(1.5), down(1)]))[0].reason).not.toContain('lose principal one for one on a fall')
   })
 
@@ -638,7 +642,7 @@ describe('the leveraged participation note', () => {
   it('states the rate and rests on the upside', () => {
     const found = marketingNames(product([up(3)])).find((each) => each.name === name)
     expect(found).toMatchObject({ vocabulary: 'US descriptive', concepts: ['upside'] })
-    expect(found?.reason).toContain('A rise pays 300% of its size')
+    expect(found?.reason).toContain('A rise is shared at a rate of 300%')
   })
 
   it('is kept beside a call, whose reason says it can end earlier, and is not given to a deposit', () => {
