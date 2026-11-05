@@ -116,11 +116,10 @@ describe('the summary, JSON and names', () => {
     expect(structureLines(delivering(barrier)).find(({ text: line }) => line.includes('"settlement"'))).toEqual({ text: '  "settlement": "delivery",', concept: 'settlement' })
   })
 
-  it('says a reverse convertible delivers shares when it does', () => {
+  it('says a reverse convertible delivers shares, and drops the name when it pays cash', () => {
     const delivered = marketingNames(delivering(barrier)).find(({ name }) => name === 'Barrier reverse convertible')
     expect(delivered?.reason).toContain('Otherwise it delivers shares of the underlier, worth the payment shown on the final date.')
-    const cash = marketingNames(delivering(barrier, 'cash')).find(({ name }) => name === 'Barrier reverse convertible')
-    expect(cash?.reason).toContain('Otherwise issuers settle in cash or in shares')
+    expect(marketingNames(delivering(barrier, 'cash')).map(({ name }) => name)).not.toContain('Barrier reverse convertible')
   })
 })
 
@@ -134,6 +133,7 @@ describe('the delivering samples', () => {
     expect(validateProduct(product)).toEqual([])
     expect(product).toMatchObject({ settlement: 'delivery', term: { months } })
     expect(marketingNames(product).map((entry) => entry.name)).toContain(name)
+    expect(marketingNames({ ...product, settlement: 'cash' }).map((entry) => entry.name)).not.toContain(name)
   })
 
   it('reads the Vontobel note: below a strike of 80%, shares of the worst stock', () => {

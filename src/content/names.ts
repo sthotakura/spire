@@ -359,12 +359,10 @@ function callAndCouponNames(note: Product): MarketingName[] {
   }
 
   // The Swiss Reverse Convertible (1220) and Barrier Reverse Convertible (1230): a fixed coupon in place of upside, and shares or their
-  // value below a strike. Neither name depends on settlement, since the Swiss type allows either and a US note on an index pays cash. The
-  // rules and sources are in docs/call-and-coupon-names.md.
-  if (coupon !== undefined && coupon.barrier === undefined && unprotected && upsideOf(note) === undefined && note.payoff.barrierAbsoluteReturn === undefined && note.payoff.digitalReturn === undefined && downside !== undefined && downside.absoluteReturn === undefined) {
-    const settled = note.settlement === 'delivery'
-      ? 'Otherwise it delivers shares of the underlier, worth the payment shown on the final date.'
-      : 'Otherwise issuers settle in cash or in shares of the underlier, and the payment shown is the value on the final date.'
+  // value below a strike. Both need delivery: the sources also allow cash, but a name for converting into shares would mislead on a product
+  // this reference states as paying cash. The rules and sources are in docs/call-and-coupon-names.md.
+  if (note.settlement === 'delivery' && coupon !== undefined && coupon.barrier === undefined && unprotected && upsideOf(note) === undefined && note.payoff.barrierAbsoluteReturn === undefined && note.payoff.digitalReturn === undefined && downside !== undefined && downside.absoluteReturn === undefined) {
+    const settled = 'Otherwise it delivers shares of the underlier, worth the payment shown on the final date.'
     const strike = 1 - (downside.buffer ?? 0)
     // A strike below the initial level pays principal × final ÷ strike, which is a buffer at a rate of 1 ÷ strike. The tolerance lets a rate
     // typed to two decimal places of a percentage, such as 111.11%, state a strike of 90%.

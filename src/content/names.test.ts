@@ -349,63 +349,70 @@ describe('names for a call and a coupon', () => {
     const barrierReverseConvertible = 'Barrier reverse convertible'
 
     it('calls a fixed coupon with a strike at the initial level and no share in a rise a reverse convertible', () => {
-      const names = marketingNames(withTerms({ participations: [down(1)] }, { coupon: fixed }))
+      const names = marketingNames(withTerms({ participations: [down(1)] }, { coupon: fixed, settlement: 'delivery' }))
       expect(names.map(({ name }) => name)).toEqual([reverseConvertible])
       expect(names[0]).toMatchObject({ vocabulary: 'SSPA', concepts: ['coupon', 'downside'] })
       expect(names[0].reason).toContain('Reverse Convertible (1220)')
       expect(names[0].reason).toContain('a strike at the initial level')
-      expect(names[0].reason).toContain('in cash or in shares')
+      expect(names[0].reason).toContain('it delivers shares')
     })
 
     it('reads a strike below the initial level from a buffer and the rate that restores the whole fall', () => {
-      const names = marketingNames(withTerms({ participations: [down(1.25)], buffer: 0.2 }, { coupon: fixed }))
+      const names = marketingNames(withTerms({ participations: [down(1.25)], buffer: 0.2 }, { coupon: fixed, settlement: 'delivery' }))
       expect(names.map(({ name }) => name)).toContain(reverseConvertible)
       expect(names.find(({ name }) => name === reverseConvertible)?.reason).toContain('a strike of 80% of the initial level')
       // A rate typed to two decimal places of a percentage still states the strike.
-      expect(namesWith({ participations: [down(1.1111)], buffer: 0.1 }, { coupon: fixed })).toContain(reverseConvertible)
+      expect(namesWith({ participations: [down(1.1111)], buffer: 0.1 }, { coupon: fixed, settlement: 'delivery' })).toContain(reverseConvertible)
     })
 
     it('gives no reverse convertible name to a buffer at another rate, which adds cash beside the shares', () => {
-      expect(namesWith({ participations: [down(1)], buffer: 0.2 }, { coupon: fixed })).not.toContain(reverseConvertible)
-      expect(namesWith({ participations: [down(2)], buffer: 0.2 }, { coupon: fixed })).not.toContain(reverseConvertible)
-      expect(namesWith({ participations: [down(1.25)] }, { coupon: fixed })).not.toContain(reverseConvertible)
+      expect(namesWith({ participations: [down(1)], buffer: 0.2 }, { coupon: fixed, settlement: 'delivery' })).not.toContain(reverseConvertible)
+      expect(namesWith({ participations: [down(2)], buffer: 0.2 }, { coupon: fixed, settlement: 'delivery' })).not.toContain(reverseConvertible)
+      expect(namesWith({ participations: [down(1.25)] }, { coupon: fixed, settlement: 'delivery' })).not.toContain(reverseConvertible)
     })
 
     it('calls a fixed coupon with a downside barrier at rate 1 and no share in a rise a barrier reverse convertible', () => {
-      const names = marketingNames(withTerms({ participations: [barrierDown] }, { coupon: fixed }))
+      const names = marketingNames(withTerms({ participations: [barrierDown] }, { coupon: fixed, settlement: 'delivery' }))
       expect(names.map(({ name }) => name)).toEqual([barrierReverseConvertible])
       expect(names[0]).toMatchObject({ vocabulary: 'SSPA', concepts: ['coupon', 'barrier'] })
       expect(names[0].reason).toContain('Barrier Reverse Convertible (1230)')
       expect(names[0].reason).toContain('60%')
       expect(names[0].reason).toContain('knock-in')
-      expect(namesWith({ participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.6, observation: 'daily-close' } }] }, { coupon: fixed })).toContain(barrierReverseConvertible)
-      expect(namesWith({ participations: [{ direction: 'downside', rate: 1.25, barrier: { level: 0.6, observation: 'final' } }] }, { coupon: fixed })).not.toContain(barrierReverseConvertible)
+      expect(namesWith({ participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.6, observation: 'daily-close' } }] }, { coupon: fixed, settlement: 'delivery' })).toContain(barrierReverseConvertible)
+      expect(namesWith({ participations: [{ direction: 'downside', rate: 1.25, barrier: { level: 0.6, observation: 'final' } }] }, { coupon: fixed, settlement: 'delivery' })).not.toContain(barrierReverseConvertible)
     })
 
     it('keeps the name beside a call, since the Swiss and US types can both be called', () => {
-      expect(namesWith({ participations: [barrierDown] }, { coupon: fixed, redemption: autocall })).toEqual(['Autocallable note', barrierReverseConvertible])
-      expect(namesWith({ participations: [down(1)] }, { coupon: fixed, redemption: issuerCall })).toEqual(['Callable note', reverseConvertible])
+      expect(namesWith({ participations: [barrierDown] }, { coupon: fixed, settlement: 'delivery', redemption: autocall })).toEqual(['Autocallable note', barrierReverseConvertible])
+      expect(namesWith({ participations: [down(1)] }, { coupon: fixed, settlement: 'delivery', redemption: issuerCall })).toEqual(['Callable note', reverseConvertible])
     })
 
     it('gives neither name without a fixed coupon or a downside, or with upside, protection, a digital return or an absolute return', () => {
       const either = (payoff: Parameters<typeof noteWith>[0], terms: Partial<Product>) => namesWith(payoff, terms).filter((name) => name === reverseConvertible || name === barrierReverseConvertible)
       const digitalReturn = { amount: 0.1, barrier: { level: 0.7, observation: 'final' as const } }
-      expect(either({ participations: [barrierDown] }, { coupon })).toEqual([])
-      expect(either({ participations: [down(1)] }, {})).toEqual([])
-      expect(either({}, { coupon: fixed })).toEqual([])
-      expect(either({ participations: [down(1), up(1)] }, { coupon: fixed })).toEqual([])
-      expect(either({ participations: [down(1)], principalProtection: 0.9 }, { coupon: fixed })).toEqual([])
-      const withDigital = withTerms({ participations: [barrierDown] }, { coupon: fixed })
+      expect(either({ participations: [barrierDown] }, { coupon, settlement: 'delivery' })).toEqual([])
+      expect(either({ participations: [down(1)] }, { settlement: 'delivery' })).toEqual([])
+      expect(either({}, { coupon: fixed, settlement: 'delivery' })).toEqual([])
+      expect(either({ participations: [down(1), up(1)] }, { coupon: fixed, settlement: 'delivery' })).toEqual([])
+      expect(either({ participations: [down(1)], principalProtection: 0.9 }, { coupon: fixed, settlement: 'delivery' })).toEqual([])
+      const withDigital = withTerms({ participations: [barrierDown] }, { coupon: fixed, settlement: 'delivery' })
       expect(marketingNames({ ...withDigital, payoff: { ...withDigital.payoff, digitalReturn } }).map(({ name }) => name)).not.toContain(barrierReverseConvertible)
       // noteWith drops an absolute return, so it is set on the product directly.
       const withAbsolute: Product = { ...withDigital, payoff: { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.6, observation: 'final' }, absoluteReturn: { rate: 1 } }] } }
       expect(marketingNames(withAbsolute).map(({ name }) => name)).not.toContain(barrierReverseConvertible)
     })
 
-    it('shows the barrier name on the fixed coupon samples with a downside barrier, and not on a contingent coupon sample', () => {
+    it('gives neither name to a product settled in cash', () => {
+      expect(namesWith({ participations: [barrierDown] }, { coupon: fixed, settlement: 'cash' })).not.toContain(barrierReverseConvertible)
+      expect(namesWith({ participations: [barrierDown] }, { coupon: fixed })).not.toContain(barrierReverseConvertible)
+      expect(namesWith({ participations: [down(1)] }, { coupon: fixed })).not.toContain(reverseConvertible)
+    })
+
+    it('shows the barrier name only on the sample that delivers, and not on the fixed coupon samples settled in cash', () => {
       const of = (slug: string) => marketingNames(sampleBySlug(slug)!.product).map(({ name }) => name)
-      expect(of('worst-of-fixed-coupon-autocallable-note')).toContain(barrierReverseConvertible)
-      expect(of('monthly-worst-of-fixed-coupon-autocallable-note')).toContain(barrierReverseConvertible)
+      expect(of('autocallable-worst-of-barrier-reverse-convertible')).toContain(barrierReverseConvertible)
+      expect(of('worst-of-fixed-coupon-autocallable-note')).not.toContain(barrierReverseConvertible)
+      expect(of('monthly-worst-of-fixed-coupon-autocallable-note')).not.toContain(barrierReverseConvertible)
       expect(of('autocallable-contingent-coupon-note')).not.toContain(barrierReverseConvertible)
     })
   })

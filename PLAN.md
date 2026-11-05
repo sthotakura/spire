@@ -567,6 +567,13 @@ A digital return, then a leveraged share of the rise beyond the level where that
 - **Book.** A section in chapter 12 with a chart; chapters 8 and 18.
 - **Not done:** a threshold at another level, a flat range with no digital return, a second rate above a level, and a strike below the initial level.
 
+## 48. Show the reverse convertible names only on delivery
+
+Changing a delivering sample to cash used to leave the chip in place. Both names now need delivery. This reverses section 44, and is narrower than SSPA, FINRA and an RBC note on an index that pays only cash, as [docs/call-and-coupon-names.md](docs/call-and-coupon-names.md) records.
+
+- **Consequences.** A note on an index never shows either name. The two fixed coupon autocallable samples, settled in cash, lose the chip and stay Yield Enhancement.
+- **Book.** Chapters 1 and 22 say the reference is narrower than the definitions.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.

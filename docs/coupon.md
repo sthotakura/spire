@@ -41,7 +41,7 @@ Its Key Dates table, checked as printed, has 24 rows: five coupon dates with no 
 | Credit Suisse 2022 | 24 months; worst of two; monthly autocall from month 6, trigger 100%, no call amount, final review not a call; 14% a year, monthly; 45% barrier on the final date | Yes. It first stayed a source, as it repeats the BofA sample's structure and delivers shares; delivery is now modelled ([settlement.md](settlement.md)), so it is the sample that shows it. The terms pass `validateProduct`, and `redemptionOutcome` reproduces its cash amounts: 45 pays 1,000 and 40 pays 400 on the valuation date. Coupons total 280.00 at 14% ÷ 12, against the filing's 280.008. |
 | Barclays 2026 | 12 months; worst of three; quarterly autocall from review 1, trigger 100%; 14.42% a year, quarterly; 60% barrier | No; a source only. Its call test reads "greater than or equal to" on the cover and "above" in its risk factors and an example, and its tax section refers to a physical settlement option that its payment terms do not have. |
 
-Settlement, cash or delivery of the underlier, is a term of its own ([settlement.md](settlement.md)). The reverse convertible names do not depend on it, since the Swiss type allows either form (see [call-and-coupon-names.md](call-and-coupon-names.md)). The Credit Suisse note uses the name and does deliver shares. The payment shown for it is its value on the valuation date, the same as the issuer's cash alternative; a holder who receives shares also bears any price move until maturity, which the reference does not show.
+Settlement, cash or delivery of the underlier, is a term of its own ([settlement.md](settlement.md)). The reverse convertible names need delivery, though the Swiss type allows either form (see [call-and-coupon-names.md](call-and-coupon-names.md)). The Credit Suisse note uses the name and does deliver shares. The payment shown for it is its value on the valuation date, the same as the issuer's cash alternative; a holder who receives shares also bears any price move until maturity, which the reference does not show.
 
 ## Smallest model
 
@@ -102,7 +102,7 @@ A 12-month bullet note with a fixed coupon of 6% a year, monthly, pays 5.00 a mo
 - **Schema.** `barrier` optional, with JSDoc that says a coupon without one is fixed; an example from the sample; a boundary case; "memory needs a barrier" added to the rules only the validator checks.
 - **Content.** Summary: "…and pays 12% a year in quarterly coupons". Payment rule and calculation: `Coupon = 1,000 × 12% × 3 / 12 = 30.00`, paid on each review until the product ends. Outcome, scenarios and chart labels say the coupon is paid whatever the level.
 - **Interface.** The Coupon row offers None, Fixed and Contingent. With Fixed, the coupon barrier and memory rows are not shown; switching keeps the reader's rate and schedule, and switching back to Contingent restores the barrier. For a fixed coupon the review table's coupon column shows what each review pays, with no barrier test.
-- **Names.** The Contingent coupon note chip needs a barrier. No chip for a fixed coupon alone; the reverse convertible names read it with the downside ([call-and-coupon-names.md](call-and-coupon-names.md)). The category follows the contingent coupon: an unprotected note with a coupon and no upside is Yield Enhancement.
+- **Names.** The Contingent coupon note chip needs a barrier. No chip for a fixed coupon alone; the reverse convertible names read it with the downside and delivery ([call-and-coupon-names.md](call-and-coupon-names.md)). The category follows the contingent coupon: an unprotected note with a coupon and no upside is Yield Enhancement.
 - **Annualised return.** Left out with a coupon at this point. Since built: [cash-flow-result.md](cash-flow-result.md).
 - **Samples.** "Worst-of fixed coupon autocallable note" from the 2019 note, and "Monthly worst-of fixed coupon autocallable note" from the BofA note, with synthetic underliers.
 - **Book.** A fixed coupon section in chapter 20, with a chart of the payment at the end of the term; chapters 19 and 21 and the outline updated.
@@ -111,7 +111,7 @@ A 12-month bullet note with a fixed coupon of 6% a year, monthly, pays 5.00 a mo
 
 1. **A fixed coupon is a coupon with no barrier**, with no `kind`.
 2. **Fixed or contingent, not both.** No note read pays both.
-3. **No name chip for a fixed coupon alone.** "RevCons" is a brand. This first also held back "reverse convertible" as depending on settlement; on 4 November 2026, SSPA's and FINRA's wording showed it does not, so the two reverse convertible names were added.
+3. **No name chip for a fixed coupon alone.** "RevCons" is a brand. This first also held back "reverse convertible" as depending on settlement; on 4 November 2026, SSPA's and FINRA's wording showed it does not, so the two reverse convertible names were added. On 5 November 2026 they came to need delivery after all, so that the chip follows the settlement term.
 4. **Barclays is a source, not a sample**, since its filing contradicts itself.
 5. **The fixed coupon comes before the cash-flow result.** The total paid stays the result.
 6. **The Credit Suisse note was first a source, not a sample**, as it repeated the BofA sample's structure and its delivery of shares was not modelled. Now that delivery is, it is the sample that shows delivery with an autocall.

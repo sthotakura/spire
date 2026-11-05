@@ -210,7 +210,7 @@ These appear in the documents above and belong to other concepts:
 
 1. **Settlement is a term on the product**, not on participation or the wrapper. Agreed on 4 November 2026.
 2. **The term is a plain value, cash or delivery.** Rounding, fractions and an issuer's cash option do not change the value on the final date, so a hint states them. Agreed on 4 November 2026.
-3. **The reverse convertible names do not wait for it.** SSPA's and FINRA's wording allow cash or shares. Built on 4 November 2026 ([call-and-coupon-names.md](call-and-coupon-names.md)).
+3. **The reverse convertible names need delivery.** They were first built without regard to settlement, since SSPA's and FINRA's wording allow cash or shares. On 5 November 2026 they came to need it, so that changing a delivering sample to cash removes the name. This is narrower than those sources, and a note on an index never shows it ([call-and-coupon-names.md](call-and-coupon-names.md)).
 4. **Stocks only, first.** An index or a fund is rejected. Agreed on 4 November 2026.
 5. **No separate strike term.** A strike of 80% stays a 20% buffer at a rate of 1.25, explained in the book and a name's reason. It was recommended and not objected to, so it stands until a reader needs otherwise.
 6. **A share count to four places.** The count states fractions, as TD's does, and the hint says they are paid in cash.

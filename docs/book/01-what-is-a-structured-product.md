@@ -76,9 +76,11 @@ filings under one title can differ. An autocall whose call amount is a
 rate for each year elapsed, so that each review it is not called adds to what the
 next call pays, is what sellers call a “snowball autocall”; one issuer calls it an
 autocallable note with a “step-up premium”. A fixed coupon in place of a share
-in a rise is a “reverse convertible” when the holder bears the fall below a
-strike, and a “barrier reverse convertible” when that waits for a barrier. An
-issuer may pay these in cash or in shares of the underlier, which the
+in a rise, with shares of the underlier delivered where the holder bears a fall, is
+a “reverse convertible” when that starts below a
+strike, and a “barrier reverse convertible” when it waits for a barrier. Some
+issuers use these names on notes that pay only cash; this reference shows them only
+where shares are delivered, which the
 [Settlement](22-settlement.md) chapter explains. A strike below the initial level appears here as a
 buffer and a rate: a strike of 80% is a 20% buffer at a rate of 1 ÷ 0.8. An unprotected
 autocall that pays contingent coupons instead of a share in a rise, with a
