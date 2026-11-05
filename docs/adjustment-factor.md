@@ -19,7 +19,7 @@ The factor decides where the holder gets principal back. At 99.35% the underlier
 - **It defaults to 1, on every product.** Absent means 1, which changes nothing. The builder leaves it out of the structure at 100%, as it leaves out cash settlement.
 - **The delta one sample starts at 1.** Decided by the project owner. The sample's ⓘ states the filing's 99.35%, and the reader can set it under Redemption.
 - **The sample is one for one by composition.** It is 100% upside and 100% downside participation. There is no delta one type.
-- **Delta One is a marketing name.** Decided by the project owner. It is shown beside Tracker on the same rule, so any product that fits has it, as in [marketing-names.md](marketing-names.md). A factor other than 1 does not remove it, since the notes that carry the name state one.
+- **Delta One is a marketing name.** Decided by the project owner. It is shown beside Tracker on the same rule, so any product that fits has it, as in [marketing-names.md](marketing-names.md). A factor other than 1 does not remove it, since the notes that carry the name state one. The payment then moves by the factor times one for one, so the hint of this name, and of any name that states a rate, says so: at 99%, a move of 1% of the initial level changes the payment by 0.99% of principal.
 
 ## Assumptions
 

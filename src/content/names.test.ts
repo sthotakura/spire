@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { withSubFeatures, type Participation, type Product } from '../domain/note'
+import { paymentBreakdown, withSubFeatures, type Participation, type Product } from '../domain/note'
 import { sampleBySlug, sampleProducts } from './examples'
 import { marketingNames, productCategory } from './names'
 
@@ -47,6 +47,25 @@ describe('marketing names', () => {
     expect(namesOf({ participations: [up(1.5), down(1)] })).not.toContain('Delta One')
     expect(namesOf({ participations: [up(1), down(0.9)] })).not.toContain('Delta One')
     expect(namesOf({ participations: [up(1)] })).not.toContain('Delta One')
+  })
+
+  it('keeps Tracker and Delta One at an adjustment factor, and says the move is scaled, as the payment is', () => {
+    const base = noteWith({ participations: [up(1), down(1)] })
+    const adjusted: Product = { ...base, redemption: { kind: 'bullet', adjustmentFactor: 0.99 } }
+    const names = marketingNames(adjusted)
+    expect(names.map(({ name }) => name)).toEqual(['Tracker', 'Delta One'])
+    for (const { reason } of names) expect(reason).toContain('a move of 1% of the initial level changes the payment by 0.99% of principal')
+    const payment = (final: number) => paymentBreakdown(adjusted, { initial: 100, final }).payment
+    expect((payment(101) - payment(100)) / 1000).toBeCloseTo(0.0099, 10)
+  })
+
+  it('states the factor exactly, and on every name with a rate, not on one without', () => {
+    const withFactor = (payoff: Parameters<typeof noteWith>[0], adjustmentFactor: number) => marketingNames({ ...noteWith(payoff), redemption: { kind: 'bullet', adjustmentFactor } })
+    expect(withFactor({ participations: [up(1), down(1)] }, 0.9935)[0].reason).toContain('The adjustment factor of 99.35% multiplies the final level first, so each rate applies to 99.35% of the underlier’s move: at a 100% rate, a move of 1% of the initial level changes the payment by 0.9935% of principal.')
+    for (const { reason } of withFactor({ participations: [up(1.5), down(1)] }, 1.01)) expect(reason).toContain('adjustment factor of 101%')
+    expect(withFactor({ principalProtection: 1 }, 0.99)[0].reason).not.toContain('adjustment factor')
+    expect(withFactor({ participations: [up(1), down(1)] }, 1)[0].reason).not.toContain('adjustment factor')
+    expect(withFactor({ participations: [up(1), down(1)] }, 0)[0]?.reason ?? '').not.toContain('adjustment factor')
   })
 
   it('calls upside above 100% with full downside participation outperformance', () => {

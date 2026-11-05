@@ -41,6 +41,15 @@ function maturityOnlyNote(note: Product, name: string): string {
   return parts.join(' ')
 }
 
+// A name's rates read the return the adjustment factor produces, so a factor other than 100% scales the move they describe.
+// The name stays, as the public notes titled Delta One state a factor (docs/adjustment-factor.md), and the reason says what it does.
+function adjustmentFactorNote(note: Product): string {
+  const factor = note.redemption.adjustmentFactor
+  if (!isRate(factor) || factor === 1) return ''
+  const percent = (factor * 100).toLocaleString('en-US', { maximumFractionDigits: 2 })
+  return `The adjustment factor of ${percent}% multiplies the final level first, so each rate applies to ${percent}% of the underlier’s move: at a 100% rate, a move of 1% of the initial level changes the payment by ${factor.toLocaleString('en-US', { maximumFractionDigits: 4 })}% of principal.`
+}
+
 // Names a structure like this one is commonly sold under. They are hints, not definitions, and several can apply at once.
 // The rules are recorded in docs/marketing-names.md. A note that fits none returns an empty list.
 export function marketingNames(note: Product): MarketingName[] {
@@ -99,7 +108,7 @@ export function marketingNames(note: Product): MarketingName[] {
     if (downside === 1 && upside === 1) {
       names.push({ name: 'Tracker', vocabulary: 'SSPA', reason: 'The payment follows the underlier one for one, up and down.', concepts: ['upside', 'downside'] })
       // The same payoff under the name in the titles of public notes. Seller usage, and the filings read do not define it, so the reason gives the general meaning of delta.
-      names.push({ name: 'Delta One', vocabulary: 'Market usage', reason: 'The payment moves one for one with the underlier, up and down. Delta is the change in an instrument’s value for each unit change in its underlier, so this is a delta of one. The name is in the titles of public notes, not a regulator’s or the Swiss taxonomy’s, and those notes often state an adjustment factor as well.', concepts: ['upside', 'downside'] })
+      names.push({ name: 'Delta One', vocabulary: 'Market usage', reason: 'The payment moves one for one with the underlier, up and down. Delta is the change in an instrument’s value for each unit change in its underlier, so one for one is a delta of one. The name is in the titles of public notes, not a regulator’s or the Swiss taxonomy’s, and those notes often state an adjustment factor as well.', concepts: ['upside', 'downside'] })
     } else if (downside === 1 && upside > 1) {
       names.push({ name: 'Outperformance', vocabulary: 'SSPA', reason: 'The payment gains more than one for one when the underlier rises and follows it one for one when it falls.', concepts: ['upside', 'downside'] })
     } else {
@@ -214,7 +223,10 @@ export function marketingNames(note: Product): MarketingName[] {
     const caveat = maturityOnlyNote(note, name.name)
     return caveat ? { ...name, reason: `${name.reason} ${caveat}` } : name
   })
-  return [...maturityNames, ...leveragedUpsideNames(note), ...callAndCouponNames(note)]
+  const factorNote = adjustmentFactorNote(note)
+  const rateNames = [...maturityNames, ...leveragedUpsideNames(note)].map((name) =>
+    factorNote && (name.concepts.includes('upside') || name.concepts.includes('downside')) ? { ...name, reason: `${name.reason} ${factorNote}` } : name)
+  return [...rateNames, ...callAndCouponNames(note)]
 }
 
 // Issuer titles for a rise shared at more than 100%. The plain titles describe the upside, so they apply whatever the fall does, and a note
