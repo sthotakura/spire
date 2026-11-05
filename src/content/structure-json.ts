@@ -25,6 +25,7 @@ export function structureLines(note: Product): StructureLine[] {
       if (second === 'triggerStep') return 'trigger-step'
       if (second === 'callAmount' || second === 'callAmountBasis') return 'call-amount'
       if (second === 'callOnFinalReview') return 'final-call'
+      if (second === 'adjustmentFactor') return 'adjustment-factor'
       return 'redemption'
     }
     if (top === 'coupon') return second === 'schedule' ? 'coupon-schedule' : second === 'barrier' ? 'coupon-barrier' : second === 'memory' ? 'memory' : 'coupon'

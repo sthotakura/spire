@@ -41,7 +41,7 @@ const base: Product = {
   wrapper: 'note',
   principalAmount: 1000,
   term: { months: 36 },
-  redemption: 'bullet',
+  redemption: { kind: 'bullet' },
   underlier: {
     kind: 'single',
     components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }],
@@ -117,6 +117,7 @@ describe('product schema', () => {
   describe('agrees with validateProduct on the numeric limits and the two conditions', () => {
     const cases: Array<[string, Product, boolean]> = [
       ...[[0, false], [-1, false], [0.01, true]].map(([value, ok]): [string, Product, boolean] => [`principal ${value}`, { ...base, principalAmount: value as number }, ok as boolean]),
+      ...[[0, false], [-1, false], [0.01, true], [1, true], [1.5, true]].map(([value, ok]): [string, Product, boolean] => [`adjustment factor ${value}`, { ...base, redemption: { kind: 'bullet', adjustmentFactor: value as number } }, ok as boolean]),
       ...[[0, false], [1, true], [120, true], [121, false], [1.5, false]].map(([value, ok]): [string, Product, boolean] => [`term of ${value} months`, { ...base, term: { months: value as number } }, ok as boolean]),
       ['downside rate 0', downside({ rate: 0 }), false], ['downside rate 0.01', downside({ rate: 0.01 }), true],
       ['upside rate 0', upside({ rate: 0 }), false], ['upside rate 0.01', upside({ rate: 0.01 }), true],

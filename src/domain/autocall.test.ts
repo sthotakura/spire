@@ -8,11 +8,11 @@ const autocall = (terms: Partial<Autocall> = {}): Autocall => ({ kind: 'autocall
 type Unscheduled<T> = Omit<T, 'schedule'> & { schedule?: Schedule }
 // The call's schedule belongs to the redemption. These examples state it beside the redemption, as a term of the example, and a
 // redemption that states none is reviewed monthly. A schedule given as undefined leaves the call without one.
-type Overrides = Omit<Partial<Product>, 'redemption'> & { redemption?: 'bullet' | Unscheduled<Autocall> | Unscheduled<IssuerCall>; schedule?: Schedule }
+type Overrides = Omit<Partial<Product>, 'redemption'> & { redemption?: { kind: 'bullet' } | Unscheduled<Autocall> | Unscheduled<IssuerCall>; schedule?: Schedule }
 const callable = (overrides: Overrides = {}): Product => {
   const { schedule, redemption = autocall(), ...rest } = overrides
   const product = { ...startingProduct, term: { months: 12 }, ...rest }
-  if (redemption === 'bullet') return { ...product, redemption }
+  if (redemption.kind === 'bullet') return { ...product, redemption }
   return { ...product, redemption: { ...redemption, schedule: 'schedule' in overrides ? schedule : redemption.schedule ?? { frequency: 'monthly' } } as Autocall | IssuerCall }
 }
 const levels = { initial: 100, final: 100 }
@@ -57,7 +57,7 @@ describe('validation of a schedule and an autocall', () => {
   })
 
   it('belongs to the redemption, so a bullet product has none', () => {
-    expect(fieldsOf(callable({ redemption: 'bullet' }))).toEqual([])
+    expect(fieldsOf(callable({ redemption: { kind: 'bullet' } }))).toEqual([])
   })
 
   it('needs a term that holds whole periods', () => {

@@ -16,7 +16,7 @@ const product = (coupon: Partial<Coupon> = {}): Product => ({
   coupon: { schedule: { frequency: 'quarterly' }, rate: 0.12, ...coupon },
   payoff: { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.6, observation: 'final' } }] },
 })
-const bullet: Product = { ...product({ schedule: { frequency: 'monthly' }, rate: 0.06 }), term: { months: 12 }, redemption: 'bullet' }
+const bullet: Product = { ...product({ schedule: { frequency: 'monthly' }, rate: 0.06 }), term: { months: 12 }, redemption: { kind: 'bullet' } }
 // A level on each call review before the last, in months 6 to 15.
 const called = [92, 91, 90, 90]
 const neverCalled = [90, 85, 80, 75]

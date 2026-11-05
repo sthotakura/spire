@@ -28,7 +28,7 @@ The term sits at the top of the product, beside the principal amount. Two concep
   "wrapper": "note",
   "principalAmount": 1000,
   "term": { "months": 36 },
-  "redemption": "bullet",
+  "redemption": { "kind": "bullet" },
   "underlier": { … },
   "payoff": { … }
 }

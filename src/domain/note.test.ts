@@ -3,7 +3,7 @@ import { annualisedReturn, barrierLevelAt, basketBreakdown, equalWeights, finalL
 
 const note: SingleProduct = {
   wrapper: 'note',
-  redemption: 'bullet',
+  redemption: { kind: 'bullet' },
   term: { months: 36 },
   underlier: {
     kind: 'single',

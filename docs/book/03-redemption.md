@@ -38,6 +38,36 @@ Apart from an autocall or an issuer call, SPIRe's examples calculate only the sc
 payoff. They do not assume that an early sale or withdrawal would receive the
 same amount.
 
+## Adjustment factor
+
+Any redemption can state an adjustment factor: a number the final level is
+multiplied by before the maturity payoff reads it. The return the payoff then
+reads is:
+
+```text
+Adjusted return = final level × adjustment factor ÷ initial level − 1
+```
+
+The factor moves the point where the holder gets principal back. With principal
+of 1,000, 100% participation in both directions and an initial level of 100:
+
+| Final level | Factor 100% | Factor 99.35% | Factor 101% |
+| ---: | ---: | ---: | ---: |
+| 120 | 1,200.00 | 1,192.20 | 1,212.00 |
+| 100 | 1,000.00 | 993.50 | 1,010.00 |
+| 80 | 800.00 | 794.80 | 808.00 |
+
+At 99.35% the underlier must rise about 0.65% before principal comes back. At
+101% principal comes back after a fall of about 0.99%. At 100% the factor changes
+nothing, and a product that states none has a factor of 100%.
+
+The factor changes the maturity payment only. A call pays principal plus the call
+amount, a coupon pays its own rate, and a review reads the underlier's own level,
+whatever the factor. SPIRe does not combine a factor other than 100% with a
+buffer, a barrier or a digital return, because each tests the final level and it
+is not settled whether that test reads the level before or after the factor. It
+does not combine one with delivery either.
+
 ## Related concepts
 
 Term gives the scheduled length. Determination selects the observations used

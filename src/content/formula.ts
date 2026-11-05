@@ -53,7 +53,10 @@ export function paymentFormula(note: Product): FormulaLine[] {
   // The buffer shifts where downside participation starts, so it sits inside the downside term.
   if (buffer !== undefined) terms.push({ text: 'Downside × min(Return + ', concept: 'downside' }, { text: 'Buffer', concept: 'buffer' }, { text: ', 0)', concept: 'downside' })
   else if (downside) terms.push({ text: 'Downside × min(Return, 0)', concept: 'downside' })
-  const payment: FormulaSegment[] = terms.length ? [{ text: 'Principal × (1 + ' }, ...terms, { text: ')' }] : [{ text: 'Principal' }]
+  // With an adjustment factor the payment reads the adjusted return, which its own line defines below.
+  const adjusted = (note.redemption.adjustmentFactor ?? 1) !== 1
+  const named = adjusted ? terms.map((term) => ({ ...term, text: term.text.replace('Return', 'Adjusted return') })) : terms
+  const payment: FormulaSegment[] = named.length ? [{ text: 'Principal × (1 + ' }, ...named, { text: ')' }] : [{ text: 'Principal' }]
 
   const lines: FormulaLine[] = []
   const { initial, final } = note.underlier.determination
@@ -70,6 +73,7 @@ export function paymentFormula(note: Product): FormulaLine[] {
       { lead: 'Basket level', segments: [{ text: '100 × (1 + Return)', concept: 'basket-return' }] },
     )
   } else lines.push({ lead: 'Return', segments: [{ text: `Final level ÷ ${initial.kind === 'lookback' ? 'Lookback' : 'Initial'} level − 1`, concept: 'determination' }] })
+  if (adjusted) lines.push({ lead: 'Adjusted return', segments: [{ text: '(1 + Return) × Adjustment factor − 1', concept: 'adjustment-factor' }] })
   lines.push({ lead: 'Payment', segments: payment })
   // The barrier decides whether the downside term counts at all, so it qualifies the payment rather than changing the term.
   // A barrier observed on every close reads the lowest close (downside) or the highest (upside) instead of the final level.
@@ -186,5 +190,7 @@ export function paymentInWords(note: Product): string {
     : ceiling ? ` The payment never goes above ${ceiling}.`
       : floor ? ` The payment never goes below ${floor}.` : ''
 
-  return `${moves[0].toUpperCase()}${moves.slice(1)}.${larger}${atUpsideBarrier}${unchanged}${digitalSentence}${limits}`
+  const factor = note.redemption.adjustmentFactor ?? 1
+  const adjustment = factor === 1 ? '' : ` The final level is first multiplied by ${percent(factor)}, so the return is zero when ${name} ends at about ${percent(1 / factor)} of its ${from} level.`
+  return `${moves[0].toUpperCase()}${moves.slice(1)}.${adjustment}${larger}${atUpsideBarrier}${unchanged}${digitalSentence}${limits}`
 }

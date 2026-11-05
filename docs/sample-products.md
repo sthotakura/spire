@@ -21,6 +21,7 @@ Where a filing gives a range set on the pricing date, the sample takes the low e
 
 | Sample | Modelled on | Terms | Simplifications |
 | :--- | :--- | :--- | :--- |
+| Delta one note | Morgan Stanley Delta-One Notes linked to the TOPIX Index, due 2015 ([424B2](https://www.sec.gov/Archives/edgar/data/895421/000095010314003449/dp46435_424b2-ps1411.htm)) | 12 months, 100% upside, 100% downside, final level averaged over five dates | Starts at an adjustment factor of 100%, where the filing states 99.35%; pricing to the last averaging date is about 12 months. See [adjustment-factor.md](adjustment-factor.md) |
 | Capped market-linked deposit | Morgan Stanley capped market-linked CD ([summary](https://www.morganstanley.com/structuredinvestments/docs/summarysheets/61773TBB8_Summary_Sheet_Only.pdf)) | Deposit, 5 years, 100% upside, maximum 130% | Range 130% to 135% |
 | Leveraged market-linked deposit | Morgan Stanley trend index CD ([disclosure supplement](https://www.morganstanley.com/structuredinvestments/docs/prospectus/prelim/ProspectusRed61773TAM5.pdf)) | Deposit, 5 years, 265% upside, no maximum | Range 265% to 280%; the underlier is a trend index |
 | Capped principal-protected note | Citigroup Global Markets market-linked securities on the Dow Jones Industrial Average, due 2029 ([424B2](https://www.sec.gov/Archives/edgar/data/200245/000191870426029060/form424b2.htm)) | 33 months, 100% upside, 100% protection, maximum 120% | Cap "at least 20%"; pricing to valuation is 33 months |
@@ -51,6 +52,7 @@ Where a filing gives a range set on the pricing date, the sample takes the low e
 
 ## Public products not used
 
+- Morgan Stanley Delta-One Notes No. 744 and No. 1,408 and the Barclays Delta One notes: see [adjustment-factor.md](adjustment-factor.md).
 - The Morgan Stanley basket CD averages 28 quarterly closes; the reference averages at most 12 dates.
 - The JPMorgan lookback buffered note reads the lesser performing of two indices; lookback is not available on a basket.
 - **To pursue:** the BofA digital return plus notes on the S&P 500 Futures Excess Return Index ([424B2](https://www.sec.gov/Archives/edgar/data/70858/000191870426007286/form424b2.htm)) pay the greater of 150% of a rise and a 30% digital payment from 60% of the starting value up, which the reference can express, but the filing's illustrative table pays less than that formula above a 20% rise (1,750 at +60%, where the formula gives 1,900). It is not a sample until the discrepancy is settled, for example by the final filing or the product supplement ([digital-return.md](digital-return.md), open question 6).

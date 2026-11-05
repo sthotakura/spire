@@ -25,6 +25,7 @@ const rulesInValidator = [
   'A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.',
   'The term must hold a whole number of periods of each schedule: at least two for an autocall or an issuer call, and at least one for a coupon.',
   'An autocall, an issuer call or a contingent coupon cannot be combined with a barrier observed on every close.',
+  'An adjustment factor other than 1 cannot be combined with a buffer, a barrier, a digital return, barrier absolute return or delivery.',
   'Memory needs a coupon barrier: a fixed coupon, which has none, is paid on every review.',
   'Delivery needs downside participation; one stock or a worst-of basket of stocks; a final level on the final date; no principal protection; and downside rate × (1 − buffer) of at most 1.',
   'An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The first review of an autocall or an issuer call is a whole number of periods in, and leaves at least one review that can call.',

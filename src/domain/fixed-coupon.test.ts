@@ -24,7 +24,7 @@ const neverCalled = [90, 85, 80, 75]
 describe('validation of a fixed coupon', () => {
   it('accepts a coupon with no barrier, with any redemption', () => {
     expect(validateProduct(withFixedCoupon())).toEqual([])
-    expect(validateProduct(withFixedCoupon({ redemption: 'bullet' }))).toEqual([])
+    expect(validateProduct(withFixedCoupon({ redemption: { kind: 'bullet' } }))).toEqual([])
     expect(validateProduct(withFixedCoupon({ redemption: { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0 } }))).toEqual([])
   })
 
@@ -35,20 +35,20 @@ describe('validation of a fixed coupon', () => {
 
   it('still needs a rate above zero and a schedule that divides the term', () => {
     expect(fieldsOf(withFixedCoupon({ coupon: fixed({ rate: 0 }) }))).toEqual(['coupon'])
-    expect(fieldsOf(withFixedCoupon({ redemption: 'bullet', coupon: fixed({ schedule: { frequency: 'annual' } }) }))).toEqual(['couponSchedule'])
+    expect(fieldsOf(withFixedCoupon({ redemption: { kind: 'bullet' }, coupon: fixed({ schedule: { frequency: 'annual' } }) }))).toEqual(['couponSchedule'])
   })
 
   it('can be combined with a barrier observed on every close on a bullet note, since it reads no level, but not with a call', () => {
-    expect(validateProduct(withFixedCoupon({ redemption: 'bullet', payoff: dailyBarrier }))).toEqual([])
+    expect(validateProduct(withFixedCoupon({ redemption: { kind: 'bullet' }, payoff: dailyBarrier }))).toEqual([])
     expect(fieldsOf(withFixedCoupon({ payoff: dailyBarrier }))).toEqual(['schedule'])
     // A contingent coupon reads a level on each review, so it is still not combined with one.
-    expect(fieldsOf(withFixedCoupon({ redemption: 'bullet', coupon: fixed({ barrier: 0.7 }), payoff: dailyBarrier }))).toEqual(['couponSchedule'])
+    expect(fieldsOf(withFixedCoupon({ redemption: { kind: 'bullet' }, coupon: fixed({ barrier: 0.7 }), payoff: dailyBarrier }))).toEqual(['couponSchedule'])
   })
 })
 
 describe('the dates a level is read on, with a fixed coupon', () => {
   it('are none for a bullet note: a fixed coupon reads no level', () => {
-    expect(reviewDates(withFixedCoupon({ redemption: 'bullet' }))).toEqual([])
+    expect(reviewDates(withFixedCoupon({ redemption: { kind: 'bullet' } }))).toEqual([])
   })
 
   it('are the call reviews alone for an autocall, even when the coupon is reviewed more often', () => {
@@ -81,7 +81,7 @@ describe('the worked example', () => {
 
 describe('a fixed coupon on a bullet note', () => {
   // A 12-month note at 6% a year paid monthly: 5 a month.
-  const bullet = withFixedCoupon({ term: { months: 12 }, redemption: 'bullet', coupon: fixed({ schedule: { frequency: 'monthly' }, rate: 0.06 }) })
+  const bullet = withFixedCoupon({ term: { months: 12 }, redemption: { kind: 'bullet' }, coupon: fixed({ schedule: { frequency: 'monthly' }, rate: 0.06 }) })
 
   it('reads no review levels and pays every coupon, the last with the payment at the end of the term', () => {
     const outcome = redemptionOutcome(bullet, [], { initial: 100, final: 50 })

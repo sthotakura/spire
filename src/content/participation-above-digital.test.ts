@@ -15,7 +15,7 @@ import { summarize } from './summary'
 // from it, and a 70% downside barrier, on one index starting at 100. The threshold is 120.
 const base: SingleProduct = {
   wrapper: 'note',
-  redemption: 'bullet',
+  redemption: { kind: 'bullet' },
   term: { months: 60 },
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },
   payoff: {

@@ -11,7 +11,7 @@ const yearsPhrase = (months: number) => `${(months / 12).toLocaleString('en-US',
 // The sentence about how the product ended, from the reviews. A called product says which review, at what level, and what it
 // pays; one that ran to the end of its term says no review reached the trigger, and the maturity payment follows in the outcome.
 export function explainRedemption(note: Product, outcome: RedemptionOutcome): string {
-  if (note.redemption === 'bullet') return ''
+  if (note.redemption.kind === 'bullet') return ''
   if (note.redemption.kind === 'issuer-call') return explainIssuerCall(note, outcome)
   const { calledAtReview, tests, reviews, months, payment } = outcome
   const test = calledAtReview === undefined ? undefined : tests[calledAtReview - 1]
@@ -29,7 +29,7 @@ export function explainRedemption(note: Product, outcome: RedemptionOutcome): st
 // The call rule beside the payment rule. It is tested on each review before the last, and the last review pays the payoff unless it
 // is a call too. A trigger that steps and a call amount for each year say so in the rule.
 export function redemptionFormula(note: Product): FormulaLine[] {
-  if (note.redemption === 'bullet') return []
+  if (note.redemption.kind === 'bullet') return []
   // The reviews start one period in unless the call states a later first review, which the rule then names.
   const first = firstReviewMonthOf(note.redemption)
   const from = first > monthsPerReview[note.redemption.schedule.frequency] ? ` from month ${first}` : ''
@@ -99,7 +99,7 @@ const twoDecimalPercent = (fraction: number) => `${(fraction * 100).toLocaleStri
 // already ended. A product that was called also gets its annualised return, over the months it actually lasted, and a heading before
 // the payoff steps that follow, which say what it would have paid at maturity.
 export function redemptionSteps(note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> {
-  if (note.redemption === 'bullet') return couponSteps(note, outcome)
+  if (note.redemption.kind === 'bullet') return couponSteps(note, outcome)
   if (note.redemption.kind === 'issuer-call') return issuerCallSteps(note, outcome)
   const { redemption } = note
   const { callAmount, callAmountBasis, callOnFinalReview } = redemption
@@ -278,7 +278,7 @@ function explainIssuerCall(note: Product, outcome: RedemptionOutcome): string {
 // The first review when it is later than one period in, the coupon steps when there is a coupon, then the call, then what follows a
 // call. The call reads no level, so there is no step for each call review.
 function issuerCallSteps(note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> {
-  if (note.redemption === 'bullet' || note.redemption.kind !== 'issuer-call') return []
+  if (note.redemption.kind !== 'issuer-call') return []
   const { callAmount, callAmountBasis } = note.redemption
   const first = firstReviewMonthOf(note.redemption)
   const steps: Array<Omit<CalculationStep, 'n'>> = couponSteps(note, outcome)
@@ -309,7 +309,7 @@ export function pathScenarios(note: Product, initialLevel: number): PathScenario
   const dates = reviewDates(note)
   if (dates.length < 2) return []
   const { redemption } = note
-  const autocall = redemption !== 'bullet' && redemption.kind === 'autocall' ? redemption : undefined
+  const autocall = redemption.kind === 'autocall' ? redemption : undefined
   const reviews = callReviewCount(note)!
   const triggerLevel = (review: number) => (autocall ? barrierLevelAt(triggerAtReview(autocall, review), initialLevel) : Number.POSITIVE_INFINITY)
   // Clearly below the trigger of a review, so the review cannot call.

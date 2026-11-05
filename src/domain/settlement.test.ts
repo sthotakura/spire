@@ -12,7 +12,7 @@ const delivering = (downside: Omit<DownsideParticipation, 'direction'>, terms: P
   wrapper: 'note',
   principalAmount,
   term: { months: 12 },
-  redemption: 'bullet',
+  redemption: { kind: 'bullet' },
   settlement: 'delivery',
   underlier: stock(),
   payoff: { participations: [{ direction: 'downside', ...downside }] },

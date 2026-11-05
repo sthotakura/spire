@@ -113,7 +113,7 @@ A term on the product, beside the redemption and the coupon:
 ```json
 {
   "wrapper": "note",
-  "redemption": "bullet",
+  "redemption": { "kind": "bullet" },
   "settlement": "delivery",
   "payoff": { "participations": [{ "direction": "downside", "barrier": { "level": 0.45, "observation": "final" }, "rate": 1 }] }
 }

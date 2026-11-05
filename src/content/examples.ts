@@ -35,7 +35,7 @@ const product = (months: number, payoff: Product['payoff'], terms: Partial<Produ
   wrapper: 'note',
   principalAmount: 1000,
   term: { months },
-  redemption: 'bullet',
+  redemption: { kind: 'bullet' },
   underlier: single(),
   payoff,
   ...terms,
@@ -52,6 +52,12 @@ export const sampleGroups: SampleGroup[] = [
   {
     label: 'Participation notes',
     samples: [
+      {
+        slug: 'delta-one-note',
+        name: 'Delta one note',
+        source: { title: 'Morgan Stanley Delta-One Notes linked to the TOPIX Index, due 2015', url: 'https://www.sec.gov/Archives/edgar/data/895421/000095010314003449/dp46435_424b2-ps1411.htm', note: 'The filing multiplies the final level by an adjustment factor of 99.35%. This starts at 100%, so the payment moves one for one from the initial level; set the factor under Redemption to read the filing\u2019s payments. The final level averages five dates, and about 12 months run from pricing to the last of them.' },
+        product: product(12, { participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }] }, { underlier: single({ initial: { kind: 'given', level: 100 }, final: { kind: 'averaging', observationCount: 5 } }) }),
+      },
       {
         slug: 'capped-principal-protected-note',
         name: 'Capped principal-protected note',

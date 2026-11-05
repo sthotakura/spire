@@ -359,12 +359,30 @@ export interface Schedule {
   frequency: ReviewFrequency
 }
 
+// See docs/adjustment-factor.md.
+/** Terms every redemption has, whichever way the product ends. */
+export interface RedemptionTerms {
+  /**
+   * A number the final level is multiplied by before the maturity payment reads it, so the payment is measured from final level × factor.
+   * Below 1 the underlier must rise for the return to reach zero; above 1 the return reaches zero after a fall. Absent means 1, which changes
+   * nothing. It does not change a call amount, a coupon, or a level read on a review, none of which read the maturity payment's return.
+   * @exclusiveMinimum 0
+   * @default 1
+   */
+  adjustmentFactor?: number
+}
+
+/** Bullet redemption: one payment at the end of the term, with no early call. */
+export interface Bullet extends RedemptionTerms {
+  kind: 'bullet'
+}
+
 /**
  * Automatic early redemption. On each review before the last, if the underlier's level is at or above the trigger, the product ends
  * and repays principal plus the call amount. The last review is the end of the term and pays the maturity payoff as a bullet product does,
  * unless the final review is also a call.
  */
-export interface Autocall {
+export interface Autocall extends RedemptionTerms {
   kind: 'autocall'
   /** How often the call is tested, from its first review. The term must hold at least two periods. */
   schedule: Schedule
@@ -418,7 +436,7 @@ export interface Autocall {
  * and repays principal plus the call amount. Nothing tests the underlier: whether the issuer calls is the issuer's choice, which a
  * scenario states. The last review is the end of the term and is not a call.
  */
-export interface IssuerCall {
+export interface IssuerCall extends RedemptionTerms {
   kind: 'issuer-call'
   /** How often the issuer may call, from its first review. The term must hold at least two periods. */
   schedule: Schedule
@@ -502,7 +520,7 @@ export interface Product {
   principalAmount: number
   term: Term
   /** Bullet redemption pays once, at maturity. An autocall or an issuer call can end the product earlier, on a review. */
-  redemption: 'bullet' | Autocall | IssuerCall
+  redemption: Bullet | Autocall | IssuerCall
   /**
    * A coupon on each review of its own schedule, with any redemption: fixed, paid on every review, or contingent, paid on a review that
    * meets its barrier.
@@ -550,7 +568,7 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
     ? { direction: 'downside', buffer, barrier, absoluteReturn, rate: participation.rate }
     : { direction: 'upside', ...(measuredFrom === undefined ? {} : { measuredFrom }), barrier: upsideBarrier, rate: participation.rate, cap })
 
-export type ProductIssueField = 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'digitalReturn' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'firstReviewMonth' | 'triggerStep' | 'callAmount' | 'coupon' | 'couponSchedule' | 'settlement'
+export type ProductIssueField = 'adjustmentFactor' | 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'digitalReturn' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'firstReviewMonth' | 'triggerStep' | 'callAmount' | 'coupon' | 'couponSchedule' | 'settlement'
 
 // A barrier as an underlier level: its fraction of the level the return is measured from. Rounded to nine decimals, because
 // 1.1 × 100 is 110.00000000000001 in floating point, which would put a final level of 110 on the wrong side of a barrier at 110%.
@@ -679,7 +697,7 @@ export const firstReviewMonthOf = (redemption: Autocall | IssuerCall): number =>
 
 // The number of the call's reviews, from its first: one, the final date, for a bullet product.
 export const callReviewCount = (note: Product): number | undefined =>
-  note.redemption === 'bullet' || note.redemption.schedule === undefined ? 1 : reviewCount({ term: note.term, schedule: note.redemption.schedule, firstMonth: firstReviewMonthOf(note.redemption) })
+  note.redemption.kind === 'bullet' || note.redemption.schedule === undefined ? 1 : reviewCount({ term: note.term, schedule: note.redemption.schedule, firstMonth: firstReviewMonthOf(note.redemption) })
 
 // The month of a call's review, numbered from 1 at its first review.
 export const callReviewMonth = (redemption: Autocall | IssuerCall, review: number): number =>
@@ -705,7 +723,7 @@ export function reviewDates(note: Product): ReviewDate[] {
     return true
   }
   const { redemption, coupon } = note
-  if (redemption !== 'bullet' && redemption.kind === 'autocall' && redemption.schedule !== undefined && !add(redemption.schedule, 'call', firstReviewMonthOf(redemption))) return []
+  if (redemption.kind === 'autocall' && redemption.schedule !== undefined && !add(redemption.schedule, 'call', firstReviewMonthOf(redemption))) return []
   if (coupon?.schedule !== undefined && coupon.barrier !== undefined && !add(coupon.schedule, 'coupon')) return []
   return [...dates.values()].sort((a, b) => a.month - b.month)
 }
@@ -724,7 +742,7 @@ export function suggestedFrequency(months: number): ReviewFrequency {
 function redemptionIssues(note: Product): ProductIssue[] {
   const issues: ProductIssue[] = []
   const { redemption } = note
-  if (redemption === 'bullet') return issues
+  if (redemption.kind === 'bullet') return issues
   const { schedule } = redemption
   const named = redemption.kind === 'autocall' ? 'An autocall' : 'An issuer call'
   const periods = schedule === undefined ? undefined : reviewCount({ term: note.term, schedule })
@@ -799,6 +817,23 @@ function settlementIssues(note: Product): ProductIssue[] {
   // A floor is not a share count and fixed cash, and no public note read has both.
   if ((note.payoff.principalProtection ?? 0) > 0) issues.push({ field: 'settlement', message: 'Delivery cannot be combined with principal protection.' })
   if (downside !== undefined && downside.rate * (1 - (downside.buffer ?? 0)) > 1 + deliveryTolerance) issues.push({ field: 'settlement', message: 'Delivery needs downside rate × (1 − buffer) to be at most 100%: above it the holder would owe the issuer cash.' })
+  return issues
+}
+
+// The factor reads through the return only. A feature that tests the final level against a level of its own would need the factor to apply
+// to that test or not, which no note read settles, and shares are worth their close, so delivery would need a share count the factor scales.
+function adjustmentFactorIssues(note: Product): ProductIssue[] {
+  const factor = note.redemption.adjustmentFactor
+  if (factor === undefined) return []
+  if (!Number.isFinite(factor) || factor <= 0) return [{ field: 'adjustmentFactor', message: 'Adjustment factor must be greater than zero.' }]
+  if (factor === 1) return []
+  const issues: ProductIssue[] = []
+  const downside = downsideOf(note)
+  const { digitalReturn, barrierAbsoluteReturn } = note.payoff
+  if (downside?.buffer !== undefined || downside?.barrier !== undefined || upsideOf(note)?.barrier !== undefined || digitalReturn !== undefined || barrierAbsoluteReturn !== undefined) {
+    issues.push({ field: 'adjustmentFactor', message: 'An adjustment factor other than 100% cannot be combined with a buffer, a barrier or a digital return: each tests the final level, and whether it reads the level before or after the factor is not settled.' })
+  }
+  if (note.settlement === 'delivery') issues.push({ field: 'adjustmentFactor', message: 'An adjustment factor other than 100% cannot be combined with delivery.' })
   return issues
 }
 
@@ -881,7 +916,7 @@ export function productIssues(note: Product): ProductIssue[] {
     if (bothWays !== undefined) issues.push({ field: 'digitalReturn', message: 'A digital return cannot be combined with absolute return in both directions.' })
     if (note.payoff.minimumReturn !== undefined) issues.push({ field: 'digitalReturn', message: 'A digital return cannot be combined with a minimum return.' })
   }
-  issues.push(...redemptionIssues(note), ...couponIssues(note), ...settlementIssues(note))
+  issues.push(...redemptionIssues(note), ...couponIssues(note), ...settlementIssues(note), ...adjustmentFactorIssues(note))
   // A deposit is repaid in full, so nothing may take the payment below principal, and principal needs no protection term.
   if (note.wrapper === 'deposit' && downsideOf(note)) issues.push({ field: 'participations', message: 'A deposit repays principal in full, so it cannot have downside participation.' })
   if (note.wrapper === 'deposit' && protection !== undefined) issues.push({ field: 'principalProtection', message: 'A deposit repays principal in full, so it has no principal protection term.' })
@@ -1018,7 +1053,10 @@ export interface DigitalReturnBreakdown {
 export interface PaymentBreakdown {
   // The level the return is measured from, as the initial end of the determination produced it.
   initialLevel: number
+  // The return the payoff reads: final level × adjustment factor ÷ initial level − 1.
   underlierReturn: number
+  // The underlier's own return, before the adjustment factor. It equals underlierReturn at a factor of 1.
+  unadjustedReturn: number
   // The direction the return falls in. A flat return counts as upside.
   direction: ParticipationDirection
   // Undefined when the note has no buffer. Otherwise the part of a fall the buffer absorbs, as a positive fraction: zero on a rise.
@@ -1082,7 +1120,8 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
   if (!Number.isFinite(lowestClose) || lowestClose < 0 || lowestClose > Math.min(levels.initial, levels.final)) throw new Error('Lowest close must be zero or greater and no higher than the initial and final levels.')
   if (!Number.isFinite(highestClose) || highestClose < Math.max(levels.initial, levels.final)) throw new Error('Highest close must be no lower than the initial and final levels.')
 
-  const underlierReturn = levels.final / levels.initial - 1
+  const unadjustedReturn = levels.final / levels.initial - 1
+  const underlierReturn = levels.final * (note.redemption.adjustmentFactor ?? 1) / levels.initial - 1
   const direction: ParticipationDirection = underlierReturn < 0 ? 'downside' : 'upside'
   const participationRate = note.payoff.participations.find((candidate) => candidate.direction === direction)?.rate
   const buffer = downsideOf(note)?.buffer
@@ -1147,6 +1186,7 @@ export function paymentBreakdown(note: Product, levels: DeterminedLevels): Payme
   return {
     initialLevel: levels.initial,
     underlierReturn,
+    unadjustedReturn,
     direction,
     bufferAbsorbs,
     barrierLevel,

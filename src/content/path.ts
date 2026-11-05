@@ -24,7 +24,7 @@ const ofInitial = (note: Product, level: number) => `${formatPercent(level)} of 
 export function lineStages(note: Product, b: PaymentBreakdown, levels: DeterminedLevels): LineStage[] {
   const principal = note.principalAmount
   const r = b.underlierReturn
-  let pending = r
+  let pending = b.unadjustedReturn
   let settled = 0
   const amount = () => principal * (1 + pending + settled)
   const stages: LineStage[] = []
@@ -33,6 +33,12 @@ export function lineStages(note: Product, b: PaymentBreakdown, levels: Determine
   const isBasket = note.underlier.kind === 'basket'
   const name = note.underlier.kind === 'single' ? note.underlier.components[0].asset.name.trim() : ''
   add(isBasket ? 'Basket level' : `${name || 'Underlier'} return`, isBasket ? 'basket-return' : 'determination', `A payment that moves 1:1 with the ${isBasket ? 'basket' : 'underlier'}`)
+
+  const factor = note.redemption.adjustmentFactor ?? 1
+  if (factor !== 1) {
+    pending = r
+    add('Adjusted return', 'adjustment-factor', `The final level is multiplied by ${formatPercent(factor)} before the payoff reads it`)
+  }
 
   const bothWays = note.payoff.barrierAbsoluteReturn
   if (bothWays && b.barrierAbsolute) {
@@ -125,7 +131,7 @@ export function lineStages(note: Product, b: PaymentBreakdown, levels: Determine
   // The line draws the last review: an autocall that calls on it, and a coupon paid on it.
   const { redemption } = note
   const call = finalCallLevel(note, levels.initial)
-  if (redemption !== 'bullet' && call !== undefined) {
+  if (redemption.kind !== 'bullet' && call !== undefined) {
     const called = principal * (1 + callAmountAtReview(redemption, note.term.months))
     if (levels.final >= call) settled = called / principal - 1
     add('Call on the last review', 'call-amount', `At or above the trigger on the last review, ${formatAmount(call)}, it is called: it pays ${formatAmount(called)}`)
@@ -144,7 +150,7 @@ export function scenarioAside(note: Product, levels: DeterminedLevels, outcome?:
   const { redemption } = note
   const before = outcome ? outcome.totalPaid - outcome.payment : 0
   const coupons = before > 0 ? ` It also pays ${formatAmount(before)} in coupons on earlier reviews.` : ''
-  const issuer = redemption !== 'bullet' && redemption.kind === 'issuer-call'
+  const issuer = redemption.kind === 'issuer-call'
   if (outcome?.calledAtReview !== undefined && (issuer || outcome.calledAtReview < outcome.reviews)) {
     return `In this scenario ${issuer ? 'the issuer calls it' : 'it is called'} on review ${outcome.calledAtReview} and pays ${formatAmount(outcome.payment)}, which the line does not show.${coupons}`
   }

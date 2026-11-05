@@ -119,7 +119,7 @@ export function summarize(note: Product): SummarySegment[] {
   // initial level of what the payoff reads, so the underlier is named again. An issuer call says when the issuer may call, with no level.
   const redemption: SummarySegment[] = (() => {
     const { redemption: terms } = note
-    if (terms === 'bullet') return [{ text: ' that redeems ' }, { text: 'at maturity', concept: 'redemption' }]
+    if (terms.kind === 'bullet') return [{ text: ' that redeems ' }, { text: 'at maturity', concept: 'redemption' }]
     const reviewing: SummarySegment[] = [
       { text: ' on any ' },
       { text: terms.schedule?.frequency ?? 'monthly', concept: 'schedule' },
@@ -180,6 +180,7 @@ export function summarize(note: Product): SummarySegment[] {
     // The term is a term of the whole product, shown with the wrapper as the principal is.
     { text: `${term.text} ${note.wrapper}`, concept: 'wrapper' },
     ...redemption,
+    ...(note.redemption.adjustmentFactor === undefined || note.redemption.adjustmentFactor === 1 ? [] : [{ text: ` with an adjustment factor of ${weightPercent(note.redemption.adjustmentFactor)}`, concept: 'adjustment-factor' as const }]),
     ...payoff,
     { text: ', measured ' },
     ...measured,

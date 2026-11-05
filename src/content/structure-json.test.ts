@@ -41,7 +41,7 @@ describe('structure lines', () => {
 
   it('gives each concept its own lines', () => {
     expect(linesOf(fullNote, 'wrapper')).toEqual(['"wrapper": "note",', '"principalAmount": 1000,', '"term": {', '"months": 36', '},'])
-    expect(linesOf(fullNote, 'redemption')).toEqual(['"redemption": "bullet",'])
+    expect(linesOf(fullNote, 'redemption')).toEqual(['"redemption": {', '"kind": "bullet"', '},'])
     expect(linesOf(fullNote, 'underlier')).toEqual(['"underlier": {', '"kind": "single",', '"components": [', '],', '},'])
     expect(linesOf(fullNote, 'asset')).toEqual(['{', '"asset": {', '"kind": "equity-index",', '"name": "Synthetic Index"', '}', '}'])
     expect(linesOf(fullNote, 'determination')).toEqual(['"determination": {', '}'])

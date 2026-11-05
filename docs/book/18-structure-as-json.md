@@ -11,7 +11,7 @@ payoff.
   "wrapper": "note",
   "principalAmount": 1000,
   "term": { "months": 36 },
-  "redemption": "bullet",
+  "redemption": { "kind": "bullet" },
   "underlier": {
     "kind": "single",
     "components": [
@@ -76,8 +76,9 @@ Which review the issuer calls on is not in the structure. It is a scenario, like
 }
 ```
 
-A bullet product's `redemption` is the string `"bullet"`, with no schedule. The
-chapter on [reviews and early redemption](19-reviews-and-early-redemption.md)
+A bullet product's `redemption` is `{ "kind": "bullet" }`, with no schedule. Any
+redemption can also state an `adjustmentFactor`, which is 1 when absent: see
+[Redemption behaviour](03-redemption.md). The chapter on [reviews and early redemption](19-reviews-and-early-redemption.md)
 explains the terms.
 
 A coupon is a key of its own, beside the redemption and the payoff, with its own

@@ -38,9 +38,12 @@ export function explainOutcome(note: Product, breakdown: PaymentBreakdown): stri
   ].filter(Boolean).join(' and ')
   const subject = note.underlier.kind === 'basket' ? 'the basket' : 'the underlier'
   const measured = how ? `${how[0].toUpperCase()}${how.slice(1)}, ${subject}` : `${subject[0].toUpperCase()}${subject.slice(1)}`
-  const movement = underlierReturn > 0 ? `${measured} rose ${percent(underlierReturn)}.`
-    : underlierReturn < 0 ? `${measured} fell ${percent(underlierReturn)}.`
-      : `${measured} ended unchanged.`
+  const { unadjustedReturn } = breakdown
+  const factor = note.redemption.adjustmentFactor ?? 1
+  const adjusted = factor === 1 ? '' : ` The adjustment factor of ${twoDecimalPercent(factor)} makes that a return of ${underlierReturn < 0 ? '−' : underlierReturn > 0 ? '+' : ''}${twoDecimalPercent(Math.abs(underlierReturn))}.`
+  const movement = (unadjustedReturn > 0 ? `${measured} rose ${percent(unadjustedReturn)}.`
+    : unadjustedReturn < 0 ? `${measured} fell ${percent(unadjustedReturn)}.`
+      : `${measured} ended unchanged.`) + adjusted
 
   const { lowestClose, highestClose } = breakdown
   const upsideRebate = upsideOf(note)?.barrier?.rebate

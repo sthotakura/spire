@@ -27,7 +27,7 @@ describe('the coupon in the summary', () => {
   })
 
   it('states the coupon of a bullet note, on its own frequency', () => {
-    const bullet: Product = { ...product({ schedule: { frequency: 'quarterly' } }), redemption: 'bullet' }
+    const bullet: Product = { ...product({ schedule: { frequency: 'quarterly' } }), redemption: { kind: 'bullet' } }
     expect(text(summarize(bullet))).toContain('that redeems at maturity')
     expect(text(summarize(bullet))).toContain('It pays a coupon of 12% a year (3% a review) on each quarterly review')
   })
@@ -189,7 +189,7 @@ describe('a coupon on its own schedule in the calculation', () => {
   })
 
   it('lists the coupon steps of a bullet note', () => {
-    const bullet: Product = { ...product({ schedule: { frequency: 'quarterly' }, memory: false }), redemption: 'bullet' }
+    const bullet: Product = { ...product({ schedule: { frequency: 'quarterly' }, memory: false }), redemption: { kind: 'bullet' } }
     const outcome = redemptionOutcome(bullet, [95, 65, 80], { initial: 100, final: 75 })
     expect(redemptionSteps(bullet, outcome).map(({ title, value }) => [title, value])).toEqual([
       ['Coupon on review 1 of 4, month 3', '30'], ['Coupon on review 2 of 4, month 6', '0'], ['Coupon on review 3 of 4, month 9', '30'], ['Coupon on review 4 of 4, month 12', '30'],
@@ -198,7 +198,7 @@ describe('a coupon on its own schedule in the calculation', () => {
   })
 
   it('gives a bullet note with a coupon the coupon paths', () => {
-    const bullet: Product = { ...product({ schedule: { frequency: 'quarterly' } }), redemption: 'bullet' }
+    const bullet: Product = { ...product({ schedule: { frequency: 'quarterly' } }), redemption: { kind: 'bullet' } }
     expect(pathScenarios(bullet, 100).map(({ name, reviewLevels }) => [name, reviewLevels.length])).toEqual([['Misses coupons, then pays them by memory', 3], ['Below the coupon barrier throughout', 3]])
   })
 })
@@ -215,7 +215,7 @@ describe('the coupon in the review table', () => {
   it('shows remembered coupons paid together, and a miss', () => {
     const quarterly = product({ schedule: { frequency: 'quarterly' }, rate: 0.1 })
     // Month 3 at 65 misses; month 6 at 90 pays its own coupon and the one remembered.
-    const outcome = redemptionOutcome({ ...quarterly, redemption: 'bullet' }, [65, 90, 90], { initial: 100, final: 90 })
+    const outcome = redemptionOutcome({ ...quarterly, redemption: { kind: 'bullet' } }, [65, 90, 90], { initial: 100, final: 90 })
     expect(outcome.coupons.map((test) => couponCell(quarterly, test)).slice(0, 2)).toEqual(['Missed · remembered', '2 × 1,000 × 10% × 3/12 = 50'])
     expect(couponCell(product({ memory: false }), { ...outcome.coupons[0] })).toBe('Missed')
   })
@@ -234,11 +234,11 @@ describe('a product that ends before its first coupon review', () => {
 describe('the coupon working shows no rounded operand', () => {
   // 11.5% a year reviewed monthly is 9.58333… a review, so two coupons are 19.1666…, shown 19.17. 2 × 9.58 would read as 19.16.
   const awkward = product({ rate: 0.115 })
-  const outcome = redemptionOutcome({ ...awkward, redemption: 'bullet' }, [65, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90], { initial: 100, final: 90 })
+  const outcome = redemptionOutcome({ ...awkward, redemption: { kind: 'bullet' } }, [65, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90], { initial: 100, final: 90 })
 
   it('multiplies the whole expression when a review pays remembered coupons', () => {
     expect(couponCell(awkward, outcome.coupons[1])).toBe('2 × 1,000 × 11.5% × 1/12 = 19.17')
-    expect(redemptionSteps({ ...awkward, redemption: 'bullet' }, outcome)[1].how).toBe('90 is at or above the coupon barrier, 70% × initial level = 70: 2 × 1,000 × 11.5% × 1/12 = 19.17, this review’s coupon and 1 coupon remembered')
+    expect(redemptionSteps({ ...awkward, redemption: { kind: 'bullet' } }, outcome)[1].how).toBe('90 is at or above the coupon barrier, 70% × initial level = 70: 2 × 1,000 × 11.5% × 1/12 = 19.17, this review’s coupon and 1 coupon remembered')
   })
 
   it('shows the rate as stated, not rounded to two decimals of a percent', () => {
@@ -249,7 +249,7 @@ describe('the coupon working shows no rounded operand', () => {
 
 describe('the coupon rate in the working', () => {
   // An annual coupon on a large principal shows any rounding of the rate in the result.
-  const large = (rate: number): Product => ({ ...product({ schedule: { frequency: 'annual' }, rate }), principalAmount: 10_000_000, redemption: 'bullet' })
+  const large = (rate: number): Product => ({ ...product({ schedule: { frequency: 'annual' }, rate }), principalAmount: 10_000_000, redemption: { kind: 'bullet' } })
   const cell = (note: Product) => couponCell(note, redemptionOutcome(note, [], { initial: 100, final: 90 }).coupons[0])
 
   it('shows every decimal the interface accepts, eight decimals of a percent', () => {

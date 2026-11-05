@@ -4,7 +4,7 @@ import { summarize } from './summary'
 
 const note: SingleProduct = {
   wrapper: 'note',
-  redemption: 'bullet',
+  redemption: { kind: 'bullet' },
   term: { months: 36 },
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },
   payoff: {

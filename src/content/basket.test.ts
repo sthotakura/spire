@@ -22,7 +22,7 @@ const basket: BasketUnderlier = {
 }
 const note: Product = {
   wrapper: 'note',
-  redemption: 'bullet',
+  redemption: { kind: 'bullet' },
   term: { months: 36 },
   underlier: basket,
   payoff: { participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }, { direction: 'upside', rate: 1 }] },

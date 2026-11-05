@@ -18,8 +18,8 @@ function scenario(note: Product, final: number, review: number, issuerCallsOnRev
   const basket = note.underlier.kind === 'basket' ? basketBreakdown(note.underlier, note.underlier.components.map(() => observed)) : undefined
   const levels: DeterminedLevels = { initial, final: finalLevel, ...closes }
   const b = paymentBreakdown(note, levels)
-  const reads = reviewDates(note).length > 0 || (note.redemption !== 'bullet' && note.redemption.kind === 'issuer-call' && note.coupon !== undefined)
-  const outcome = note.redemption !== 'bullet' || note.coupon ? redemptionOutcome(note, reads ? reviewDates(note).slice(0, -1).map(() => review * initial / 100) : [], levels, issuerCallsOnReview) : undefined
+  const reads = reviewDates(note).length > 0 || (note.redemption.kind === 'issuer-call' && note.coupon !== undefined)
+  const outcome = note.redemption.kind !== 'bullet' || note.coupon ? redemptionOutcome(note, reads ? reviewDates(note).slice(0, -1).map(() => review * initial / 100) : [], levels, issuerCallsOnReview) : undefined
   const maturity = calculationSteps(note, b, observed, initialObservations, basket)
   const titles = outcome ? [...redemptionSteps(note, outcome), ...maturity, ...couponClosingSteps(note, outcome)].map(({ title }) => title) : maturity.map(({ title }) => title)
   return { initial, levels, b, outcome, titles, stages: lineStages(note, b, levels) }
@@ -56,7 +56,7 @@ describe('the calculation path', () => {
 
   it('builds a buffered, capped note rule by rule', () => {
     const note: Product = {
-      wrapper: 'note', principalAmount: 1000, term: { months: 12 }, redemption: 'bullet', underlier: sampleProducts[0].product.underlier,
+      wrapper: 'note', principalAmount: 1000, term: { months: 12 }, redemption: { kind: 'bullet' }, underlier: sampleProducts[0].product.underlier,
       payoff: { participations: [{ direction: 'downside', rate: 1, buffer: 0.1 }, { direction: 'upside', rate: 1.5, cap: 0.2 }] },
     }
     const at = (final: number) => scenario(note, final, 0).stages.map(({ step, amount }) => [step, Math.round(amount * 100) / 100])
@@ -65,7 +65,7 @@ describe('the calculation path', () => {
   })
 
   it('takes a principal-only note at a large rise back to principal', () => {
-    const note: Product = { ...sampleProducts[0].product, wrapper: 'note', redemption: 'bullet', coupon: undefined, payoff: { participations: [] } }
+    const note: Product = { ...sampleProducts[0].product, wrapper: 'note', redemption: { kind: 'bullet' }, coupon: undefined, payoff: { participations: [] } }
     expect(scenario(note, 180, 0).stages.map(({ step, amount }) => [step, amount])).toEqual([
       ['Synthetic Index return', 1800], ['Downside participation', 1800], ['Upside participation', 1000], ['Payment at maturity', 1000],
     ])
@@ -103,7 +103,7 @@ describe('the calculation path', () => {
     const paid = scenario(memory, 90, 80)
     expect(scenarioAside(memory, paid.levels, paid.outcome)).toBe('It also pays 60 in coupons on earlier reviews.')
     // The issuer's call reads no level and is never on the line.
-    const sample = sampleProducts.find(({ product }) => product.redemption !== 'bullet' && product.redemption.kind === 'issuer-call')!.product
+    const sample = sampleProducts.find(({ product }) => product.redemption.kind !== 'bullet' && product.redemption.kind === 'issuer-call')!.product
     const issuer = scenario(sample, 100, 20, 2)
     expect(scenarioAside(sample, issuer.levels, issuer.outcome)).toMatch(/^In this scenario the issuer calls it on review 2 and pays [\d,.]+, which the line does not show\./)
   })
@@ -111,7 +111,7 @@ describe('the calculation path', () => {
   // Synthetic features no sample has: barriers observed on every close, with a rebate and protection, and a deposit's minimum return.
   const single = sampleProducts.find(({ product }) => product.underlier.kind === 'single')!.product.underlier
   const daily: Product = {
-    wrapper: 'note', principalAmount: 1000, term: { months: 12 }, redemption: 'bullet', underlier: single,
+    wrapper: 'note', principalAmount: 1000, term: { months: 12 }, redemption: { kind: 'bullet' }, underlier: single,
     payoff: {
       principalProtection: 0.8,
       participations: [
@@ -130,7 +130,7 @@ describe('the calculation path', () => {
   })
 
   it('raises a deposit to its minimum return', () => {
-    const deposit: Product = { wrapper: 'deposit', principalAmount: 1000, term: { months: 12 }, redemption: 'bullet', underlier: single, payoff: { minimumReturn: 0.02, participations: [{ direction: 'upside', rate: 0.5, cap: 0.2 }] } }
+    const deposit: Product = { wrapper: 'deposit', principalAmount: 1000, term: { months: 12 }, redemption: { kind: 'bullet' }, underlier: single, payoff: { minimumReturn: 0.02, participations: [{ direction: 'upside', rate: 0.5, cap: 0.2 }] } }
     checkLines(deposit)
     expect(scenario(deposit, 90, 0).stages.at(-2)).toMatchObject({ step: 'Minimum return', amount: 1020 })
   })

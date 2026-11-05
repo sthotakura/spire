@@ -5,7 +5,7 @@ import { basketBreakdown, maturityPayment, paymentBreakdown, productIssues, type
 // worst return from the barrier up; a BMO-shaped note has no upside participation, so a rise pays the digital return alone.
 const base: SingleProduct = {
   wrapper: 'note',
-  redemption: 'bullet',
+  redemption: { kind: 'bullet' },
   term: { months: 36 },
   underlier: {
     kind: 'single',

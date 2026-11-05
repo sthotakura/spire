@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://sthotakura.github.io/spire/product.schema.json",
   "title": "SPIRe product",
-  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- Upside participation measured from the digital return needs a digital return.\n- A digital return is for notes only, is less than any cap, and cannot be combined with an upside barrier, barrier absolute return or a minimum return.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- The term must hold a whole number of periods of each schedule: at least two for an autocall or an issuer call, and at least one for a coupon.\n- An autocall, an issuer call or a contingent coupon cannot be combined with a barrier observed on every close.\n- Memory needs a coupon barrier: a fixed coupon, which has none, is paid on every review.\n- Delivery needs downside participation; one stock or a worst-of basket of stocks; a final level on the final date; no principal protection; and downside rate × (1 − buffer) of at most 1.\n- An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The first review of an autocall or an issuer call is a whole number of periods in, and leaves at least one review that can call.",
+  "description": "A structured product, composed of a wrapper, a term, an underlier and a payoff.\n\nThis schema gives shape, variants and ranges. These rules that tie fields together are written into it as conditions:\n- Barrier absolute return replaces participation: with it, participations is empty and there is no minimum return.\n- A deposit has no downside participation and no principal protection, and a minimum return is for deposits only.\n\nThese are checked by validateProduct, not by the schema:\n- Each participation direction appears at most once.\n- A buffer and a downside barrier cannot both apply to a downside participation, and absolute return on a fall needs one of them.\n- An upside barrier and a cap cannot both apply to an upside participation.\n- A barrier observed daily needs a single underlier with a fixed initial level, and a daily downside barrier cannot be combined with absolute return on a fall.\n- Barrier absolute return needs a single underlier with a fixed initial level and a final level on the final date: no lookback, basket or averaging.\n- A minimum return is less than any cap.\n- Upside participation measured from the digital return needs a digital return.\n- A digital return is for notes only, is less than any cap, and cannot be combined with an upside barrier, barrier absolute return or a minimum return.\n- A basket needs unique asset names and one initial level for each asset and no other.\n- A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.\n- The term must hold a whole number of periods of each schedule: at least two for an autocall or an issuer call, and at least one for a coupon.\n- An autocall, an issuer call or a contingent coupon cannot be combined with a barrier observed on every close.\n- An adjustment factor other than 1 cannot be combined with a buffer, a barrier, a digital return, barrier absolute return or delivery.\n- Memory needs a coupon barrier: a fixed coupon, which has none, is paid on every review.\n- Delivery needs downside participation; one stock or a worst-of basket of stocks; a final level on the final date; no principal protection; and downside rate × (1 − buffer) of at most 1.\n- An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The first review of an autocall or an issuer call is a whole number of periods in, and leaves at least one review that can call.",
   "type": "object",
   "properties": {
     "wrapper": {
@@ -19,9 +19,7 @@
     "redemption": {
       "oneOf": [
         {
-          "title": "Bullet redemption",
-          "type": "string",
-          "const": "bullet"
+          "$ref": "#/definitions/Bullet"
         },
         {
           "$ref": "#/definitions/Autocall"
@@ -180,7 +178,9 @@
       "term": {
         "months": 36
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "single",
         "components": [
@@ -211,7 +211,9 @@
       "term": {
         "months": 33
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "basket",
         "components": [
@@ -281,9 +283,55 @@
       "wrapper": "note",
       "principalAmount": 1000,
       "term": {
+        "months": 12
+      },
+      "redemption": {
+        "kind": "bullet",
+        "adjustmentFactor": 0.9935
+      },
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Synthetic Index"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "level": 100
+          },
+          "final": {
+            "kind": "averaging",
+            "observationCount": 5
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "rate": 1
+          },
+          {
+            "direction": "upside",
+            "rate": 1
+          }
+        ]
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
         "months": 36
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "single",
         "components": [
@@ -324,7 +372,9 @@
       "term": {
         "months": 36
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "single",
         "components": [
@@ -366,7 +416,9 @@
       "term": {
         "months": 36
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "single",
         "components": [
@@ -415,7 +467,9 @@
       "term": {
         "months": 36
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "single",
         "components": [
@@ -459,7 +513,9 @@
       "term": {
         "months": 36
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "single",
         "components": [
@@ -502,7 +558,9 @@
       "term": {
         "months": 36
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "single",
         "components": [
@@ -544,7 +602,9 @@
       "term": {
         "months": 36
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "single",
         "components": [
@@ -596,7 +656,9 @@
       "term": {
         "months": 36
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "basket",
         "components": [
@@ -671,7 +733,9 @@
       "term": {
         "months": 13
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "basket",
         "components": [
@@ -732,7 +796,9 @@
       "term": {
         "months": 36
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "single",
         "components": [
@@ -779,7 +845,9 @@
       "term": {
         "months": 36
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "single",
         "components": [
@@ -816,7 +884,9 @@
       "term": {
         "months": 36
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "single",
         "components": [
@@ -853,7 +923,9 @@
       "term": {
         "months": 36
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "basket",
         "components": [
@@ -909,7 +981,9 @@
       "term": {
         "months": 36
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "basket",
         "components": [
@@ -964,7 +1038,9 @@
       "term": {
         "months": 36
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "basket",
         "components": [
@@ -1383,7 +1459,9 @@
       "term": {
         "months": 24
       },
-      "redemption": "bullet",
+      "redemption": {
+        "kind": "bullet"
+      },
       "underlier": {
         "kind": "single",
         "components": [
@@ -1534,9 +1612,35 @@
       "additionalProperties": false,
       "description": "The product's length, as a duration. It is part of the structure; the dates that put it on a calendar belong to issuance."
     },
+    "Bullet": {
+      "type": "object",
+      "properties": {
+        "adjustmentFactor": {
+          "type": "number",
+          "description": "A number the final level is multiplied by before the maturity payment reads it, so the payment is measured from final level × factor. Below 1 the underlier must rise for the return to reach zero; above 1 the return reaches zero after a fall. Absent means 1, which changes nothing. It does not change a call amount, a coupon, or a level read on a review, none of which read the maturity payment's return.",
+          "exclusiveMinimum": 0,
+          "default": 1
+        },
+        "kind": {
+          "type": "string",
+          "const": "bullet"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "description": "Bullet redemption: one payment at the end of the term, with no early call."
+    },
     "Autocall": {
       "type": "object",
       "properties": {
+        "adjustmentFactor": {
+          "type": "number",
+          "description": "A number the final level is multiplied by before the maturity payment reads it, so the payment is measured from final level × factor. Below 1 the underlier must rise for the return to reach zero; above 1 the return reaches zero after a fall. Absent means 1, which changes nothing. It does not change a call amount, a coupon, or a level read on a review, none of which read the maturity payment's return.",
+          "exclusiveMinimum": 0,
+          "default": 1
+        },
         "kind": {
           "type": "string",
           "const": "autocall"
@@ -1620,6 +1724,12 @@
     "IssuerCall": {
       "type": "object",
       "properties": {
+        "adjustmentFactor": {
+          "type": "number",
+          "description": "A number the final level is multiplied by before the maturity payment reads it, so the payment is measured from final level × factor. Below 1 the underlier must rise for the return to reach zero; above 1 the return reaches zero after a fall. Absent means 1, which changes nothing. It does not change a call amount, a coupon, or a level read on a review, none of which read the maturity payment's return.",
+          "exclusiveMinimum": 0,
+          "default": 1
+        },
         "kind": {
           "type": "string",
           "const": "issuer-call"

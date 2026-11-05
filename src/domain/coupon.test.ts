@@ -35,23 +35,23 @@ describe('validation of a contingent coupon', () => {
   })
 
   it('goes with any redemption: a bullet note, an autocall or an issuer call', () => {
-    expect(validateProduct(withCoupon({ redemption: 'bullet' }))).toEqual([])
+    expect(validateProduct(withCoupon({ redemption: { kind: 'bullet' } }))).toEqual([])
     expect(validateProduct(withCoupon({ redemption: { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0 } }))).toEqual([])
   })
 
   it('needs its own schedule, which must divide the term, and can have a single review', () => {
     expect(fieldsOf(withCoupon({ coupon: { ...coupon(), schedule: undefined as never } }))).toEqual(['couponSchedule'])
-    expect(fieldsOf(withCoupon({ term: { months: 18 }, redemption: 'bullet', coupon: coupon({ schedule: { frequency: 'annual' } }) }))).toEqual(['couponSchedule'])
-    expect(validateProduct(withCoupon({ redemption: 'bullet', coupon: coupon({ schedule: { frequency: 'annual' } }) }))).toEqual([])
+    expect(fieldsOf(withCoupon({ term: { months: 18 }, redemption: { kind: 'bullet' }, coupon: coupon({ schedule: { frequency: 'annual' } }) }))).toEqual(['couponSchedule'])
+    expect(validateProduct(withCoupon({ redemption: { kind: 'bullet' }, coupon: coupon({ schedule: { frequency: 'annual' } }) }))).toEqual([])
   })
 
   it('can be combined with lookback, measuring its barrier from the lookback level, but not with a barrier observed on every close', () => {
     const lookback: Product['underlier'] = { ...startingProduct.underlier, determination: { initial: { kind: 'lookback', observationCount: 3 }, final: { kind: 'final-date' } } }
-    const product = withCoupon({ redemption: 'bullet', underlier: lookback })
+    const product = withCoupon({ redemption: { kind: 'bullet' }, underlier: lookback })
     expect(fieldsOf(product)).toEqual([])
     // A lookback level of 90: the 70% barrier is 63.
     expect(redemptionOutcome(product, Array.from({ length: 11 }, () => 64), { initial: 90, final: 100 }).coupons[0]).toMatchObject({ barrierLevel: 63, met: true })
-    expect(fieldsOf(withCoupon({ redemption: 'bullet', payoff: { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.6, observation: 'daily-close' } }] } }))).toEqual(['couponSchedule'])
+    expect(fieldsOf(withCoupon({ redemption: { kind: 'bullet' }, payoff: { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.6, observation: 'daily-close' } }] } }))).toEqual(['couponSchedule'])
   })
 
   it('is optional, and memory defaults to off', () => {
@@ -75,12 +75,12 @@ describe('the dates a level is read on', () => {
   })
 
   it('are the coupon reviews alone for a bullet note or an issuer call, which reads no level', () => {
-    expect(reviewDates(withCoupon({ redemption: 'bullet', coupon: coupon({ schedule: { frequency: 'quarterly' } }) })).map(({ month }) => month)).toEqual([3, 6, 9, 12])
+    expect(reviewDates(withCoupon({ redemption: { kind: 'bullet' }, coupon: coupon({ schedule: { frequency: 'quarterly' } }) })).map(({ month }) => month)).toEqual([3, 6, 9, 12])
     expect(reviewDates(withCoupon({ redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0 }, coupon: coupon({ schedule: { frequency: 'semi-annual' } }) })).map(({ month }) => month)).toEqual([6, 12])
   })
 
   it('are none for a bullet note with no coupon', () => {
-    expect(reviewDates(withCoupon({ redemption: 'bullet', coupon: undefined }))).toEqual([])
+    expect(reviewDates(withCoupon({ redemption: { kind: 'bullet' }, coupon: undefined }))).toEqual([])
   })
 })
 
@@ -227,7 +227,7 @@ describe('a coupon on its own schedule', () => {
 })
 
 describe('a coupon on a bullet note', () => {
-  const bullet = withCoupon({ redemption: 'bullet', coupon: coupon({ schedule: { frequency: 'quarterly' }, memory: false }) })
+  const bullet = withCoupon({ redemption: { kind: 'bullet' }, coupon: coupon({ schedule: { frequency: 'quarterly' }, memory: false }) })
 
   it('reads a level on each coupon review and pays the last coupon with the maturity payment', () => {
     const outcome = redemptionOutcome(bullet, [95, 65, 80], { initial: 100, final: 75 })

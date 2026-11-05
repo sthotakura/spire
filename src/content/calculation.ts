@@ -153,7 +153,7 @@ function singleSteps(note: SingleProduct, breakdown: PaymentBreakdown, observedL
   if (determination.final.kind === 'averaging') {
     steps.push({ title: `Final level of ${name || 'the underlier'}`, how: `(${observedLevels.map(formatAmount).join(' + ')}) ÷ ${observedLevels.length}`, value: formatAmount(finalLevel), concept: 'final-level' })
   }
-  steps.push({ title: `${name || 'Underlier'} return`, how: `${formatAmount(finalLevel)} ÷ ${formatAmount(initialLevel)} − 1`, value: signedPercent(breakdown.underlierReturn), concept: 'determination' })
+  steps.push({ title: `${name || 'Underlier'} return`, how: `${formatAmount(finalLevel)} ÷ ${formatAmount(initialLevel)} − 1`, value: signedPercent(breakdown.unadjustedReturn), concept: 'determination' })
   return steps
 }
 
@@ -194,6 +194,11 @@ export function calculationSteps(note: Product, breakdown: PaymentBreakdown, obs
   const withProtection = principalProtection !== undefined
   const hasDownside = downsideOf(note) !== undefined
   const steps = note.underlier.kind === 'basket' ? basketSteps(basket!) : singleSteps({ ...note, underlier: note.underlier }, b, observedLevels, initialObservations)
+  const factor = note.redemption.adjustmentFactor ?? 1
+  if (factor !== 1) {
+    const final = basket ? basket.levels.final : finalLevelFrom(note.underlier.determination.final, observedLevels)
+    steps.push({ title: 'Adjusted return', how: `${formatAmount(final)} × ${twoDecimalPercent(factor)} ÷ ${formatAmount(b.initialLevel)} − 1`, value: signedPercent(b.underlierReturn), concept: 'adjustment-factor' })
+  }
   const bothWays = note.payoff.barrierAbsoluteReturn
   if (bothWays !== undefined) steps.push(...barrierAbsoluteSteps(bothWays, b, finalLevelFrom(note.underlier.determination.final, observedLevels)))
   if (buffer !== undefined) steps.push(bufferStep(buffer, b))

@@ -12,7 +12,7 @@ const delivering = (downside: Omit<DownsideParticipation, 'direction'>, settleme
   wrapper: 'note',
   principalAmount: 1000,
   term: { months: 12 },
-  redemption: 'bullet',
+  redemption: { kind: 'bullet' },
   coupon: { schedule: { frequency: 'quarterly' }, rate: 0.1 },
   settlement,
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity', name: 'Stock A' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },

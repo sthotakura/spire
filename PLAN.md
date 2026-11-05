@@ -574,6 +574,14 @@ Changing a delivering sample to cash used to leave the chip in place. Both names
 - **Consequences.** A note on an index never shows either name. The two fixed coupon autocallable samples, settled in cash, lose the chip and stay Yield Enhancement.
 - **Book.** Chapters 1 and 22 say the reference is narrower than the definitions.
 
+## 49. Add the adjustment factor and a delta one sample
+
+A number the final level is multiplied by before the maturity payoff reads it, on any redemption, and a sample with 100% participation both ways. The meaning, the filings and the assumptions are in [docs/adjustment-factor.md](docs/adjustment-factor.md).
+
+- **Model.** `adjustmentFactor` on each redemption, 1 when absent. A bullet redemption becomes `{ kind: 'bullet' }`, so it can hold the term. Rejected beside a buffer, a barrier, a digital return, barrier absolute return or delivery.
+- **Interface.** An Adjustment factor row under Redemption, on every product. The calculation, the payment rule, the summary, the outcome and the path state it when it is not 100%, and the chart's cap and rate handles follow it.
+- **Sample.** A delta one note on Morgan Stanley No. 1,411, starting at a factor of 100%. That filing's table, at its 99.35%, is a test.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.

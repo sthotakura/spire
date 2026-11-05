@@ -44,7 +44,7 @@ A new payoff feature: the lowest return the product pays on principal, whatever 
   "wrapper": "deposit",
   "principalAmount": 1000,
   "term": { "months": 84 },
-  "redemption": "bullet",
+  "redemption": { "kind": "bullet" },
   "underlier": { "kind": "basket", … },
   "payoff": {
     "participations": [{ "direction": "upside", "rate": 1 }],

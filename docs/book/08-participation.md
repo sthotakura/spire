@@ -31,6 +31,17 @@ A rise is measured from the initial level. Beside a digital return it can instea
 be measured from the digital return, so the rate applies only to the rise beyond
 that level. The [Barrier chapter](12-barrier.md) compares the two.
 
+## Taking the whole move both ways
+
+A note with 100% upside and 100% downside participation, and no cap, buffer,
+barrier or floor, pays in step with its underlier: a rise of 20% pays 1,200 on
+principal of 1,000, and a fall of 20% pays 800. Such a note is sold under names
+such as delta one, after delta, the change in an instrument's value for each unit
+change in its underlier. The holder can lose all of the principal. Public notes of
+this kind often state an [adjustment factor](03-redemption.md#adjustment-factor) as well.
+
+[Open a delta one note in the builder](https://sthotakura.github.io/spire/?example=delta-one-note).
+
 ## Separate choices
 
 In the synthetic model, upside only means a fall leaves principal unchanged.

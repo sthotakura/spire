@@ -4,7 +4,7 @@ import { calculationSteps } from './calculation'
 
 const noteWith = (participations: Participation[], principalProtection?: number, cap?: number, buffer?: number): SingleProduct => ({
   wrapper: 'note',
-  redemption: 'bullet',
+  redemption: { kind: 'bullet' },
   term: { months: 36 },
   underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },
   payoff: { participations: withSubFeatures(participations, { buffer, cap }), principalProtection },

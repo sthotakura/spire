@@ -8,7 +8,7 @@ export const startingProduct: SingleProduct = {
   wrapper: 'note',
   principalAmount: 1000,
   term: { months: 36 },
-  redemption: 'bullet',
+  redemption: { kind: 'bullet' },
   underlier: {
     kind: 'single',
     components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }],

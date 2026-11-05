@@ -28,14 +28,14 @@ export function productCategory(note: Product): ProductCategory | undefined {
   // A coupon in place of upside, fixed or contingent, as in the Swiss Express and reverse convertible types, with or without a call.
   if (note.wrapper === 'note' && note.coupon !== undefined && upside === undefined) return 'Yield Enhancement'
   // A call without a coupon, or a coupon beside upside participation, is not placed, so it gets no category.
-  if (note.wrapper === 'note' && note.redemption === 'bullet' && note.coupon === undefined && (isRate(upside) || isRate(downside))) return 'Participation'
+  if (note.wrapper === 'note' && note.redemption.kind === 'bullet' && note.coupon === undefined && (isRate(upside) || isRate(downside))) return 'Participation'
   return undefined
 }
 
 // The names below describe the payment at maturity. A call or a coupon changes what the product pays, so the reason says so.
 function maturityOnlyNote(note: Product, name: string): string {
   const parts: string[] = []
-  if (note.redemption !== 'bullet') parts.push(`The name describes the payment at maturity; ${note.redemption.kind === 'autocall' ? 'an autocall' : 'an issuer call'} can end the product earlier.`)
+  if (note.redemption.kind !== 'bullet') parts.push(`The name describes the payment at maturity; ${note.redemption.kind === 'autocall' ? 'an autocall' : 'an issuer call'} can end the product earlier.`)
   if (note.coupon !== undefined) parts.push(note.coupon.barrier === undefined ? 'The name does not cover the fixed coupon, paid on every coupon review.' : 'The name does not cover the contingent coupon, paid on the reviews that meet its barrier.')
   if (note.payoff.digitalReturn !== undefined && name !== 'Digital return note') parts.push('The name does not cover the digital return, a fixed return paid as a minimum at or above its barrier.')
   return parts.join(' ')
@@ -95,7 +95,7 @@ export function marketingNames(note: Product): MarketingName[] {
   // These names describe notes, so a deposit gets none of them. They describe a note that only follows the underlier to maturity,
   // so a call or a coupon rules them out.
   const unprotected = protection === undefined || protection === 0
-  if (note.wrapper === 'note' && note.redemption === 'bullet' && note.coupon === undefined && note.payoff.digitalReturn === undefined && unprotected && buffer === undefined && barrier === undefined && upsideBarrier === undefined && cap === undefined && isRate(upside) && (downside === undefined || isRate(downside))) {
+  if (note.wrapper === 'note' && note.redemption.kind === 'bullet' && note.coupon === undefined && note.payoff.digitalReturn === undefined && unprotected && buffer === undefined && barrier === undefined && upsideBarrier === undefined && cap === undefined && isRate(upside) && (downside === undefined || isRate(downside))) {
     if (downside === 1 && upside === 1) {
       names.push({ name: 'Tracker', vocabulary: 'SSPA', reason: 'The payment follows the underlier one for one, up and down.', concepts: ['upside', 'downside'] })
     } else if (downside === 1 && upside > 1) {
@@ -151,7 +151,7 @@ export function marketingNames(note: Product): MarketingName[] {
   // and once reached makes the note follow the underlier one for one. They describe a note that only follows the underlier to maturity.
   const absoluteReturn = downsideOf(note)?.absoluteReturn
   const initialLookback = note.underlier.determination.initial.kind === 'lookback'
-  if (note.wrapper === 'note' && note.redemption === 'bullet' && note.coupon === undefined && note.payoff.digitalReturn === undefined && unprotected && buffer === undefined && barrier !== undefined && cap === undefined && upsideBarrier === undefined && downside === 1 && isRate(upside)) {
+  if (note.wrapper === 'note' && note.redemption.kind === 'bullet' && note.coupon === undefined && note.payoff.digitalReturn === undefined && unprotected && buffer === undefined && barrier !== undefined && cap === undefined && upsideBarrier === undefined && downside === 1 && isRate(upside)) {
     const observed = barrier.observation === 'daily-close'
       ? 'The Swiss barrier is observed during the product’s life, as this one is, on every close.'
       : 'The Swiss barrier is observed during the product’s life; this one is read on the final date only, so the contract differs.'
@@ -224,7 +224,7 @@ function leveragedUpsideNames(note: Product): MarketingName[] {
   const downside = downsideOf(note)
   const protection = payoff.principalProtection
   const cap = upside?.cap
-  if (note.wrapper !== 'note' || note.redemption !== 'bullet' || note.coupon !== undefined || note.settlement === 'delivery') return []
+  if (note.wrapper !== 'note' || note.redemption.kind !== 'bullet' || note.coupon !== undefined || note.settlement === 'delivery') return []
   if (payoff.minimumReturn !== undefined || payoff.barrierAbsoluteReturn !== undefined) return []
   if (protection !== undefined && !(Number.isFinite(protection) && protection >= 0 && protection <= 1)) return []
   if (upside === undefined || !isRate(upside.rate) || upside.rate <= 1 || upside.barrier !== undefined) return []
@@ -300,7 +300,7 @@ function callAndCouponNames(note: Product): MarketingName[] {
   const { redemption, coupon } = note
   const names: MarketingName[] = []
 
-  if (redemption !== 'bullet' && redemption.kind === 'autocall') {
+  if (redemption.kind === 'autocall') {
     names.push({
       name: 'Autocallable note',
       vocabulary: 'US descriptive',
@@ -310,7 +310,7 @@ function callAndCouponNames(note: Product): MarketingName[] {
   }
   // A call amount for each year elapsed grows the longer the product goes uncalled, which sellers call a snowball. Market usage only,
   // and some sellers' snowballs add a barrier observed every day, so the reason says this one's fall is as its payoff states.
-  if (redemption !== 'bullet' && redemption.kind === 'autocall' && redemption.callAmountBasis === 'per-year' && isRate(redemption.callAmount)) {
+  if (redemption.kind === 'autocall' && redemption.callAmountBasis === 'per-year' && isRate(redemption.callAmount)) {
     names.push({
       name: 'Snowball autocall',
       vocabulary: 'Market usage',
@@ -325,7 +325,7 @@ function callAndCouponNames(note: Product): MarketingName[] {
       concepts: ['redemption', 'call-amount'],
     })
   }
-  if (redemption !== 'bullet' && redemption.kind === 'issuer-call') {
+  if (redemption.kind === 'issuer-call') {
     names.push({
       name: 'Callable note',
       vocabulary: 'US descriptive',
@@ -348,7 +348,7 @@ function callAndCouponNames(note: Product): MarketingName[] {
   const protection = note.payoff.principalProtection
   const unprotected = protection === undefined || protection === 0
   const downside = downsideOf(note)
-  if (redemption !== 'bullet' && redemption.kind === 'autocall' && coupon?.barrier !== undefined && unprotected && upsideOf(note) === undefined && note.payoff.barrierAbsoluteReturn === undefined && downside?.barrier !== undefined && downside.buffer === undefined) {
+  if (redemption.kind === 'autocall' && coupon?.barrier !== undefined && unprotected && upsideOf(note) === undefined && note.payoff.barrierAbsoluteReturn === undefined && downside?.barrier !== undefined && downside.buffer === undefined) {
     names.push({
       name: 'Express certificate',
       vocabulary: 'SSPA',

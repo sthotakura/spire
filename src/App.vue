@@ -37,6 +37,7 @@ const hints = {
   'first-review': 'The month of the first review on which the product can be called. Later reviews follow it at the review frequency to the end of the term, so the months before it are a non-call period, with no review in it. It starts one period in and follows the frequency until you choose a month. A trigger that steps moves from the first review.',
   'issuer-choice': 'Whether and when the issuer calls is its own choice, so a scenario states it. The issuer can call on any review except the last, which is the end of the term. A call ends the product and pays principal plus the call amount.',
   'trigger-step': 'How much the trigger changes on each review after the first, as a share of the initial level. −5% on a trigger of 100% steps it down to 95% on review 2, 90% on review 3, and so on. A positive value steps it up. Zero keeps one trigger for every review.',
+  'adjustment-factor': 'A number the final level is multiplied by before the maturity payment reads it. Below 100% the underlier must rise for the holder to get principal back; above 100% principal comes back after a small fall. At 100% it changes nothing.',
   'call-amount': 'What a call pays above principal, as a share of principal. It is paid in full whenever the product is called, or for each year the product has lasted, as the choice below says.',
   'call-basis': 'Flat pays the call amount whenever the product is called. Per year treats it as a rate for each year the product has lasted, as a term sheet states “10% per annum”: a call after six months pays half of it, and a call after three years pays three times it.',
   'final-call': 'The last review is the end of the term. It pays the maturity payoff, or it is a call too: a level at or above the trigger on that review pays principal plus the call amount in place of the maturity payoff. With an upside participation, a trigger above the initial level draws the payoff as a shark fin: it climbs, then drops to the call amount.',
@@ -147,6 +148,7 @@ const firstReviewMonth = computed<number>({
   set: (month) => { chosenFirstReviewMonth.value = month },
 })
 const triggerStepPercent = ref(0)
+const adjustmentFactorPercent = ref(100)
 const callAmountBasis = ref<'flat' | 'per-year'>('flat')
 const callOnFinal = ref(false)
 // A coupon on its own reviews: fixed, paid on every review, or contingent, paid on a review at or above its barrier. Its terms keep
@@ -264,7 +266,7 @@ const observedLevels = ref<number[]>([startingFinalLevel])
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
 const select = (concept: ConceptId) => { selected.value = concept }
-const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', schedule: '#2c8ea3', trigger: '#1f8a70', 'trigger-step': '#7a9a1e', 'call-amount': '#0f766e', 'final-call': '#3d7ea6', 'first-review': '#4d7c9b', coupon: '#b5446e', 'coupon-schedule': '#9b4d7a', 'coupon-barrier': '#8a5a00', memory: '#55708a', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', 'minimum-return': '#4338ca', 'digital-return': '#c2255c', 'digital-barrier': '#087f5b', upside: '#2b8a3e', 'measured-from': '#5c7f1a', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa', 'absolute-return': '#d4a017', settlement: '#8d5a3b' }
+const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', 'adjustment-factor': '#5b8a72', schedule: '#2c8ea3', trigger: '#1f8a70', 'trigger-step': '#7a9a1e', 'call-amount': '#0f766e', 'final-call': '#3d7ea6', 'first-review': '#4d7c9b', coupon: '#b5446e', 'coupon-schedule': '#9b4d7a', 'coupon-barrier': '#8a5a00', memory: '#55708a', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', 'minimum-return': '#4338ca', 'digital-return': '#c2255c', 'digital-barrier': '#087f5b', upside: '#2b8a3e', 'measured-from': '#5c7f1a', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa', 'absolute-return': '#d4a017', settlement: '#8d5a3b' }
 const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
@@ -500,6 +502,8 @@ onBeforeUnmount(() => {
 
 // A weight or minimum return entered as a percent, as a fraction without the floating-point noise of dividing (33.34 / 100 is 0.33340000000000003).
 const fractionFrom = (percent: number) => Math.round(percent * 1e8) / 1e10
+// At 100% the factor changes nothing, so the structure leaves it out.
+const adjustmentFactor = computed(() => (adjustmentFactorPercent.value === 100 ? undefined : fractionFrom(adjustmentFactorPercent.value)))
 // The weights entered so far and how far they are from 100%, so the reader can see what is left to allocate.
 const weightTotal = computed(() => {
   const total = Math.round(basketAssets.value.reduce((sum, { weightPercent }) => sum + weightPercent, 0) * 100) / 100
@@ -524,7 +528,7 @@ const note = computed<Product>(() => ({
   principalAmount: principal.value,
   term: { months: termMonths.value },
   redemption: issuerCalled.value
-    ? { kind: 'issuer-call', schedule: { frequency: reviewFrequency.value }, firstReviewMonth: firstReviewMonth.value, callAmount: fractionFrom(issuerAmountPercent.value), callAmountBasis: callAmountBasis.value }
+    ? { kind: 'issuer-call', schedule: { frequency: reviewFrequency.value }, firstReviewMonth: firstReviewMonth.value, callAmount: fractionFrom(issuerAmountPercent.value), callAmountBasis: callAmountBasis.value, adjustmentFactor: adjustmentFactor.value }
     : autocalled.value
     ? {
         kind: 'autocall',
@@ -536,8 +540,9 @@ const note = computed<Product>(() => ({
         callAmount: fractionFrom(callAmountPercent.value),
         callAmountBasis: callAmountBasis.value,
         callOnFinalReview: callOnFinal.value,
+        adjustmentFactor: adjustmentFactor.value,
       }
-    : 'bullet',
+    : { kind: 'bullet', adjustmentFactor: adjustmentFactor.value },
   coupon: !couponSelected.value ? undefined
     : contingentCoupon.value ? { schedule: { frequency: couponFrequency.value }, rate: fractionFrom(couponRatePercent.value), barrier: fractionFrom(couponBarrierPercent.value), memory: couponMemory.value }
       : { schedule: { frequency: couponFrequency.value }, rate: fractionFrom(couponRatePercent.value) },
@@ -654,7 +659,7 @@ const datesBeforeLast = computed(() => reviewDates(note.value).slice(0, -1))
 // shows: a call review's trigger less a tenth, which moves with the step, or 90% of the initial level on a date that is only a coupon review.
 const defaultReviewFraction = (date: ReviewDate) => {
   const { redemption: terms } = note.value
-  const trigger = terms === 'bullet' || terms.kind !== 'autocall' || date.call === undefined ? 1 : triggerAtReview(terms, date.call)
+  const trigger = terms.kind !== 'autocall' || date.call === undefined ? 1 : triggerAtReview(terms, date.call)
   return (Number.isFinite(trigger) ? Math.max(trigger, 0) : 1) * 0.9
 }
 const defaultReviewLevel = (date: ReviewDate) => (Number.isFinite(determinedInitialLevel.value) ? determinedInitialLevel.value : 100) * defaultReviewFraction(date)
@@ -718,7 +723,7 @@ const reviewLabel = (date: ReviewDate) => [date.call === undefined ? '' : `Call 
 // is not a call review.
 const reviewTrigger = (date: ReviewDate) => {
   const { redemption: terms } = note.value
-  return terms === 'bullet' || terms.kind !== 'autocall' || date.call === undefined || !Number.isFinite(determinedInitialLevel.value) ? Number.NaN : barrierLevelAt(triggerAtReview(terms, date.call), determinedInitialLevel.value)
+  return terms.kind !== 'autocall' || date.call === undefined || !Number.isFinite(determinedInitialLevel.value) ? Number.NaN : barrierLevelAt(triggerAtReview(terms, date.call), determinedInitialLevel.value)
 }
 // Whether a date is after the one the product ended on, so nothing is read on it.
 const ended = (date: ReviewDate) => redemption.value?.calledAtReview !== undefined && date.month > redemption.value.months
@@ -1108,7 +1113,9 @@ const chart = computed(() => {
   const upsideRate = selectedParticipation.upside ? participationPercent.upside / 100 : undefined
   const measure = digitalMeasure.value
   const cap = upsideOf(note.value)?.cap ?? 0
-  const bindLevel = capSelected.value ? (measure !== undefined && upsideRate ? initial * (1 + measure + (cap - measure) / upsideRate) : capBindLevel(initial, cap, upsideRate)) : undefined
+  const bindAtReturn = capSelected.value ? (measure !== undefined && upsideRate ? initial * (1 + measure + (cap - measure) / upsideRate) : capBindLevel(initial, cap, upsideRate)) : undefined
+  // The cap binds where the return the payoff reads reaches it, which the adjustment factor moves along the axis.
+  const bindLevel = bindAtReturn === undefined ? undefined : bindAtReturn / (note.value.redemption.adjustmentFactor ?? 1)
   const capOnCurve = bindLevel !== undefined && bindLevel <= end
   const capHandleX = capSelected.value ? (capOnCurve ? x(bindLevel as number) : plot.left + (plot.right - plot.left) * 0.8) : null
   // The bubble normally sits above its dot. It drops below near the top of the plot, or when it would cover a handle.
@@ -1124,7 +1131,8 @@ const chart = computed(() => {
   const barrierY = barrierAt !== undefined && absoluteSelected.value ? pinnedY(paymentAtEnd(note.value, at(barrierAt))) : y(principalAmount)
   const ring = handleRadius.value + 5
   const slopeGap = measure === undefined ? undefined : slopeGapAboveDigital(measure, capFraction.value)
-  const slopeAt = measure === undefined ? slopeLevel(initial, capFraction.value, upsideBarrierFraction.value) : initial * (1 + measure + (slopeGap ?? 0))
+  // The handle sits where the return the payoff reads is the one its drag assumes, which the adjustment factor moves along the axis.
+  const slopeAt = (measure === undefined ? slopeLevel(initial, capFraction.value, upsideBarrierFraction.value) : initial * (1 + measure + (slopeGap ?? 0))) / (note.value.redemption.adjustmentFactor ?? 1)
   // The upside barrier handle sits on the end the barrier level pays, as the buffer handle does with absolute return: the
   // rebate, or principal, which is where the line continues from the jump.
   const upsideBarrierX = upsideBarrierAt === undefined ? null : x(upsideBarrierAt)
@@ -1307,17 +1315,18 @@ function loadProduct(product: Product) {
   wrapper.value = product.wrapper
   principal.value = product.principalAmount
   termMonths.value = product.term.months
-  redemptionKind.value = terms === 'bullet' ? 'bullet' : terms.kind
-  chosenFrequency.value = terms === 'bullet' ? null : terms.schedule.frequency
-  const autocall = terms !== 'bullet' && terms.kind === 'autocall' ? terms : undefined
-  const issuerCall = terms !== 'bullet' && terms.kind === 'issuer-call' ? terms : undefined
+  redemptionKind.value = terms.kind
+  chosenFrequency.value = terms.kind === 'bullet' ? null : terms.schedule.frequency
+  const autocall = terms.kind === 'autocall' ? terms : undefined
+  const issuerCall = terms.kind === 'issuer-call' ? terms : undefined
   triggerPercent.value = autocall ? percent(autocall.trigger) : 100
   triggerStepPercent.value = percent(autocall?.triggerStep ?? 0)
+  adjustmentFactorPercent.value = percent(terms.adjustmentFactor ?? 1)
   callAmountPercent.value = autocall ? percent(autocall.callAmount) : 8
   issuerAmountPercent.value = issuerCall ? percent(issuerCall.callAmount) : 0
   // A first review one period in is where the control starts, so it is left to follow the frequency.
   const firstMonth = autocall?.firstReviewMonth ?? issuerCall?.firstReviewMonth
-  chosenFirstReviewMonth.value = terms === 'bullet' || firstMonth === undefined || firstMonth === monthsPerReview[terms.schedule.frequency] ? null : firstMonth
+  chosenFirstReviewMonth.value = terms.kind === 'bullet' || firstMonth === undefined || firstMonth === monthsPerReview[terms.schedule.frequency] ? null : firstMonth
   callAmountBasis.value = autocall?.callAmountBasis ?? issuerCall?.callAmountBasis ?? 'flat'
   callOnFinal.value = autocall?.callOnFinalReview ?? false
   couponKind.value = coupon === undefined ? 'none' : coupon.barrier === undefined ? 'fixed' : 'contingent'
@@ -1503,6 +1512,15 @@ const chooseSample = (event: Event) => {
                         <span class="nlabel">Final review<HintToggle id="final-call" about="the final review" :text="hints['final-call']" :active="activeHint === 'final-call'" @toggle="toggleHint('final-call')" /></span>
                         <span class="ctrl pick"><select id="final-call" v-model="callOnFinal" aria-label="Final review"><option :value="false">Pays the maturity payoff</option><option :value="true">Is a call too</option></select></span>
                       </div>
+                    </li>
+                  </ul>
+                  <ul>
+                    <li :class="['node', { sel: highlighted('adjustment-factor') }]" :style="conceptStyle('adjustment-factor')">
+                      <div class="nrow" @click="select('adjustment-factor')" @focusin="focusRow('adjustment-factor')">
+                        <span class="nlabel">Adjustment factor<HintToggle id="adjustment-factor" about="the adjustment factor" :text="hints['adjustment-factor']" :active="activeHint === 'adjustment-factor'" @toggle="toggleHint('adjustment-factor')" /></span>
+                        <span class="ctrl"><NumberInput id="adjustment-factor-input" v-model="adjustmentFactorPercent" class="num rate" aria-label="Adjustment factor (% the final level is multiplied by)" /><span class="unit">%</span></span>
+                      </div>
+                      <ul v-if="issuesFor('adjustmentFactor').length" class="errors" role="alert"><li v-for="message in issuesFor('adjustmentFactor')" :key="message">{{ message }}</li></ul>
                     </li>
                   </ul>
                 </li>
