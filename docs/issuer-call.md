@@ -50,6 +50,6 @@ Built, without coupons: the thin version recommended below. The model is `{ "kin
 ## Open questions
 
 1. **Notice and dates.** Both notes state a notice period and a call payment date that follows the review. The reference does not model dates, so notice is not represented.
-2. **A note with both calls.** No public example was read.
+2. **A note with both calls.** No note was found with a classic upside autocall and an issuer call. One ETN has an issuer call beside a stop-loss automatic call and a holder right ([early-redemption-rights.md](early-redemption-rights.md)).
 3. **A source for a premium.** None found yet. The default is zero until one is, and the book should not suggest a typical premium.
 4. **Coupon in the call price.** The call price includes the coupon for the preceding review in both notes, when earned. This needs the contingent coupon slice.
