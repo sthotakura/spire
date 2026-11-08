@@ -6,7 +6,7 @@ import { startingProduct } from './starting-note'
 // Synthetic: the worked example in docs/coupon.md, shaped like the 2019 fixed coupon autocall. An 18-month note of 1,000 on one stock
 // with an initial level of 100, a fixed coupon of 12% a year paid quarterly (30 a review), a quarterly autocall whose first review is
 // in month 6, a trigger of 95% stepping −5% a review, and a 60% downside barrier read on the final date.
-const autocall = (terms: Partial<Autocall> = {}): Autocall => ({ kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 0.95, triggerStep: -0.05, firstReviewMonth: 6, callAmount: 0, ...terms })
+const autocall = (terms: Partial<Autocall> = {}): Product['redemption'] => ({ kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 0.95, triggerStep: -0.05, firstReviewMonth: 6, callAmount: 0, ...terms }] })
 const fixed = (terms: Partial<Coupon> = {}): Coupon => ({ schedule: { frequency: 'quarterly' }, rate: 0.12, ...terms })
 const withFixedCoupon = (overrides: Partial<Product> = {}): Product => ({
   ...startingProduct,
@@ -25,7 +25,7 @@ describe('validation of a fixed coupon', () => {
   it('accepts a coupon with no barrier, with any redemption', () => {
     expect(validateProduct(withFixedCoupon())).toEqual([])
     expect(validateProduct(withFixedCoupon({ redemption: { kind: 'bullet' } }))).toEqual([])
-    expect(validateProduct(withFixedCoupon({ redemption: { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0 } }))).toEqual([])
+    expect(validateProduct(withFixedCoupon({ redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0 }] } }))).toEqual([])
   })
 
   it('rejects memory, since no fixed coupon is missed, but accepts memory set to false', () => {

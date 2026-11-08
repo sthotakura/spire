@@ -23,6 +23,7 @@ const rulesInValidator = [
   'A digital return is for notes only, is less than any cap, and cannot be combined with an upside barrier, barrier absolute return or a minimum return.',
   'A basket needs unique asset names and one initial level for each asset and no other.',
   'A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.',
+  'Each early redemption mechanism appears at most once.',
   'The term must hold a whole number of periods of each schedule: at least two for an autocall or an issuer call, and at least one for a coupon.',
   'An autocall, an issuer call or a contingent coupon cannot be combined with a barrier observed on every close.',
   'An adjustment factor other than 1 cannot be combined with a buffer, a barrier, a digital return, barrier absolute return or delivery.',

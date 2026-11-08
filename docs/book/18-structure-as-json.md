@@ -33,12 +33,12 @@ payoff.
 
 ## A product with reviews
 
-An autocall makes the redemption an object that carries its own review schedule,
+A product that can end early has a redemption of the kind `early-redemption`, with a list of `mechanisms`, the ways it can end early. An autocall is one mechanism, and carries its own review schedule,
 the trigger and the call amount. The `payoff` is the
 maturity payoff, paid at the end of the term if the product is not called. It
 does not apply to a call, which pays principal plus the call amount.
 
-The redemption has four more terms, each with a default that applies when it is
+The autocall has four more terms, each with a default that applies when it is
 left out: a `firstReviewMonth` of one period (the first review is a month in,
 for monthly reviews), a `triggerStep` of 0 (one trigger on every review), a
 `callAmountBasis` of `"flat"` (the same call amount on every call) and
@@ -46,10 +46,10 @@ for monthly reviews), a `triggerStep` of 0 (one trigger on every review), a
 example leaves them out, so it is the shortest form. The reference's own
 structure states all four, so what the outline shows is also what the JSON says.
 
-An issuer call is a redemption of another kind. It has a schedule too, and it has no trigger, because nothing tests a level. Its terms are `schedule`, `firstReviewMonth`, `callAmount` and `callAmountBasis`. Here the issuer may call quarterly from month 9:
+An issuer call is another mechanism. It has a schedule too, and it has no trigger, because nothing tests a level. Its terms are `schedule`, `firstReviewMonth`, `callAmount` and `callAmountBasis`. Here the issuer may call quarterly from month 9:
 
 ```json
-"redemption": { "kind": "issuer-call", "schedule": { "frequency": "quarterly" }, "firstReviewMonth": 9, "callAmount": 0.02, "callAmountBasis": "flat" }
+"redemption": { "kind": "early-redemption", "mechanisms": [{ "kind": "issuer-call", "schedule": { "frequency": "quarterly" }, "firstReviewMonth": 9, "callAmount": 0.02, "callAmountBasis": "flat" }] }
 ```
 
 Which review the issuer calls on is not in the structure. It is a scenario, like the final level.
@@ -59,7 +59,7 @@ Which review the issuer calls on is not in the structure. It is a scenario, like
   "wrapper": "note",
   "principalAmount": 1000,
   "term": { "months": 12 },
-  "redemption": { "kind": "autocall", "schedule": { "frequency": "monthly" }, "trigger": 1, "callAmount": 0.08 },
+  "redemption": { "kind": "early-redemption", "mechanisms": [{ "kind": "autocall", "schedule": { "frequency": "monthly" }, "trigger": 1, "callAmount": 0.08 }] },
   "underlier": {
     "kind": "single",
     "components": [

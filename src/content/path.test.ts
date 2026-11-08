@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { paymentAtEnd, redemptionOutcome } from '../domain/autocall'
-import { basketBreakdown, basketStartingLevel, initialObservationCountOf, observationCountOf, paymentBreakdown, reviewDates, type DeterminedLevels, type Product } from '../domain/note'
+import { issuerCallOf, basketBreakdown, basketStartingLevel, initialObservationCountOf, observationCountOf, paymentBreakdown, reviewDates, type DeterminedLevels, type Product } from '../domain/note'
 import { couponClosingSteps, redemptionSteps } from './autocall'
 import { calculationSteps } from './calculation'
 import { sampleProducts } from './examples'
@@ -18,7 +18,7 @@ function scenario(note: Product, final: number, review: number, issuerCallsOnRev
   const basket = note.underlier.kind === 'basket' ? basketBreakdown(note.underlier, note.underlier.components.map(() => observed)) : undefined
   const levels: DeterminedLevels = { initial, final: finalLevel, ...closes }
   const b = paymentBreakdown(note, levels)
-  const reads = reviewDates(note).length > 0 || (note.redemption.kind === 'issuer-call' && note.coupon !== undefined)
+  const reads = reviewDates(note).length > 0 || (issuerCallOf(note.redemption) !== undefined && note.coupon !== undefined)
   const outcome = note.redemption.kind !== 'bullet' || note.coupon ? redemptionOutcome(note, reads ? reviewDates(note).slice(0, -1).map(() => review * initial / 100) : [], levels, issuerCallsOnReview) : undefined
   const maturity = calculationSteps(note, b, observed, initialObservations, basket)
   const titles = outcome ? [...redemptionSteps(note, outcome), ...maturity, ...couponClosingSteps(note, outcome)].map(({ title }) => title) : maturity.map(({ title }) => title)
@@ -74,7 +74,7 @@ describe('the calculation path', () => {
   // An autocall that calls on its last review, with a remembered coupon: the line draws the call and the last coupon, not the memory.
   const memory: Product = {
     wrapper: 'note', principalAmount: 1000, term: { months: 12 },
-    redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, firstReviewMonth: 3, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: true },
+    redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, firstReviewMonth: 3, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: true }] },
     coupon: { schedule: { frequency: 'quarterly' }, rate: 0.08, barrier: 0.7, memory: true },
     underlier: { kind: 'single', components: [{ asset: { kind: 'equity-index', name: 'Synthetic Index' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },
     payoff: { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.6, observation: 'final' } }] },
@@ -103,7 +103,7 @@ describe('the calculation path', () => {
     const paid = scenario(memory, 90, 80)
     expect(scenarioAside(memory, paid.levels, paid.outcome)).toBe('It also pays 60 in coupons on earlier reviews.')
     // The issuer's call reads no level and is never on the line.
-    const sample = sampleProducts.find(({ product }) => product.redemption.kind !== 'bullet' && product.redemption.kind === 'issuer-call')!.product
+    const sample = sampleProducts.find(({ product }) => issuerCallOf(product.redemption) !== undefined)!.product
     const issuer = scenario(sample, 100, 20, 2)
     expect(scenarioAside(sample, issuer.levels, issuer.outcome)).toMatch(/^In this scenario the issuer calls it on review 2 and pays [\d,.]+, which the line does not show\./)
   })

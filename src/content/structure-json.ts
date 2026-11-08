@@ -19,13 +19,14 @@ export function structureLines(note: Product): StructureLine[] {
     if (top === 'wrapper' || top === 'principalAmount' || top === 'term') return 'wrapper'
     // Each term of the redemption is its own part, and its reviews are the schedule the call is tested on. The coupon has its own.
     if (top === 'redemption') {
-      if (second === 'schedule') return 'schedule'
-      if (second === 'firstReviewMonth') return 'first-review'
-      if (second === 'trigger') return 'trigger'
-      if (second === 'triggerStep') return 'trigger-step'
-      if (second === 'callAmount' || second === 'callAmountBasis') return 'call-amount'
-      if (second === 'callOnFinalReview') return 'final-call'
       if (second === 'adjustmentFactor') return 'adjustment-factor'
+      if (second !== 'mechanisms') return 'redemption'
+      if (fourth === 'schedule') return 'schedule'
+      if (fourth === 'firstReviewMonth') return 'first-review'
+      if (fourth === 'trigger') return 'trigger'
+      if (fourth === 'triggerStep') return 'trigger-step'
+      if (fourth === 'callAmount' || fourth === 'callAmountBasis') return 'call-amount'
+      if (fourth === 'callOnFinalReview') return 'final-call'
       return 'redemption'
     }
     if (top === 'coupon') return second === 'schedule' ? 'coupon-schedule' : second === 'barrier' ? 'coupon-barrier' : second === 'memory' ? 'memory' : 'coupon'

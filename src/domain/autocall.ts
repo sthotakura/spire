@@ -1,12 +1,12 @@
-import { barrierLevelAt, callAmountAtReview, callReviewCount, callReviewMonth, couponPerReview, lastCallReview, maturityPayment, reviewDates, scheduleReviews, triggerAtReview, paymentBreakdown, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
+import { autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, callReviewMonth, couponPerReview, firstReviewMonthOf, issuerCallOf, lastCallReview, maturityPayment, reviewCount, reviewDates, scheduleReviews, triggerAtReview, paymentBreakdown, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
 
 // The level at or above which the final review calls the product, from the determined initial level. Undefined when the final review
 // is not a call.
 export function finalCallLevel(note: Product, initialLevel: number): number | undefined {
-  const { redemption } = note
+  const autocall = autocallOf(note.redemption)
   const reviews = callReviewCount(note)
-  if (redemption.kind !== 'autocall' || !redemption.callOnFinalReview || reviews === undefined) return undefined
-  return barrierLevelAt(triggerAtReview(redemption, reviews), initialLevel)
+  if (autocall === undefined || !autocall.callOnFinalReview || reviews === undefined) return undefined
+  return barrierLevelAt(triggerAtReview(autocall, reviews), initialLevel)
 }
 
 // The coupon barrier as an underlier level, from the determined initial level. Undefined when the product has no coupon, or a fixed
@@ -20,12 +20,12 @@ export const couponBarrierLevel = (note: Product, initialLevel: number): number 
 // they are left out. A fixed coupon adds the last coupon at every level. This is the payment the payoff chart draws against the final
 // level. It equals the maturity payment when the final review is not a call and there is no coupon.
 export function paymentAtEnd(note: Product, levels: DeterminedLevels): number {
-  const { redemption } = note
+  const autocall = autocallOf(note.redemption)
   const call = finalCallLevel(note, levels.initial)
   const couponBarrier = couponBarrierLevel(note, levels.initial)
   const coupon = note.coupon !== undefined && (couponBarrier === undefined || levels.final >= couponBarrier) ? couponPerReview(note) : 0
-  if (redemption.kind !== 'bullet' && call !== undefined && levels.final >= call) {
-    return note.principalAmount * (1 + callAmountAtReview(redemption, note.term.months)) + coupon
+  if (autocall !== undefined && call !== undefined && levels.final >= call) {
+    return note.principalAmount * (1 + callAmountAtReview(autocall, note.term.months)) + coupon
   }
   return maturityPayment(note, levels) + coupon
 }
@@ -119,30 +119,31 @@ export function redemptionOutcome(note: Product, reviewLevels: number[], levels:
   const reviews = callReviewCount(note)!
   const dates = reviewDates(note)
   const before = Math.max(dates.length - 1, 0)
-  const { redemption } = note
+  const autocall = autocallOf(note.redemption)
+  const issuerCall = issuerCallOf(note.redemption)
   if (reviewLevels.length !== before) {
-    if (!dates.length) throw new Error(redemption.kind === 'issuer-call' ? 'An issuer call with no coupon reads no review levels.' : 'A product with no autocall or coupon has no reviews before the last.')
+    if (!dates.length) throw new Error(issuerCall !== undefined ? 'An issuer call with no coupon reads no review levels.' : 'A product with no autocall or coupon has no reviews before the last.')
     throw new Error(`Expected a level for each of ${before} reviews before the last.`)
   }
   if (reviewLevels.some((level) => !Number.isFinite(level) || level < 0)) throw new Error('Review levels must be zero or greater.')
-  if (issuerCallsOnReview !== undefined && redemption.kind !== 'issuer-call') throw new Error('Only an issuer call is called by the issuer.')
+  if (issuerCallsOnReview !== undefined && issuerCall === undefined) throw new Error('Only an issuer call is called by the issuer.')
   const levelOn = (index: number) => (index < before ? reviewLevels[index] : levels.final)
 
   const tests: ReviewTest[] = []
   let called: { review: number; month: number; callAmount: number } | undefined
-  if (redemption.kind === 'issuer-call' && issuerCallsOnReview !== undefined) {
-    const last = lastCallReview(redemption, reviews)
+  if (issuerCall !== undefined && issuerCallsOnReview !== undefined) {
+    const last = lastCallReview(issuerCall, reviewCount({ term: note.term, schedule: issuerCall.schedule, firstMonth: firstReviewMonthOf(issuerCall) })!)
     if (!Number.isInteger(issuerCallsOnReview) || issuerCallsOnReview < 1 || issuerCallsOnReview > last) throw new Error(`The issuer can call on reviews 1 to ${last}.`)
-    const month = callReviewMonth(redemption, issuerCallsOnReview)
-    called = { review: issuerCallsOnReview, month, callAmount: callAmountAtReview(redemption, month) }
+    const month = callReviewMonth(issuerCall, issuerCallsOnReview)
+    called = { review: issuerCallsOnReview, month, callAmount: callAmountAtReview(issuerCall, month) }
   }
-  if (redemption.kind === 'autocall') {
+  if (autocall !== undefined) {
     for (const [index, { call: review, month }] of dates.entries()) {
       // The last review is the end of the term and is not tested, unless the final review is a call too.
-      if (review === undefined || (review === reviews && !redemption.callOnFinalReview)) continue
+      if (review === undefined || (review === reviews && !autocall.callOnFinalReview)) continue
       const level = levelOn(index)
-      const triggerLevel = barrierLevelAt(triggerAtReview(redemption, review), levels.initial)
-      const test = { review, month, level, triggerLevel, called: level >= triggerLevel, callAmount: callAmountAtReview(redemption, month) }
+      const triggerLevel = barrierLevelAt(triggerAtReview(autocall, review), levels.initial)
+      const test = { review, month, level, triggerLevel, called: level >= triggerLevel, callAmount: callAmountAtReview(autocall, month) }
       tests.push(test)
       if (test.called) {
         called = test

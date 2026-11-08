@@ -67,7 +67,7 @@ describe('the adjustment factor', () => {
   })
 
   it('applies to the maturity payment of an autocall, and leaves its trigger and call amount alone', () => {
-    const redemption = { kind: 'autocall' as const, schedule: { frequency: 'semi-annual' as const }, trigger: 1, callAmount: 0.08, adjustmentFactor: 0.9 }
+    const redemption: Product['redemption'] = { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'semi-annual' }, trigger: 1, callAmount: 0.08 }], adjustmentFactor: 0.9 }
     const note: Product = { ...plain(), redemption }
     expect(validateProduct(note)).toEqual([])
     expect(redemptionOutcome(note, [100], { initial: 100, final: 100 })).toMatchObject({ calledAtReview: 1, payment: 1080 })
@@ -75,7 +75,7 @@ describe('the adjustment factor', () => {
   })
 
   it('applies to the maturity payment of an issuer call that is not called, and leaves a call alone', () => {
-    const redemption = { kind: 'issuer-call' as const, schedule: { frequency: 'semi-annual' as const }, callAmount: 0.05, adjustmentFactor: 0.9 }
+    const redemption: Product['redemption'] = { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'semi-annual' }, callAmount: 0.05 }], adjustmentFactor: 0.9 }
     const note: Product = { ...plain(), redemption }
     expect(validateProduct(note)).toEqual([])
     expect(maturityPayment(note, { initial: 100, final: 110 })).toBeCloseTo(990, 9)

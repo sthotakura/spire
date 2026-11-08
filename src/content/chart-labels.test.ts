@@ -174,14 +174,14 @@ describe('payoff chart labels with a daily barrier on each side', () => {
 
 
 describe('a final review that calls', () => {
-  const callable: Product = { ...startingProduct, term: { months: 12 }, redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1.2, callAmount: 0.1, callOnFinalReview: true } }
+  const callable: Product = { ...startingProduct, term: { months: 12 }, redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1.2, callAmount: 0.1, callOnFinalReview: true }] } }
 
   it('says what it pays, from the trigger of the last review', () => {
     expect(payoffLabels(callable)['final-call']).toBe('At or above 120% of the initial level the final review calls it, paying 1,100')
   })
 
   it('says nothing when the final review is not a call', () => {
-    expect(payoffLabels({ ...callable, redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1.2, callAmount: 0.1 } })['final-call']).toBeUndefined()
+    expect(payoffLabels({ ...callable, redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1.2, callAmount: 0.1 }] } })['final-call']).toBeUndefined()
   })
 
   it('adds the last coupon to the pieces that repay principal or state a fixed amount, as the line draws them', () => {

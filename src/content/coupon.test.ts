@@ -12,7 +12,7 @@ import { summarize } from './summary'
 const product = (coupon: Partial<Coupon> = {}): Product => ({
   ...startingProduct,
   term: { months: 12 },
-  redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 4, callAmount: 0 },
+  redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 4, callAmount: 0 }] },
   coupon: { schedule: { frequency: 'monthly' }, rate: 0.12, barrier: 0.7, memory: true, ...coupon },
   payoff: { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.6, observation: 'final' } }] },
 })
@@ -146,7 +146,7 @@ describe('the coupon paths', () => {
   })
 
   it('keeps the memory path with a final review that calls, when the barrier is below the last trigger', () => {
-    const near: Product = { ...product({ barrier: 0.97 }), redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 4, callAmount: 0, callOnFinalReview: true } }
+    const near: Product = { ...product({ barrier: 0.97 }), redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 4, callAmount: 0, callOnFinalReview: true }] } }
     const memory = pathScenarios(near, 100).find((path) => path.name === 'Misses coupons, then pays them by memory')
     expect(memory).toBeDefined()
     expect(redemptionOutcome(near, memory!.reviewLevels, { initial: 100, final: memory!.finalLevel! }).calledAtReview).toBeUndefined()
@@ -183,7 +183,7 @@ describe('the coupon in the chart labels', () => {
 
 describe('a coupon on its own schedule in the calculation', () => {
   it('says when a call falls on a month that is not a coupon review', () => {
-    const monthlyCall: Product = { ...product({ schedule: { frequency: 'quarterly' } }), redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, callAmount: 0 } }
+    const monthlyCall: Product = { ...product({ schedule: { frequency: 'quarterly' } }), redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, callAmount: 0 }] } }
     const outcome = redemptionOutcome(monthlyCall, [95, 95, 95, 104, 90, 90, 90, 90, 90, 90, 90], { initial: 100, final: 90 })
     expect(redemptionSteps(monthlyCall, outcome).find((step) => step.title === 'Redemption')?.how).toBe('Called on review 4, after 4 months: principal × (1 + 0%), no coupon review on this date')
   })
@@ -224,7 +224,7 @@ describe('the coupon in the review table', () => {
 describe('a product that ends before its first coupon review', () => {
   it('says so in the outcome sentence, with the total paid and the total return', () => {
     // An issuer call on review 1 of a quarterly call, month 3, beside semi-annual coupons: no coupon review is reached.
-    const issuer: Product = { ...product({ schedule: { frequency: 'semi-annual' } }), redemption: { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0.01 } }
+    const issuer: Product = { ...product({ schedule: { frequency: 'semi-annual' } }), redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0.01 }] } }
     const outcome = redemptionOutcome(issuer, [90], { initial: 100, final: 90 }, 1)
     expect(outcome.coupons).toEqual([])
     expect(explainCoupons(issuer, outcome)).toBe('It ended before its first coupon review, so it paid no coupon. In all it paid 1,010, a total return of +1% over 3 months, or 4.06% a year.')

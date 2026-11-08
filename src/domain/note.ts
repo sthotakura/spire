@@ -382,7 +382,7 @@ export interface Bullet extends RedemptionTerms {
  * and repays principal plus the call amount. The last review is the end of the term and pays the maturity payoff as a bullet product does,
  * unless the final review is also a call.
  */
-export interface Autocall extends RedemptionTerms {
+export interface Autocall {
   kind: 'autocall'
   /** How often the call is tested, from its first review. The term must hold at least two periods. */
   schedule: Schedule
@@ -436,7 +436,7 @@ export interface Autocall extends RedemptionTerms {
  * and repays principal plus the call amount. Nothing tests the underlier: whether the issuer calls is the issuer's choice, which a
  * scenario states. The last review is the end of the term and is not a call.
  */
-export interface IssuerCall extends RedemptionTerms {
+export interface IssuerCall {
   kind: 'issuer-call'
   /** How often the issuer may call, from its first review. The term must hold at least two periods. */
   schedule: Schedule
@@ -460,6 +460,22 @@ export interface IssuerCall extends RedemptionTerms {
    */
   callAmountBasis?: 'flat' | 'per-year'
 }
+
+/** One way a product can end before the end of its term. */
+export type EarlyMechanism = Autocall | IssuerCall
+
+/** Redemption that can come before the end of the term, by the mechanisms listed. A product that none of them ends runs to maturity. */
+export interface EarlyRedemption extends RedemptionTerms {
+  kind: 'early-redemption'
+  /**
+   * The ways the product can end early, in any order: the order has no meaning.
+   * @minItems 1
+   */
+  mechanisms: EarlyMechanism[]
+}
+
+/** How the product ends: at maturity, or possibly earlier. */
+export type Redemption = Bullet | EarlyRedemption
 
 // See docs/contingent-coupon.md and docs/coupon.md.
 /**
@@ -520,7 +536,7 @@ export interface Product {
   principalAmount: number
   term: Term
   /** Bullet redemption pays once, at maturity. An autocall or an issuer call can end the product earlier, on a review. */
-  redemption: Bullet | Autocall | IssuerCall
+  redemption: Redemption
   /**
    * A coupon on each review of its own schedule, with any redemption: fixed, paid on every review, or contingent, paid on a review that
    * meets its barrier.
@@ -568,7 +584,7 @@ export const withSubFeatures = (participations: Participation[], { buffer, barri
     ? { direction: 'downside', buffer, barrier, absoluteReturn, rate: participation.rate }
     : { direction: 'upside', ...(measuredFrom === undefined ? {} : { measuredFrom }), barrier: upsideBarrier, rate: participation.rate, cap })
 
-export type ProductIssueField = 'adjustmentFactor' | 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'digitalReturn' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'firstReviewMonth' | 'triggerStep' | 'callAmount' | 'coupon' | 'couponSchedule' | 'settlement'
+export type ProductIssueField = 'mechanisms' | 'adjustmentFactor' | 'principalAmount' | 'term' | 'underlierName' | 'basketComponents' | 'initialLevel' | 'weights' | 'lookbackObservationCount' | 'observationCount' | 'buffer' | 'barrier' | 'upsideBarrier' | 'absoluteReturn' | 'participations' | 'principalProtection' | 'cap' | 'digitalReturn' | 'minimumReturn' | 'barrierAbsoluteReturn' | 'lowerBarrier' | 'upperBarrier' | 'conditionalReturn' | 'schedule' | 'trigger' | 'firstReviewMonth' | 'triggerStep' | 'callAmount' | 'coupon' | 'couponSchedule' | 'settlement'
 
 // A barrier as an underlier level: its fraction of the level the return is measured from. Rounded to nine decimals, because
 // 1.1 × 100 is 110.00000000000001 in floating point, which would put a final level of 110 on the wrong side of a barrier at 110%.
@@ -655,6 +671,11 @@ export const triggerAtReview = (redemption: Autocall, review: number): number =>
 
 const triggerAllowed = (trigger: number) => Number.isFinite(trigger) && trigger > 0 && trigger <= 2
 
+// The mechanisms a redemption can end early by: none for a bullet.
+export const mechanismsOf = (redemption: Redemption): EarlyMechanism[] => (redemption.kind === 'bullet' ? [] : redemption.mechanisms)
+export const autocallOf = (redemption: Redemption): Autocall | undefined => mechanismsOf(redemption).find((mechanism): mechanism is Autocall => mechanism.kind === 'autocall')
+export const issuerCallOf = (redemption: Redemption): IssuerCall | undefined => mechanismsOf(redemption).find((mechanism): mechanism is IssuerCall => mechanism.kind === 'issuer-call')
+
 // The last review that can call: the last but one, or the last when the final review is a call too.
 export const lastCallReview = (redemption: Autocall | IssuerCall, reviews: number): number => (redemption.kind === 'autocall' && redemption.callOnFinalReview ? reviews : reviews - 1)
 
@@ -696,8 +717,10 @@ export function scheduleReviews(term: Term, schedule: Schedule, firstMonth?: num
 export const firstReviewMonthOf = (redemption: Autocall | IssuerCall): number => redemption.firstReviewMonth ?? monthsPerReview[redemption.schedule.frequency]
 
 // The number of the call's reviews, from its first: one, the final date, for a bullet product.
-export const callReviewCount = (note: Product): number | undefined =>
-  note.redemption.kind === 'bullet' || note.redemption.schedule === undefined ? 1 : reviewCount({ term: note.term, schedule: note.redemption.schedule, firstMonth: firstReviewMonthOf(note.redemption) })
+export const callReviewCount = (note: Product): number | undefined => {
+  const mechanism = autocallOf(note.redemption) ?? issuerCallOf(note.redemption)
+  return mechanism === undefined || mechanism.schedule === undefined ? 1 : reviewCount({ term: note.term, schedule: mechanism.schedule, firstMonth: firstReviewMonthOf(mechanism) })
+}
 
 // The month of a call's review, numbered from 1 at its first review.
 export const callReviewMonth = (redemption: Autocall | IssuerCall, review: number): number =>
@@ -723,7 +746,8 @@ export function reviewDates(note: Product): ReviewDate[] {
     return true
   }
   const { redemption, coupon } = note
-  if (redemption.kind === 'autocall' && redemption.schedule !== undefined && !add(redemption.schedule, 'call', firstReviewMonthOf(redemption))) return []
+  const autocall = autocallOf(redemption)
+  if (autocall !== undefined && autocall.schedule !== undefined && !add(autocall.schedule, 'call', firstReviewMonthOf(autocall))) return []
   if (coupon?.schedule !== undefined && coupon.barrier !== undefined && !add(coupon.schedule, 'coupon')) return []
   return [...dates.values()].sort((a, b) => a.month - b.month)
 }
@@ -740,9 +764,18 @@ export function suggestedFrequency(months: number): ReviewFrequency {
 // An autocall reads the underlier on the review dates, so it needs a schedule that divides the term, and the observations that are
 // not tied to those dates are left out. A daily barrier reads the period to the final date, which a called product does not reach.
 function redemptionIssues(note: Product): ProductIssue[] {
-  const issues: ProductIssue[] = []
   const { redemption } = note
-  if (redemption.kind === 'bullet') return issues
+  if (redemption.kind === 'bullet') return []
+  if (!redemption.mechanisms.length) return [{ field: 'mechanisms', message: 'Early redemption needs at least one mechanism: choose bullet redemption for none.' }]
+  const kinds = redemption.mechanisms.map(({ kind }) => kind)
+  if (new Set(kinds).size !== kinds.length) return [{ field: 'mechanisms', message: 'Each early redemption mechanism can appear only once.' }]
+  // Two mechanisms on one product are the next change: docs/early-redemption-rights.md.
+  if (kinds.length > 1) return [{ field: 'mechanisms', message: 'An autocall and an issuer call cannot yet be combined.' }]
+  return redemption.mechanisms.flatMap((mechanism) => mechanismIssues(note, mechanism))
+}
+
+function mechanismIssues(note: Product, redemption: EarlyMechanism): ProductIssue[] {
+  const issues: ProductIssue[] = []
   const { schedule } = redemption
   const named = redemption.kind === 'autocall' ? 'An autocall' : 'An issuer call'
   const periods = schedule === undefined ? undefined : reviewCount({ term: note.term, schedule })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { finalCallLevel, paymentAtEnd, redemptionOutcome } from './autocall'
-import { annualisedReturn, basketLevelFrom, callReviewCount, productIssues, reviewDates, type IssuerCall, reviewCount, suggestedFrequency, validateProduct, type Autocall, type BasketUnderlier, type Product, type Schedule } from './note'
+import { annualisedReturn, basketLevelFrom, callReviewCount, productIssues, reviewDates, type IssuerCall, reviewCount, suggestedFrequency, validateProduct, type Autocall, type EarlyMechanism, type BasketUnderlier, type Product, type Schedule } from './note'
 import { startingProduct } from './starting-note'
 
 // Synthetic: a 12-month note on one index, reviewed monthly, called when the index is at or above its initial level.
@@ -13,7 +13,7 @@ const callable = (overrides: Overrides = {}): Product => {
   const { schedule, redemption = autocall(), ...rest } = overrides
   const product = { ...startingProduct, term: { months: 12 }, ...rest }
   if (redemption.kind === 'bullet') return { ...product, redemption }
-  return { ...product, redemption: { ...redemption, schedule: 'schedule' in overrides ? schedule : redemption.schedule ?? { frequency: 'monthly' } } as Autocall | IssuerCall }
+  return { ...product, redemption: { kind: 'early-redemption', mechanisms: [{ ...redemption, schedule: 'schedule' in overrides ? schedule : redemption.schedule ?? { frequency: 'monthly' } } as Autocall | IssuerCall] } }
 }
 const levels = { initial: 100, final: 100 }
 const flat = (count: number, level = 90) => Array.from({ length: count }, () => level)
@@ -387,6 +387,19 @@ describe('a first review later than one period in', () => {
     expect(calledOn(1).payment).toBeCloseTo(1170, 9)
     expect(calledOn(36)).toMatchObject({ calledAtReview: 36, months: 117 })
     expect(calledOn(36).payment).toBeCloseTo(2657.5, 9)
+  })
+})
+
+describe('the mechanisms of an early redemption', () => {
+  const withMechanisms = (mechanisms: EarlyMechanism[]): Product => ({ ...startingProduct, term: { months: 12 }, redemption: { kind: 'early-redemption', mechanisms } })
+  const issuer: IssuerCall = { kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0 }
+
+  it('needs at least one', () => {
+    expect(fieldsOf(withMechanisms([]))).toEqual(['mechanisms'])
+  })
+
+  it('allows each kind once', () => {
+    expect(fieldsOf(withMechanisms([issuer, issuer]))).toEqual(['mechanisms'])
   })
 })
 

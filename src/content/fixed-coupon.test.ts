@@ -12,7 +12,7 @@ import { summarize } from './summary'
 const product = (coupon: Partial<Coupon> = {}): Product => ({
   ...startingProduct,
   term: { months: 18 },
-  redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 0.95, triggerStep: -0.05, firstReviewMonth: 6, callAmount: 0 },
+  redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 0.95, triggerStep: -0.05, firstReviewMonth: 6, callAmount: 0 }] },
   coupon: { schedule: { frequency: 'quarterly' }, rate: 0.12, ...coupon },
   payoff: { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.6, observation: 'final' } }] },
 })

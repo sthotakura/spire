@@ -118,8 +118,8 @@ export function summarize(note: Product): SummarySegment[] {
   // An autocall says when it is called and what it pays, then that it otherwise redeems at maturity. The trigger is a share of the
   // initial level of what the payoff reads, so the underlier is named again. An issuer call says when the issuer may call, with no level.
   const redemption: SummarySegment[] = (() => {
-    const { redemption: terms } = note
-    if (terms.kind === 'bullet') return [{ text: ' that redeems ' }, { text: 'at maturity', concept: 'redemption' }]
+    if (note.redemption.kind === 'bullet') return [{ text: ' that redeems ' }, { text: 'at maturity', concept: 'redemption' }]
+    const [terms] = note.redemption.mechanisms
     const reviewing: SummarySegment[] = [
       { text: ' on any ' },
       { text: terms.schedule?.frequency ?? 'monthly', concept: 'schedule' },

@@ -278,8 +278,8 @@ describe('product category', () => {
 })
 
 describe('marketing names with a call or a coupon', () => {
-  const autocall: Product['redemption'] = { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0 }
-  const issuerCall: Product['redemption'] = { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0 }
+  const autocall: Product['redemption'] = { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0 }] }
+  const issuerCall: Product['redemption'] = { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0 }] }
   const coupon: Product['coupon'] = { schedule: { frequency: 'quarterly' }, rate: 0.08, barrier: 0.7 }
   const withTerms = (payoff: Parameters<typeof noteWith>[0], terms: Partial<Product>): Product => ({ ...noteWith(payoff), ...terms })
   const namesWith = (payoff: Parameters<typeof noteWith>[0], terms: Partial<Product>) => marketingNames(withTerms(payoff, terms)).map(({ name }) => name)
@@ -315,8 +315,8 @@ describe('marketing names with a call or a coupon', () => {
 })
 
 describe('names for a call and a coupon', () => {
-  const autocall: Product['redemption'] = { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0 }
-  const issuerCall: Product['redemption'] = { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0 }
+  const autocall: Product['redemption'] = { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0 }] }
+  const issuerCall: Product['redemption'] = { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0 }] }
   const coupon: Product['coupon'] = { schedule: { frequency: 'quarterly' }, rate: 0.08, barrier: 0.7 }
   const barrierDown: Participation = { direction: 'downside', rate: 1, barrier: { level: 0.6, observation: 'final' } }
   // noteWith sets each downside feature from its own argument, so a barrier on the downside participation is put back here.
@@ -334,16 +334,16 @@ describe('names for a call and a coupon', () => {
   })
 
   it('calls an autocall whose call amount grows for each year elapsed a snowball autocall, or one with a step-up premium', () => {
-    const snowball = marketingNames(withTerms({}, { redemption: { ...autocall, callAmount: 0.17, callAmountBasis: 'per-year' } }))
+    const snowball = marketingNames(withTerms({}, { redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0.17, callAmountBasis: 'per-year' }] } }))
     expect(snowball.map(({ name }) => name)).toEqual(['Autocallable note', 'Snowball autocall', 'Autocallable note with step-up premium'])
     expect(snowball[1]).toMatchObject({ vocabulary: 'Market usage', concepts: ['redemption', 'call-amount'] })
     expect(snowball[1].reason).toContain('A call pays 17% for each year elapsed')
     expect(snowball[2]).toMatchObject({ vocabulary: 'Market usage', concepts: ['redemption', 'call-amount'] })
     expect(snowball[2].reason).toContain('steps up by 17% for each year elapsed')
     // A flat call amount, a per-year basis that pays nothing, and an issuer call get neither name.
-    expect(namesWith({}, { redemption: { ...autocall, callAmount: 0.17, callAmountBasis: 'flat' } })).not.toContain('Snowball autocall')
-    expect(namesWith({}, { redemption: { ...autocall, callAmount: 0, callAmountBasis: 'per-year' } })).not.toContain('Snowball autocall')
-    expect(namesWith({}, { redemption: { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0.1, callAmountBasis: 'per-year' } })).not.toContain('Snowball autocall')
+    expect(namesWith({}, { redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0.17, callAmountBasis: 'flat' }] } })).not.toContain('Snowball autocall')
+    expect(namesWith({}, { redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0, callAmountBasis: 'per-year' }] } })).not.toContain('Snowball autocall')
+    expect(namesWith({}, { redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0.1, callAmountBasis: 'per-year' }] } })).not.toContain('Snowball autocall')
   })
 
   it('calls a note with an issuer call callable', () => {
@@ -512,7 +512,7 @@ describe('marketing names for a barrier on downside participation', () => {
     expect(names(barriered({ cap: 0.2 }))).toEqual(['Capped participation'])
     expect(names(barriered({ protection: 0.9 }))).toEqual(['Partially principal-protected note'])
     expect(names({ ...barriered(), coupon: { schedule: { frequency: 'quarterly' }, rate: 0.08, barrier: 0.7, memory: false }, term: { months: 36 } })).toEqual(['Contingent coupon note'])
-    expect(names({ ...barriered(), redemption: { kind: 'autocall', schedule: { frequency: 'annual' }, trigger: 1, callAmount: 0.1 } })).toEqual(['Autocallable note'])
+    expect(names({ ...barriered(), redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'annual' }, trigger: 1, callAmount: 0.1 }] } })).toEqual(['Autocallable note'])
     expect(names({ ...barriered(), payoff: { ...barriered().payoff, digitalReturn: { amount: 0.2, barrier: { level: 0.9, observation: 'final' } } } })).toEqual(['Digital return note'])
   })
 })
@@ -572,7 +572,7 @@ describe('issuer titles for a rise shared at more than 100%', () => {
 
   it('gives none where the filings do not pay this way', () => {
     expect(titleNames(product([up(1.5), down(1)], {}, { coupon: { schedule: { frequency: 'quarterly' }, rate: 0.08 } }))).toEqual([])
-    expect(titleNames(product([up(1.5), down(1)], {}, { redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0 } }))).toEqual([])
+    expect(titleNames(product([up(1.5), down(1)], {}, { redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0 }] } }))).toEqual([])
     expect(titleNames(product([up(1.5), down(1)], {}, { settlement: 'delivery' }))).toEqual([])
     expect(titleNames(product([up(1.5), down(1)], {}, { wrapper: 'deposit' }))).toEqual([])
     expect(titleNames(product([{ direction: 'upside', rate: 1.5, barrier: { level: 1.3, observation: 'final' } }, down(1)]))).toEqual([])
@@ -648,7 +648,7 @@ describe('the leveraged participation note', () => {
   })
 
   it('is kept beside a call, whose reason says it can end earlier, and is not given to a deposit', () => {
-    const called = marketingNames(product([up(1.5)], { redemption: { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0 } })).find((each) => each.name === name)
+    const called = marketingNames(product([up(1.5)], { redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0 }] } })).find((each) => each.name === name)
     expect(called?.reason).toContain('an autocall can end the product earlier')
     expect(has(product([up(1.5)], { wrapper: 'deposit' }))).toBe(false)
   })

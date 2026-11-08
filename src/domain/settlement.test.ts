@@ -136,7 +136,7 @@ describe('a final level exactly on a barrier', () => {
 })
 
 describe('what is paid around a delivery', () => {
-  const autocall: Product['redemption'] = { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 6, callAmount: 0 }
+  const autocall: Product['redemption'] = { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 6, callAmount: 0 }] }
   // The Credit Suisse note: its payment does not change for being delivered.
   const creditSuisse = delivering(barrier, { term: { months: 24 }, redemption: autocall, coupon: { schedule: { frequency: 'monthly' }, rate: 0.14 } })
   const { settlement: _settlement, ...inCash } = creditSuisse

@@ -18,7 +18,7 @@ import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
 import { finalCallLevel, paymentAtEnd, redemptionOutcome } from './domain/autocall'
-import { type Settlement, barrierLevelAt, basketBreakdown, deliveryFrom, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, scheduleReviews, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
+import { type Settlement, autocallOf, issuerCallOf, barrierLevelAt, basketBreakdown, deliveryFrom, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, scheduleReviews, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
@@ -528,9 +528,9 @@ const note = computed<Product>(() => ({
   principalAmount: principal.value,
   term: { months: termMonths.value },
   redemption: issuerCalled.value
-    ? { kind: 'issuer-call', schedule: { frequency: reviewFrequency.value }, firstReviewMonth: firstReviewMonth.value, callAmount: fractionFrom(issuerAmountPercent.value), callAmountBasis: callAmountBasis.value, adjustmentFactor: adjustmentFactor.value }
+    ? { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: reviewFrequency.value }, firstReviewMonth: firstReviewMonth.value, callAmount: fractionFrom(issuerAmountPercent.value), callAmountBasis: callAmountBasis.value }], adjustmentFactor: adjustmentFactor.value }
     : autocalled.value
-    ? {
+    ? { kind: 'early-redemption', mechanisms: [{
         kind: 'autocall',
         schedule: { frequency: reviewFrequency.value },
         trigger: fractionFrom(triggerPercent.value),
@@ -540,8 +540,7 @@ const note = computed<Product>(() => ({
         callAmount: fractionFrom(callAmountPercent.value),
         callAmountBasis: callAmountBasis.value,
         callOnFinalReview: callOnFinal.value,
-        adjustmentFactor: adjustmentFactor.value,
-      }
+      }], adjustmentFactor: adjustmentFactor.value }
     : { kind: 'bullet', adjustmentFactor: adjustmentFactor.value },
   coupon: !couponSelected.value ? undefined
     : contingentCoupon.value ? { schedule: { frequency: couponFrequency.value }, rate: fractionFrom(couponRatePercent.value), barrier: fractionFrom(couponBarrierPercent.value), memory: couponMemory.value }
@@ -658,8 +657,8 @@ const datesBeforeLast = computed(() => reviewDates(note.value).slice(0, -1))
 // Until the reader sets one, a level is a little below what the date tests, so the product is not called and the payoff is what the chart
 // shows: a call review's trigger less a tenth, which moves with the step, or 90% of the initial level on a date that is only a coupon review.
 const defaultReviewFraction = (date: ReviewDate) => {
-  const { redemption: terms } = note.value
-  const trigger = terms.kind !== 'autocall' || date.call === undefined ? 1 : triggerAtReview(terms, date.call)
+  const terms = autocallOf(note.value.redemption)
+  const trigger = terms === undefined || date.call === undefined ? 1 : triggerAtReview(terms, date.call)
   return (Number.isFinite(trigger) ? Math.max(trigger, 0) : 1) * 0.9
 }
 const defaultReviewLevel = (date: ReviewDate) => (Number.isFinite(determinedInitialLevel.value) ? determinedInitialLevel.value : 100) * defaultReviewFraction(date)
@@ -722,8 +721,8 @@ const reviewLabel = (date: ReviewDate) => [date.call === undefined ? '' : `Call 
 // The level a call review needs, as the call reads it: the trigger of that review, as a share of the initial level. None on a date that
 // is not a call review.
 const reviewTrigger = (date: ReviewDate) => {
-  const { redemption: terms } = note.value
-  return terms.kind !== 'autocall' || date.call === undefined || !Number.isFinite(determinedInitialLevel.value) ? Number.NaN : barrierLevelAt(triggerAtReview(terms, date.call), determinedInitialLevel.value)
+  const terms = autocallOf(note.value.redemption)
+  return terms === undefined || date.call === undefined || !Number.isFinite(determinedInitialLevel.value) ? Number.NaN : barrierLevelAt(triggerAtReview(terms, date.call), determinedInitialLevel.value)
 }
 // Whether a date is after the one the product ended on, so nothing is read on it.
 const ended = (date: ReviewDate) => redemption.value?.calledAtReview !== undefined && date.month > redemption.value.months
@@ -1315,10 +1314,10 @@ function loadProduct(product: Product) {
   wrapper.value = product.wrapper
   principal.value = product.principalAmount
   termMonths.value = product.term.months
-  redemptionKind.value = terms.kind
-  chosenFrequency.value = terms.kind === 'bullet' ? null : terms.schedule.frequency
-  const autocall = terms.kind === 'autocall' ? terms : undefined
-  const issuerCall = terms.kind === 'issuer-call' ? terms : undefined
+  const autocall = autocallOf(terms)
+  const issuerCall = issuerCallOf(terms)
+  redemptionKind.value = autocall ? 'autocall' : issuerCall ? 'issuer-call' : 'bullet'
+  chosenFrequency.value = (autocall ?? issuerCall)?.schedule.frequency ?? null
   triggerPercent.value = autocall ? percent(autocall.trigger) : 100
   triggerStepPercent.value = percent(autocall?.triggerStep ?? 0)
   adjustmentFactorPercent.value = percent(terms.adjustmentFactor ?? 1)
@@ -1326,7 +1325,7 @@ function loadProduct(product: Product) {
   issuerAmountPercent.value = issuerCall ? percent(issuerCall.callAmount) : 0
   // A first review one period in is where the control starts, so it is left to follow the frequency.
   const firstMonth = autocall?.firstReviewMonth ?? issuerCall?.firstReviewMonth
-  chosenFirstReviewMonth.value = terms.kind === 'bullet' || firstMonth === undefined || firstMonth === monthsPerReview[terms.schedule.frequency] ? null : firstMonth
+  chosenFirstReviewMonth.value = firstMonth === undefined || firstMonth === monthsPerReview[(autocall ?? issuerCall)!.schedule.frequency] ? null : firstMonth
   callAmountBasis.value = autocall?.callAmountBasis ?? issuerCall?.callAmountBasis ?? 'flat'
   callOnFinal.value = autocall?.callOnFinalReview ?? false
   couponKind.value = coupon === undefined ? 'none' : coupon.barrier === undefined ? 'fixed' : 'contingent'

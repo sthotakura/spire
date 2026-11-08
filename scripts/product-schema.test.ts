@@ -59,8 +59,8 @@ const bothWays = (terms: Partial<BarrierAbsoluteReturn>, payoff: Partial<Product
 }, overrides)
 const deposit = (minimumReturn: number) => withPayoff({ participations: [{ direction: 'upside', rate: 1 }], minimumReturn }, { wrapper: 'deposit' })
 const digital = (amount: number, level: number, payoff: Partial<Product['payoff']> = {}, overrides: Partial<Product> = {}) => withPayoff({ participations: [], digitalReturn: { amount, barrier: { level, observation: 'final' } }, ...payoff }, overrides)
-const issuerCallable =(terms: Partial<IssuerCall>): Product => ({ ...base, term: { months: 12 }, redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0.02, ...terms } })
-const callable = (terms: Partial<Autocall>): Product => ({ ...base, term: { months: 12 }, redemption: { kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, callAmount: 0.08, ...terms } })
+const issuerCallable =(terms: Partial<IssuerCall>): Product => ({ ...base, term: { months: 12 }, redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0.02, ...terms }] } })
+const callable = (terms: Partial<Autocall>): Product => ({ ...base, term: { months: 12 }, redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, callAmount: 0.08, ...terms }] } })
 const withCoupon = (terms: { rate?: number; barrier?: number }): Product => ({ ...base, term: { months: 12 }, coupon: { schedule: { frequency: 'quarterly' }, rate: 0.1, barrier: 0.7, ...terms } })
 const determined = (determination: Extract<Product['underlier'], { kind: 'single' }>['determination']) => ({ ...base, underlier: { ...(base.underlier as object), determination } }) as Product
 const basket = (levels: number[], names = ['Index A', 'Index B'], weights?: number[]): Product => ({

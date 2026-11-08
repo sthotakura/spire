@@ -1,4 +1,4 @@
-import { downsideOf, upsideOf, type Product } from '../domain/note'
+import { autocallOf, downsideOf, issuerCallOf, upsideOf, type Product } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface MarketingName {
@@ -35,7 +35,7 @@ export function productCategory(note: Product): ProductCategory | undefined {
 // The names below describe the payment at maturity. A call or a coupon changes what the product pays, so the reason says so.
 function maturityOnlyNote(note: Product, name: string): string {
   const parts: string[] = []
-  if (note.redemption.kind !== 'bullet') parts.push(`The name describes the payment at maturity; ${note.redemption.kind === 'autocall' ? 'an autocall' : 'an issuer call'} can end the product earlier.`)
+  if (note.redemption.kind !== 'bullet') parts.push(`The name describes the payment at maturity; ${autocallOf(note.redemption) ? 'an autocall' : 'an issuer call'} can end the product earlier.`)
   if (note.coupon !== undefined) parts.push(note.coupon.barrier === undefined ? 'The name does not cover the fixed coupon, paid on every coupon review.' : 'The name does not cover the contingent coupon, paid on the reviews that meet its barrier.')
   if (note.payoff.digitalReturn !== undefined && name !== 'Digital return note') parts.push('The name does not cover the digital return, a fixed return paid as a minimum at or above its barrier.')
   return parts.join(' ')
@@ -313,9 +313,10 @@ function leveragedUpsideNames(note: Product): MarketingName[] {
 function callAndCouponNames(note: Product): MarketingName[] {
   if (note.wrapper !== 'note') return []
   const { redemption, coupon } = note
+  const autocall = autocallOf(redemption)
   const names: MarketingName[] = []
 
-  if (redemption.kind === 'autocall') {
+  if (autocall !== undefined) {
     names.push({
       name: 'Autocallable note',
       vocabulary: 'US descriptive',
@@ -325,22 +326,22 @@ function callAndCouponNames(note: Product): MarketingName[] {
   }
   // A call amount for each year elapsed grows the longer the product goes uncalled, which sellers call a snowball. Market usage only,
   // and some sellers' snowballs add a barrier observed every day, so the reason says this one's fall is as its payoff states.
-  if (redemption.kind === 'autocall' && redemption.callAmountBasis === 'per-year' && isRate(redemption.callAmount)) {
+  if (autocall !== undefined && autocall.callAmountBasis === 'per-year' && isRate(autocall.callAmount)) {
     names.push({
       name: 'Snowball autocall',
       vocabulary: 'Market usage',
-      reason: `A call pays ${percentText(redemption.callAmount)} for each year elapsed, so every review the product is not called adds to what the next call pays, and the payment snowballs. Sellers use the name; some of their snowballs also have a barrier observed on every close, while what this one pays below the trigger at maturity is as its payoff states.`,
+      reason: `A call pays ${percentText(autocall.callAmount)} for each year elapsed, so every review the product is not called adds to what the next call pays, and the payment snowballs. Sellers use the name; some of their snowballs also have a barrier observed on every close, while what this one pays below the trigger at maturity is as its payoff states.`,
       concepts: ['redemption', 'call-amount'],
     })
     // The same call payment under an issuer's title. "Step up" in other titles is a fixed return at maturity, so the reason says which.
     names.push({
       name: 'Autocallable note with step-up premium',
       vocabulary: 'Market usage',
-      reason: `The call premium steps up by ${percentText(redemption.callAmount)} for each year elapsed, so it rises on every review the product is not called. Some issuers put this in the title. It is not a step-up note, whose step-up is a fixed return paid at maturity.`,
+      reason: `The call premium steps up by ${percentText(autocall.callAmount)} for each year elapsed, so it rises on every review the product is not called. Some issuers put this in the title. It is not a step-up note, whose step-up is a fixed return paid at maturity.`,
       concepts: ['redemption', 'call-amount'],
     })
   }
-  if (redemption.kind === 'issuer-call') {
+  if (issuerCallOf(redemption) !== undefined) {
     names.push({
       name: 'Callable note',
       vocabulary: 'US descriptive',
@@ -363,7 +364,7 @@ function callAndCouponNames(note: Product): MarketingName[] {
   const protection = note.payoff.principalProtection
   const unprotected = protection === undefined || protection === 0
   const downside = downsideOf(note)
-  if (redemption.kind === 'autocall' && coupon?.barrier !== undefined && unprotected && upsideOf(note) === undefined && note.payoff.barrierAbsoluteReturn === undefined && downside?.barrier !== undefined && downside.buffer === undefined) {
+  if (autocall !== undefined && coupon?.barrier !== undefined && unprotected && upsideOf(note) === undefined && note.payoff.barrierAbsoluteReturn === undefined && downside?.barrier !== undefined && downside.buffer === undefined) {
     names.push({
       name: 'Express certificate',
       vocabulary: 'SSPA',

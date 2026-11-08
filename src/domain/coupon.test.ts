@@ -5,7 +5,7 @@ import { startingProduct } from './starting-note'
 
 // Synthetic: the worked example in docs/contingent-coupon.md. A 12-month note of 1,000 on one index with an initial level of 100,
 // reviewed monthly, a 12% coupon a year (10 a review) at a 70% barrier, called at 100% from month 4, and a 60% downside barrier.
-const autocall = (terms: Partial<Autocall> = {}): Autocall => ({ kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 4, callAmount: 0, ...terms })
+const autocall = (terms: Partial<Autocall> = {}): Product['redemption'] => ({ kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 4, callAmount: 0, ...terms }] })
 const coupon = (terms: Partial<Coupon> = {}): Coupon => ({ schedule: { frequency: 'monthly' }, rate: 0.12, barrier: 0.7, memory: true, ...terms })
 const withCoupon = (overrides: Partial<Product> = {}): Product => ({
   ...startingProduct,
@@ -36,7 +36,7 @@ describe('validation of a contingent coupon', () => {
 
   it('goes with any redemption: a bullet note, an autocall or an issuer call', () => {
     expect(validateProduct(withCoupon({ redemption: { kind: 'bullet' } }))).toEqual([])
-    expect(validateProduct(withCoupon({ redemption: { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0 } }))).toEqual([])
+    expect(validateProduct(withCoupon({ redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0 }] } }))).toEqual([])
   })
 
   it('needs its own schedule, which must divide the term, and can have a single review', () => {
@@ -76,7 +76,7 @@ describe('the dates a level is read on', () => {
 
   it('are the coupon reviews alone for a bullet note or an issuer call, which reads no level', () => {
     expect(reviewDates(withCoupon({ redemption: { kind: 'bullet' }, coupon: coupon({ schedule: { frequency: 'quarterly' } }) })).map(({ month }) => month)).toEqual([3, 6, 9, 12])
-    expect(reviewDates(withCoupon({ redemption: { kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0 }, coupon: coupon({ schedule: { frequency: 'semi-annual' } }) })).map(({ month }) => month)).toEqual([6, 12])
+    expect(reviewDates(withCoupon({ redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0 }] }, coupon: coupon({ schedule: { frequency: 'semi-annual' } }) })).map(({ month }) => month)).toEqual([6, 12])
   })
 
   it('are none for a bullet note with no coupon', () => {
@@ -244,7 +244,7 @@ describe('a coupon on a bullet note', () => {
 })
 
 describe('a coupon with an issuer call', () => {
-  const issuer = withCoupon({ redemption: { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0 } })
+  const issuer = withCoupon({ redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0 }] } })
 
   it('reads the coupon reviews only, and pays the coupon of the call month with the call', () => {
     const outcome = redemptionOutcome(issuer, [95, 65, 90, 60, 95, 90, 90, 90, 90, 90, 90], { initial: 100, final: 90 }, 2)

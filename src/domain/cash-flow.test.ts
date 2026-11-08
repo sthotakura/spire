@@ -51,7 +51,7 @@ describe('the return a year over several payments', () => {
   })
 })
 
-const autocall = (terms: Partial<Autocall> = {}): Autocall => ({ kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 4, callAmount: 0, ...terms })
+const autocall = (terms: Partial<Autocall> = {}): Product['redemption'] => ({ kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 4, callAmount: 0, ...terms }] })
 const coupon = (terms: Partial<Coupon> = {}): Coupon => ({ schedule: { frequency: 'monthly' }, rate: 0.12, barrier: 0.7, memory: true, ...terms })
 const product = (overrides: Partial<Product> = {}): Product => ({
   ...startingProduct,
