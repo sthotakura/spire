@@ -70,6 +70,6 @@ Two false leads, recorded so they are not chased again:
 
 ## Open questions
 
-1. Whether a put pays current value, a stated price, or either.
+1. How a holder put is built. Proposed, at current value, in [holder-put.md](holder-put.md).
 2. Whether a running fee or an open-ended term should be modelled, since most holder-right products have one.
 3. Whether the issuer's call should also be able to pay current value, as it does on the products with holder rights above.
