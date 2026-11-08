@@ -36,7 +36,7 @@ The fixed coupon, always paid, is proposed in [coupon.md](coupon.md).
 ### Redemption behaviour
 
 - **Autocall:** the note redeems early, automatically, when the underlier is at or above a trigger on an observation date.
-- **Issuer call:** the issuer may choose to redeem early on stated dates. It does not depend on the underlier.
+- **Issuer call:** the issuer may choose to redeem early on stated dates. It does not depend on the underlier. A product can have an autocall and an issuer call together ([early-redemption-rights.md](early-redemption-rights.md)).
 - **Holder put:** the holder may require early redemption on stated dates. The right is not conditional on the underlier, but what it pays may be: a stated put price on the rate notes read, and the product's current value on the equity-linked products read ([early-redemption-rights.md](early-redemption-rights.md)). Listed in the interface as Puttable, unavailable.
 - **Puttable and callable:** an issuer call and a holder put on the same note, each on its own dates; whichever is exercised first ends it. Listed in the interface as Puttable and callable, unavailable. Public examples are fixed-rate debt (for example [AIG, 424B2](https://www.sec.gov/Archives/edgar/data/0000005272/000095012307015841/y40350re424b2.htm)) and the equity-linked trackers and ETNs in [early-redemption-rights.md](early-redemption-rights.md).
 - All sit beside bullet redemption, not under the payoff.

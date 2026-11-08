@@ -1,4 +1,4 @@
-import { autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, callReviewMonth, couponPerReview, firstReviewMonthOf, issuerCallOf, lastCallReview, maturityPayment, reviewCount, reviewDates, scheduleReviews, triggerAtReview, paymentBreakdown, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
+import { autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, callReviewMonth, couponPerReview, issuerCallOf, lastCallReview, maturityPayment, mechanismReviewCount, reviewDates, scheduleReviews, triggerAtReview, paymentBreakdown, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
 
 // The level at or above which the final review calls the product, from the determined initial level. Undefined when the final review
 // is not a call.
@@ -78,8 +78,13 @@ export interface Payment {
 
 // How the product ends. A bullet product ends at maturity; an autocall ends on the first review that calls it, or at maturity.
 export interface RedemptionOutcome {
-  // The number of the call review the product was called on, or undefined when it ran to the end of the term.
+  // The number of the review the product was called on, among the reviews of the mechanism that ended it, or undefined when it ran to
+  // the end of the term.
   calledAtReview?: number
+  // The mechanism that ended the product early, if one did.
+  endedBy?: 'autocall' | 'issuer-call'
+  // The review the scenario has the issuer call on, when an autocall ended the product before it.
+  issuerCallNotReached?: number
   // The number of the call's reviews, the last of which is the end of the term: one for a bullet product.
   reviews: number
   // The call reviews up to and including the call, or every call review that is tested when there is none. An issuer call has no
@@ -110,6 +115,10 @@ export interface RedemptionOutcome {
 // An issuer call reads no level. The issuer's choice is a scenario input, `issuerCallsOnReview`: the number of the call review it calls
 // on, or undefined when it does not call, and the product runs to maturity.
 //
+// With both, the product ends on the earlier of the two, compared by month since each has its own reviews. On a month that is both the
+// issuer's call comes first and no level is read for the autocall. That follows the one rule found in a filing: a call notice sent on
+// the day an automatic call is triggered governs (docs/early-redemption-rights.md).
+//
 // A coupon is tested on each of its reviews up to the date the product ends. A coupon review on that date pays with the call or the
 // maturity payment; the ones before pay on their own. A fixed coupon reads no level, so its reviews are not among reviewDates: each pays.
 export function redemptionOutcome(note: Product, reviewLevels: number[], levels: DeterminedLevels, issuerCallsOnReview?: number): RedemptionOutcome {
@@ -132,13 +141,15 @@ export function redemptionOutcome(note: Product, reviewLevels: number[], levels:
   const tests: ReviewTest[] = []
   let called: { review: number; month: number; callAmount: number } | undefined
   if (issuerCall !== undefined && issuerCallsOnReview !== undefined) {
-    const last = lastCallReview(issuerCall, reviewCount({ term: note.term, schedule: issuerCall.schedule, firstMonth: firstReviewMonthOf(issuerCall) })!)
+    const last = lastCallReview(issuerCall, mechanismReviewCount(note.term, issuerCall)!)
     if (!Number.isInteger(issuerCallsOnReview) || issuerCallsOnReview < 1 || issuerCallsOnReview > last) throw new Error(`The issuer can call on reviews 1 to ${last}.`)
     const month = callReviewMonth(issuerCall, issuerCallsOnReview)
     called = { review: issuerCallsOnReview, month, callAmount: callAmountAtReview(issuerCall, month) }
   }
+  const issuerChoice = called
   if (autocall !== undefined) {
     for (const [index, { call: review, month }] of dates.entries()) {
+      if (issuerChoice !== undefined && month >= issuerChoice.month) break
       // The last review is the end of the term and is not tested, unless the final review is a call too.
       if (review === undefined || (review === reviews && !autocall.callOnFinalReview)) continue
       const level = levelOn(index)
@@ -162,7 +173,8 @@ export function redemptionOutcome(note: Product, reviewLevels: number[], levels:
   const paidAtEnd = called ? note.principalAmount * (1 + called.callAmount) : maturity.payment
   const payment = paidAtEnd + ending
   const payments = [...earlier, { month: months, coupon: ending, redemption: paidAtEnd, amount: payment }]
-  return { calledAtReview: called?.review, reviews, tests, months, payment, maturity, coupons, totalPaid: payments.reduce((sum, { amount }) => sum + amount, 0), payments }
+  const endedBy = called === undefined ? undefined : called === issuerChoice ? 'issuer-call' as const : 'autocall' as const
+  return { calledAtReview: called?.review, endedBy, issuerCallNotReached: endedBy === 'autocall' ? issuerChoice?.review : undefined, reviews, tests, months, payment, maturity, coupons, totalPaid: payments.reduce((sum, { amount }) => sum + amount, 0), payments }
 }
 
 // The coupon on each of its reviews, in order, from its level. A review at or above the barrier pays its coupon and, with memory, every

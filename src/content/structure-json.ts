@@ -1,4 +1,4 @@
-import type { Product } from '../domain/note'
+import { mechanismsOf, type Product } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface StructureLine {
@@ -20,14 +20,16 @@ export function structureLines(note: Product): StructureLine[] {
     // Each term of the redemption is its own part, and its reviews are the schedule the call is tested on. The coupon has its own.
     if (top === 'redemption') {
       if (second === 'adjustmentFactor') return 'adjustment-factor'
-      if (second !== 'mechanisms') return 'redemption'
-      if (fourth === 'schedule') return 'schedule'
-      if (fourth === 'firstReviewMonth') return 'first-review'
+      if (second !== 'mechanisms' || typeof third !== 'number') return 'redemption'
+      const mechanism = mechanismsOf(note.redemption)[third]
+      const issuer = mechanism?.kind === 'issuer-call'
+      if (fourth === 'schedule') return issuer ? 'issuer-schedule' : 'schedule'
+      if (fourth === 'firstReviewMonth') return issuer ? 'issuer-first-review' : 'first-review'
       if (fourth === 'trigger') return 'trigger'
       if (fourth === 'triggerStep') return 'trigger-step'
-      if (fourth === 'callAmount' || fourth === 'callAmountBasis') return 'call-amount'
+      if (fourth === 'callAmount' || fourth === 'callAmountBasis') return issuer ? 'issuer-call-amount' : 'call-amount'
       if (fourth === 'callOnFinalReview') return 'final-call'
-      return 'redemption'
+      return issuer ? 'issuer-call' : 'autocall'
     }
     if (top === 'coupon') return second === 'schedule' ? 'coupon-schedule' : second === 'barrier' ? 'coupon-barrier' : second === 'memory' ? 'memory' : 'coupon'
     if (top === 'settlement') return 'settlement'

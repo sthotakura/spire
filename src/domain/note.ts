@@ -602,6 +602,8 @@ export const termRange = { min: 1, max: 120 }
 export interface ProductIssue {
   field: ProductIssueField
   message: string
+  // The early redemption mechanism the issue is about, which tells apart the same term of two mechanisms.
+  mechanism?: EarlyMechanism['kind']
 }
 
 // Equal weights for a number of components, which a basket returns to when a component is added or removed. Term sheets
@@ -722,6 +724,10 @@ export const callReviewCount = (note: Product): number | undefined => {
   return mechanism === undefined || mechanism.schedule === undefined ? 1 : reviewCount({ term: note.term, schedule: mechanism.schedule, firstMonth: firstReviewMonthOf(mechanism) })
 }
 
+// The number of reviews of one mechanism, from its first.
+export const mechanismReviewCount = (term: Term, mechanism: EarlyMechanism): number | undefined =>
+  reviewCount({ term, schedule: mechanism.schedule, firstMonth: firstReviewMonthOf(mechanism) })
+
 // The month of a call's review, numbered from 1 at its first review.
 export const callReviewMonth = (redemption: Autocall | IssuerCall, review: number): number =>
   firstReviewMonthOf(redemption) + (review - 1) * monthsPerReview[redemption.schedule.frequency]
@@ -769,9 +775,7 @@ function redemptionIssues(note: Product): ProductIssue[] {
   if (!redemption.mechanisms.length) return [{ field: 'mechanisms', message: 'Early redemption needs at least one mechanism: choose bullet redemption for none.' }]
   const kinds = redemption.mechanisms.map(({ kind }) => kind)
   if (new Set(kinds).size !== kinds.length) return [{ field: 'mechanisms', message: 'Each early redemption mechanism can appear only once.' }]
-  // Two mechanisms on one product are the next change: docs/early-redemption-rights.md.
-  if (kinds.length > 1) return [{ field: 'mechanisms', message: 'An autocall and an issuer call cannot yet be combined.' }]
-  return redemption.mechanisms.flatMap((mechanism) => mechanismIssues(note, mechanism))
+  return redemption.mechanisms.flatMap((mechanism) => mechanismIssues(note, mechanism).map((issue) => ({ ...issue, mechanism: mechanism.kind })))
 }
 
 function mechanismIssues(note: Product, redemption: EarlyMechanism): ProductIssue[] {

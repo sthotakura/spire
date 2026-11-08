@@ -119,13 +119,31 @@ A synthetic note with principal of 1,000, a term of 12 months, monthly reviews f
 
 A call after 5 months that pays 2% above principal annualises to 4.87% a year, because the return is read over the months the product lasted, as for an autocall. With no call amount a call repays principal only and annualises to 0%.
 
+### An autocall and an issuer call together
+
+A product can have both, each with its own reviews, trigger or choice, and call amount. Each keeps its own rule: the autocall tests the level on its reviews, and the issuer chooses a review of its own. Whichever comes first ends the product, and nothing after that date is read.
+
+On a date that is on both schedules, the issuer's call comes first and the trigger is not tested. This is a stated assumption.
+
+No note read has a level-triggered autocall on observation dates beside an issuer call, and offering documents usually treat them as alternatives: one product supplement says its notes "will either be callable by BofA Finance LLC at its option ... or automatically callable" ([BofA Finance, 424B2](https://www.sec.gov/Archives/edgar/data/70858/000119312523201261/d518933d424b2.htm)). SPIRe allows the combination because each part is already defined. The nearest public example is an exchange-traded note with an issuer call and an automatic repurchase on a 50% fall in its value. Where its issuer sends a call notice on the day the automatic call is triggered, the notice sets the valuation date ([Morgan Stanley, 424B2](https://www.sec.gov/Archives/edgar/data/895421/000095010311005435/dp27830_424b2-ps27.htm)). The same-date rule above follows that one filing.
+
+A synthetic note with principal of 1,000, a term of 12 months, an initial level of 100 and 100% downside participation. Its autocall is reviewed quarterly with a 100% trigger and an 8% call amount. The issuer may call semi-annually with a 2% call amount.
+
+| Scenario | How it ends | Months | Paid |
+| :--- | :--- | ---: | ---: |
+| The level is 105 in month 3, and the issuer would have called in month 6 | The autocall comes first. The issuer's call never happens | 3 | 1,080 |
+| The level is 90 in month 3, and the issuer calls in month 6 | The issuer's call: principal plus 2% | 6 | 1,020 |
+| The level is 90 in month 3 and 120 in month 6, and the issuer calls in month 6 | Both fall on month 6. The issuer's call comes first | 6 | 1,020 |
+| The level is 90 in months 3 and 6 and 105 in month 9, and the issuer does not call | The autocall in month 9 | 9 | 1,080 |
+| The level stays at 90, the issuer does not call, and the level ends at 70 | Neither ends it. Downside participation: 1,000 × (1 − 30%) | 12 | 700 |
+
 ### What the reference does not say
 
 - **Why the issuer would call.** Two of the notes leave it to the issuer's election and give no reason. The third ties it to a valuation model whose inputs the reference does not have. Either way the reference leaves the decision to the reader to state, and does not calculate when a call would be rational.
 - **A premium.** None of the three notes pays one above principal and the coupon, so the call amount starts at zero. A call price above principal is coherent, and the reference allows it, but no public note read for this chapter states one.
 - **Coupons.** In all three notes the call price is principal plus that review's coupon when it was earned, and a call stops the remaining coupons. With a coupon ([Coupons](20-coupons.md)), a call on a coupon review pays principal, any call amount and that review's coupon.
 - **Notice and dates.** All three notes state a notice period and a payment date after the review. The reference has no calendar dates.
-- **An issuer call and an autocall together** are not modelled. A product has one or the other.
+- **An issuer call and an autocall on one note** are described below. No public note read has both.
 
 An issuer call is not available with a barrier observed on every close or with barrier absolute return, for the reason an autocall is not: a called product ends before the observation period does. Lookback is allowed, since nothing is read on the reviews. Averaging is allowed, and the final level is read only if the issuer does not call.
 

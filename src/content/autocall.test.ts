@@ -54,9 +54,77 @@ describe('structure JSON', () => {
     expect(lines.map(({ text }) => text).join('\n')).toBe(JSON.stringify(callable, null, 2))
     const tagged = (concept: string) => lines.filter((line) => line.concept === concept).map(({ text }) => text.trim())
     expect(tagged('schedule')).toEqual(['"schedule": {', '"frequency": "monthly"', '},'])
-    expect(tagged('redemption')).toEqual(['"redemption": {', '"kind": "early-redemption",', '"mechanisms": [', '{', '"kind": "autocall",', '}', ']', '},'])
+    expect(tagged('redemption')).toEqual(['"redemption": {', '"kind": "early-redemption",', '"mechanisms": [', ']', '},'])
+    expect(tagged('autocall')).toEqual(['{', '"kind": "autocall",', '}'])
     expect(tagged('trigger')).toEqual(['"trigger": 1,'])
     expect(tagged('call-amount')).toEqual(['"callAmount": 0.08'])
+  })
+})
+
+describe('an autocall and an issuer call on one product', () => {
+  const both: Product = {
+    ...callable,
+    redemption: { kind: 'early-redemption', mechanisms: [
+      { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0.08 },
+      { kind: 'issuer-call', schedule: { frequency: 'semi-annual' }, callAmount: 0.02 },
+    ] },
+  }
+  const below = [90, 90, 90]
+
+  it('states both in the summary, each with its own terms', () => {
+    expect(text(both)).toBe('A 1-year note that is called early if Synthetic Index is at or above 100% of its initial level on any quarterly review before maturity, paying 8% above principal, and that the issuer may call early on any semi-annual review before maturity, paying 2% above principal, and otherwise redeems at maturity and repays its principal, linked to Synthetic Index, measured point-to-point from 100.')
+  })
+
+  it('tags each mechanism with its own concepts', () => {
+    const segments = (concept: string) => summarize(both).filter((segment) => segment.concept === concept).map(({ text }) => text)
+    expect(segments('schedule')).toEqual(['quarterly'])
+    expect(segments('issuer-schedule')).toEqual(['semi-annual'])
+    const lines = (concept: string) => structureLines(both).filter((line) => line.concept === concept).map(({ text }) => text.trim())
+    expect(lines('call-amount')).toEqual(['"callAmount": 0.08'])
+    expect(lines('issuer-call-amount')).toEqual(['"callAmount": 0.02'])
+  })
+
+  it('names each rule in the formula', () => {
+    expect(redemptionFormula(both).map(({ lead }) => lead)).toEqual(['Autocall', 'Issuer call'])
+  })
+
+  it('says the issuer did not call when neither ends it', () => {
+    expect(explainRedemption(both, redemptionOutcome(both, below, levels))).toBe('No review before the last was at or above the 100 trigger and the issuer did not call, so the product ran to the end of its term.')
+  })
+
+  it('says the issuer’s call never happened when the autocall came first', () => {
+    const outcome = redemptionOutcome(both, [105, 90, 90], levels, 1)
+    expect(explainRedemption(both, outcome)).toBe('The level was 105 on review 1 of 4, at or above the 100 trigger, so the product was called after 3 months and pays 1,080, 80 more than principal. The issuer’s call on its review 1 never happened: the product had already ended.')
+  })
+
+  it('says the issuer called, with the issuer’s own count of reviews', () => {
+    expect(explainRedemption(both, redemptionOutcome(both, below, levels, 1))).toContain('The issuer called the product on review 1 of 2, after 6 months, and it pays 1,020')
+  })
+
+  it('says the issuer’s call comes first on a date that is on both schedules', () => {
+    expect(explainRedemption(both, redemptionOutcome(both, [90, 120, 90], levels, 1))).toContain('That date is also an autocall review: the issuer’s call comes first, so the trigger is not tested.')
+  })
+
+  it('does not say so on a date that is only the issuer’s', () => {
+    const offset: Product = { ...both, redemption: { kind: 'early-redemption', mechanisms: [
+      { kind: 'autocall', schedule: { frequency: 'semi-annual' }, trigger: 1, callAmount: 0.08 },
+      { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0.02 },
+    ] } }
+    expect(explainRedemption(offset, redemptionOutcome(offset, [90], levels, 1))).not.toContain('also an autocall review')
+  })
+
+  it('shows the reviews tested before the issuer’s call, then the call', () => {
+    const steps = redemptionSteps(both, redemptionOutcome(both, below, levels, 1))
+    expect(steps.map(({ title }) => title)).toEqual(['Review 1 of 4', 'Issuer call', 'Annualised return', 'If it had run to maturity'])
+    expect(steps[1]).toMatchObject({ value: '1,020', result: true, concept: 'issuer-call-amount' })
+  })
+
+  it('shows that the issuer did not call when neither ends it', () => {
+    expect(redemptionSteps(both, redemptionOutcome(both, below, levels)).map(({ title }) => title)).toEqual(['Review 1 of 4', 'Review 2 of 4', 'Review 3 of 4', 'Issuer call', 'Redemption'])
+  })
+
+  it('leaves out the issuer call step when the autocall ended it', () => {
+    expect(redemptionSteps(both, redemptionOutcome(both, [105, 90, 90], levels, 1)).map(({ title }) => title)).toEqual(['Review 1 of 4', 'Redemption', 'Annualised return', 'If it had run to maturity'])
   })
 })
 
@@ -233,9 +301,9 @@ describe('an issuer call', () => {
 
   it('tags each term with its own concept', () => {
     const tagged = (concept: string) => summarize(issuer).filter((segment) => segment.concept === concept).map(({ text }) => text)
-    expect(tagged('schedule')).toEqual(['monthly'])
-    expect(tagged('first-review')).toEqual([' from month 3'])
-    expect(tagged('call-amount')).toEqual(['paying 2% above principal'])
+    expect(tagged('issuer-schedule')).toEqual(['monthly'])
+    expect(tagged('issuer-first-review')).toEqual([' from month 3'])
+    expect(tagged('issuer-call-amount')).toEqual(['paying 2% above principal'])
     expect(tagged('trigger')).toEqual([])
   })
 
@@ -243,8 +311,8 @@ describe('an issuer call', () => {
     const lines = structureLines(issuer)
     expect(lines.map(({ text }) => text).join('\n')).toBe(JSON.stringify(issuer, null, 2))
     const tagged = (concept: string) => lines.filter((line) => line.concept === concept).map(({ text }) => text.trim())
-    expect(tagged('first-review')).toEqual(['"firstReviewMonth": 3,'])
-    expect(tagged('call-amount')).toEqual(['"callAmount": 0.02'])
+    expect(tagged('issuer-first-review')).toEqual(['"firstReviewMonth": 3,'])
+    expect(tagged('issuer-call-amount')).toEqual(['"callAmount": 0.02'])
   })
 
   it('writes the call rule with no level in it', () => {

@@ -35,7 +35,7 @@ export function productCategory(note: Product): ProductCategory | undefined {
 // The names below describe the payment at maturity. A call or a coupon changes what the product pays, so the reason says so.
 function maturityOnlyNote(note: Product, name: string): string {
   const parts: string[] = []
-  if (note.redemption.kind !== 'bullet') parts.push(`The name describes the payment at maturity; ${autocallOf(note.redemption) ? 'an autocall' : 'an issuer call'} can end the product earlier.`)
+  if (note.redemption.kind !== 'bullet') parts.push(`The name describes the payment at maturity; ${autocallOf(note.redemption) ? (issuerCallOf(note.redemption) ? 'an autocall or an issuer call' : 'an autocall') : 'an issuer call'} can end the product earlier.`)
   if (note.coupon !== undefined) parts.push(note.coupon.barrier === undefined ? 'The name does not cover the fixed coupon, paid on every coupon review.' : 'The name does not cover the contingent coupon, paid on the reviews that meet its barrier.')
   if (note.payoff.digitalReturn !== undefined && name !== 'Digital return note') parts.push('The name does not cover the digital return, a fixed return paid as a minimum at or above its barrier.')
   return parts.join(' ')

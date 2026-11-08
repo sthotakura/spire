@@ -33,7 +33,7 @@ remain working research and design records. Reader-facing chapters belong in
 | 16. Worked synthetic examples | Draft | [Read chapter](book/16-worked-examples.md) | [Milestone 1](milestone-1.md) |
 | 17. Payoff diagrams and scenarios | Draft | [Read chapter](book/17-diagrams-and-scenarios.md) | [Payoff chart](payoff-chart.md) |
 | 18. The structure as JSON | Draft | [Read chapter](book/18-structure-as-json.md) | [Underlier model](underlier-model.md) |
-| 19. Reviews and early redemption | Draft | [Read chapter](book/19-reviews-and-early-redemption.md) | [Observation dates](observation-dates.md), [Non-call period](non-call-period.md) |
+| 19. Reviews and early redemption | Draft | [Read chapter](book/19-reviews-and-early-redemption.md) | [Observation dates](observation-dates.md), [Non-call period](non-call-period.md), [Early redemption rights](early-redemption-rights.md) |
 | 20. Coupons | Draft | [Read chapter](book/20-coupons.md) | [Fixed coupon](coupon.md), [Contingent coupon](contingent-coupon.md), [Cash-flow result](cash-flow-result.md) |
 | 21. Boundaries of the reference | Draft | [Read chapter](book/21-boundaries.md) | [README](../README.md) |
 | 22. Settlement | Draft | [Read chapter](book/22-settlement.md) | [Settlement](settlement.md), [Names for a call and a coupon](call-and-coupon-names.md) |

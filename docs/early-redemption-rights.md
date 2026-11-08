@@ -1,6 +1,6 @@
 # Early redemption rights: public sources
 
-Research record, read 8 November 2026. It asks which equity-linked products carry a holder put, an issuer call and an automatic call, alone or together. Nothing here is built yet. The working definitions of each right are in [feature-map.md](feature-map.md), and the issuer call is in [issuer-call.md](issuer-call.md).
+Research record, read 8 November 2026. It asks which equity-linked products carry a holder put, an issuer call and an automatic call, alone or together. The autocall and the issuer call are built, alone or together; the holder put is not. The working definitions of each right are in [feature-map.md](feature-map.md), and the issuer call is in [issuer-call.md](issuer-call.md).
 
 ## Established from the filings
 
@@ -61,8 +61,15 @@ Two false leads, recorded so they are not chased again:
 - **The rights can sit on one product**, so a model of one redemption kind per product cannot describe the Morgan Stanley ETN or the three holder-right products above, which all have an issuer's right as well.
 - **None of these is a sample yet.** Each needs something the reference does not model: an open-ended term, a term beyond 120 months, a running fee, or an intraday trigger.
 
+## Decisions
+
+- **Shape.** A redemption is `bullet` or `early-redemption`, and an early redemption lists its `mechanisms`, at least one and at most one of each kind. The order has no meaning. The adjustment factor stays on the redemption, since it belongs to the maturity payment.
+- **Composition.** Each mechanism keeps its own schedule and rule. The product ends on the earliest event, compared by month.
+- **Same date (assumption).** The issuer's call comes first and the trigger is not tested. No source states a rule for an upside autocall and an issuer call, since none has both. The Morgan Stanley ETN gives the issuer's notice precedence over an automatic call on the same day, and this follows it. There is no field for this: one can be added if a source states otherwise.
+- **The combination is allowed deliberately**, with no public example found, because each part is already defined. The book says so.
+
 ## Open questions
 
-1. How the rights compose in the model, and what happens when two fall on one date. No source states a rule for an upside autocall and an issuer call, since none has both.
-2. Whether a put pays current value, a stated price, or either.
-3. Whether a running fee or an open-ended term should be modelled, since most holder-right products have one.
+1. Whether a put pays current value, a stated price, or either.
+2. Whether a running fee or an open-ended term should be modelled, since most holder-right products have one.
+3. Whether the issuer's call should also be able to pay current value, as it does on the products with holder rights above.

@@ -73,3 +73,4 @@
 .calc-steps li.traceable{cursor:pointer}.calc-steps li.traceable:hover{background:#f7f9fc}.calc-steps li.traceable:focus-visible{outline:2px solid #2a70c9;outline-offset:-2px}.calc-steps li.current,.calc-steps li.current:hover{background:#eaf3ff;box-shadow:inset 3px 0 0 #2369bd}
 .path-progress{margin-left:8px;color:#8794a8;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
 .payments{margin-top:14px}.payments h4{margin:0;font-size:13px;font-weight:650}.payments-note{margin:2px 0 6px;color:#66758b;font-size:12.5px}.basket-levels.review-levels th.payment-amount,.basket-levels.review-levels td.payment-amount{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.panel label.mechanism-check{display:inline-flex;align-items:center;gap:7px;margin:0;cursor:pointer}.panel .mechanism-check input{width:auto;height:auto;margin:0;accent-color:var(--c)}.panel label.mechanism-check.unavailable{color:#66758b;cursor:default}

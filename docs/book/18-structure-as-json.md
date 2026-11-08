@@ -52,7 +52,7 @@ An issuer call is another mechanism. It has a schedule too, and it has no trigge
 "redemption": { "kind": "early-redemption", "mechanisms": [{ "kind": "issuer-call", "schedule": { "frequency": "quarterly" }, "firstReviewMonth": 9, "callAmount": 0.02, "callAmountBasis": "flat" }] }
 ```
 
-Which review the issuer calls on is not in the structure. It is a scenario, like the final level.
+Which review the issuer calls on is not in the structure. It is a scenario, like the final level. A product can list an autocall and an issuer call together, each with its own terms. The order of the list has no meaning.
 
 ```json
 {

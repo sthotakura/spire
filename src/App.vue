@@ -18,7 +18,7 @@ import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
 import { finalCallLevel, paymentAtEnd, redemptionOutcome } from './domain/autocall'
-import { type Settlement, autocallOf, issuerCallOf, barrierLevelAt, basketBreakdown, deliveryFrom, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, scheduleReviews, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
+import { type Settlement, autocallOf, issuerCallOf, barrierLevelAt, basketBreakdown, deliveryFrom, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, scheduleReviews, type EarlyMechanism, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
@@ -34,6 +34,9 @@ const hints = {
   underlier: 'What the payoff reads: the asset it tracks and how its change is measured, from where it starts. A single underlier tracks one asset. A basket tracks several and combines their changes into one return.',
   schedule: 'How often the product is reviewed through its term. Reviews are evenly spaced and numbered from 1, and the last is the end of the term. The term must hold a whole number of periods. It starts at semi-annual for a term over a year, quarterly from six months to a year, and monthly below that, and follows the term until you choose one. Notes can be reviewed more often, even weekly or daily; this reference offers monthly to annual. Public notes call these dates observation dates or review dates; here they are reviews, to keep them apart from the observations that set the initial and final levels.',
   trigger: 'The level, as a share of the initial level, at or above which the product is called on the first review. A later review has the same trigger unless it steps down.',
+  'mechanism-autocall': 'The product is called early when the underlier is at or above a trigger on a review.',
+  'mechanism-issuer-call': 'The issuer may redeem the product early, on a review it chooses. With an autocall too, whichever comes first ends the product, and on a date that is on both schedules the issuer’s call comes first.',
+  'mechanism-puttable': 'The holder may require redemption under defined terms.',
   'first-review': 'The month of the first review on which the product can be called. Later reviews follow it at the review frequency to the end of the term, so the months before it are a non-call period, with no review in it. It starts one period in and follows the frequency until you choose a month. A trigger that steps moves from the first review.',
   'issuer-choice': 'Whether and when the issuer calls is its own choice, so a scenario states it. The issuer can call on any review except the last, which is the end of the term. A call ends the product and pays principal plus the call amount.',
   'trigger-step': 'How much the trigger changes on each review after the first, as a share of the initial level. −5% on a trigger of 100% steps it down to 95% on review 2, 90% on review 3, and so on. A positive value steps it up. Zero keeps one trigger for every review.',
@@ -83,11 +86,8 @@ const wrapperOptions = [
   { id: 'etf', label: 'ETF', description: 'A fund whose shares trade on an exchange and represent an interest in a portfolio.', available: false },
 ] as const
 const redemptionOptions = [
-  { id: 'autocall', label: 'Autocallable', description: 'The product is called early when the underlier is at or above a trigger on a review.', available: true },
   { id: 'bullet', label: 'Bullet', description: 'One payment at scheduled maturity; no early call.', available: true },
-  { id: 'issuer-call', label: 'Issuer callable', description: 'The issuer may redeem the product early, on a review it chooses.', available: true },
-  { id: 'puttable', label: 'Puttable', description: 'The holder may require redemption under defined terms.', available: false },
-  { id: 'puttable-callable', label: 'Puttable and callable', description: 'The issuer may redeem the product early on its call dates, and the holder may require redemption on its put dates.', available: false },
+  { id: 'early-redemption', label: 'Early redemption', description: 'The product can end before scheduled maturity, in one or more stated ways.', available: true },
 ] as const
 const reviewFrequencyOptions: ReadonlyArray<{ id: ReviewFrequency; label: string }> = [
   { id: 'monthly', label: 'Monthly' },
@@ -125,7 +125,10 @@ const principal = ref(startingProduct.principalAmount)
 const wrapper = ref<Wrapper>(startingProduct.wrapper)
 const termMonths = ref(startingProduct.term.months)
 // An autocall tests the underlier on the reviews of a schedule. The level on each review before the last is a scenario input.
-const redemptionKind = ref<'bullet' | 'autocall' | 'issuer-call'>('bullet')
+const redemptionKind = ref<'bullet' | 'early-redemption'>('bullet')
+// The mechanisms of an early redemption. At least one is always ticked, so the list is never empty.
+const autocallTicked = ref(true)
+const issuerTicked = ref(false)
 // The reviews start at a frequency that suits the term, and follow it as the term changes until the reader chooses one.
 const chosenFrequency = ref<ReviewFrequency | null>(null)
 const reviewFrequency = computed<ReviewFrequency>({
@@ -134,12 +137,19 @@ const reviewFrequency = computed<ReviewFrequency>({
 })
 const triggerPercent = ref(100)
 const callAmountPercent = ref(8)
-// An issuer call has its own call amount, which starts at zero: the two public notes read pay no premium on a call, and an autocall's
-// starting amount is a teaching choice that should not carry over to it.
+// An issuer call has its own terms. Its call amount starts at zero: the two public notes read pay no premium on a call, and an
+// autocall's starting amount is a teaching choice that should not carry over to it.
 const issuerAmountPercent = ref(0)
-const callAmountField = computed({
-  get: () => (issuerCalled.value ? issuerAmountPercent.value : callAmountPercent.value),
-  set: (percent: number) => { if (issuerCalled.value) issuerAmountPercent.value = percent; else callAmountPercent.value = percent },
+const issuerAmountBasis = ref<'flat' | 'per-year'>('flat')
+const chosenIssuerFrequency = ref<ReviewFrequency | null>(null)
+const issuerFrequency = computed<ReviewFrequency>({
+  get: () => chosenIssuerFrequency.value ?? suggestedFrequency(termMonths.value),
+  set: (frequency) => { chosenIssuerFrequency.value = frequency },
+})
+const chosenIssuerFirstReviewMonth = ref<number | null>(null)
+const issuerFirstReviewMonth = computed<number>({
+  get: () => chosenIssuerFirstReviewMonth.value ?? monthsPerReview[issuerFrequency.value],
+  set: (month) => { chosenIssuerFirstReviewMonth.value = month },
 })
 // The first call review starts one period in and follows the frequency until the reader chooses a month.
 const chosenFirstReviewMonth = ref<number | null>(null)
@@ -167,17 +177,19 @@ const couponFrequency = computed<ReviewFrequency>({
   set: (frequency) => { chosenCouponFrequency.value = frequency },
 })
 // Copies the call's frequency to the coupon once. The two stay separate terms, so changing one later leaves the other.
-const copyCallReviews = () => { beginGesture(); couponFrequency.value = reviewFrequency.value }
-const autocalled = computed(() => redemptionKind.value === 'autocall')
-const issuerCalled = computed(() => redemptionKind.value === 'issuer-call')
+const copyCallReviews = () => { beginGesture(); couponFrequency.value = callFrequency.value }
+const autocalled = computed(() => redemptionKind.value === 'early-redemption' && autocallTicked.value)
+const issuerCalled = computed(() => redemptionKind.value === 'early-redemption' && issuerTicked.value)
 // Both read the reviews of a schedule: an autocall tests a level on each, and an issuer call is the issuer's choice of one.
 const scheduled = computed(() => autocalled.value || issuerCalled.value)
+// The calls the coupon can copy its reviews from: the autocall's when there is one.
+const callFrequency = computed(() => (autocalled.value ? reviewFrequency.value : issuerFrequency.value))
 // The issuer's choice in a scenario: the number of the review it calls on, or null when it does not call.
 const issuerCallsOn = ref<number | null>(null)
 const reviewLevelInputs = ref<Record<number, number>>({})
 // A schedule with many reviews is allowed, but each review is a level to set, so the reader is told what a coarser one would give.
 const reviewNudge = computed(() => {
-  const count = scheduled.value ? reviewCount({ term: { months: termMonths.value }, schedule: { frequency: reviewFrequency.value }, firstMonth: firstReviewMonth.value }) : undefined
+  const count = autocalled.value ? reviewCount({ term: { months: termMonths.value }, schedule: { frequency: reviewFrequency.value }, firstMonth: firstReviewMonth.value }) : undefined
   if (count === undefined || count <= 24) return ''
   const suggested = suggestedFrequency(termMonths.value)
   const suggestedCount = reviewCount({ term: { months: termMonths.value }, schedule: { frequency: suggested }, firstMonth: chosenFirstReviewMonth.value ?? undefined })
@@ -266,7 +278,7 @@ const observedLevels = ref<number[]>([startingFinalLevel])
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
 const select = (concept: ConceptId) => { selected.value = concept }
-const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', 'adjustment-factor': '#5b8a72', schedule: '#2c8ea3', trigger: '#1f8a70', 'trigger-step': '#7a9a1e', 'call-amount': '#0f766e', 'final-call': '#3d7ea6', 'first-review': '#4d7c9b', coupon: '#b5446e', 'coupon-schedule': '#9b4d7a', 'coupon-barrier': '#8a5a00', memory: '#55708a', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', 'minimum-return': '#4338ca', 'digital-return': '#c2255c', 'digital-barrier': '#087f5b', upside: '#2b8a3e', 'measured-from': '#5c7f1a', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa', 'absolute-return': '#d4a017', settlement: '#8d5a3b' }
+const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', 'adjustment-factor': '#5b8a72', schedule: '#2c8ea3', trigger: '#1f8a70', 'trigger-step': '#7a9a1e', 'call-amount': '#0f766e', 'final-call': '#3d7ea6', 'first-review': '#4d7c9b', autocall: '#1f7a8c', 'issuer-call': '#5c6bc0', 'issuer-schedule': '#5a7fb5', 'issuer-first-review': '#6a78a8', 'issuer-call-amount': '#4f5bab', coupon: '#b5446e', 'coupon-schedule': '#9b4d7a', 'coupon-barrier': '#8a5a00', memory: '#55708a', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', 'minimum-return': '#4338ca', 'digital-return': '#c2255c', 'digital-barrier': '#087f5b', upside: '#2b8a3e', 'measured-from': '#5c7f1a', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa', 'absolute-return': '#d4a017', settlement: '#8d5a3b' }
 const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
@@ -354,7 +366,7 @@ const isAdded = (id: FeatureId) => id === 'digital' ? digitalSelected.value : id
 const depositExcludes: ReadonlyArray<FeatureId> = ['downside', 'buffer', 'barrier', 'protection', 'digital']
 // Why a redemption cannot be chosen, or null: the same rules productIssues enforces. The one already chosen stays available.
 const redemptionBlockedReason = (id: string) => {
-  if (((id === 'autocall' && !autocalled.value) || (id === 'issuer-call' && !issuerCalled.value)) && (dailySelected.value || bothWaysSelected.value)) return 'not with a daily barrier'
+  if (id === 'early-redemption' && !scheduled.value && (dailySelected.value || bothWaysSelected.value)) return 'not with a daily barrier'
   return null
 }
 const couponBlockedReason = computed(() => dailySelected.value || bothWaysSelected.value ? 'not with a daily barrier' : null)
@@ -527,20 +539,25 @@ const note = computed<Product>(() => ({
   wrapper: wrapper.value,
   principalAmount: principal.value,
   term: { months: termMonths.value },
-  redemption: issuerCalled.value
-    ? { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: reviewFrequency.value }, firstReviewMonth: firstReviewMonth.value, callAmount: fractionFrom(issuerAmountPercent.value), callAmountBasis: callAmountBasis.value }], adjustmentFactor: adjustmentFactor.value }
-    : autocalled.value
-    ? { kind: 'early-redemption', mechanisms: [{
-        kind: 'autocall',
-        schedule: { frequency: reviewFrequency.value },
-        trigger: fractionFrom(triggerPercent.value),
-        // Every term the outline shows is stated, including one at its default, so the structure reads as the outline does.
-        firstReviewMonth: firstReviewMonth.value,
-        triggerStep: fractionFrom(triggerStepPercent.value),
-        callAmount: fractionFrom(callAmountPercent.value),
-        callAmountBasis: callAmountBasis.value,
-        callOnFinalReview: callOnFinal.value,
-      }], adjustmentFactor: adjustmentFactor.value }
+  redemption: scheduled.value
+    ? {
+        kind: 'early-redemption',
+        mechanisms: [
+          ...(autocalled.value ? [{
+            kind: 'autocall' as const,
+            schedule: { frequency: reviewFrequency.value },
+            trigger: fractionFrom(triggerPercent.value),
+            // Every term the outline shows is stated, including one at its default, so the structure reads as the outline does.
+            firstReviewMonth: firstReviewMonth.value,
+            triggerStep: fractionFrom(triggerStepPercent.value),
+            callAmount: fractionFrom(callAmountPercent.value),
+            callAmountBasis: callAmountBasis.value,
+            callOnFinalReview: callOnFinal.value,
+          }] : []),
+          ...(issuerCalled.value ? [{ kind: 'issuer-call' as const, schedule: { frequency: issuerFrequency.value }, firstReviewMonth: issuerFirstReviewMonth.value, callAmount: fractionFrom(issuerAmountPercent.value), callAmountBasis: issuerAmountBasis.value }] : []),
+        ],
+        adjustmentFactor: adjustmentFactor.value,
+      }
     : { kind: 'bullet', adjustmentFactor: adjustmentFactor.value },
   coupon: !couponSelected.value ? undefined
     : contingentCoupon.value ? { schedule: { frequency: couponFrequency.value }, rate: fractionFrom(couponRatePercent.value), barrier: fractionFrom(couponBarrierPercent.value), memory: couponMemory.value }
@@ -595,7 +612,8 @@ const copyJson = async () => {
 onBeforeUnmount(() => clearTimeout(copyReset))
 const issues = computed(() => productIssues(note.value))
 const errors = computed(() => issues.value.map(({ message }) => message))
-const issuesFor = (...fields: ProductIssueField[]) => issues.value.filter(({ field }) => fields.includes(field)).map(({ message }) => message)
+const issuesFor = (...fields: ProductIssueField[]) => issues.value.filter(({ field, mechanism }) => mechanism !== 'issuer-call' && fields.includes(field)).map(({ message }) => message)
+const issuerIssuesFor = (...fields: ProductIssueField[]) => issues.value.filter(({ field, mechanism }) => mechanism === 'issuer-call' && fields.includes(field)).map(({ message }) => message)
 const summary = computed(() => summarize(note.value))
 const names = computed(() => marketingNames(note.value))
 const nameHintKey = (name: MarketingName) => `name:${name.name}`
@@ -677,7 +695,7 @@ const reviewError = computed(() => (isBasket.value ? reviewAssetLevels.value.fla
 // The review the issuer calls on in the scenario, when it is one the issuer can call on. A choice that the schedule or the first review
 // has since ruled out is no call, so the outcome never reads a review that cannot call.
 const issuerCallableReviews = computed(() => {
-  const count = reviewCount({ term: { months: termMonths.value }, schedule: { frequency: reviewFrequency.value }, firstMonth: firstReviewMonth.value })
+  const count = reviewCount({ term: { months: termMonths.value }, schedule: { frequency: issuerFrequency.value }, firstMonth: issuerFirstReviewMonth.value })
   return issuerCalled.value && count !== undefined ? Array.from({ length: Math.max(0, count - 1) }, (_, index) => index + 1) : []
 })
 const issuerCallChoice = computed(() => issuerCallsOn.value !== null && issuerCallableReviews.value.includes(issuerCallsOn.value) ? issuerCallsOn.value : undefined)
@@ -686,7 +704,7 @@ const redemption = computed(() => (scheduled.value || couponSelected.value) && v
   ? redemptionOutcome(note.value, reviewLevels.value, scenarioLevels.value, issuerCalled.value ? issuerCallChoice.value : undefined)
   : null)
 const issuerCallSelection = computed({ get: () => issuerCallChoice.value ?? null, set: (review: number | null) => { issuerCallsOn.value = review } })
-const issuerCallMonths = (review: number) => firstReviewMonth.value + (review - 1) * monthsPerReview[reviewFrequency.value]
+const issuerCallMonths = (review: number) => issuerFirstReviewMonth.value + (review - 1) * monthsPerReview[issuerFrequency.value]
 const pathOptions = computed(() => initialValid.value ? pathScenarios(note.value, determinedInitialLevel.value) : [])
 const loadPath = (event: Event) => {
   const choice = event.target as HTMLSelectElement
@@ -729,6 +747,7 @@ const ended = (date: ReviewDate) => redemption.value?.calledAtReview !== undefin
 const reviewTest = (date: ReviewDate) => {
   if (!redemption.value || date.call === undefined) return ''
   if (ended(date)) return 'Ended'
+  if (redemption.value.endedBy === 'issuer-call' && date.month === redemption.value.months) return 'Issuer called'
   return redemption.value.tests.find((test) => test.review === date.call)?.called ? 'Called' : 'Not called'
 }
 // What a coupon review paid, for the review table, worked out from the rate, or that it missed. A review after
@@ -1316,17 +1335,22 @@ function loadProduct(product: Product) {
   termMonths.value = product.term.months
   const autocall = autocallOf(terms)
   const issuerCall = issuerCallOf(terms)
-  redemptionKind.value = autocall ? 'autocall' : issuerCall ? 'issuer-call' : 'bullet'
-  chosenFrequency.value = (autocall ?? issuerCall)?.schedule.frequency ?? null
+  redemptionKind.value = terms.kind
+  autocallTicked.value = autocall !== undefined || issuerCall === undefined
+  issuerTicked.value = issuerCall !== undefined
+  chosenFrequency.value = autocall?.schedule.frequency ?? null
+  chosenIssuerFrequency.value = issuerCall?.schedule.frequency ?? null
   triggerPercent.value = autocall ? percent(autocall.trigger) : 100
   triggerStepPercent.value = percent(autocall?.triggerStep ?? 0)
   adjustmentFactorPercent.value = percent(terms.adjustmentFactor ?? 1)
   callAmountPercent.value = autocall ? percent(autocall.callAmount) : 8
   issuerAmountPercent.value = issuerCall ? percent(issuerCall.callAmount) : 0
   // A first review one period in is where the control starts, so it is left to follow the frequency.
-  const firstMonth = autocall?.firstReviewMonth ?? issuerCall?.firstReviewMonth
-  chosenFirstReviewMonth.value = firstMonth === undefined || firstMonth === monthsPerReview[(autocall ?? issuerCall)!.schedule.frequency] ? null : firstMonth
-  callAmountBasis.value = autocall?.callAmountBasis ?? issuerCall?.callAmountBasis ?? 'flat'
+  const followed = (mechanism: EarlyMechanism | undefined) => (mechanism?.firstReviewMonth === undefined || mechanism.firstReviewMonth === monthsPerReview[mechanism.schedule.frequency] ? null : mechanism.firstReviewMonth)
+  chosenFirstReviewMonth.value = followed(autocall)
+  chosenIssuerFirstReviewMonth.value = followed(issuerCall)
+  callAmountBasis.value = autocall?.callAmountBasis ?? 'flat'
+  issuerAmountBasis.value = issuerCall?.callAmountBasis ?? 'flat'
   callOnFinal.value = autocall?.callOnFinalReview ?? false
   couponKind.value = coupon === undefined ? 'none' : coupon.barrier === undefined ? 'fixed' : 'contingent'
   settlementKind.value = product.settlement ?? 'cash'
@@ -1461,55 +1485,101 @@ const chooseSample = (event: Event) => {
                 <li :class="['node', { sel: highlighted('redemption') }]" :style="conceptStyle('redemption')">
                   <div class="nrow" @click="select('redemption')" @focusin="focusRow('redemption')">
                     <span class="nlabel">Redemption<HintToggle id="redemption" about="redemption" :text="hints.redemption" :active="activeHint === 'redemption'" @toggle="toggleHint('redemption')" /></span>
-                    <span class="ctrl pick"><select id="redemption-kind" aria-label="Redemption" :value="redemptionKind" @change="redemptionKind = ($event.target as HTMLSelectElement).value as 'bullet' | 'autocall' | 'issuer-call'"><option v-for="option in redemptionOptions" :key="option.id" :value="option.id" :disabled="!option.available || !!redemptionBlockedReason(option.id)">{{ option.label }}{{ !option.available ? ' (unavailable)' : redemptionBlockedReason(option.id) ? ` (${redemptionBlockedReason(option.id)})` : '' }}</option></select></span>
+                    <span class="ctrl pick"><select id="redemption-kind" aria-label="Redemption" :value="redemptionKind" @change="redemptionKind = ($event.target as HTMLSelectElement).value as 'bullet' | 'early-redemption'"><option v-for="option in redemptionOptions" :key="option.id" :value="option.id" :disabled="!option.available || !!redemptionBlockedReason(option.id)">{{ option.label }}{{ !option.available ? ' (unavailable)' : redemptionBlockedReason(option.id) ? ` (${redemptionBlockedReason(option.id)})` : '' }}</option></select></span>
                   </div>
                   <ul v-if="scheduled">
-                    <li :class="['node', { sel: highlighted('schedule') }]" :style="conceptStyle('schedule')">
-                      <div class="nrow" @click="select('schedule')" @focusin="focusRow('schedule')">
-                        <span class="nlabel">Reviews<HintToggle id="schedule" about="the review schedule" :text="hints.schedule" :active="activeHint === 'schedule'" @toggle="toggleHint('schedule')" /></span>
-                        <span class="ctrl pick"><select id="review-frequency" v-model="reviewFrequency" aria-label="Review frequency"><option v-for="option in reviewFrequencyOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
+                    <li :class="['node', { sel: highlighted('autocall') }]" :style="conceptStyle('autocall')">
+                      <div class="nrow" @click="select('autocall')" @focusin="focusRow('autocall')">
+                        <span class="nlabel"><label class="mechanism-check"><input id="mechanism-autocall" type="checkbox" :checked="autocallTicked" :disabled="autocallTicked && !issuerTicked" :title="autocallTicked && !issuerTicked ? 'Choose Bullet for no early redemption' : undefined" @click.stop @change="autocallTicked = ($event.target as HTMLInputElement).checked">Autocallable</label><HintToggle id="mechanism-autocall" about="autocallable redemption" :text="hints['mechanism-autocall']" :active="activeHint === 'mechanism-autocall'" @toggle="toggleHint('mechanism-autocall')" /></span>
                       </div>
-                      <p v-if="reviewNudge && !issuesFor('schedule').length" class="nudge">{{ reviewNudge }}</p>
-                      <ul v-if="issuesFor('schedule').length" class="errors" role="alert"><li v-for="message in issuesFor('schedule')" :key="message">{{ message }}</li></ul>
+                      <ul v-if="autocalled">
+                        <li :class="['node', { sel: highlighted('schedule') }]" :style="conceptStyle('schedule')">
+                          <div class="nrow" @click="select('schedule')" @focusin="focusRow('schedule')">
+                            <span class="nlabel">Reviews<HintToggle id="schedule" about="the review schedule" :text="hints.schedule" :active="activeHint === 'schedule'" @toggle="toggleHint('schedule')" /></span>
+                            <span class="ctrl pick"><select id="review-frequency" v-model="reviewFrequency" aria-label="Review frequency"><option v-for="option in reviewFrequencyOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
+                          </div>
+                          <p v-if="reviewNudge && !issuesFor('schedule').length" class="nudge">{{ reviewNudge }}</p>
+                          <ul v-if="issuesFor('schedule').length" class="errors" role="alert"><li v-for="message in issuesFor('schedule')" :key="message">{{ message }}</li></ul>
+                        </li>
+                        <li :class="['node', { sel: highlighted('first-review') }]" :style="conceptStyle('first-review')">
+                          <div class="nrow" @click="select('first-review')" @focusin="focusRow('first-review')">
+                            <span class="nlabel">First review<HintToggle id="first-review" about="the first review" :text="hints['first-review']" :active="activeHint === 'first-review'" @toggle="toggleHint('first-review')" /></span>
+                            <span class="ctrl"><NumberInput id="first-review" v-model="firstReviewMonth" class="num rate" aria-label="First review: months from the start of the term" /><span class="unit">months in</span></span>
+                          </div>
+                          <ul v-if="issuesFor('firstReviewMonth').length" class="errors" role="alert"><li v-for="message in issuesFor('firstReviewMonth')" :key="message">{{ message }}</li></ul>
+                        </li>
+                        <li :class="['node', { sel: highlighted('trigger') }]" :style="conceptStyle('trigger')">
+                          <div class="nrow" @click="select('trigger')" @focusin="focusRow('trigger')">
+                            <span class="nlabel">Call trigger<HintToggle id="trigger" about="the call trigger" :text="hints.trigger" :active="activeHint === 'trigger'" @toggle="toggleHint('trigger')" /></span>
+                            <span class="ctrl"><NumberInput id="call-trigger" v-model="triggerPercent" class="num rate" aria-label="Call trigger: level (% of the initial level)" /><span class="unit">%</span></span>
+                          </div>
+                          <ul v-if="issuesFor('trigger').length" class="errors" role="alert"><li v-for="message in issuesFor('trigger')" :key="message">{{ message }}</li></ul>
+                        </li>
+                        <li :class="['node', { sel: highlighted('trigger-step') }]" :style="conceptStyle('trigger-step')">
+                          <div class="nrow" @click="select('trigger-step')" @focusin="focusRow('trigger-step')">
+                            <span class="nlabel">Trigger step<HintToggle id="trigger-step" about="the trigger step" :text="hints['trigger-step']" :active="activeHint === 'trigger-step'" @toggle="toggleHint('trigger-step')" /></span>
+                            <span class="ctrl"><NumberInput id="trigger-step" v-model="triggerStepPercent" class="num rate" aria-label="Trigger step: change on each later review (% of the initial level, negative steps down)" /><span class="unit">%</span></span>
+                          </div>
+                          <ul v-if="issuesFor('triggerStep').length" class="errors" role="alert"><li v-for="message in issuesFor('triggerStep')" :key="message">{{ message }}</li></ul>
+                        </li>
+                        <li :class="['node', { sel: highlighted('call-amount') }]" :style="conceptStyle('call-amount')">
+                          <div class="nrow" @click="select('call-amount')" @focusin="focusRow('call-amount')">
+                            <span class="nlabel">Call amount<HintToggle id="call-amount" about="the call amount" :text="hints['call-amount']" :active="activeHint === 'call-amount'" @toggle="toggleHint('call-amount')" /></span>
+                            <span class="ctrl"><NumberInput id="call-amount-input" v-model="callAmountPercent" class="num rate" aria-label="Call amount: paid above principal (% of principal)" /><span class="unit">%</span></span>
+                          </div>
+                          <ul v-if="issuesFor('callAmount').length" class="errors" role="alert"><li v-for="message in issuesFor('callAmount')" :key="message">{{ message }}</li></ul>
+                        </li>
+                        <li :class="['node', { sel: highlighted('call-amount') }]" :style="conceptStyle('call-amount')">
+                          <div class="nrow" @click="select('call-amount')" @focusin="focusRow('call-amount')">
+                            <span class="nlabel">Call amount is<HintToggle id="call-basis" about="how the call amount is stated" :text="hints['call-basis']" :active="activeHint === 'call-basis'" @toggle="toggleHint('call-basis')" /></span>
+                            <span class="ctrl pick"><select id="call-basis" v-model="callAmountBasis" aria-label="Call amount is"><option value="flat">Flat</option><option value="per-year">Per year</option></select></span>
+                          </div>
+                        </li>
+                        <li :class="['node', { sel: highlighted('final-call') }]" :style="conceptStyle('final-call')">
+                          <div class="nrow" @click="select('final-call')" @focusin="focusRow('final-call')">
+                            <span class="nlabel">Final review<HintToggle id="final-call" about="the final review" :text="hints['final-call']" :active="activeHint === 'final-call'" @toggle="toggleHint('final-call')" /></span>
+                            <span class="ctrl pick"><select id="final-call" v-model="callOnFinal" aria-label="Final review"><option :value="false">Pays the maturity payoff</option><option :value="true">Is a call too</option></select></span>
+                          </div>
+                        </li>
+                      </ul>
                     </li>
-                    <li :class="['node', { sel: highlighted('first-review') }]" :style="conceptStyle('first-review')">
-                      <div class="nrow" @click="select('first-review')" @focusin="focusRow('first-review')">
-                        <span class="nlabel">First review<HintToggle id="first-review" about="the first review" :text="hints['first-review']" :active="activeHint === 'first-review'" @toggle="toggleHint('first-review')" /></span>
-                        <span class="ctrl"><NumberInput id="first-review" v-model="firstReviewMonth" class="num rate" aria-label="First review: months from the start of the term" /><span class="unit">months in</span></span>
+                    <li :class="['node', { sel: highlighted('issuer-call') }]" :style="conceptStyle('issuer-call')">
+                      <div class="nrow" @click="select('issuer-call')" @focusin="focusRow('issuer-call')">
+                        <span class="nlabel"><label class="mechanism-check"><input id="mechanism-issuer-call" type="checkbox" :checked="issuerTicked" :disabled="issuerTicked && !autocallTicked" :title="issuerTicked && !autocallTicked ? 'Choose Bullet for no early redemption' : undefined" @click.stop @change="issuerTicked = ($event.target as HTMLInputElement).checked">Issuer callable</label><HintToggle id="mechanism-issuer-call" about="issuer callable redemption" :text="hints['mechanism-issuer-call']" :active="activeHint === 'mechanism-issuer-call'" @toggle="toggleHint('mechanism-issuer-call')" /></span>
                       </div>
-                      <ul v-if="issuesFor('firstReviewMonth').length" class="errors" role="alert"><li v-for="message in issuesFor('firstReviewMonth')" :key="message">{{ message }}</li></ul>
+                      <ul v-if="issuerCalled">
+                        <li :class="['node', { sel: highlighted('issuer-schedule') }]" :style="conceptStyle('issuer-schedule')">
+                          <div class="nrow" @click="select('issuer-schedule')" @focusin="focusRow('issuer-schedule')">
+                            <span class="nlabel">Reviews<HintToggle id="issuer-schedule" about="the issuer call’s reviews" :text="hints['schedule']" :active="activeHint === 'issuer-schedule'" @toggle="toggleHint('issuer-schedule')" /></span>
+                            <span class="ctrl pick"><select id="issuer-review-frequency" v-model="issuerFrequency" aria-label="Issuer call: review frequency"><option v-for="option in reviewFrequencyOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
+                          </div>
+                          <ul v-if="issuerIssuesFor('schedule').length" class="errors" role="alert"><li v-for="message in issuerIssuesFor('schedule')" :key="message">{{ message }}</li></ul>
+                        </li>
+                        <li :class="['node', { sel: highlighted('issuer-first-review') }]" :style="conceptStyle('issuer-first-review')">
+                          <div class="nrow" @click="select('issuer-first-review')" @focusin="focusRow('issuer-first-review')">
+                            <span class="nlabel">First review<HintToggle id="issuer-first-review" about="the issuer call’s first review" :text="hints['first-review']" :active="activeHint === 'issuer-first-review'" @toggle="toggleHint('issuer-first-review')" /></span>
+                            <span class="ctrl"><NumberInput id="issuer-first-review" v-model="issuerFirstReviewMonth" class="num rate" aria-label="Issuer call: first review, months from the start of the term" /><span class="unit">months in</span></span>
+                          </div>
+                          <ul v-if="issuerIssuesFor('firstReviewMonth').length" class="errors" role="alert"><li v-for="message in issuerIssuesFor('firstReviewMonth')" :key="message">{{ message }}</li></ul>
+                        </li>
+                        <li :class="['node', { sel: highlighted('issuer-call-amount') }]" :style="conceptStyle('issuer-call-amount')">
+                          <div class="nrow" @click="select('issuer-call-amount')" @focusin="focusRow('issuer-call-amount')">
+                            <span class="nlabel">Call amount<HintToggle id="issuer-call-amount" about="the issuer call’s amount" :text="hints['call-amount']" :active="activeHint === 'issuer-call-amount'" @toggle="toggleHint('issuer-call-amount')" /></span>
+                            <span class="ctrl"><NumberInput id="issuer-call-amount-input" v-model="issuerAmountPercent" class="num rate" aria-label="Issuer call: amount paid above principal (% of principal)" /><span class="unit">%</span></span>
+                          </div>
+                          <ul v-if="issuerIssuesFor('callAmount').length" class="errors" role="alert"><li v-for="message in issuerIssuesFor('callAmount')" :key="message">{{ message }}</li></ul>
+                        </li>
+                        <li :class="['node', { sel: highlighted('issuer-call-amount') }]" :style="conceptStyle('issuer-call-amount')">
+                          <div class="nrow" @click="select('issuer-call-amount')" @focusin="focusRow('issuer-call-amount')">
+                            <span class="nlabel">Call amount is<HintToggle id="issuer-call-basis" about="how the issuer call’s amount is stated" :text="hints['call-basis']" :active="activeHint === 'issuer-call-basis'" @toggle="toggleHint('issuer-call-basis')" /></span>
+                            <span class="ctrl pick"><select id="issuer-call-basis" v-model="issuerAmountBasis" aria-label="Issuer call: call amount is"><option value="flat">Flat</option><option value="per-year">Per year</option></select></span>
+                          </div>
+                        </li>
+                      </ul>
                     </li>
-                    <li v-if="autocalled" :class="['node', { sel: highlighted('trigger') }]" :style="conceptStyle('trigger')">
-                      <div class="nrow" @click="select('trigger')" @focusin="focusRow('trigger')">
-                        <span class="nlabel">Call trigger<HintToggle id="trigger" about="the call trigger" :text="hints.trigger" :active="activeHint === 'trigger'" @toggle="toggleHint('trigger')" /></span>
-                        <span class="ctrl"><NumberInput id="call-trigger" v-model="triggerPercent" class="num rate" aria-label="Call trigger: level (% of the initial level)" /><span class="unit">%</span></span>
-                      </div>
-                      <ul v-if="issuesFor('trigger').length" class="errors" role="alert"><li v-for="message in issuesFor('trigger')" :key="message">{{ message }}</li></ul>
-                    </li>
-                    <li v-if="autocalled" :class="['node', { sel: highlighted('trigger-step') }]" :style="conceptStyle('trigger-step')">
-                      <div class="nrow" @click="select('trigger-step')" @focusin="focusRow('trigger-step')">
-                        <span class="nlabel">Trigger step<HintToggle id="trigger-step" about="the trigger step" :text="hints['trigger-step']" :active="activeHint === 'trigger-step'" @toggle="toggleHint('trigger-step')" /></span>
-                        <span class="ctrl"><NumberInput id="trigger-step" v-model="triggerStepPercent" class="num rate" aria-label="Trigger step: change on each later review (% of the initial level, negative steps down)" /><span class="unit">%</span></span>
-                      </div>
-                      <ul v-if="issuesFor('triggerStep').length" class="errors" role="alert"><li v-for="message in issuesFor('triggerStep')" :key="message">{{ message }}</li></ul>
-                    </li>
-                    <li :class="['node', { sel: highlighted('call-amount') }]" :style="conceptStyle('call-amount')">
-                      <div class="nrow" @click="select('call-amount')" @focusin="focusRow('call-amount')">
-                        <span class="nlabel">Call amount<HintToggle id="call-amount" about="the call amount" :text="hints['call-amount']" :active="activeHint === 'call-amount'" @toggle="toggleHint('call-amount')" /></span>
-                        <span class="ctrl"><NumberInput id="call-amount-input" v-model="callAmountField" class="num rate" aria-label="Call amount: paid above principal (% of principal)" /><span class="unit">%</span></span>
-                      </div>
-                      <ul v-if="issuesFor('callAmount').length" class="errors" role="alert"><li v-for="message in issuesFor('callAmount')" :key="message">{{ message }}</li></ul>
-                    </li>
-                    <li :class="['node', { sel: highlighted('call-amount') }]" :style="conceptStyle('call-amount')">
-                      <div class="nrow" @click="select('call-amount')" @focusin="focusRow('call-amount')">
-                        <span class="nlabel">Call amount is<HintToggle id="call-basis" about="how the call amount is stated" :text="hints['call-basis']" :active="activeHint === 'call-basis'" @toggle="toggleHint('call-basis')" /></span>
-                        <span class="ctrl pick"><select id="call-basis" v-model="callAmountBasis" aria-label="Call amount is"><option value="flat">Flat</option><option value="per-year">Per year</option></select></span>
-                      </div>
-                    </li>
-                    <li v-if="autocalled" :class="['node', { sel: highlighted('final-call') }]" :style="conceptStyle('final-call')">
-                      <div class="nrow" @click="select('final-call')" @focusin="focusRow('final-call')">
-                        <span class="nlabel">Final review<HintToggle id="final-call" about="the final review" :text="hints['final-call']" :active="activeHint === 'final-call'" @toggle="toggleHint('final-call')" /></span>
-                        <span class="ctrl pick"><select id="final-call" v-model="callOnFinal" aria-label="Final review"><option :value="false">Pays the maturity payoff</option><option :value="true">Is a call too</option></select></span>
+                    <li class="node">
+                      <div class="nrow">
+                        <span class="nlabel"><label class="mechanism-check unavailable"><input type="checkbox" disabled>Puttable (unavailable)</label><HintToggle id="mechanism-puttable" about="puttable redemption" :text="hints['mechanism-puttable']" :active="activeHint === 'mechanism-puttable'" @toggle="toggleHint('mechanism-puttable')" /></span>
                       </div>
                     </li>
                   </ul>
@@ -1534,7 +1604,7 @@ const chooseSample = (event: Event) => {
                         <span class="nlabel">Reviews<HintToggle id="coupon-schedule" about="the coupon reviews" :text="hints['coupon-schedule']" :active="activeHint === 'coupon-schedule'" @toggle="toggleHint('coupon-schedule')" /></span>
                         <span class="ctrl pick"><select id="coupon-frequency" v-model="couponFrequency" aria-label="Coupon review frequency"><option v-for="option in reviewFrequencyOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
                       </div>
-                      <p v-if="scheduled" class="nudge"><button type="button" class="link-button" :disabled="couponFrequency === reviewFrequency" @click.stop="copyCallReviews">Same as the calls</button>{{ couponFrequency === reviewFrequency ? ': the coupon is reviewed on the call dates' : `: the calls are ${reviewFrequencyOptions.find(({ id }) => id === reviewFrequency)!.label.toLowerCase()}` }}</p>
+                      <p v-if="scheduled" class="nudge"><button type="button" class="link-button" :disabled="couponFrequency === callFrequency" @click.stop="copyCallReviews">Same as the calls</button>{{ couponFrequency === callFrequency ? ': the coupon is reviewed on the call dates' : `: the calls are ${reviewFrequencyOptions.find(({ id }) => id === callFrequency)!.label.toLowerCase()}` }}</p>
                       <ul v-if="issuesFor('couponSchedule').length" class="errors" role="alert"><li v-for="message in issuesFor('couponSchedule')" :key="message">{{ message }}</li></ul>
                     </li>
                     <li :class="['node', { sel: highlighted('coupon') }]" :style="conceptStyle('coupon')">
@@ -1887,7 +1957,7 @@ const chooseSample = (event: Event) => {
             <div v-if="highestCloseWanted && highestClose !== undefined" class="hint-field"><div class="field-heading"><label for="highest-close">Highest close: hypothetical highest close of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About the highest close" aria-controls="highest-close-hint" :aria-expanded="activeHint === 'highest-close'" @click="toggleHint('highest-close')">ⓘ</button><p v-if="activeHint === 'highest-close'" id="highest-close-hint" class="hint-text" role="tooltip">{{ hints['highest-close'] }}</p></div><NumberInput id="highest-close" :model-value="highestClose" class="final-input" @update:model-value="highestCloseInput = $event" /></div>
             <div v-if="datesBeforeLast.length" class="hint-field">
               <div class="field-heading"><span id="review-levels-label" class="observed-heading">Reviews: hypothetical level of {{ underlierLabel }} on each review before the last</span><select class="path-select" aria-label="Load a path" @change="loadPath($event)"><option value="">Load a path…</option><option v-for="(path, index) in pathOptions" :key="path.name" :value="index">{{ path.name }}</option></select></div>
-              <div class="table-wrap basket-levels review-levels" :style="conceptStyle(autocalled ? 'trigger' : 'coupon')"><table aria-labelledby="review-levels-label"><thead><tr><th scope="col">Month</th><th scope="col">Review</th><th v-if="autocalled" scope="col" class="review-trigger">Trigger</th><template v-if="isBasket"><th v-for="(asset, a) in basketAssets" :key="a" scope="col">{{ asset.name.trim() || `Asset ${a + 1}` }}</th><th scope="col">Basket level</th></template><th v-else scope="col">Level</th><th v-if="autocalled" scope="col">Test</th><th v-if="note.coupon" scope="col">Coupon</th></tr></thead><tbody><tr v-for="{ date, index } in reviewRows" :key="date.month"><th scope="row">{{ date.month }}</th><td class="review-name">{{ reviewLabel(date) }}</td><td v-if="autocalled" class="review-trigger">{{ Number.isFinite(reviewTrigger(date)) ? formatAmount(reviewTrigger(date)) : '—' }}</td><td v-if="index === undefined" :colspan="isBasket ? basketAssets.length + 1 : 1" class="review-unread" title="A fixed coupon reads no level">—</td><template v-else-if="isBasket"><td v-for="(assetLevel, a) in reviewAssetLevels[index]" :key="a"><NumberInput :model-value="assetLevel" class="observed-input" :aria-label="`${basketAssets[a].name.trim() || `Asset ${a + 1}`}, month ${date.month}`" @update:model-value="setReviewAssetLevel(index, a, $event)" /></td><td><output class="observed-result" aria-live="polite">{{ Number.isFinite(reviewLevels[index]) ? formatAmount(reviewLevels[index]) : '—' }}</output></td></template><td v-else><NumberInput :model-value="reviewLevels[index]" class="observed-input" :aria-label="`Level in month ${date.month}`" @update:model-value="setReviewLevel(index, $event)" /></td><td v-if="autocalled" class="review-test-cell"><span v-if="reviewTest(date)" :class="['review-test', { called: reviewTest(date) === 'Called', ended: reviewTest(date) === 'Ended' }]">{{ reviewTest(date) }}</span></td><td v-if="note.coupon" class="review-test-cell"><span v-if="reviewCoupon(date)" :class="['review-test', { ended: reviewCoupon(date).startsWith('Missed') || reviewCoupon(date) === 'Ended' || reviewCoupon(date) === '—' }]" :style="conceptStyle('coupon')">{{ reviewCoupon(date) }}</span></td></tr></tbody></table></div>
+              <div class="table-wrap basket-levels review-levels" :style="conceptStyle(autocalled ? 'trigger' : 'coupon')"><table aria-labelledby="review-levels-label"><thead><tr><th scope="col">Month</th><th scope="col">Review</th><th v-if="autocalled" scope="col" class="review-trigger">Trigger</th><template v-if="isBasket"><th v-for="(asset, a) in basketAssets" :key="a" scope="col">{{ asset.name.trim() || `Asset ${a + 1}` }}</th><th scope="col">Basket level</th></template><th v-else scope="col">Level</th><th v-if="autocalled" scope="col">Test</th><th v-if="note.coupon" scope="col">Coupon</th></tr></thead><tbody><tr v-for="{ date, index } in reviewRows" :key="date.month"><th scope="row">{{ date.month }}</th><td class="review-name">{{ reviewLabel(date) }}</td><td v-if="autocalled" class="review-trigger">{{ Number.isFinite(reviewTrigger(date)) ? formatAmount(reviewTrigger(date)) : '—' }}</td><td v-if="index === undefined" :colspan="isBasket ? basketAssets.length + 1 : 1" class="review-unread" title="A fixed coupon reads no level">—</td><template v-else-if="isBasket"><td v-for="(assetLevel, a) in reviewAssetLevels[index]" :key="a"><NumberInput :model-value="assetLevel" class="observed-input" :aria-label="`${basketAssets[a].name.trim() || `Asset ${a + 1}`}, month ${date.month}`" @update:model-value="setReviewAssetLevel(index, a, $event)" /></td><td><output class="observed-result" aria-live="polite">{{ Number.isFinite(reviewLevels[index]) ? formatAmount(reviewLevels[index]) : '—' }}</output></td></template><td v-else><NumberInput :model-value="reviewLevels[index]" class="observed-input" :aria-label="`Level in month ${date.month}`" @update:model-value="setReviewLevel(index, $event)" /></td><td v-if="autocalled" class="review-test-cell"><span v-if="reviewTest(date)" :class="['review-test', { called: reviewTest(date) === 'Called' || reviewTest(date) === 'Issuer called', ended: reviewTest(date) === 'Ended' }]">{{ reviewTest(date) }}</span></td><td v-if="note.coupon" class="review-test-cell"><span v-if="reviewCoupon(date)" :class="['review-test', { ended: reviewCoupon(date).startsWith('Missed') || reviewCoupon(date) === 'Ended' || reviewCoupon(date) === '—' }]" :style="conceptStyle('coupon')">{{ reviewCoupon(date) }}</span></td></tr></tbody></table></div>
               <p v-if="reviewError" class="errors" role="alert">{{ reviewError }}</p>
             </div>
             <div v-if="issuerCalled && issuerCallableReviews.length" class="hint-field">

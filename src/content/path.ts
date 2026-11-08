@@ -1,5 +1,5 @@
 import { couponBarrierLevel, finalCallLevel, paymentAtEnd, type RedemptionOutcome } from '../domain/autocall'
-import { autocallOf, callAmountAtReview, couponPerReview, downsideOf, issuerCallOf, upsideOf, type DeterminedLevels, type PaymentBreakdown, type Product } from '../domain/note'
+import { autocallOf, callAmountAtReview, couponPerReview, downsideOf, upsideOf, type DeterminedLevels, type PaymentBreakdown, type Product } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 // One stage of the calculation path: the payment at one final level after the payoff's rules up to this one. Drawn at every final
@@ -149,7 +149,7 @@ export function lineStages(note: Product, b: PaymentBreakdown, levels: Determine
 export function scenarioAside(note: Product, levels: DeterminedLevels, outcome?: RedemptionOutcome): string {
   const before = outcome ? outcome.totalPaid - outcome.payment : 0
   const coupons = before > 0 ? ` It also pays ${formatAmount(before)} in coupons on earlier reviews.` : ''
-  const issuer = autocallOf(note.redemption) === undefined && issuerCallOf(note.redemption) !== undefined
+  const issuer = outcome?.endedBy === 'issuer-call'
   if (outcome?.calledAtReview !== undefined && (issuer || outcome.calledAtReview < outcome.reviews)) {
     return `In this scenario ${issuer ? 'the issuer calls it' : 'it is called'} on review ${outcome.calledAtReview} and pays ${formatAmount(outcome.payment)}, which the line does not show.${coupons}`
   }

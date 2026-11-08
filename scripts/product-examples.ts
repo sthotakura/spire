@@ -136,6 +136,16 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     }),
   ],
   [
+    'an autocall reviewed quarterly and an issuer call reviewed annually, each on its own schedule, on one note',
+    note({ participations: [{ direction: 'downside', barrier: { level: 0.7, observation: 'final' }, rate: 1 }] }, {
+      term: { months: 36 },
+      redemption: { kind: 'early-redemption', mechanisms: [
+        { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0.08 },
+        { kind: 'issuer-call', schedule: { frequency: 'annual' }, callAmount: 0 },
+      ] },
+    }),
+  ],
+  [
     'a ten-year autocall on a strategy index, reviewed quarterly from month 12, paying 17% for each year elapsed, with a call on the final review and a buffer',
     note({ participations: [{ direction: 'downside', buffer: 0.4, rate: 1 }] }, {
       term: { months: 120 },

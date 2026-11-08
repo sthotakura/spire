@@ -403,6 +403,87 @@ describe('the mechanisms of an early redemption', () => {
   })
 })
 
+// Each keeps its own rule and schedule, and the earlier of the two ends the product: docs/early-redemption-rights.md.
+describe('an autocall and an issuer call on one product', () => {
+  const quarterly: Autocall = { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0.08 }
+  const semiAnnual: IssuerCall = { kind: 'issuer-call', schedule: { frequency: 'semi-annual' }, callAmount: 0.02 }
+  const both = (overrides: Partial<Product> = {}, mechanisms: EarlyMechanism[] = [quarterly, semiAnnual]): Product => ({ ...startingProduct, term: { months: 12 }, redemption: { kind: 'early-redemption', mechanisms }, ...overrides })
+  const outcomeOf = (reviewLevels: number[], issuerCallsOnReview?: number, product = both()) => redemptionOutcome(product, reviewLevels, levels, issuerCallsOnReview)
+
+  it('is valid, in either order', () => {
+    expect(fieldsOf(both())).toEqual([])
+    expect(fieldsOf(both({}, [semiAnnual, quarterly]))).toEqual([])
+  })
+
+  it('tells apart the same term of each mechanism in an issue', () => {
+    const issues = productIssues(both({}, [quarterly, { ...semiAnnual, callAmount: -1 }]))
+    expect(issues).toMatchObject([{ field: 'callAmount', mechanism: 'issuer-call' }])
+  })
+
+  it('runs to maturity when neither ends it', () => {
+    expect(outcomeOf([90, 90, 90])).toMatchObject({ calledAtReview: undefined, endedBy: undefined, months: 12 })
+  })
+
+  it('ends on the autocall when the issuer does not call', () => {
+    expect(outcomeOf([90, 105, 90])).toMatchObject({ calledAtReview: 2, endedBy: 'autocall', months: 6, payment: 1080, issuerCallNotReached: undefined })
+  })
+
+  it('ends on the issuer’s call when it is earlier, with the issuer’s call amount and no level read after it', () => {
+    const outcome = outcomeOf([90, 90, 105], 1)
+    expect(outcome).toMatchObject({ calledAtReview: 1, endedBy: 'issuer-call', months: 6, payment: 1020 })
+    expect(outcome.tests.map(({ month }) => month)).toEqual([3])
+  })
+
+  it('ends on the autocall when it is earlier than the issuer’s choice, which is recorded as not reached', () => {
+    expect(outcomeOf([105, 90, 90], 1)).toMatchObject({ calledAtReview: 1, endedBy: 'autocall', months: 3, payment: 1080, issuerCallNotReached: 1 })
+  })
+
+  it('gives the issuer’s call precedence on a date on both schedules, even at or above the trigger', () => {
+    const outcome = outcomeOf([90, 120, 90], 1)
+    expect(outcome).toMatchObject({ endedBy: 'issuer-call', months: 6, payment: 1020 })
+    expect(outcome.tests.map(({ month }) => month)).toEqual([3])
+  })
+
+  it('counts the issuer’s reviews on its own schedule', () => {
+    expect(() => outcomeOf([90, 90, 90], 2)).toThrow('The issuer can call on reviews 1 to 1.')
+  })
+
+  it('keeps the first month of each mechanism its own', () => {
+    const later = both({}, [{ ...quarterly, firstReviewMonth: 9 }, semiAnnual])
+    expect(reviewDates(later).map(({ month }) => month)).toEqual([9, 12])
+    expect(outcomeOf([105], 1, later)).toMatchObject({ endedBy: 'issuer-call', months: 6 })
+  })
+
+  it('pays a coupon up to the date the earlier mechanism ends it', () => {
+    const coupon = { schedule: { frequency: 'quarterly' as const }, rate: 0.12 }
+    const outcome = outcomeOf([90, 90, 90], 1, both({ coupon }))
+    expect(outcome.coupons.map(({ month }) => month)).toEqual([3, 6])
+    expect(outcome.payment).toBeCloseTo(1020 + 30, 9)
+  })
+})
+
+describe('the autocall and issuer call example in the book', () => {
+  const note: Product = {
+    ...startingProduct,
+    term: { months: 12 },
+    redemption: { kind: 'early-redemption', mechanisms: [
+      { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0.08 },
+      { kind: 'issuer-call', schedule: { frequency: 'semi-annual' }, callAmount: 0.02 },
+    ] },
+    payoff: { participations: [{ direction: 'downside', rate: 1 }] },
+  }
+
+  it.each<[string, number[], number | undefined, number, number, number]>([
+    ['the autocall comes first', [105, 90, 90], 1, 100, 3, 1080],
+    ['the issuer calls in month 6', [90, 90, 90], 1, 100, 6, 1020],
+    ['both fall on month 6', [90, 120, 90], 1, 100, 6, 1020],
+    ['the autocall in month 9', [90, 90, 105], undefined, 100, 9, 1080],
+    ['neither ends it', [90, 90, 90], undefined, 70, 12, 700],
+  ])('%s', (_, reviewLevels, issuerCallsOnReview, final, months, payment) => {
+    expect(redemptionOutcome(note, reviewLevels, { initial: 100, final }, issuerCallsOnReview)).toMatchObject({ months, payment })
+  })
+})
+
 // An issuer call: the issuer may redeem on a review that can call, whatever the level. Whether it does is a scenario input.
 describe('an issuer call', () => {
   const issuerCall = (terms: Partial<IssuerCall> = {}, overrides: Overrides = {}): Product =>

@@ -1225,6 +1225,65 @@
       "wrapper": "note",
       "principalAmount": 1000,
       "term": {
+        "months": 36
+      },
+      "redemption": {
+        "kind": "early-redemption",
+        "mechanisms": [
+          {
+            "kind": "autocall",
+            "schedule": {
+              "frequency": "quarterly"
+            },
+            "trigger": 1,
+            "callAmount": 0.08
+          },
+          {
+            "kind": "issuer-call",
+            "schedule": {
+              "frequency": "annual"
+            },
+            "callAmount": 0
+          }
+        ]
+      },
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "equity-index",
+              "name": "Synthetic Index"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "level": 100
+          },
+          "final": {
+            "kind": "final-date"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "barrier": {
+              "level": 0.7,
+              "observation": "final"
+            },
+            "rate": 1
+          }
+        ]
+      }
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
         "months": 120
       },
       "redemption": {

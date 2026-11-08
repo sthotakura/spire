@@ -1,4 +1,4 @@
-import { downsideOf, firstReviewMonthOf, monthsPerReview, upsideOf, type Product } from '../domain/note'
+import { autocallOf, issuerCallOf, downsideOf, firstReviewMonthOf, monthsPerReview, upsideOf, type EarlyMechanism, type Product } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface SummarySegment {
@@ -119,32 +119,33 @@ export function summarize(note: Product): SummarySegment[] {
   // initial level of what the payoff reads, so the underlier is named again. An issuer call says when the issuer may call, with no level.
   const redemption: SummarySegment[] = (() => {
     if (note.redemption.kind === 'bullet') return [{ text: ' that redeems ' }, { text: 'at maturity', concept: 'redemption' }]
-    const [terms] = note.redemption.mechanisms
-    const reviewing: SummarySegment[] = [
+    const reviewing = (terms: EarlyMechanism): SummarySegment[] => [
       { text: ' on any ' },
-      { text: terms.schedule?.frequency ?? 'monthly', concept: 'schedule' },
+      { text: terms.schedule?.frequency ?? 'monthly', concept: terms.kind === 'issuer-call' ? 'issuer-schedule' : 'schedule' },
       { text: ' review' },
-      ...(firstReviewMonthOf(terms) > monthsPerReview[terms.schedule.frequency] ? [{ text: ` from month ${firstReviewMonthOf(terms)}`, concept: 'first-review' as const }] : []),
+      ...(firstReviewMonthOf(terms) > monthsPerReview[terms.schedule.frequency] ? [{ text: ` from month ${firstReviewMonthOf(terms)}`, concept: terms.kind === 'issuer-call' ? 'issuer-first-review' as const : 'first-review' as const }] : []),
     ]
-    const paying: SummarySegment[] = [
+    const paying = (terms: EarlyMechanism): SummarySegment[] => [
       { text: ', ' },
-      { text: terms.callAmount > 0 ? `paying ${weightPercent(terms.callAmount)}${terms.callAmountBasis === 'per-year' ? ' for each year elapsed' : ''} above principal` : 'repaying principal', concept: 'call-amount' },
+      { text: terms.callAmount > 0 ? `paying ${weightPercent(terms.callAmount)}${terms.callAmountBasis === 'per-year' ? ' for each year elapsed' : ''} above principal` : 'repaying principal', concept: terms.kind === 'issuer-call' ? 'issuer-call-amount' : 'call-amount' },
       { text: ',' },
     ]
     const otherwise: SummarySegment[] = [{ text: ' and otherwise redeems ' }, { text: 'at maturity', concept: 'redemption' }]
-    if (terms.kind === 'issuer-call') return [{ text: ' that the issuer may call early' }, ...reviewing, { text: ' before maturity' }, ...paying, ...otherwise]
-    return [
+    const autocall = autocallOf(note.redemption)
+    const issuerCall = issuerCallOf(note.redemption)
+    const called: SummarySegment[] = autocall === undefined ? [] : [
       { text: ' that is called early if ' },
       ...underlier,
       { text: ' ' },
-      { text: `is at or above ${percent(terms.trigger)} of its initial level`, concept: 'trigger' },
-      ...reviewing,
+      { text: `is at or above ${percent(autocall.trigger)} of its initial level`, concept: 'trigger' },
+      ...reviewing(autocall),
       { text: ' ' },
-      { text: terms.callOnFinalReview ? 'including the last' : 'before maturity', concept: 'final-call' },
-      ...(terms.triggerStep ? [{ text: ', the trigger ' }, { text: `${terms.triggerStep < 0 ? 'falling' : 'rising'} ${percent(Math.abs(terms.triggerStep))} on each later review`, concept: 'trigger-step' as const }] : []),
-      ...paying,
-      ...otherwise,
+      { text: autocall.callOnFinalReview ? 'including the last' : 'before maturity', concept: 'final-call' },
+      ...(autocall.triggerStep ? [{ text: ', the trigger ' }, { text: `${autocall.triggerStep < 0 ? 'falling' : 'rising'} ${percent(Math.abs(autocall.triggerStep))} on each later review`, concept: 'trigger-step' as const }] : []),
+      ...paying(autocall),
     ]
+    const issuer: SummarySegment[] = issuerCall === undefined ? [] : [{ text: autocall === undefined ? ' that the issuer may call early' : ' and that the issuer may call early' }, ...reviewing(issuerCall), { text: ' before maturity' }, ...paying(issuerCall)]
+    return [...called, ...issuer, ...otherwise]
   })()
 
   // A coupon has its own reviews, whatever the redemption, so it is a sentence of its own: its rate a year and on each review, its
