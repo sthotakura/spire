@@ -453,7 +453,8 @@ Where the reviews, autocall and coupon work stands, and what follows. The order 
 3. **The category of a coupon note.** The Swiss taxonomy may place an autocall that pays a coupon in Yield Enhancement; the reference still places it by its payoff alone. To verify before changing.
 4. **Checks not done.** Keyboard use of the review table and the redemption and coupon rows; screen-reader checks; how a 120-review monthly schedule behaves in the interface; the book's chapters 17, 19 and 20 read in the running book at narrow width.
 5. **Puttable.** Listed under Early redemption as unavailable; an issuer call beside it needs no separate entry, since the mechanisms are ticked independently. The public sources, including equity-linked products with both rights, are in [docs/early-redemption-rights.md](docs/early-redemption-rights.md). The proposal, a put at current value, is in [docs/holder-put.md](docs/holder-put.md).
-6. **Smaller items.** Thresholds listed date by date with uneven steps; a rate-times-elapsed-time call price stated as a table; a hint so a learner can find the shark fin. (The example menu is section 36.)
+6. **Explicit schedules** (not started). Let an autocall and an issuer call state their reviews explicitly, beside today's frequency and first review month, which only give evenly spaced reviews. Let a coupon's reviews differ fully from a call's: today a coupon has its own frequency, but its reviews are evenly spaced from one period in, with no first review of its own. To agree: the form of the list, how it relates to the frequency form, and how a review is stated while the reference models observation months and not calendar dates.
+7. **Smaller items.** Thresholds listed date by date with uneven steps; a rate-times-elapsed-time call price stated as a table; a hint so a learner can find the shark fin. (The example menu is section 36.)
 
 Push to `origin/main` only at milestones, since every push runs the Pages deploy.
 
