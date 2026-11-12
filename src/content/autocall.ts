@@ -112,16 +112,29 @@ export function redemptionSteps(note: Product, outcome: RedemptionOutcome): Arra
   // month, so each step says its month.
   const withMonth = note.coupon !== undefined || firstReviewMonthOf(redemption) > monthsPerReview[redemption.schedule.frequency]
   const title = (test: ReviewTest) => `Review ${test.review} of ${outcome.reviews}${withMonth ? `, month ${test.month}` : ''}`
-  const callSteps = outcome.tests.map((test) => ({
-    month: test.month,
-    step: {
-      title: title(test),
-      how: `${units(test.level)} ${test.called ? 'is at or above' : 'is below'} the trigger, ${percent(triggerAtReview(redemption, test.review))} × initial level = ${units(test.triggerLevel)}`,
-      value: test.called ? 'Called' : 'Not called',
-      muted: !test.called,
+  const single = (test: ReviewTest) => ({
+    title: title(test),
+    how: `${units(test.level)} ${test.called ? 'is at or above' : 'is below'} the trigger, ${percent(triggerAtReview(redemption, test.review))} × initial level = ${units(test.triggerLevel)}`,
+    value: test.called ? 'Called' : 'Not called',
+    muted: !test.called,
+    concept: 'trigger' as const,
+  })
+  // Reviews in a row that did not call. A trigger that steps is a different level on each, so the step gives the first and the last.
+  const grouped = (run: ReviewTest[]) => {
+    const [first, last] = [run[0], run.at(-1)!]
+    const trigger = first.triggerLevel === last.triggerLevel
+      ? `the trigger, ${percent(triggerAtReview(redemption, first.review))} × initial level = ${units(first.triggerLevel)}`
+      : `its trigger, from ${units(first.triggerLevel)} to ${units(last.triggerLevel)}`
+    return {
+      title: `Reviews ${first.review}–${last.review} of ${outcome.reviews}${withMonth ? `, months ${first.month}–${last.month}` : ''}`,
+      how: `Each level is below ${trigger}; the review table shows each review`,
+      value: 'Not called',
+      muted: true,
       concept: 'trigger' as const,
-    },
-  }))
+    }
+  }
+  const callSteps = inRuns(outcome.tests, (test) => (test.called ? undefined : 'not called'))
+    .flatMap((run) => (run.length >= shortestRun ? [{ month: run[0].month, step: grouped(run) }] : run.map((test) => ({ month: test.month, step: single(test) }))))
   // In order of month, and on a month that is both, the coupon first: it is paid with the call.
   const steps: Array<Omit<CalculationStep, 'n'>> = [...couponEntries(note, outcome), ...callSteps].sort((a, b) => a.month - b.month).map(({ step }) => step)
   const issuerCall = issuerCallOf(note.redemption)
@@ -148,27 +161,61 @@ const calledSteps = (note: Product, outcome: RedemptionOutcome): Array<Omit<Calc
 
 const coupons = (n: number) => `${n} ${n === 1 ? 'coupon' : 'coupons'}`
 
-// One step for each review on which the coupon is tested, up to the date the product ends, with its month. The last reads the final level.
+// A run of this many reviews in a row with the same result reads as one step: the review table already shows each review, and a
+// monthly schedule over ten years would otherwise list hundreds of steps that say the same thing (docs/calculation-path.md).
+const shortestRun = 3
+
+// Splits reviews into runs of reviews in a row with the same key. A review with no key stands alone, since it changes something, such
+// as a call or remembered coupons paid; so does the last, which reads the final level and on which the path closes.
+function inRuns<T>(items: T[], keyOf: (item: T) => string | undefined): T[][] {
+  const runs: T[][] = []
+  let previous: string | undefined
+  items.forEach((item, index) => {
+    const key = index === items.length - 1 ? undefined : keyOf(item)
+    if (key !== undefined && key === previous) runs.at(-1)!.push(item)
+    else runs.push([item])
+    previous = key
+  })
+  return runs
+}
+
+// One step for each review on which the coupon is tested, up to the date the product ends, with its month. The last reads the final
+// level. Runs of reviews that paid one coupon each, or missed, read as one step.
 function couponEntries(note: Product, outcome: RedemptionOutcome): Array<{ month: number; step: Omit<CalculationStep, 'n'> }> {
   const { coupon } = note
   if (coupon === undefined) return []
   const count = reviewCount({ term: note.term, schedule: coupon.schedule })
   const { barrier: couponBarrier } = coupon
-  return outcome.coupons.map((test) => {
+  const keyOf = (test: CouponTest) => (test.coupons > 1 ? undefined : test.met ? 'paid' : 'missed')
+  const grouped = (run: CouponTest[]): Omit<CalculationStep, 'n'> => {
+    const [first, last] = [run[0], run.at(-1)!]
+    const title = `Coupons on reviews ${first.review}–${last.review} of ${count}, months ${first.month}–${last.month}`
+    const paid = units(run.reduce((sum, test) => sum + test.paid, 0))
+    if (couponBarrier === undefined || first.barrierLevel === undefined) return { title, how: `Fixed, paid whatever the level: ${couponWorking(note, run.length)}`, value: paid, concept: 'coupon' }
+    const barrier = `the coupon barrier, ${percent(couponBarrier)} × initial level = ${units(first.barrierLevel)}`
+    if (!first.met) {
+      const after = coupon.memory ? `, so their coupons are remembered: ${coupons(last.remembered)} unpaid` : ', so their coupons are missed and not paid later'
+      return { title, how: `Each level is below ${barrier}${after}; the review table shows each review`, value: '0', muted: true, concept: 'coupon' }
+    }
+    return { title, how: `Each level is at or above ${barrier}: ${couponWorking(note, run.length)}; the review table shows each review`, value: paid, concept: 'coupon' }
+  }
+  const single = (test: CouponTest): Omit<CalculationStep, 'n'> => {
     const title = `Coupon on review ${test.review} of ${count}, month ${test.month}`
     // A fixed coupon reads no level: every review pays. Its tests have no level, and a contingent coupon's always have one.
     if (couponBarrier === undefined || test.barrierLevel === undefined) {
-      return { month: test.month, step: { title, how: `Fixed, paid whatever the level: ${couponWorking(note, test.coupons)}`, value: units(test.paid), concept: 'coupon' as const } }
+      return { title, how: `Fixed, paid whatever the level: ${couponWorking(note, test.coupons)}`, value: units(test.paid), concept: 'coupon' as const }
     }
     const level = test.month === note.term.months ? `Final level ${units(test.level)}` : units(test.level)
     const barrier = `the coupon barrier, ${percent(couponBarrier)} × initial level = ${units(test.barrierLevel)}`
     if (!test.met) {
       const after = coupon.memory ? `, so its coupon is remembered: ${coupons(test.remembered)} unpaid` : ', so its coupon is missed and not paid later'
-      return { month: test.month, step: { title, how: `${level} is below ${barrier}${after}`, value: '0', muted: true, concept: 'coupon' as const } }
+      return { title, how: `${level} is below ${barrier}${after}`, value: '0', muted: true, concept: 'coupon' as const }
     }
     const paid = `: ${couponWorking(note, test.coupons)}${test.coupons > 1 ? `, this review’s coupon and ${coupons(test.coupons - 1)} remembered` : ''}`
-    return { month: test.month, step: { title, how: `${level} is at or above ${barrier}${paid}`, value: units(test.paid), concept: 'coupon' as const } }
-  })
+    return { title, how: `${level} is at or above ${barrier}${paid}`, value: units(test.paid), concept: 'coupon' as const }
+  }
+  return inRuns(outcome.coupons, keyOf)
+    .flatMap((run) => (run.length >= shortestRun ? [{ month: run[0].month, step: grouped(run) }] : run.map((test) => ({ month: test.month, step: single(test) }))))
 }
 
 const couponSteps = (note: Product, outcome: RedemptionOutcome) => couponEntries(note, outcome).map(({ step }) => step)

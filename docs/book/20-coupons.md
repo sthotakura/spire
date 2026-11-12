@@ -96,7 +96,7 @@ A fixed coupon has no barrier, so the last coupon is added at every final level.
 
 ## The calculation
 
-The calculation lists the coupon on each review the product reached, then the call tests, then how it ended. A called product's total is what it paid on earlier reviews plus the call. A product that ran to the end adds the last coupon to the payoff payment, and then gives the total.
+The calculation lists the coupon on each review the product reached, then the call tests, then how it ended. Three or more reviews in a row with the same result read as one step, such as "Coupons on reviews 2–4 of 12, months 2–4" when each was below the coupon barrier and three coupons are remembered; the review table shows each of them. A review that changes something, such as one that pays remembered coupons, and the last review are always steps of their own. A called product's total is what it paid on earlier reviews plus the call. A product that ran to the end adds the last coupon to the payoff payment, and then gives the total.
 
 The **total return** is what was paid less principal, as a share of principal, over the months the product lasted. In the worked example, called after five months with memory, the note pays 1,050 in all, a total return of 5% over 5 months. A total return over 5 months cannot be compared with one over 3 years without saying so, which is what a return a year is for.
 

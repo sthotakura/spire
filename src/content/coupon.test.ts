@@ -70,6 +70,21 @@ describe('the coupon in the calculation', () => {
     expect(steps.find((step) => step.title === 'Total paid')).toMatchObject({ value: '1,050' })
   })
 
+  it('groups three or more reviews in a row with the same result, and keeps a catch-up, a change and the last on their own', () => {
+    const steps = redemptionSteps(product(), redemptionOutcome(product(), neverCalled, { initial: 100, final: 90 }))
+    expect(steps.filter((step) => step.title.startsWith('Coupon')).map(({ title }) => title)).toEqual([
+      'Coupon on review 1 of 12, month 1', 'Coupons on reviews 2–4 of 12, months 2–4', 'Coupon on review 5 of 12, month 5', 'Coupon on review 6 of 12, month 6',
+      'Coupon on review 7 of 12, month 7', 'Coupons on reviews 8–10 of 12, months 8–10', 'Coupon on review 11 of 12, month 11', 'Coupon on review 12 of 12, month 12',
+    ])
+    expect(steps.find((step) => step.title.startsWith('Coupons on reviews 2–4'))).toMatchObject({ how: 'Each level is below the coupon barrier, 70% × initial level = 70, so their coupons are remembered: 3 coupons unpaid; the review table shows each review', value: '0', muted: true })
+    expect(steps.find((step) => step.title.startsWith('Coupons on reviews 8–10'))).toMatchObject({ how: 'Each level is at or above the coupon barrier, 70% × initial level = 70: 3 × 1,000 × 12% × 1/12 = 30; the review table shows each review', value: '30' })
+    // The call reviews group on their own, placed at the month of their first review.
+    expect(steps.filter((step) => step.concept === 'trigger').map(({ title }) => title)).toEqual(['Reviews 1–7 of 9, months 4–10', 'Review 8 of 9, month 11'])
+    expect(steps.findIndex((step) => step.title.startsWith('Reviews 1–7'))).toBe(steps.findIndex((step) => step.title.startsWith('Coupons on reviews 2–4')) + 1)
+    const withoutMemory = redemptionSteps(product({ memory: false }), redemptionOutcome(product({ memory: false }), neverCalled, { initial: 100, final: 90 }))
+    expect(withoutMemory.find((step) => step.title.startsWith('Coupons on reviews 2–4'))?.how).toBe('Each level is below the coupon barrier, 70% × initial level = 70, so their coupons are missed and not paid later; the review table shows each review')
+  })
+
   it('gives an annualised return that reads when each payment was made', () => {
     const steps = redemptionSteps(product(), redemptionOutcome(product(), called, { initial: 100, final: 90 }))
     expect(steps.find((step) => step.title === 'Annualised return')).toMatchObject({ how: 'The rate a year at which the 3 payments over 5 months, each discounted from its month, add up to 1,000', value: '12.63% a year', concept: 'coupon' })

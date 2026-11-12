@@ -170,9 +170,10 @@ describe('what a call says and does', () => {
     expect(steps.some(({ title, heading }) => title === 'Annualised return' || heading)).toBe(false)
   })
 
-  it('shows every review before the last, then that it runs to maturity, when it is not called', () => {
+  it('groups the reviews that did not call, keeps the last on its own, then says it runs to maturity', () => {
     const steps = redemptionSteps(callable, redemptionOutcome(callable, Array(11).fill(90), levels))
-    expect(steps).toHaveLength(12)
+    expect(steps.map(({ title }) => title)).toEqual(['Reviews 1–10 of 12', 'Review 11 of 12', 'Redemption'])
+    expect(steps[0]).toMatchObject({ how: 'Each level is below the trigger, 100% × initial level = 100; the review table shows each review', value: 'Not called', muted: true, concept: 'trigger' })
     expect(steps.at(-1)).toMatchObject({ title: 'Redemption', value: 'At maturity' })
   })
 })
@@ -202,9 +203,10 @@ describe('a trigger that steps down, a call amount for each year and a call on t
   it('shows the trigger of each review and the call amount for the years elapsed', () => {
     const outcome = redemptionOutcome(stepped, [90, 80, 85, 70, 60], { initial: 100, final: 100 })
     const steps = redemptionSteps(stepped, outcome)
-    expect(steps.map(({ value }) => value)).toEqual(['Not called', 'Not called', 'Not called', 'Not called', 'Not called', 'Called', '1,300', '9.14% a year', ''])
-    expect(steps[1].how).toBe('80 is below the trigger, 95% × initial level = 95')
-    expect(steps[6].how).toBe('Called on review 6, after 36 months: principal × (1 + 10% a year × 3 years = 30%)')
+    expect(steps.map(({ value }) => value)).toEqual(['Not called', 'Called', '1,300', '9.14% a year', ''])
+    expect(steps[0]).toMatchObject({ title: 'Reviews 1–5 of 6', how: 'Each level is below its trigger, from 100 to 80; the review table shows each review' })
+    expect(steps[1].how).toBe('100 is at or above the trigger, 75% × initial level = 75')
+    expect(steps[2].how).toBe('Called on review 6, after 36 months: principal × (1 + 10% a year × 3 years = 30%)')
   })
 
   it('explains a call on the final review', () => {

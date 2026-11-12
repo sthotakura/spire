@@ -55,10 +55,10 @@ describe('a fixed coupon in the calculation', () => {
     ])
   })
 
-  it('lists every coupon of a bullet note, which reads no level', () => {
+  it('groups the coupons of a bullet note, which reads no level, and keeps the last on its own', () => {
     const steps = redemptionSteps(bullet, redemptionOutcome(bullet, [], { initial: 100, final: 90 }))
-    expect(steps).toHaveLength(12)
-    expect(steps.every((step) => step.value === '5')).toBe(true)
+    expect(steps.map(({ title, value }) => [title, value])).toEqual([['Coupons on reviews 1–11 of 12, months 1–11', '55'], ['Coupon on review 12 of 12, month 12', '5']])
+    expect(steps[0].how).toBe('Fixed, paid whatever the level: 11 × 1,000 × 6% × 1/12 = 55')
   })
 
   it('shows the working in the review table', () => {
