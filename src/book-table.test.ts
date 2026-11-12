@@ -7,7 +7,7 @@ const plain = (text: string) => text
 describe('book tables', () => {
   it('renders a header, a separator and body rows, with each column aligned as the separator says', () => {
     const html = renderTable(['| Scenario | Payment |', '| :--- | ---: |', '| Called | 1,080 |', '| Not called | 1,000 |'], plain)
-    expect(html).toBe('<div class="book-table-wrap"><table><thead><tr><th class="left">Scenario</th><th class="right">Payment</th></tr></thead><tbody><tr><td class="left">Called</td><td class="right">1,080</td></tr><tr><td class="left">Not called</td><td class="right">1,000</td></tr></tbody></table></div>')
+    expect(html).toBe('<div class="book-table-wrap" tabindex="0"><table><thead><tr><th class="left">Scenario</th><th class="right">Payment</th></tr></thead><tbody><tr><td class="left">Called</td><td class="right">1,080</td></tr><tr><td class="left">Not called</td><td class="right">1,000</td></tr></tbody></table></div>')
   })
 
   it('applies inline formatting to each cell', () => {

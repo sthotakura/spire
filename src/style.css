@@ -62,6 +62,7 @@
 .calc-steps li.heading{display:block;margin-top:10px;padding:10px 6px 4px;border-top:1px solid #dce4ee;border-radius:0}.calc-steps li.heading b{display:block;font-size:13px;color:#44506a;text-transform:none}.calc-steps li.heading .calc-how{display:block;font-size:12.5px;color:#66758b;margin-top:2px}
 .hint-field.unused .field-heading label,.hint-field.unused .observed-heading{color:#8794a8;font-weight:600}.hint-field.unused input,.hint-field.unused .table-wrap,.hint-field.unused .observed-levels{opacity:.55}
 .book-table-wrap{overflow-x:auto;margin:18px 0}
+.table-wrap:focus-visible,.book-table-wrap:focus-visible{outline:2px solid #2a70c9;outline-offset:2px}
 .book-article table{width:100%;border-collapse:collapse;font-size:15px}
 .book-article th,.book-article td{padding:10px 12px;border-bottom:1px solid #edf1f6;color:#42536d;line-height:1.5;vertical-align:top}
 .book-article th{border-bottom:2px solid #dce4ee;color:#17243a;font-weight:650}

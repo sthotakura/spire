@@ -14,5 +14,5 @@ export function renderTable(rows: string[], inline: (text: string) => string): s
   if (alignments.some((alignment) => alignment === null) || alignments.length !== head.length) return null
   const cell = (tag: 'th' | 'td', text: string, index: number) => `<${tag} class="${alignments[index]}">${inline(text)}</${tag}>`
   const row = (tag: 'th' | 'td', values: string[]) => `<tr>${head.map((_, index) => cell(tag, values[index] ?? '', index)).join('')}</tr>`
-  return `<div class="book-table-wrap"><table><thead>${row('th', head)}</thead><tbody>${body.map((values) => row('td', values)).join('')}</tbody></table></div>`
+  return `<div class="book-table-wrap" tabindex="0"><table><thead>${row('th', head)}</thead><tbody>${body.map((values) => row('td', values)).join('')}</tbody></table></div>`
 }
