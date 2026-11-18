@@ -101,18 +101,26 @@ export function marketingNames(note: Product): MarketingName[] {
     })
   }
 
-  // Without protection, a buffer, a barrier (on either direction) or a cap. A value that is present but invalid is not absent, so a draft with one gets no name here.
-  // These names describe notes, so a deposit gets none of them. They describe a note that only follows the underlier to maturity,
-  // so a call or a coupon rules them out.
+  // Without protection, a buffer or a barrier (on either direction), and without a cap except for Outperformance. A value that is present
+  // but invalid is not absent, so a draft with one gets no name here. These names describe notes, so a deposit gets none of them. They
+  // describe a note that only follows the underlier to maturity, so a call or a coupon rules them out. Outperformance allows a cap
+  // because the SSPA map's glossary lists capped participation as an additional feature that can be added to a product type, not a type of its own.
   const unprotected = protection === undefined || protection === 0
-  if (note.wrapper === 'note' && note.redemption.kind === 'bullet' && note.coupon === undefined && note.payoff.digitalReturn === undefined && unprotected && buffer === undefined && barrier === undefined && upsideBarrier === undefined && cap === undefined && isRate(upside) && (downside === undefined || isRate(downside))) {
-    if (downside === 1 && upside === 1) {
+  if (note.wrapper === 'note' && note.redemption.kind === 'bullet' && note.coupon === undefined && note.payoff.digitalReturn === undefined && unprotected && buffer === undefined && barrier === undefined && upsideBarrier === undefined && (cap === undefined || hasCap) && isRate(upside) && (downside === undefined || isRate(downside))) {
+    if (downside === 1 && upside === 1 && cap === undefined) {
       names.push({ name: 'Tracker', vocabulary: 'SSPA', reason: 'Participation is one for one, up and down: a rate of 100% in each direction.', concepts: ['upside', 'downside'] })
       // The same payoff under the name in the titles of public notes. Seller usage, and the filings read do not define it, so the reason gives the general meaning of delta.
       names.push({ name: 'Delta One', vocabulary: 'Market usage', reason: 'Participation is one for one, up and down: a rate of 100% in each direction. The name refers to delta, the change in an instrument’s value for each unit change in its underlier, and a delta of one means one for one. The name is in the titles of public notes, not a regulator’s or the Swiss taxonomy’s, and those notes often state an adjustment factor as well, which scales the payment’s move without changing the title.', concepts: ['upside', 'downside'] })
     } else if (downside === 1 && upside > 1) {
-      names.push({ name: 'Outperformance', vocabulary: 'SSPA', reason: 'Participation is more than one for one on a rise and one for one on a fall.', concepts: ['upside', 'downside'] })
-    } else {
+      names.push({
+        name: 'Outperformance',
+        vocabulary: 'SSPA',
+        reason: cap === undefined
+          ? 'Participation is more than one for one on a rise and one for one on a fall.'
+          : `Participation is more than one for one on a rise, up to the ${percentText(cap)} cap, and one for one on a fall. The Swiss taxonomy describes the Outperformance Certificate without a cap, and lists a cap as an additional feature that can be added to a product type.`,
+        concepts: cap === undefined ? ['upside', 'downside'] : ['upside', 'cap', 'downside'],
+      })
+    } else if (cap === undefined) {
       names.push({
         name: 'Participation note',
         vocabulary: 'SSPA',

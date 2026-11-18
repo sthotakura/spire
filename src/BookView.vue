@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { headingId, searchBook, sectionsOf } from './book-search'
 import { renderTable } from './book-table'
@@ -26,6 +26,13 @@ const chapterPath = (slug: string) => `/book/${slug}`
 const samplePath = (slug: string) => ({ path: '/', query: { example: slug } })
 const selectedChapter = computed(() => chapters.find(chapter => chapter.slug === selectedSlug.value)!)
 const selectedIndex = computed(() => chapters.indexOf(selectedChapter.value))
+
+// On a narrow screen the contents sit above the chapter, so they start folded and fold again when a chapter opens,
+// and a link to a chapter shows the chapter first. On a wide screen they sit beside it and stay open.
+const narrowScreen = window.matchMedia('(max-width: 760px)')
+const contentsOpen = ref(!narrowScreen.matches)
+const fitContents = () => { contentsOpen.value = !narrowScreen.matches }
+watch(selectedSlug, () => { if (narrowScreen.matches) contentsOpen.value = false })
 
 const escapeHtml = (value: string) => value
   .replaceAll('&', '&amp;')
@@ -77,7 +84,7 @@ const renderMarkdown = (source: string) => {
     if (!code && image) {
       flushParagraph(); flushList()
       const url = imageUrls[`../docs/book/${image[2]}`]
-      if (url) output.push(`<figure class="book-figure"><img src="${url}" alt="${escapeHtml(image[1])}"><figcaption>${inlineMarkdown(image[1])}</figcaption></figure>`)
+      if (url) output.push(`<figure class="book-figure"><div class="book-figure-scroll"><img src="${url}" alt="${escapeHtml(image[1])}"></div><figcaption>${inlineMarkdown(image[1])}</figcaption></figure>`)
     } else if (/^```/.test(line.trim())) {
       flushParagraph(); flushList()
       if (code) flushCode(); else code = []
@@ -139,8 +146,14 @@ const focusSearch = (event: KeyboardEvent) => {
   event.preventDefault()
   searchBox.value?.focus()
 }
-onMounted(() => window.addEventListener('keydown', focusSearch))
-onBeforeUnmount(() => window.removeEventListener('keydown', focusSearch))
+onMounted(() => {
+  window.addEventListener('keydown', focusSearch)
+  narrowScreen.addEventListener('change', fitContents)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', focusSearch)
+  narrowScreen.removeEventListener('change', fitContents)
+})
 </script>
 
 <template>
@@ -159,12 +172,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', focusSearch))
           </li>
           <li v-if="!hits.length" class="book-no-results">Nothing in the book matches “{{ query.trim() }}”.</li>
         </ul>
-        <template v-else>
+        <details v-else class="book-contents" :open="contentsOpen" @toggle="contentsOpen = ($event.target as HTMLDetailsElement).open">
+        <summary>Contents <span>· {{ selectedIndex + 1 }} of {{ chapters.length }}</span></summary>
         <h2>Contents</h2>
         <RouterLink v-for="(chapter, index) in chapters" :key="chapter.slug" :to="chapterPath(chapter.slug)" :class="{ active: chapter.slug === selectedSlug }" :aria-current="chapter.slug === selectedSlug ? 'page' : undefined">
           {{ index + 1 }}. {{ chapter.title }}
         </RouterLink>
-        </template>
+        </details>
       </aside>
       <div>
         <article class="book-article" v-html="renderedChapter" @click="followChapterLink" />

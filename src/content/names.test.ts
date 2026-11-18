@@ -100,8 +100,16 @@ describe('marketing names', () => {
     expect(namesOf({ participations: [up(1.5)], cap: 0.2 })).toEqual(['Capped participation', 'Leveraged participation note', 'PLUS', 'Accelerated return note', 'Return enhanced note'])
   })
 
-  it('does not call a capped or protected note a tracker or outperformance', () => {
-    expect(namesOf({ participations: [up(1.5), down(1)], cap: 0.2 })).toEqual(['Capped participation', 'Leveraged participation note', 'PLUS', 'Accelerated return note', 'Return enhanced note'])
+  it('calls a capped leveraged note outperformance, and names the cap in the reason', () => {
+    expect(namesOf({ participations: [up(1.5), down(1)], cap: 0.2 })).toEqual(['Outperformance', 'Capped participation', 'Leveraged participation note', 'PLUS', 'Accelerated return note', 'Return enhanced note'])
+    const [outperformance] = marketingNames(noteWith({ participations: [up(1.5), down(1)], cap: 0.2 }))
+    expect(outperformance.reason).toContain('up to the 20% cap')
+    expect(outperformance.concepts).toEqual(['upside', 'cap', 'downside'])
+  })
+
+  it('does not call a capped or protected note a tracker or participation note', () => {
+    expect(namesOf({ participations: [up(1), down(1)], cap: 0.2 })).toEqual(['Capped participation'])
+    expect(namesOf({ participations: [up(0.8), down(1)], cap: 0.2 })).toEqual(['Capped participation'])
     expect(namesOf({ participations: [up(1), down(1)], principalProtection: 0.9 })).toEqual(['Partially principal-protected note'])
     expect(namesOf({ participations: [up(0.8), down(1)], principalProtection: 0.9 })).toEqual(['Partially principal-protected note'])
   })

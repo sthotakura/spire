@@ -4,6 +4,8 @@ This is a proposal for review, not yet built. It answers the open question in [u
 
 SPIRe models how a product is structured, so the only dates it models are those on which something is observed. Dates that belong to issuing and settling the note, such as the issue date, the interest payment dates and the maturity date, are left out ([term.md](term.md)).
 
+**Decision (2026-11-18):** calendar observation dates belong to the issuance model, not to SPIRe's product model. The product keeps the shape of a schedule, because payments depend on it: final-date or daily observation, the number of averaging and lookback dates, and the frequency and first month of reviews, counted in months from the start of the term. Calendar dates, business-day rules and postponement stay out. The date-by-date proposals below are kept as research, not as a plan.
+
 **Status:** slice 1 (reviews and autocall without coupons) is built ([PLAN.md](../PLAN.md), section 33). The placement proposal in the first version of this document is superseded where noted. Later slices are not built.
 
 ## Established concepts

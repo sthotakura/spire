@@ -71,6 +71,10 @@ note” and “return enhanced note”, whose filings lose principal one for one
 fall; “buffered PLUS” and “buffered return enhanced note” with a buffer; “trigger
 PLUS”, “accelerated barrier note” and “enhanced return note” with a barrier. Beside
 a fixed return at a 100% barrier it is a “leveraged market-linked step up note”.
+With a fall followed one for one, and no protection, buffer or barrier, it is what
+the Swiss taxonomy calls an outperformance certificate. This reference shows that
+name whether or not the rise is capped, since the taxonomy treats a cap as a
+feature added to a product type rather than a type of its own.
 These are the issuers’ titles, and
 filings under one title can differ. An autocall whose call amount is a
 rate for each year elapsed, so that each review it is not called adds to what the
