@@ -145,6 +145,6 @@ The second column leaves the floor at 120, the third at about 113.33. From 120 u
 
 ## Open questions
 
-1. **BofA's other note.** The S&P 500 Futures note ([digital-return.md](digital-return.md), source 5) says "the greater of" 150% of the return and $1,300 on its cover, which is the initial-level form, but its table ($1,450 at 140, $1,750 at 160) is exactly the digital-return form at a threshold of 130. The reference could now write either, so the contradiction is easier to see, but this does not settle it. It stays out of the samples.
+1. **BofA's other note.** *Settled:* the S&P 500 Futures note ([digital-return.md](digital-return.md), source 5) pays the initial-level form its cover and formula state. Its final table ($1,450 at 140, $1,750 at 160) looked like the digital-return form at a threshold of 130, but both preliminary supplements print the greater-of amounts ($1,600 at 140, $1,900 at 160), and the final table is those amounts moved down one row. It is not evidence for the form this proposal adds.
 2. **A second tier.** Participation at one rate from the initial level and a higher rate above a level, one reading of "additional upside" in [feature-map.md](feature-map.md), is not covered. No public note was found.
 3. **A strike away from the initial level.** The Swiss certificate's 95% strike ([certificate.md](certificate.md), open question 3) and outperformance certificates whose participation starts at a strike are not covered. They would need the numeric level this proposal leaves out.

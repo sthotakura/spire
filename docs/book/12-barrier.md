@@ -334,7 +334,10 @@ date, the worst index below 80% is the same test as any one index below 80% of i
 The [Worst-of barrier digital note](https://sthotakura.github.io/spire/?example=worst-of-barrier-digital-note) is the
 first example above, over 36 months. The
 [Worst-of fixed-return barrier note](https://sthotakura.github.io/spire/?example=worst-of-fixed-return-barrier-note) is
-the second, over 13 months. In the builder, a digital return is added from the Add feature menu, and its barrier sits
+the second, over 13 months. The
+[Leveraged barrier digital note](https://sthotakura.github.io/spire/?example=leveraged-barrier-digital-note) takes the
+first example with 150% of a rise, on one index over 60 months, and a 30% digital return from 60%: an end at 160 pays
+1,900, at 120 the digital return's 1,300, and at 59.99 the whole fall, 599.90. In the builder, a digital return is added from the Add feature menu, and its barrier sits
 beneath it in the outline.
 
 The [Autocallable basket note with a buffer and a digital return](https://sthotakura.github.io/spire/?example=autocallable-basket-note-with-buffer-and-digital-return)

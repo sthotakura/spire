@@ -172,6 +172,25 @@ describe('digital return stated to two decimal places', () => {
 describe('the digital return samples taken from public notes', () => {
   const sample = (slug: string) => sampleBySlug(slug)!.product
 
+  // The rows of the BofA preliminary pricing supplement's table, which follow the filing's formula.
+  describe('with 150% of a rise and a 30% digital return from 60%', () => {
+    const note = sample('leveraged-barrier-digital-note')
+    it.each([
+      [160, 1900],
+      [150, 1750],
+      [140, 1600],
+      [130, 1450],
+      [120, 1300],
+      [100, 1300],
+      [60, 1300],
+      [59.99, 599.9],
+      [50, 500],
+      [0, 0],
+    ])('pays at %s of the index: %s', (level, payment) => {
+      expect(paymentBreakdown(note, { initial: 100, final: level }).payment).toBeCloseTo(payment, 8)
+    })
+  })
+
   describe('with a buffer, a basket averaged over five dates and a call after one review', () => {
     const note = sample('autocallable-basket-note-with-buffer-and-digital-return')
     const underlier = note.underlier as BasketUnderlier

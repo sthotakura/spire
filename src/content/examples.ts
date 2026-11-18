@@ -129,6 +129,14 @@ export const sampleGroups: SampleGroup[] = [
         source: { title: 'Citigroup Global Markets enhanced barrier digital plus securities on the worst performing of three indices, due 2025', url: 'https://www.sec.gov/Archives/edgar/data/200245/000095010322019230/dp183917_424b2us2209155.htm', note: 'The filing is a preliminary pricing supplement. The 36 months run from pricing to valuation.' },
         product: product(36, { participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }], digitalReturn: { amount: 0.26, barrier: { level: 0.7, observation: 'final' } } }, { underlier: worstOf('Index A', 'Index B', 'Index C') }),
       },
+      // The filing pays the greater of 150% of the rise and the digital return. Its final table is the preliminary table's amounts
+      // moved down one row, so the sample follows the formula and the preliminary table (docs/digital-return.md, source 5).
+      {
+        slug: 'leveraged-barrier-digital-note',
+        name: 'Leveraged barrier digital note',
+        source: { title: 'BofA Finance digital return plus notes on the S&P 500 Futures Excess Return Index, due 2031', url: 'https://www.sec.gov/Archives/edgar/data/70858/000191870426007286/form424b2.htm', note: 'The 60 months run from pricing to valuation. The filing’s underlier is an index of S&P 500 futures. Its formula pays the greater of 150% of the rise and the 30% digital return; its illustrative table pays less above a 20% rise, but both preliminary supplements print a table that follows the formula, as this does.' },
+        product: product(60, { participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1.5 }], digitalReturn: { amount: 0.3, barrier: { level: 0.6, observation: 'final' } } }),
+      },
       // Above 156% the filing pays the digital return and 150% of the rise beyond it, so the rise is measured from the digital return.
       {
         slug: 'worst-of-digital-note-with-leverage-above-the-digital-return',
