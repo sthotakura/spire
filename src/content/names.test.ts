@@ -668,9 +668,8 @@ describe('the leveraged participation note', () => {
 })
 
 describe('marketing names for the samples', () => {
-  // An amortizing note reads no underlier, and has no generic structured-product name (docs/amortization.md).
-  it('gives every sample at least one name, except an amortizing note', () => {
+  it('gives every sample at least one name', () => {
     const none = sampleProducts.filter(({ product }) => marketingNames(product).length === 0).map(({ name }) => name)
-    expect(none).toEqual(['Level-pay amortizing note'])
+    expect(none).toEqual([])
   })
 })

@@ -409,5 +409,15 @@ function callAndCouponNames(note: Product): MarketingName[] {
     }
   }
 
+  // Amortization: the word in the titles of two public notes, a pricing supplement and a pricing term sheet. No regulator or SSPA name.
+  if (note.wrapper === 'note' && amortizationOf(note.redemption) !== undefined) {
+    names.push({
+      name: 'Amortizing note',
+      vocabulary: 'Market usage',
+      reason: 'Principal is repaid in instalments through the term, not at maturity, and each coupon is interest on the principal still outstanding. Here every instalment is the same amount, which issuers call level-pay. The name is in the titles of public notes, such as level-pay amortizing notes and senior amortizing notes, not a regulator’s or the Swiss taxonomy’s. No payment reads the underlier, so the note is fixed-rate debt and has no Swiss category.',
+      concepts: ['amortization'],
+    })
+  }
+
   return names
 }

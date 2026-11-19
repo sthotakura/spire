@@ -594,7 +594,7 @@ A note that repays its principal in level instalments, each the fixed coupon on 
 - **Model.** An `amortization` mechanism under early redemption, with a schedule and the method `'level-payment'`. It is the only mechanism of its redemption, needs a fixed coupon on the same schedule, has no payoff feature, and is for notes only.
 - **The payment.** Principal × i ÷ (1 − (1 + i)^−n) on each review, unrounded. The Barclays pricing supplement's first and last rows are a test.
 - **Interface.** An Amortizing checkbox under early redemption, which unticks the calls and adds a fixed coupon. No payoff chart; the payments table shows what was outstanding before each review. The summary, the payment rule, the calculation and the outcome describe the instalments, and name no underlier.
-- **Names.** None, and no category.
+- **Names.** Amortizing note, by market usage from both titles read. No category.
 - **Book.** A section in chapter 19, and a sentence in chapter 20.
 - **Sample.** Level-pay amortizing note: the Barclays note's last 120 payments, from the 10,068.58 outstanding after the 60th, since its 180-month term is beyond the limit of 120.
 - **Not done:** amortization beside a call, instalments that are not level, and a short first period.

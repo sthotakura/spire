@@ -68,8 +68,8 @@ describe('an amortizing note in the outcome', () => {
 })
 
 describe('an amortizing note elsewhere', () => {
-  it('gets no name and no category: it reads no underlier', () => {
-    expect(marketingNames(product())).toEqual([])
+  it('is an Amortizing note, by market usage, with no category: it reads no underlier', () => {
+    expect(marketingNames(product()).map(({ name, vocabulary, concepts }) => ({ name, vocabulary, concepts }))).toEqual([{ name: 'Amortizing note', vocabulary: 'Market usage', concepts: ['amortization'] }])
     expect(productCategory(product())).toBeUndefined()
   })
 

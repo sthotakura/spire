@@ -161,7 +161,7 @@ The holder receives 1,037.78: 1,000.00 of principal and 37.78 of interest, 6.14%
 3. **A fixed coupon is required, on the same schedule**, with no payoff feature, on a note, paid in cash. Ticking Amortizing adds a fixed coupon when the product has none.
 4. **No payoff chart.** The chart would be a flat line, so the panel says why there is none, and the calculation and the payments table show the instalments, with what was outstanding before each.
 5. **A sample of the last 120 payments.** The Barclays note's 180-month term is beyond the reference's limit of 120 months, so the Level-pay amortizing note sample starts from the $10,068.58 it has outstanding after 60 payments. At the same rate that pays $100.00 a month for 120 months, and its last rows are the filing's. Its whole schedule is also reproduced in a test. A synthetic example is published with the schema.
-6. **No name or category.** It reads no underlier, so the Swiss taxonomy does not place it.
+6. **An Amortizing note chip, and no category.** The name is market usage, from the titles of both notes read. It reads no underlier, so the Swiss taxonomy does not place it.
 
 ## Decisions left open
 
