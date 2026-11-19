@@ -1,5 +1,5 @@
 import { annualisedReturnOfPayments, type CouponTest, type RedemptionOutcome, type ReviewTest } from '../domain/autocall'
-import { annualisedReturn, autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, couponPerReview, firstReviewMonthOf, issuerCallOf, mechanismReviewCount, mechanismsOf, monthsPerReview, reviewCount, reviewDates, triggerAtReview, type Autocall, type EarlyMechanism, type IssuerCall, type Product, type ReviewDate } from '../domain/note'
+import { annualisedReturn, autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, couponPerReview, firstReviewMonthOf, issuerCallOf, mechanismReviewCount, callsOf, monthsPerReview, reviewCount, reviewDates, triggerAtReview, type Autocall, type CallMechanism, type IssuerCall, type Product, type ReviewDate } from '../domain/note'
 import type { CalculationStep } from './calculation'
 import type { FormulaLine } from './formula'
 
@@ -30,11 +30,11 @@ export function explainRedemption(note: Product, outcome: RedemptionOutcome): st
 // The call rule beside the payment rule. It is tested on each review before the last, and the last review pays the payoff unless it
 // is a call too. A trigger that steps and a call amount for each year say so in the rule.
 export const redemptionFormula = (note: Product): FormulaLine[] => {
-  const mechanisms = mechanismsOf(note.redemption)
+  const mechanisms = callsOf(note.redemption)
   return mechanisms.map((mechanism) => mechanismFormula(mechanism, mechanisms.length === 1 ? 'Call' : mechanism.kind === 'autocall' ? 'Autocall' : 'Issuer call'))
 }
 
-function mechanismFormula(mechanism: EarlyMechanism, lead: string): FormulaLine {
+function mechanismFormula(mechanism: CallMechanism, lead: string): FormulaLine {
   // The reviews start one period in unless the call states a later first review, which the rule then names.
   const first = firstReviewMonthOf(mechanism)
   const from = first > monthsPerReview[mechanism.schedule.frequency] ? ` from month ${first}` : ''
@@ -251,7 +251,7 @@ function couponWorking(note: Product, count: number): string {
 }
 
 // Everything paid over the product's life: the coupons on the reviews before it ended, and the payment on the review it ended on.
-const totalPaidStep = (outcome: RedemptionOutcome): Omit<CalculationStep, 'n'> => ({
+export const totalPaidStep = (outcome: RedemptionOutcome): Omit<CalculationStep, 'n'> => ({
   title: 'Total paid',
   how: `${units(outcome.totalPaid - outcome.payment)} in coupons on earlier coupon reviews + ${units(outcome.payment)}, over ${monthsPhrase(outcome.months)}`,
   value: units(outcome.totalPaid),
@@ -259,9 +259,9 @@ const totalPaidStep = (outcome: RedemptionOutcome): Omit<CalculationStep, 'n'> =
 })
 
 // The return on principal over the product's life, from the total paid: not a return a year, which reads when each payment was made.
-const totalReturn = (note: Product, outcome: RedemptionOutcome) => outcome.totalPaid / note.principalAmount - 1
-const signedTwoDecimalPercent = (fraction: number) => `${fraction < 0 ? '−' : fraction > 0 ? '+' : ''}${twoDecimalPercent(Math.abs(fraction))}`
-const totalReturnStep = (note: Product, outcome: RedemptionOutcome): Omit<CalculationStep, 'n'> => ({
+export const totalReturn = (note: Product, outcome: RedemptionOutcome) => outcome.totalPaid / note.principalAmount - 1
+export const signedTwoDecimalPercent = (fraction: number) => `${fraction < 0 ? '−' : fraction > 0 ? '+' : ''}${twoDecimalPercent(Math.abs(fraction))}`
+export const totalReturnStep = (note: Product, outcome: RedemptionOutcome): Omit<CalculationStep, 'n'> => ({
   title: 'Total return',
   how: `(${units(outcome.totalPaid)} − ${units(note.principalAmount)}) ÷ ${units(note.principalAmount)}, over ${monthsPhrase(outcome.months)}`,
   value: signedTwoDecimalPercent(totalReturn(note, outcome)),
@@ -270,11 +270,11 @@ const totalReturnStep = (note: Product, outcome: RedemptionOutcome): Omit<Calcul
 
 // The return a year over every payment, each read from its month (docs/cash-flow-result.md). With a loss it has a true minus, as the
 // total return does.
-const annualisedOf = (note: Product, outcome: RedemptionOutcome) => {
+export const annualisedOf = (note: Product, outcome: RedemptionOutcome) => {
   const rate = annualisedReturnOfPayments(outcome.payments, note.principalAmount)
   return `${rate < 0 ? '−' : ''}${twoDecimalPercent(Math.abs(rate))} a year`
 }
-const annualisedReturnStep = (note: Product, outcome: RedemptionOutcome): Omit<CalculationStep, 'n'> => ({
+export const annualisedReturnStep = (note: Product, outcome: RedemptionOutcome): Omit<CalculationStep, 'n'> => ({
   title: 'Annualised return',
   how: outcome.payments.length === 1
     ? `(${units(outcome.payment)} ÷ ${units(note.principalAmount)})^(12 ÷ ${monthsPhrase(outcome.months)}) − 1, over the time it lasted`

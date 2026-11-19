@@ -587,6 +587,17 @@ A number the final level is multiplied by before the maturity payoff reads it, o
 - **Sample.** A delta one note on Morgan Stanley No. 1,411, starting at a factor of 100%. That filing's table, at its 99.35%, is a test.
 - **Name.** A Delta One chip beside Tracker, on the same rule.
 
+## 50. Add the amortizing note
+
+A note that repays its principal in level instalments, each the fixed coupon on what is outstanding plus a repayment of principal. The sources, the model and the decisions are in [docs/amortization.md](docs/amortization.md).
+
+- **Model.** An `amortization` mechanism under early redemption, with a schedule and the method `'level-payment'`. It is the only mechanism of its redemption, needs a fixed coupon on the same schedule, has no payoff feature, and is for notes only.
+- **The payment.** Principal × i ÷ (1 − (1 + i)^−n) on each review, unrounded. The Barclays pricing supplement's first and last rows are a test.
+- **Interface.** An Amortizing checkbox under early redemption, which unticks the calls and adds a fixed coupon. No payoff chart; the payments table shows what was outstanding before each review. The summary, the payment rule, the calculation and the outcome describe the instalments, and name no underlier.
+- **Names.** None, and no category.
+- **Book.** A section in chapter 19, and a sentence in chapter 20.
+- **Not done:** a sample (the Barclays term is 180 months, beyond the limit of 120), amortization beside a call, instalments that are not level, and a short first period.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.

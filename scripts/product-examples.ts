@@ -201,4 +201,12 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
       },
     }),
   ],
+  [
+    'a note that repays its principal in level quarterly instalments over a year, with a fixed coupon of 6% a year on what is outstanding',
+    note({ participations: [] }, {
+      term: { months: 12 },
+      redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'amortization', schedule: { frequency: 'quarterly' }, method: 'level-payment' }] },
+      coupon: { schedule: { frequency: 'quarterly' }, rate: 0.06 },
+    }),
+  ],
 ]

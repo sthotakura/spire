@@ -1,6 +1,6 @@
 # Amortization
 
-Recorded, not modelled: option 1 below was agreed on 19 November 2026. An **amortizing** note repays its principal in instalments during the term, not in one amount at the end. Each instalment is part interest, on the principal still outstanding, and part repayment of principal. In the two notes read, the instalments are level: the same total every period, with the interest share falling and the principal share rising. That level payment is what is often called an amortizing coupon. It is not a coupon in this reference's sense, because it repays principal.
+Built on 19 November 2026 as option 3 below, a plain amortizing note, after option 1 had first been agreed. An **amortizing** note repays its principal in instalments during the term, not in one amount at the end. Each instalment is part interest, on the principal still outstanding, and part repayment of principal. In the two notes read, the instalments are level: the same total every period, with the interest share falling and the principal share rising. That level payment is what is often called an amortizing coupon. It is not a coupon in this reference's sense, because it repays principal.
 
 ## What it means
 
@@ -45,24 +45,24 @@ Where amortization does meet a structured product, in the two documents read, is
 
 ## Options
 
-1. **Record it, model nothing (recommended for now).** Keep amortization as an established concept in this document and the feature map. A chapter of the book could explain it as the opposite of bullet redemption. No domain change.
+1. **Record it, model nothing.** Agreed first, then replaced by option 3. Keep amortization as an established concept in this document and the feature map. A chapter of the book could explain it as the opposite of bullet redemption. No domain change.
 2. **Model the Tangible Equity Unit.** The unit would be two products: an amortizing note, with the amortization below, and a prepaid purchase contract, settled by delivery. That needs a unit concept, a level-pay schedule, and the purchase contract's settlement rate as a new payoff. It is the only form read that ties amortization to an underlier, and it is a large increment. The purchase contract needs its own proposal first.
-3. **Model a plain amortizing note.** This would reproduce the Barclays schedule, but it is not a structured product, and the fixed deposit decision argues against it.
+3. **Model a plain amortizing note.** This reproduces the Barclays schedule, though it is not a structured product, and the fixed deposit decision argued against it. Built, so that the reference shows the opposite of bullet repayment and how a coupon depends on what is outstanding.
 
-## The model, if built
+## The model
 
-Agreed on 19 November 2026 as the shape to use, though not built now.
+Agreed on 19 November 2026, and built as described.
 
 ### Where it sits
 
-Amortization is an early redemption mechanism, beside the autocall, the issuer call and the put. Each instalment redeems part of the principal before maturity, which is what the Leonteq prospectus calls being "partially redeemed on partial redemption dates". So early redemption covers principal repaid before the end of the term in part as well as in whole. Agreed on 19 November 2026. In the interface it is an unavailable checkbox in the list of early redemption mechanisms:
+Amortization is an early redemption mechanism, beside the autocall, the issuer call and the put. Each instalment redeems part of the principal before maturity, which is what the Leonteq prospectus calls being "partially redeemed on partial redemption dates". So early redemption covers principal repaid before the end of the term in part as well as in whole. Agreed on 19 November 2026. In the interface it is a checkbox in the list of early redemption mechanisms:
 
 ```text
 Redemption       [ Early redemption ▾ ]
                    ☐ Autocallable
                    ☐ Issuer callable
                    ☐ Puttable (unavailable)
-                   ☐ Amortizing (unavailable)
+                   ☐ Amortizing
 ```
 
 The mechanisms combine, and the sources show amortization alongside a mechanism that ends the product. The Barclays note amortizes and can be redeemed at the company's option. Novanta's holders can require a repurchase at the outstanding principal plus accrued interest. A note that amortizes and cannot be called is an early redemption with amortization as its only mechanism.
@@ -123,10 +123,10 @@ The example product for `scripts/product-examples.ts` is the synthetic note belo
 
 ### What the shape shows
 
-- **Rule 3 is the reason for option 1.** Even inside the product type, a level-pay note is fixed-rate debt. The underlier would still be required, and only an autocall could read it. The schema would accept a structure that the sources read show only beside a structured product, never within one.
-- **Neither source is reproduced exactly.** Barclays states the $100 payment, and its rate is derived from it. This type derives the payment from the rate, which gives Barclays' $100.00 to the cent. Novanta's short first period cannot be expressed, because the reference has no broken periods.
+- **Rule 3 is why option 1 was first agreed.** Even inside the product type, a level-pay note is fixed-rate debt. The underlier would still be required, and only an autocall could read it. The schema would accept a structure that the sources read show only beside a structured product, never within one.
+- **Neither source is a sample.** Barclays states the $100 payment, and its rate is derived from it. This type derives the payment from the rate, which gives Barclays' $100.00 to the cent, and a test reproduces its first and last rows. But its 180-month term is beyond the reference's 120. Novanta's short first period cannot be expressed, because the reference has no broken periods.
 
-## The rule, if built
+## The rule
 
 Write `P` for the initial principal, `A` for the level payment, `i` for the rate a year × months per period ÷ 12, and `n` for the number of periods. Before payment `r`:
 
@@ -139,22 +139,29 @@ A               = P × i / (1 − (1 + i)^−n)
 
 With Barclays' terms, $13,900 × 0.299359% / (1 − 1.00299359^−180) is $100.00 to the cent. A short first period, as in the Novanta note, gives a different first payment. Its schedule can't be derived from this formula alone.
 
+Amounts are not rounded; only what is shown is. The Barclays table agrees to the cent with an unrounded schedule: its last four rows are $397.02, $298.21, $199.11 and $99.70 outstanding, as an unrounded schedule gives. A schedule rounded to the cent on each row drifts to $396.95 by then. The last review repays what is outstanding, which differs from the level payment only by floating point.
+
 ### Synthetic worked example
 
-A note of 1,000 at 6% a year, quarterly over 12 months, so `i` is 1.5% and the level payment is 259.44. The last payment repays the outstanding principal, so rounding makes it 259.45.
+A note of 1,000 at 6% a year, quarterly over 12 months, so `i` is 1.5% and the level payment is 259.44 (259.4448).
 
 | Quarter | Outstanding before | Interest | Principal | Paid | Outstanding after |
 | ---: | ---: | ---: | ---: | ---: | ---: |
 | 1 | 1,000.00 | 15.00 | 244.44 | 259.44 | 755.56 |
-| 2 | 755.56 | 11.33 | 248.11 | 259.44 | 507.45 |
-| 3 | 507.45 | 7.61 | 251.83 | 259.44 | 255.62 |
-| 4 | 255.62 | 3.83 | 255.62 | 259.45 | 0.00 |
+| 2 | 755.56 | 11.33 | 248.11 | 259.44 | 507.44 |
+| 3 | 507.44 | 7.61 | 251.83 | 259.44 | 255.61 |
+| 4 | 255.61 | 3.83 | 255.61 | 259.44 | 0.00 |
 
-The holder receives 1,037.77: 1,000.00 of principal and 37.77 of interest. A bullet note with a 6% fixed coupon pays 60.00 of interest over the same year, because the whole principal stays outstanding.
+The holder receives 1,037.78: 1,000.00 of principal and 37.78 of interest, 6.14% a year, the coupon rate compounded quarterly. A bullet note with a 6% fixed coupon pays 60.00 of interest over the same year, because the whole principal stays outstanding.
 
 ## Decisions agreed
 
-1. **Option 1.** Amortization is recorded here and in the feature map, and is not modelled. A plain amortizing note is not a structured product, and the one structured form read, the Tangible Equity Unit, needs a unit concept and a purchase contract proposal first.
+1. **Option 1, then option 3.** Amortization was first recorded and not modelled, since a plain amortizing note is not a structured product. On 19 November 2026 option 3 was agreed instead: the plain amortizing note is built, under early redemption, as the only mechanism of its redemption.
+2. **No call beside it in the first pass.** Whether a call amount after some instalments is a fraction of the original or the outstanding principal is unsourced.
+3. **A fixed coupon is required, on the same schedule**, with no payoff feature, on a note, paid in cash. Ticking Amortizing adds a fixed coupon when the product has none.
+4. **No payoff chart.** The chart would be a flat line, so the panel says why there is none, and the calculation and the payments table show the instalments, with what was outstanding before each.
+5. **No sample.** The Barclays note's 180-month term is beyond the reference's limit of 120 months. Its schedule is reproduced in a test instead. A synthetic example is published with the schema.
+6. **No name or category.** It reads no underlier, so the Swiss taxonomy does not place it.
 
 ## Decisions left open
 

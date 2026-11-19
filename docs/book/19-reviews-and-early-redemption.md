@@ -147,6 +147,39 @@ A synthetic note with principal of 1,000, a term of 12 months, an initial level 
 
 An issuer call is not available with a barrier observed on every close or with barrier absolute return, for the reason an autocall is not: a called product ends before the observation period does. Lookback is allowed, since nothing is read on the reviews. Averaging is allowed, and the final level is read only if the issuer does not call.
 
+## Amortization
+
+An **amortizing** note repays its principal in parts during its term, not in one amount at the end. Each part is an **instalment**: interest on the principal still outstanding, for the period that ends on the review, and a repayment of principal with the rest. The principal still owed after an instalment is the **outstanding principal**, and the next coupon is measured on it, so the coupons fall as the principal is repaid. The reference lists amortization under early redemption because each instalment repays part of the principal before maturity. Unlike a call, it ends nothing: the note runs to the end of its term.
+
+The reference models a **level payment**, in which every instalment is the same amount. Interest takes less of each one as the principal falls, and principal more, so that nothing is outstanding after the last. The instalment is
+
+```text
+Instalment = Principal × i ÷ (1 − (1 + i)^−n)
+```
+
+where i is the coupon rate a year × the months between reviews ÷ 12, and n is the number of reviews. Each review's coupon is the outstanding principal × i, and the principal it repays is the instalment less that coupon.
+
+Two public notes show the shape. A Barclays note pays "an amount per Note of US$100 payable on each Payment Date", made up of an interest component, "the Effective Interest Rate times the Outstanding Principal Amount times the applicable Day Count Fraction", and a principal component, "$100 minus the Interest Component Amount". Its 180 monthly payments of $100.00 repay $13,900 at 3.59231% a year: the first is $41.61 of interest and $58.39 of principal, and the last $0.30 and $99.70, which leaves nothing ([Barclays Bank PLC, pricing supplement](https://www.sec.gov/Archives/edgar/data/0000312070/000119312510201959/d424b2.htm)). The amortizing note in a Novanta tangible equity unit pays quarterly installments of $0.8125, each "a payment of interest (at a rate of 6.30% per annum) and a partial repayment of principal" on its $8.74 ([Novanta Inc., pricing term sheet](https://www.sec.gov/Archives/edgar/data/1076930/000119312525270993/d23003dfwp.htm)). Neither note reads an underlier. The Novanta unit's link to its share price is a separate purchase contract.
+
+### An example
+
+A synthetic note with principal of 1,000, a term of 12 months and a fixed coupon of 6% a year, amortized quarterly. The rate a review is 6% × 3 ÷ 12 = 1.5%, and the instalment is 1,000 × 1.5% ÷ (1 − 1.015^−4) = 259.44.
+
+| Month | Outstanding before | Coupon | Principal | Paid | Outstanding after |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 3 | 1,000.00 | 15.00 | 244.44 | 259.44 | 755.56 |
+| 6 | 755.56 | 11.33 | 248.11 | 259.44 | 507.44 |
+| 9 | 507.44 | 7.61 | 251.83 | 259.44 | 255.61 |
+| 12 | 255.61 | 3.83 | 255.61 | 259.44 | 0.00 |
+
+It pays 1,037.78 in all: 1,000 of principal and 37.78 in coupons. That is a total return of 3.78%, and 6.14% a year, which is the coupon rate compounded quarterly, 1.015^4 − 1. A bullet note with the same fixed coupon pays 60 in coupons over the year, because its whole principal stays outstanding. The final level changes nothing: every amount above is the same whatever the underlier does.
+
+### What it combines with
+
+Amortization needs a fixed coupon on the same reviews, since each instalment pays that coupon. It cannot be combined with a payoff feature, because nothing is outstanding at maturity for one to apply to, and it is available on notes only, since a deposit is repaid in full at the end of its term. In this reference it is the only mechanism of its redemption: the Barclays note can also be redeemed at its issuer's option, but its call terms were not in the filing read, so whether a call after some instalments pays a call amount on the original or the outstanding principal is open.
+
+Because no payment reads the underlier, an amortizing note on its own is fixed-rate debt, not a structured product. The reference includes it to show the opposite of bullet repayment, and how a coupon depends on what is outstanding.
+
 ## Underliers and other features
 
 - **A basket** is read as its basket level. For a worst-of basket that is the worst performing asset's level, so one asset below the trigger holds the call back. The reader states the level of each asset on each review, and the basket level is worked out from them by the basket's rule.
@@ -193,10 +226,11 @@ public notes they are modelled on:
 - The trigger moves by the same step on each review. Public notes list a threshold for each date, which can step by uneven amounts.
 - A final review that is a call is tested on the final level the payoff reads.
 - Postponement for market disruptions is not modelled.
+- Amortization amounts are not rounded. The Barclays schedule agrees to the cent with an unrounded schedule, and drifts from one rounded to the cent on each row.
 
 ## What is not modelled
 
-A trigger that steps by uneven amounts, a premium on an issuer call that a source states, notice periods, and a schedule of payments. Each would be added on top of the reviews described here.
+A trigger that steps by uneven amounts, a premium on an issuer call that a source states, notice periods, and a schedule of payments. Each would be added on top of the reviews described here. For amortization: instalments that are not level, a short first period such as the Novanta note's, amortization beside a call, and terms beyond the reference's 120 months, such as the Barclays note's 180.
 
 ## Related concepts
 

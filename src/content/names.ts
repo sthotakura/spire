@@ -1,4 +1,4 @@
-import { autocallOf, downsideOf, issuerCallOf, upsideOf, type Product } from '../domain/note'
+import { amortizationOf, autocallOf, downsideOf, issuerCallOf, upsideOf, type Product } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface MarketingName {
@@ -24,6 +24,8 @@ export function productCategory(note: Product): ProductCategory | undefined {
   const downside = downsideOf(note)?.rate
 
   if (protection !== undefined && Number.isFinite(protection) && protection > 0) return 'Capital Protection'
+  // An amortizing note reads no underlier: it is fixed-rate debt, which the Swiss taxonomy does not place (docs/amortization.md).
+  if (amortizationOf(note.redemption) !== undefined) return undefined
   if (note.wrapper === 'deposit' && isRate(upside)) return 'Capital Protection'
   // A coupon in place of upside, fixed or contingent, as in the Swiss Express and reverse convertible types, with or without a call.
   if (note.wrapper === 'note' && note.coupon !== undefined && upside === undefined) return 'Yield Enhancement'

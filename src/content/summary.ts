@@ -1,4 +1,5 @@
-import { autocallOf, issuerCallOf, downsideOf, firstReviewMonthOf, monthsPerReview, upsideOf, type EarlyMechanism, type Product } from '../domain/note'
+import { amortizationSummary } from './amortization'
+import { amortizationOf, autocallOf, issuerCallOf, downsideOf, firstReviewMonthOf, monthsPerReview, upsideOf, type CallMechanism, type Product } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface SummarySegment {
@@ -44,6 +45,8 @@ function termPhrase(months: number): { article: string; text: string } {
 }
 
 export function summarize(note: Product): SummarySegment[] {
+  // An amortizing note's payments read no level, so its sentence names no underlier or payoff.
+  if (amortizationOf(note.redemption) !== undefined) return amortizationSummary(note, termPhrase(note.term.months))
   const upside = note.payoff.participations.find(({ direction }) => direction === 'upside')
   const downside = note.payoff.participations.find(({ direction }) => direction === 'downside')
   const underlier = underlierPhrase(note)
@@ -119,13 +122,13 @@ export function summarize(note: Product): SummarySegment[] {
   // initial level of what the payoff reads, so the underlier is named again. An issuer call says when the issuer may call, with no level.
   const redemption: SummarySegment[] = (() => {
     if (note.redemption.kind === 'bullet') return [{ text: ' that redeems ' }, { text: 'at maturity', concept: 'redemption' }]
-    const reviewing = (terms: EarlyMechanism): SummarySegment[] => [
+    const reviewing = (terms: CallMechanism): SummarySegment[] => [
       { text: ' on any ' },
       { text: terms.schedule?.frequency ?? 'monthly', concept: terms.kind === 'issuer-call' ? 'issuer-schedule' : 'schedule' },
       { text: ' review' },
       ...(firstReviewMonthOf(terms) > monthsPerReview[terms.schedule.frequency] ? [{ text: ` from month ${firstReviewMonthOf(terms)}`, concept: terms.kind === 'issuer-call' ? 'issuer-first-review' as const : 'first-review' as const }] : []),
     ]
-    const paying = (terms: EarlyMechanism): SummarySegment[] => [
+    const paying = (terms: CallMechanism): SummarySegment[] => [
       { text: ', ' },
       { text: terms.callAmount > 0 ? `paying ${weightPercent(terms.callAmount)}${terms.callAmountBasis === 'per-year' ? ' for each year elapsed' : ''} above principal` : 'repaying principal', concept: terms.kind === 'issuer-call' ? 'issuer-call-amount' : 'call-amount' },
       { text: ',' },

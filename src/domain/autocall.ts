@@ -1,3 +1,4 @@
+import { amortizationSchedule, type Instalment } from './amortization'
 import { autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, callReviewMonth, couponPerReview, issuerCallOf, lastCallReview, maturityPayment, mechanismReviewCount, reviewDates, scheduleReviews, triggerAtReview, paymentBreakdown, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
 
 // The level at or above which the final review calls the product, from the determined initial level. Undefined when the final review
@@ -20,6 +21,9 @@ export const couponBarrierLevel = (note: Product, initialLevel: number): number 
 // they are left out. A fixed coupon adds the last coupon at every level. This is the payment the payoff chart draws against the final
 // level. It equals the maturity payment when the final review is not a call and there is no coupon.
 export function paymentAtEnd(note: Product, levels: DeterminedLevels): number {
+  // An amortizing product's last instalment does not depend on the final level.
+  const last = amortizationSchedule(note).at(-1)
+  if (last !== undefined) return last.amount
   const autocall = autocallOf(note.redemption)
   const call = finalCallLevel(note, levels.initial)
   const couponBarrier = couponBarrierLevel(note, levels.initial)
@@ -102,7 +106,10 @@ export interface RedemptionOutcome {
   // Everything the product paid over its life: the coupons on the dates before it ended, and the payment.
   totalPaid: number
   // What it paid and when: each earlier date that paid a coupon, and the date it ended, even if that paid nothing. They add up to totalPaid.
+  // With amortization, each instalment, its principal under redemption.
   payments: Payment[]
+  // The instalments of an amortizing product, which its payments repeat with what was outstanding. Undefined when it does not amortize.
+  instalments?: Instalment[]
 }
 
 // How a product ends in a scenario, and what its coupon pays. `reviewLevels` are the levels of the underlier on each date before the
@@ -136,6 +143,13 @@ export function redemptionOutcome(note: Product, reviewLevels: number[], levels:
   }
   if (reviewLevels.some((level) => !Number.isFinite(level) || level < 0)) throw new Error('Review levels must be zero or greater.')
   if (issuerCallsOnReview !== undefined && issuerCall === undefined) throw new Error('Only an issuer call is called by the issuer.')
+  // An amortizing product reads no level and is not called: it pays its instalments to the end of the term.
+  const instalments = amortizationSchedule(note)
+  if (instalments.length) {
+    const coupons = instalments.map(({ review, month, coupon }): CouponTest => ({ review, month, level: undefined, barrierLevel: undefined, met: true, coupons: 1, paid: coupon, remembered: 0 }))
+    const payments = instalments.map(({ month, coupon, principal, amount }): Payment => ({ month, coupon, redemption: principal, amount }))
+    return { reviews, tests: [], months: note.term.months, payment: payments.at(-1)!.amount, maturity, coupons, totalPaid: payments.reduce((sum, { amount }) => sum + amount, 0), payments, instalments }
+  }
   const levelOn = (index: number) => (index < before ? reviewLevels[index] : levels.final)
 
   const tests: ReviewTest[] = []

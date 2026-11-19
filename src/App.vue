@@ -6,6 +6,7 @@ import { payoffLabels, type PayoffLabelKey } from './content/chart-labels'
 import HintToggle from './components/HintToggle.vue'
 import NumberInput from './components/NumberInput.vue'
 import { couponCell, couponClosingSteps, couponFormula, explainCoupons, explainRedemption, pathScenarios, redemptionFormula, redemptionSteps } from './content/autocall'
+import { amortizationFormula, amortizationInWords, amortizationSteps, explainAmortization } from './content/amortization'
 import { calculationSteps } from './content/calculation'
 import { lineStages, scenarioAside } from './content/path'
 import type { ConceptId } from './content/concepts'
@@ -18,7 +19,7 @@ import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
 import { finalCallLevel, paymentAtEnd, redemptionOutcome } from './domain/autocall'
-import { type Settlement, autocallOf, issuerCallOf, barrierLevelAt, basketBreakdown, deliveryFrom, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, scheduleReviews, type EarlyMechanism, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
+import { type Settlement, amortizationOf, autocallOf, issuerCallOf, barrierLevelAt, basketBreakdown, deliveryFrom, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, scheduleReviews, type CallMechanism, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
@@ -29,7 +30,7 @@ const toggleHint = (hint: string) => { activeHint.value = activeHint.value === h
 const hints = {
   wrapper: 'The legal form sets what the holder owns and who owes the payments. A note is a debt of its issuer, so every payment depends on the issuer’s ability to pay. A deposit is held by a bank and repaid in full at the end of its term. It is usually insured up to a limit; any payment above the limit depends on the bank’s ability to pay.',
   settlement: 'How the product pays where the holder bears a fall. Cash pays the amount. Delivery hands over shares of the underlier, a count fixed when the product is priced: principal × downside rate ÷ initial level, of the worst stock in a worst-of. They are worth the payment on the final date, with any cash the terms add, and the holder then bears their price. A fraction of a share is paid in cash, and an issuer may keep the right to pay cash instead. A coupon, a call and a payment of principal or more are always in cash.',
-  redemption: 'Sets when the product ends and principal is paid back: at scheduled maturity, or earlier if its terms allow a call or a put. Bullet redemption pays once, at maturity.',
+  redemption: 'Sets when the product ends and principal is paid back: at scheduled maturity, earlier if its terms allow a call or a put, or in instalments through the term. Bullet redemption pays once, at maturity.',
   term: 'The length of the product, stated as a duration such as 3 years. Principal is repaid at the end of the term. The issue and maturity dates that put the term on a calendar are set when the product is issued.',
   underlier: 'What the payoff reads: the asset it tracks and how its change is measured, from where it starts. A single underlier tracks one asset. A basket tracks several and combines their changes into one return.',
   schedule: 'How often the product is reviewed through its term. Reviews are evenly spaced and numbered from 1, and the last is the end of the term. The term must hold a whole number of periods. It starts at semi-annual for a term over a year, quarterly from six months to a year, and monthly below that, and follows the term until you choose one. Notes can be reviewed more often, even weekly or daily; this reference offers monthly to annual. Public notes call these dates observation dates or review dates; here they are reviews, to keep them apart from the observations that set the initial and final levels.',
@@ -130,6 +131,8 @@ const redemptionKind = ref<'bullet' | 'early-redemption'>('bullet')
 // The mechanisms of an early redemption. At least one is always ticked, so the list is never empty.
 const autocallTicked = ref(true)
 const issuerTicked = ref(false)
+// Amortization is the only mechanism of its redemption in this reference, so ticking it unticks the calls, and ticking a call unticks it.
+const amortizeTicked = ref(false)
 // The reviews start at a frequency that suits the term, and follow it as the term changes until the reader chooses one.
 const chosenFrequency = ref<ReviewFrequency | null>(null)
 const reviewFrequency = computed<ReviewFrequency>({
@@ -179,8 +182,24 @@ const couponFrequency = computed<ReviewFrequency>({
 })
 // Copies the call's frequency to the coupon once. The two stay separate terms, so changing one later leaves the other.
 const copyCallReviews = () => { beginGesture(); couponFrequency.value = callFrequency.value }
-const autocalled = computed(() => redemptionKind.value === 'early-redemption' && autocallTicked.value)
-const issuerCalled = computed(() => redemptionKind.value === 'early-redemption' && issuerTicked.value)
+const amortized = computed(() => redemptionKind.value === 'early-redemption' && amortizeTicked.value)
+const autocalled = computed(() => redemptionKind.value === 'early-redemption' && autocallTicked.value && !amortizeTicked.value)
+const issuerCalled = computed(() => redemptionKind.value === 'early-redemption' && issuerTicked.value && !amortizeTicked.value)
+// Ticking amortization unticks the calls and, when the product has no coupon, adds a fixed one, whose interest each instalment pays.
+// Unticking it leaves the autocall ticked, so an early redemption always has a mechanism.
+const setAmortizing = (ticked: boolean) => {
+  amortizeTicked.value = ticked
+  if (ticked) {
+    autocallTicked.value = false
+    issuerTicked.value = false
+    if (couponKind.value === 'none') couponKind.value = 'fixed'
+  } else if (!issuerTicked.value) autocallTicked.value = true
+}
+const setCall = (call: 'autocall' | 'issuer', ticked: boolean) => {
+  if (call === 'autocall') autocallTicked.value = ticked
+  else issuerTicked.value = ticked
+  if (ticked) amortizeTicked.value = false
+}
 // Both read the reviews of a schedule: an autocall tests a level on each, and an issuer call is the issuer's choice of one.
 const scheduled = computed(() => autocalled.value || issuerCalled.value)
 // The calls the coupon can copy its reviews from: the autocall's when there is one.
@@ -282,7 +301,7 @@ const observedLevels = ref<number[]>([startingFinalLevel])
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
 const select = (concept: ConceptId) => { selected.value = concept }
-const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', 'adjustment-factor': '#5b8a72', schedule: '#2c8ea3', trigger: '#1f8a70', 'trigger-step': '#7a9a1e', 'call-amount': '#0f766e', 'final-call': '#3d7ea6', 'first-review': '#4d7c9b', autocall: '#1f7a8c', 'issuer-call': '#5c6bc0', 'issuer-schedule': '#5a7fb5', 'issuer-first-review': '#6a78a8', 'issuer-call-amount': '#4f5bab', coupon: '#b5446e', 'coupon-schedule': '#9b4d7a', 'coupon-barrier': '#8a5a00', memory: '#55708a', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', 'minimum-return': '#4338ca', 'digital-return': '#c2255c', 'digital-barrier': '#087f5b', upside: '#2b8a3e', 'measured-from': '#5c7f1a', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa', 'absolute-return': '#d4a017', settlement: '#8d5a3b' }
+const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', 'adjustment-factor': '#5b8a72', schedule: '#2c8ea3', trigger: '#1f8a70', 'trigger-step': '#7a9a1e', 'call-amount': '#0f766e', 'final-call': '#3d7ea6', 'first-review': '#4d7c9b', autocall: '#1f7a8c', 'issuer-call': '#5c6bc0', 'issuer-schedule': '#5a7fb5', 'issuer-first-review': '#6a78a8', 'issuer-call-amount': '#4f5bab', amortization: '#3b7d5c', coupon: '#b5446e', 'coupon-schedule': '#9b4d7a', 'coupon-barrier': '#8a5a00', memory: '#55708a', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', 'minimum-return': '#4338ca', 'digital-return': '#c2255c', 'digital-barrier': '#087f5b', upside: '#2b8a3e', 'measured-from': '#5c7f1a', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa', 'absolute-return': '#d4a017', settlement: '#8d5a3b' }
 const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
@@ -543,10 +562,12 @@ const note = computed<Product>(() => ({
   wrapper: wrapper.value,
   principalAmount: principal.value,
   term: { months: termMonths.value },
-  redemption: scheduled.value
+  redemption: scheduled.value || amortized.value
     ? {
         kind: 'early-redemption',
         mechanisms: [
+          // The instalments are paid on the coupon reviews, so amortization takes the coupon's schedule.
+          ...(amortized.value ? [{ kind: 'amortization' as const, schedule: { frequency: couponFrequency.value }, method: 'level-payment' as const }] : []),
           ...(autocalled.value ? [{
             kind: 'autocall' as const,
             schedule: { frequency: reviewFrequency.value },
@@ -590,8 +611,9 @@ const note = computed<Product>(() => ({
 }))
 const jsonLines = computed(() => structureLines(note.value))
 // With an autocall the payment rule is what is paid at maturity, when the product has not been called.
-const formula = computed(() => [...paymentFormula(note.value).map((line) => scheduled.value && line.lead === 'Payment' ? { ...line, lead: 'At maturity' } : line), ...settlementFormula(note.value), ...couponFormula(note.value), ...redemptionFormula(note.value)])
+const formula = computed(() => amortized.value ? amortizationFormula() : [...paymentFormula(note.value).map((line) => scheduled.value && line.lead === 'Payment' ? { ...line, lead: 'At maturity' } : line), ...settlementFormula(note.value), ...couponFormula(note.value), ...redemptionFormula(note.value)])
 const formulaWords = computed(() => {
+  if (amortized.value) return amortizationInWords()
   const words = paymentInWords(note.value)
   const coupon = !note.value.coupon ? ''
     : note.value.coupon.barrier === undefined ? ' On each coupon review it also pays a fixed coupon, whatever the underlier does.'
@@ -616,7 +638,9 @@ const copyJson = async () => {
 onBeforeUnmount(() => clearTimeout(copyReset))
 const issues = computed(() => productIssues(note.value))
 const errors = computed(() => issues.value.map(({ message }) => message))
-const issuesFor = (...fields: ProductIssueField[]) => issues.value.filter(({ field, mechanism }) => mechanism !== 'issuer-call' && fields.includes(field)).map(({ message }) => message)
+const issuesFor = (...fields: ProductIssueField[]) => issues.value.filter(({ field, mechanism }) => mechanism !== 'issuer-call' && mechanism !== 'amortization' && fields.includes(field)).map(({ message }) => message)
+// Amortization's issues are about what it is combined with, so they are all shown on its row.
+const amortizationIssues = computed(() => issues.value.filter(({ mechanism }) => mechanism === 'amortization').map(({ message }) => message))
 const issuerIssuesFor = (...fields: ProductIssueField[]) => issues.value.filter(({ field, mechanism }) => mechanism === 'issuer-call' && fields.includes(field)).map(({ message }) => message)
 const summary = computed(() => summarize(note.value))
 const names = computed(() => marketingNames(note.value))
@@ -778,6 +802,7 @@ const outcomeSentence = computed(() => {
   if (!breakdown.value) return ''
   const maturity = [explainOutcome(note.value, breakdown.value), explainDelivery(note.value, delivery.value)].filter(Boolean).join(' ')
   if (!redemption.value) return maturity
+  if (amortized.value) return explainAmortization(note.value, redemption.value)
   const early = explainRedemption(note.value, redemption.value)
   const coupons = explainCoupons(note.value, redemption.value)
   return [early, redemption.value.calledAtReview === undefined ? maturity : '', coupons].filter(Boolean).join(' ')
@@ -810,6 +835,8 @@ const calculation = computed(() => {
   if (!b) return []
   const maturity = calculationSteps(note.value, b, observations.value, initialObservations.value, basketMeasure.value ?? undefined)
   if (!redemption.value) return maturity
+  // An amortizing note pays its instalments whatever the underlier does, so it has no payoff steps.
+  if (amortized.value) return amortizationSteps(note.value, redemption.value).map((step, index) => ({ ...step, n: index + 1 }))
   // Reviews come first. When the product was called its payoff steps are what it would have paid at maturity, so they are muted.
   const early = redemptionSteps(note.value, redemption.value)
   const called = redemption.value.calledAtReview !== undefined
@@ -1340,8 +1367,10 @@ function loadProduct(product: Product) {
   const autocall = autocallOf(terms)
   const issuerCall = issuerCallOf(terms)
   redemptionKind.value = terms.kind
-  autocallTicked.value = autocall !== undefined || issuerCall === undefined
+  const amortization = amortizationOf(terms)
+  autocallTicked.value = autocall !== undefined || (issuerCall === undefined && amortization === undefined)
   issuerTicked.value = issuerCall !== undefined
+  amortizeTicked.value = amortization !== undefined
   chosenFrequency.value = autocall?.schedule.frequency ?? null
   chosenIssuerFrequency.value = issuerCall?.schedule.frequency ?? null
   triggerPercent.value = autocall ? percent(autocall.trigger) : 100
@@ -1350,7 +1379,7 @@ function loadProduct(product: Product) {
   callAmountPercent.value = autocall ? percent(autocall.callAmount) : 8
   issuerAmountPercent.value = issuerCall ? percent(issuerCall.callAmount) : 0
   // A first review one period in is where the control starts, so it is left to follow the frequency.
-  const followed = (mechanism: EarlyMechanism | undefined) => (mechanism?.firstReviewMonth === undefined || mechanism.firstReviewMonth === monthsPerReview[mechanism.schedule.frequency] ? null : mechanism.firstReviewMonth)
+  const followed = (mechanism: CallMechanism | undefined) => (mechanism?.firstReviewMonth === undefined || mechanism.firstReviewMonth === monthsPerReview[mechanism.schedule.frequency] ? null : mechanism.firstReviewMonth)
   chosenFirstReviewMonth.value = followed(autocall)
   chosenIssuerFirstReviewMonth.value = followed(issuerCall)
   callAmountBasis.value = autocall?.callAmountBasis ?? 'flat'
@@ -1491,10 +1520,10 @@ const chooseSample = (event: Event) => {
                     <span class="nlabel">Redemption<HintToggle id="redemption" about="redemption" :text="hints.redemption" :active="activeHint === 'redemption'" @toggle="toggleHint('redemption')" /></span>
                     <span class="ctrl pick"><select id="redemption-kind" aria-label="Redemption" :value="redemptionKind" @change="redemptionKind = ($event.target as HTMLSelectElement).value as 'bullet' | 'early-redemption'"><option v-for="option in redemptionOptions" :key="option.id" :value="option.id" :disabled="!option.available || !!redemptionBlockedReason(option.id)">{{ option.label }}{{ !option.available ? ' (unavailable)' : redemptionBlockedReason(option.id) ? ` (${redemptionBlockedReason(option.id)})` : '' }}</option></select></span>
                   </div>
-                  <ul v-if="scheduled">
+                  <ul v-if="redemptionKind === 'early-redemption'">
                     <li :class="['node', { sel: highlighted('autocall') }]" :style="conceptStyle('autocall')">
                       <div class="nrow" @click="select('autocall')" @focusin="focusRow('autocall')">
-                        <span class="nlabel"><label class="mechanism-check"><input id="mechanism-autocall" type="checkbox" :checked="autocallTicked" :disabled="autocallTicked && !issuerTicked" :title="autocallTicked && !issuerTicked ? 'Choose Bullet for no early redemption' : undefined" @click.stop @change="autocallTicked = ($event.target as HTMLInputElement).checked">Autocallable</label><HintToggle id="mechanism-autocall" about="autocallable redemption" :text="hints['mechanism-autocall']" :active="activeHint === 'mechanism-autocall'" @toggle="toggleHint('mechanism-autocall')" /></span>
+                        <span class="nlabel"><label class="mechanism-check"><input id="mechanism-autocall" type="checkbox" :checked="autocalled" :disabled="autocalled && !issuerCalled" :title="autocalled && !issuerCalled ? 'Choose Bullet for no early redemption' : undefined" @click.stop @change="setCall('autocall', ($event.target as HTMLInputElement).checked)">Autocallable</label><HintToggle id="mechanism-autocall" about="autocallable redemption" :text="hints['mechanism-autocall']" :active="activeHint === 'mechanism-autocall'" @toggle="toggleHint('mechanism-autocall')" /></span>
                       </div>
                       <ul v-if="autocalled">
                         <li :class="['node', { sel: highlighted('schedule') }]" :style="conceptStyle('schedule')">
@@ -1549,7 +1578,7 @@ const chooseSample = (event: Event) => {
                     </li>
                     <li :class="['node', { sel: highlighted('issuer-call') }]" :style="conceptStyle('issuer-call')">
                       <div class="nrow" @click="select('issuer-call')" @focusin="focusRow('issuer-call')">
-                        <span class="nlabel"><label class="mechanism-check"><input id="mechanism-issuer-call" type="checkbox" :checked="issuerTicked" :disabled="issuerTicked && !autocallTicked" :title="issuerTicked && !autocallTicked ? 'Choose Bullet for no early redemption' : undefined" @click.stop @change="issuerTicked = ($event.target as HTMLInputElement).checked">Issuer callable</label><HintToggle id="mechanism-issuer-call" about="issuer callable redemption" :text="hints['mechanism-issuer-call']" :active="activeHint === 'mechanism-issuer-call'" @toggle="toggleHint('mechanism-issuer-call')" /></span>
+                        <span class="nlabel"><label class="mechanism-check"><input id="mechanism-issuer-call" type="checkbox" :checked="issuerCalled" :disabled="issuerCalled && !autocalled" :title="issuerCalled && !autocalled ? 'Choose Bullet for no early redemption' : undefined" @click.stop @change="setCall('issuer', ($event.target as HTMLInputElement).checked)">Issuer callable</label><HintToggle id="mechanism-issuer-call" about="issuer callable redemption" :text="hints['mechanism-issuer-call']" :active="activeHint === 'mechanism-issuer-call'" @toggle="toggleHint('mechanism-issuer-call')" /></span>
                       </div>
                       <ul v-if="issuerCalled">
                         <li :class="['node', { sel: highlighted('issuer-schedule') }]" :style="conceptStyle('issuer-schedule')">
@@ -1581,14 +1610,16 @@ const chooseSample = (event: Event) => {
                         </li>
                       </ul>
                     </li>
-                    <li class="node">
-                      <div class="nrow">
-                        <span class="nlabel"><label class="mechanism-check unavailable"><input type="checkbox" disabled>Puttable (unavailable)</label><HintToggle id="mechanism-puttable" about="puttable redemption" :text="hints['mechanism-puttable']" :active="activeHint === 'mechanism-puttable'" @toggle="toggleHint('mechanism-puttable')" /></span>
+                    <li :class="['node', { sel: highlighted('amortization') }]" :style="conceptStyle('amortization')">
+                      <div class="nrow" @click="select('amortization')" @focusin="focusRow('amortization')">
+                        <span class="nlabel"><label class="mechanism-check"><input id="mechanism-amortizing" type="checkbox" :checked="amortized" :disabled="amortized" :title="amortized ? 'Tick a call, or choose Bullet, for no amortization' : undefined" @click.stop @change="setAmortizing(($event.target as HTMLInputElement).checked)">Amortizing</label><HintToggle id="mechanism-amortizing" about="amortizing redemption" :text="hints['mechanism-amortizing']" :active="activeHint === 'mechanism-amortizing'" @toggle="toggleHint('mechanism-amortizing')" /></span>
+                        <span v-if="amortized" class="ctrl"><span class="unit">On the coupon reviews</span></span>
                       </div>
+                      <ul v-if="amortizationIssues.length" class="errors" role="alert"><li v-for="message in amortizationIssues" :key="message">{{ message }}</li></ul>
                     </li>
                     <li class="node">
                       <div class="nrow">
-                        <span class="nlabel"><label class="mechanism-check unavailable"><input type="checkbox" disabled>Amortizing (unavailable)</label><HintToggle id="mechanism-amortizing" about="amortizing redemption" :text="hints['mechanism-amortizing']" :active="activeHint === 'mechanism-amortizing'" @toggle="toggleHint('mechanism-amortizing')" /></span>
+                        <span class="nlabel"><label class="mechanism-check unavailable"><input type="checkbox" disabled>Puttable (unavailable)</label><HintToggle id="mechanism-puttable" about="puttable redemption" :text="hints['mechanism-puttable']" :active="activeHint === 'mechanism-puttable'" @toggle="toggleHint('mechanism-puttable')" /></span>
                       </div>
                     </li>
                   </ul>
@@ -1692,7 +1723,7 @@ const chooseSample = (event: Event) => {
                             <span class="nlabel">Final level<HintToggle id="final-level" about="final level" :text="hints['final-level']" :active="activeHint === 'final-level'" @toggle="toggleHint('final-level')" /></span>
                             <span class="ctrl pick"><select id="final-determination" v-model="finalKind" aria-label="Final level"><option v-for="option in finalDeterminationOptions" :key="option.id" :value="option.id" :title="option.description" :disabled="option.id === 'averaging' && bothWaysSelected">{{ option.label }}{{ option.id === 'averaging' && bothWaysSelected ? ' (not with barrier absolute return)' : '' }}</option></select></span>
                             <span v-if="averaging" class="ctrl block"><label for="observation-count">Observations</label><HintToggle id="observation-count" about="observations" :text="hints.observations" :active="activeHint === 'observations'" @toggle="toggleHint('observations')" /><NumberInput id="observation-count" v-model="observationCount" class="num count" /></span>
-                            <span class="ctrl block wraps"><span class="flabel">{{ averaging ? 'Observed levels' : isBasket ? 'Levels on the final date' : 'Level on the final date' }}</span><span class="unit">{{ averaging || isBasket ? 'Hypothetical, set in the calculation' : 'Hypothetical, set on the chart' }}</span></span>
+                            <span class="ctrl block wraps"><span class="flabel">{{ averaging ? 'Observed levels' : isBasket ? 'Levels on the final date' : 'Level on the final date' }}</span><span class="unit">{{ amortized ? 'Not read: no payment depends on it' : averaging || isBasket ? 'Hypothetical, set in the calculation' : 'Hypothetical, set on the chart' }}</span></span>
                           </div>
                           <ul v-if="issuesFor('observationCount').length" class="errors" role="alert"><li v-for="message in issuesFor('observationCount')" :key="message">{{ message }}</li></ul>
                         </li>
@@ -1865,8 +1896,8 @@ const chooseSample = (event: Event) => {
         </section>
 
         <section class="panel preview" aria-label="Payoff preview">
-          <header class="panel-head"><h2>Payoff at {{ wrapper === 'deposit' ? 'maturity' : 'redemption' }}</h2><p>{{ scheduled ? (autocalled && callOnFinal ? 'What it pays at the end of its term for each hypothetical final level, if no earlier review called it. At or above the last trigger, the final review calls it' : 'What it pays if held to the end of its term, for each hypothetical final level') : 'What it pays for each hypothetical final level' }}</p></header>
-          <template v-if="chart">
+          <header class="panel-head"><h2>Payoff at {{ wrapper === 'deposit' ? 'maturity' : 'redemption' }}</h2><p>{{ amortized ? 'What it pays on each review, whatever the underlier does' : scheduled ? (autocalled && callOnFinal ? 'What it pays at the end of its term for each hypothetical final level, if no earlier review called it. At or above the last trigger, the final review calls it' : 'What it pays if held to the end of its term, for each hypothetical final level') : 'What it pays for each hypothetical final level' }}</p></header>
+          <template v-if="chart && !amortized">
             <svg ref="chartSvg" :class="['chart', { 'feature-selected': featureSelected, tracing: trace }]" viewBox="0 0 620 350" role="group" :aria-label="chartDescription" :style="{ '--label': `${11 * labelScale}px` }">
               <defs><clipPath id="plot-clip"><rect :x="plot.left" :y="plot.top" :width="plot.right - plot.left" :height="plot.bottom - plot.top"/></clipPath></defs>
               <line :x1="plot.left" :y1="plot.bottom" :x2="plot.right" :y2="plot.bottom" class="axis-line"/><line :x1="plot.left" :y1="plot.top" :x2="plot.left" :y2="plot.bottom" class="axis-line"/>
@@ -1951,11 +1982,14 @@ const chooseSample = (event: Event) => {
             </div>
             <p class="chart-hint">Point at the chart to show its handles, then drag one, or focus one and use the arrow keys. Shift takes bigger steps. Select a feature to shade what it changes. A faint line shows the payoff before your last change.</p>
           </template>
+          <p v-else-if="amortized && valid" class="help">An amortizing note has no payoff to draw: every instalment is the same, whatever the final level, and nothing is outstanding at maturity. The calculation and the payments below show what it pays.</p>
           <p v-else class="help">Enter valid terms to see the payoff.</p>
 
 
           <section class="calculation" aria-labelledby="calculation-heading">
             <h3 id="calculation-heading">How the payment is worked out</h3>
+            <!-- An amortizing note reads no level, so it has no levels to set. -->
+            <template v-if="!amortized">
             <div v-if="lookingBack" class="hint-field"><div class="field-heading"><span id="lookback-levels-label" class="observed-heading">Lookback level: hypothetical levels of {{ underlierLabel }} on the lookback dates</span><button type="button" class="hint-button" aria-label="About the lookback level" aria-controls="lookback-levels-hint" :aria-expanded="activeHint === 'lookback-levels'" @click="toggleHint('lookback-levels')">ⓘ</button><p v-if="activeHint === 'lookback-levels'" id="lookback-levels-hint" class="hint-text" role="tooltip">Hypothetical levels on the pricing date and each lookback date after it, earliest first. The lowest of them is the lookback level, which the return is measured from. Changing them does not change the {{ wrapper }}'s terms.</p></div><div class="observed-levels" role="group" aria-labelledby="lookback-levels-label" :style="conceptStyle('initial-level')"><span class="observed-op" aria-hidden="true">min(</span><span class="observed-cell"><label for="lookback-pricing" class="observed-name">Pricing<template v-if="isLowest(initialLevel)"> · lowest</template></label><NumberInput id="lookback-pricing" v-model="initialLevel" :class="['observed-input', { lowest: isLowest(initialLevel) }]" /></span><template v-for="(level, index) in afterPricing" :key="index"><span class="observed-op" aria-hidden="true">,</span><span class="observed-cell"><label :for="`lookback-${index}`" class="observed-name">Obs {{ index + 1 }}<template v-if="isLowest(level)"> · lowest</template></label><NumberInput :id="`lookback-${index}`" :model-value="level" :class="['observed-input', { lowest: isLowest(level) }]" @update:model-value="setAfterPricing(index, $event)" /></span></template><span class="observed-op" aria-hidden="true">) =</span><span class="observed-cell"><span class="observed-name">Lookback level</span><output class="observed-result" aria-live="polite">{{ Number.isFinite(determinedInitialLevel) ? formatAmount(determinedInitialLevel) : '—' }}</output></span></div></div>
             <p v-if="lookbackError" class="errors" role="alert">{{ lookbackError }}</p>
             <div v-if="isBasket" :class="['hint-field', { unused: finalUnused }]"><div class="field-heading"><span id="basket-levels-label" class="observed-heading">{{ averaging ? 'Final levels: hypothetical levels of each asset on the averaging dates' : 'Final levels: hypothetical level of each asset on the final date' }}</span><button type="button" class="hint-button" aria-label="About the basket's final levels" aria-controls="basket-levels-hint" :aria-expanded="activeHint === 'basket-levels'" @click="toggleHint('basket-levels')">ⓘ</button><p v-if="activeHint === 'basket-levels'" id="basket-levels-hint" class="hint-text" role="tooltip">{{ finalUnused }} Hypothetical levels for this scenario, earliest first. Each asset's return is measured from its own initial level{{ averaging ? ' to the average of its levels' : '' }}. Dragging the final level on the chart moves every asset's return by the same amount. Changing them does not change the {{ wrapper }}'s terms.</p></div><div class="table-wrap basket-levels" :style="conceptStyle('final-level')"><table aria-labelledby="basket-levels-label"><thead><tr><th scope="col">Asset</th><th v-for="(_, index) in basketObservations[0]" :key="index" scope="col">{{ averaging ? `Obs ${index + 1}${index === basketObservations[0].length - 1 ? ' · final date' : ''}` : 'Final date' }}</th><th v-if="averaging" scope="col">Final level</th><th scope="col">Return</th></tr></thead><tbody><tr v-for="(levels, asset) in basketObservations" :key="asset"><th scope="row">{{ basketAssets[asset].name.trim() || `Asset ${asset + 1}` }}</th><td v-for="(level, index) in levels" :key="index"><NumberInput :model-value="level" class="observed-input" :aria-label="`${basketAssets[asset].name.trim() || `Asset ${asset + 1}`}, ${averaging ? `observation ${index + 1}` : 'final date'}`" @update:model-value="setBasketObservation(asset, index, $event)" /></td><td v-if="averaging"><output class="observed-result" aria-live="polite">{{ basketMeasure ? formatAmount(basketMeasure.components[asset].finalLevel) : '—' }}</output></td><td class="asset-return">{{ basketMeasure ? signedPercent(basketMeasure.components[asset].componentReturn) : '—' }}</td></tr></tbody></table></div></div>
@@ -1964,6 +1998,7 @@ const chooseSample = (event: Event) => {
             <p v-if="finalError" class="errors" role="alert">{{ finalError }}</p>
             <div v-if="lowestCloseWanted && lowestClose !== undefined" class="hint-field"><div class="field-heading"><label for="lowest-close">Lowest close: hypothetical lowest close of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About the lowest close" aria-controls="lowest-close-hint" :aria-expanded="activeHint === 'lowest-close'" @click="toggleHint('lowest-close')">ⓘ</button><p v-if="activeHint === 'lowest-close'" id="lowest-close-hint" class="hint-text" role="tooltip">{{ hints['lowest-close'] }}</p></div><NumberInput id="lowest-close" :model-value="lowestClose" class="final-input" @update:model-value="lowestCloseInput = $event" /></div>
             <div v-if="highestCloseWanted && highestClose !== undefined" class="hint-field"><div class="field-heading"><label for="highest-close">Highest close: hypothetical highest close of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About the highest close" aria-controls="highest-close-hint" :aria-expanded="activeHint === 'highest-close'" @click="toggleHint('highest-close')">ⓘ</button><p v-if="activeHint === 'highest-close'" id="highest-close-hint" class="hint-text" role="tooltip">{{ hints['highest-close'] }}</p></div><NumberInput id="highest-close" :model-value="highestClose" class="final-input" @update:model-value="highestCloseInput = $event" /></div>
+            </template>
             <div v-if="datesBeforeLast.length" class="hint-field">
               <div class="field-heading"><span id="review-levels-label" class="observed-heading">Reviews: hypothetical level of {{ underlierLabel }} on each review before the last</span><select class="path-select" aria-label="Load a path" @change="loadPath($event)"><option value="">Load a path…</option><option v-for="(path, index) in pathOptions" :key="path.name" :value="index">{{ path.name }}</option></select></div>
               <div class="table-wrap basket-levels review-levels" :style="conceptStyle(autocalled ? 'trigger' : 'coupon')" tabindex="0" role="region" aria-labelledby="review-levels-label"><table aria-labelledby="review-levels-label"><thead><tr><th scope="col">Month</th><th scope="col">Review</th><th v-if="autocalled" scope="col" class="review-trigger">Trigger</th><template v-if="isBasket"><th v-for="(asset, a) in basketAssets" :key="a" scope="col">{{ asset.name.trim() || `Asset ${a + 1}` }}</th><th scope="col">Basket level</th></template><th v-else scope="col">Level</th><th v-if="autocalled" scope="col">Test</th><th v-if="note.coupon" scope="col">Coupon</th></tr></thead><tbody><tr v-for="{ date, index } in reviewRows" :key="date.month"><th scope="row">{{ date.month }}</th><td class="review-name">{{ reviewLabel(date) }}</td><td v-if="autocalled" class="review-trigger">{{ Number.isFinite(reviewTrigger(date)) ? formatAmount(reviewTrigger(date)) : '—' }}</td><td v-if="index === undefined" :colspan="isBasket ? basketAssets.length + 1 : 1" class="review-unread" title="A fixed coupon reads no level">—</td><template v-else-if="isBasket"><td v-for="(assetLevel, a) in reviewAssetLevels[index]" :key="a"><NumberInput :model-value="assetLevel" class="observed-input" :aria-label="`${basketAssets[a].name.trim() || `Asset ${a + 1}`}, month ${date.month}`" @update:model-value="setReviewAssetLevel(index, a, $event)" /></td><td><output class="observed-result" aria-live="polite">{{ Number.isFinite(reviewLevels[index]) ? formatAmount(reviewLevels[index]) : '—' }}</output></td></template><td v-else><NumberInput :model-value="reviewLevels[index]" class="observed-input" :aria-label="`Level in month ${date.month}`" @update:model-value="setReviewLevel(index, $event)" /></td><td v-if="autocalled" class="review-test-cell"><span v-if="reviewTest(date)" :class="['review-test', { called: reviewTest(date) === 'Called' || reviewTest(date) === 'Issuer called', ended: reviewTest(date) === 'Ended' }]">{{ reviewTest(date) }}</span></td><td v-if="note.coupon" class="review-test-cell"><span v-if="reviewCoupon(date)" :class="['review-test', { ended: reviewCoupon(date).startsWith('Missed') || reviewCoupon(date) === 'Ended' || reviewCoupon(date) === '—' }]" :style="conceptStyle('coupon')">{{ reviewCoupon(date) }}</span></td></tr></tbody></table></div>
@@ -1976,12 +2011,12 @@ const chooseSample = (event: Event) => {
             <ol class="calc-steps" aria-live="polite"><li v-for="step in calculation" :key="`${step.n}-${step.title}`" :class="{ hl: !step.heading && step.concept && highlighted(step.concept), muted: step.muted, result: step.result, heading: step.heading, traceable: !step.heading && stageOfStep.has(step.title), current: currentStage?.step === step.title }" :tabindex="!step.heading && stageOfStep.has(step.title) ? 0 : undefined" :aria-current="currentStage?.step === step.title ? 'step' : undefined" :title="!step.heading && stageOfStep.has(step.title) ? 'Show this step on the chart' : undefined" @click="jumpToStep(step.title)" @keydown.enter.prevent="jumpToStep(step.title)" @keydown.space.prevent="jumpToStep(step.title)"><template v-if="step.heading"><b>{{ step.title }}</b><span class="calc-how">{{ step.how }}</span></template><template v-else><span class="calc-n">{{ step.n }}</span><b>{{ step.title }}</b><span class="calc-value">{{ step.value }}</span><span class="calc-how">{{ step.how }}</span></template></li></ol>
             <div v-if="note.coupon && redemption" class="payments">
               <h4 id="payments-heading">Payments</h4>
-              <p class="payments-note">What it pays in this scenario, and when.{{ note.settlement === 'delivery' ? ' A delivery of shares is shown at its value on the final date.' : '' }}</p>
-              <div class="table-wrap basket-levels review-levels" tabindex="0" role="region" aria-labelledby="payments-heading"><table aria-labelledby="payments-heading"><thead><tr><th scope="col">Month</th><th scope="col" class="payment-amount">Coupon</th><th scope="col" class="payment-amount">Redemption</th><th scope="col" class="payment-amount">Paid</th></tr></thead><tbody><tr v-for="(payment, index) in redemption.payments" :key="payment.month"><th scope="row">{{ payment.month }}</th><td class="payment-amount">{{ payment.coupon ? formatAmount(payment.coupon) : '—' }}</td><td class="payment-amount">{{ index === redemption.payments.length - 1 ? formatAmount(payment.redemption) : '—' }}</td><td class="payment-amount">{{ formatAmount(payment.amount) }}</td></tr></tbody></table></div>
+              <p class="payments-note">{{ redemption.instalments ? 'What it pays on each review: the coupon on the principal outstanding before the review, and the principal the rest of the instalment repays.' : 'What it pays in this scenario, and when.' }}{{ note.settlement === 'delivery' ? ' A delivery of shares is shown at its value on the final date.' : '' }}</p>
+              <div class="table-wrap basket-levels review-levels" tabindex="0" role="region" aria-labelledby="payments-heading"><table aria-labelledby="payments-heading"><thead><tr><th scope="col">Month</th><th v-if="redemption.instalments" scope="col" class="payment-amount">Outstanding</th><th scope="col" class="payment-amount">Coupon</th><th scope="col" class="payment-amount">{{ redemption.instalments ? 'Principal' : 'Redemption' }}</th><th scope="col" class="payment-amount">Paid</th></tr></thead><tbody><tr v-for="(payment, index) in redemption.payments" :key="payment.month"><th scope="row">{{ payment.month }}</th><td v-if="redemption.instalments" class="payment-amount">{{ formatAmount(redemption.instalments[index].outstanding) }}</td><td class="payment-amount">{{ payment.coupon ? formatAmount(payment.coupon) : '—' }}</td><td class="payment-amount">{{ redemption.instalments || index === redemption.payments.length - 1 ? formatAmount(payment.redemption) : '—' }}</td><td class="payment-amount">{{ formatAmount(payment.amount) }}</td></tr></tbody></table></div>
             </div>
             <p v-if="outcomeSentence" class="outcome" aria-live="polite">{{ outcomeSentence }}</p>
           </section>
-          <p v-if="chart" class="explanation">All amounts are illustrative.</p>
+          <p v-if="chart || (amortized && valid)" class="explanation">All amounts are illustrative.</p>
         </section>
 
         <aside ref="jsonPanel" class="panel structure-json" aria-labelledby="structure-json-heading">

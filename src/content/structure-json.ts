@@ -22,6 +22,8 @@ export function structureLines(note: Product): StructureLine[] {
       if (second === 'adjustmentFactor') return 'adjustment-factor'
       if (second !== 'mechanisms' || typeof third !== 'number') return 'redemption'
       const mechanism = mechanismsOf(note.redemption)[third]
+      // Amortization's schedule is the coupon's, so all of it is one part.
+      if (mechanism?.kind === 'amortization') return 'amortization'
       const issuer = mechanism?.kind === 'issuer-call'
       if (fourth === 'schedule') return issuer ? 'issuer-schedule' : 'schedule'
       if (fourth === 'firstReviewMonth') return issuer ? 'issuer-first-review' : 'first-review'

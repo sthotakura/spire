@@ -1,10 +1,10 @@
 import type { ConceptId } from './concepts'
 
-// Selecting a part selects the parts nested under it, at any depth: the redemption its reviews, trigger, call amount and final review,
+// Selecting a part selects the parts nested under it, at any depth: the redemption its calls, amortization and reviews, trigger, call amount and final review,
 // the trigger its step, the coupon its reviews, barrier and memory, the payoff its features, each participation its buffer,
 // barrier, absolute return, cap or what a rise is measured from, the digital return its barrier, the underlier its assets and determination, and the determination its initial and final levels and a basket's return.
 const nestedConcepts: Partial<Record<ConceptId, readonly ConceptId[]>> = {
-  redemption: ['autocall', 'issuer-call', 'adjustment-factor'],
+  redemption: ['autocall', 'issuer-call', 'amortization', 'adjustment-factor'],
   autocall: ['schedule', 'first-review', 'trigger', 'call-amount', 'final-call'],
   'issuer-call': ['issuer-schedule', 'issuer-first-review', 'issuer-call-amount'],
   trigger: ['trigger-step'],

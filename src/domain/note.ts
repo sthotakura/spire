@@ -461,10 +461,35 @@ export interface IssuerCall {
   callAmountBasis?: 'flat' | 'per-year'
 }
 
-/** One way a product can end before the end of its term. */
-export type EarlyMechanism = Autocall | IssuerCall
+// See docs/amortization.md.
+/**
+ * Principal repaid in instalments on the reviews of its schedule, so that each coupon is interest on the principal still outstanding.
+ * With a level payment every review pays the same amount: the coupon on the outstanding principal, and the rest as a repayment of
+ * principal, so that the outstanding principal reaches zero on the last review, at the end of the term. It needs a fixed coupon on
+ * the same schedule and a payoff with no features, since nothing is outstanding at maturity for a payoff to apply to. In this
+ * reference it is the only mechanism of its redemption: it is not combined with an autocall or an issuer call.
+ */
+export interface Amortization {
+  kind: 'amortization'
+  /** The reviews on which an instalment is paid, which must be the coupon's. The term must hold at least two periods. */
+  schedule: Schedule
+  /**
+   * How the instalments are set. A level payment, the only method in this reference, is principal × i ÷ (1 − (1 + i)^−n), where i is
+   * the coupon rate × the months between reviews ÷ 12 and n is the number of reviews.
+   */
+  method: 'level-payment'
+}
 
-/** Redemption that can come before the end of the term, by the mechanisms listed. A product that none of them ends runs to maturity. */
+/** One way principal can be repaid before the end of the term: in whole by a call, or in part by amortization. */
+export type EarlyMechanism = Autocall | IssuerCall | Amortization
+
+// A mechanism that ends the product early, in whole.
+export type CallMechanism = Autocall | IssuerCall
+
+/**
+ * Redemption that can come before the end of the term, by the mechanisms listed: in whole when a call ends the product, or in part by
+ * amortization. A product that no call ends runs to maturity.
+ */
 export interface EarlyRedemption extends RedemptionTerms {
   kind: 'early-redemption'
   /**
@@ -492,7 +517,8 @@ export interface Coupon {
   schedule: Schedule
   /**
    * The coupon as a rate a year, as a fraction of principal. Each review that pays a coupon pays principal × rate × the months
-   * between reviews ÷ 12: 12% a year on monthly reviews is 1% of principal a review.
+   * between reviews ÷ 12: 12% a year on monthly reviews is 1% of principal a review. With amortization the principal is what is
+   * outstanding before the review, so the coupon falls as principal is repaid.
    * @exclusiveMinimum 0
    */
   rate: number
@@ -535,7 +561,10 @@ export interface Product {
    */
   principalAmount: number
   term: Term
-  /** Bullet redemption pays once, at maturity. An autocall or an issuer call can end the product earlier, on a review. */
+  /**
+   * Bullet redemption repays principal once, at maturity. An autocall or an issuer call can end the product earlier, on a review, and
+   * amortization repays principal in instalments through the term.
+   */
   redemption: Redemption
   /**
    * A coupon on each review of its own schedule, with any redemption: fixed, paid on every review, or contingent, paid on a review that
@@ -677,6 +706,9 @@ const triggerAllowed = (trigger: number) => Number.isFinite(trigger) && trigger 
 export const mechanismsOf = (redemption: Redemption): EarlyMechanism[] => (redemption.kind === 'bullet' ? [] : redemption.mechanisms)
 export const autocallOf = (redemption: Redemption): Autocall | undefined => mechanismsOf(redemption).find((mechanism): mechanism is Autocall => mechanism.kind === 'autocall')
 export const issuerCallOf = (redemption: Redemption): IssuerCall | undefined => mechanismsOf(redemption).find((mechanism): mechanism is IssuerCall => mechanism.kind === 'issuer-call')
+export const amortizationOf = (redemption: Redemption): Amortization | undefined => mechanismsOf(redemption).find((mechanism): mechanism is Amortization => mechanism.kind === 'amortization')
+// The mechanisms that end the product early, in whole: every one but amortization.
+export const callsOf = (redemption: Redemption): CallMechanism[] => mechanismsOf(redemption).filter((mechanism): mechanism is CallMechanism => mechanism.kind !== 'amortization')
 
 // The last review that can call: the last but one, or the last when the final review is a call too.
 export const lastCallReview = (redemption: Autocall | IssuerCall, reviews: number): number => (redemption.kind === 'autocall' && redemption.callOnFinalReview ? reviews : reviews - 1)
@@ -726,7 +758,7 @@ export const callReviewCount = (note: Product): number | undefined => {
 
 // The number of reviews of one mechanism, from its first.
 export const mechanismReviewCount = (term: Term, mechanism: EarlyMechanism): number | undefined =>
-  reviewCount({ term, schedule: mechanism.schedule, firstMonth: firstReviewMonthOf(mechanism) })
+  reviewCount({ term, schedule: mechanism.schedule, firstMonth: mechanism.kind === 'amortization' ? undefined : firstReviewMonthOf(mechanism) })
 
 // The month of a call's review, numbered from 1 at its first review.
 export const callReviewMonth = (redemption: Autocall | IssuerCall, review: number): number =>
@@ -779,6 +811,7 @@ function redemptionIssues(note: Product): ProductIssue[] {
 }
 
 function mechanismIssues(note: Product, redemption: EarlyMechanism): ProductIssue[] {
+  if (redemption.kind === 'amortization') return amortizationIssues(note, redemption)
   const issues: ProductIssue[] = []
   const { schedule } = redemption
   const named = redemption.kind === 'autocall' ? 'An autocall' : 'An issuer call'
@@ -810,6 +843,30 @@ function mechanismIssues(note: Product, redemption: EarlyMechanism): ProductIssu
   // share of a level already known when it is first tested. Lookback dates are counted, not dated, so this is not checked.
   const observations = [downsideOf(note)?.barrier, upsideOf(note)?.barrier, payoff.barrierAbsoluteReturn?.lowerBarrier, payoff.barrierAbsoluteReturn?.upperBarrier]
   if (observations.some((barrier) => barrier?.observation === 'daily-close')) issues.push({ field: 'schedule', message: `A barrier observed on every close cannot be combined with ${named.toLowerCase()}: a called product ends before the observation period does.` })
+  return issues
+}
+
+// Amortization repays the whole principal through the term, with the fixed coupon as the interest on what is outstanding. The rules
+// are in docs/amortization.md: no source read combines it with a call, a contingent coupon or a payoff at maturity.
+function amortizationIssues(note: Product, amortization: Amortization): ProductIssue[] {
+  const issues: ProductIssue[] = []
+  const { schedule } = amortization
+  const periods = schedule === undefined ? undefined : reviewCount({ term: note.term, schedule })
+  if (schedule === undefined) issues.push({ field: 'schedule', message: 'Amortization needs a review schedule.' })
+  else if (periods === undefined) issues.push({ field: 'schedule', message: 'The term must hold a whole number of review periods.' })
+  else if (periods < 2) issues.push({ field: 'schedule', message: 'Amortization needs at least two reviews, so that principal is repaid in more than one instalment.' })
+  if (amortization.method !== 'level-payment') issues.push({ field: 'mechanisms', message: 'Amortization is by level payment.' })
+  if (mechanismsOf(note.redemption).length > 1) issues.push({ field: 'mechanisms', message: 'Amortization cannot be combined with an autocall or an issuer call in this reference.' })
+  const { coupon } = note
+  if (coupon === undefined || coupon.barrier !== undefined) issues.push({ field: 'coupon', message: 'Amortization needs a fixed coupon: each instalment pays the coupon on the outstanding principal and repays principal with the rest.' })
+  else if (schedule !== undefined && coupon.schedule?.frequency !== schedule.frequency) issues.push({ field: 'couponSchedule', message: 'Amortization pays its instalments on the coupon reviews, so the coupon needs the same schedule.' })
+  const { payoff } = note
+  if (payoff.participations.length || payoff.principalProtection !== undefined || payoff.digitalReturn !== undefined || payoff.barrierAbsoluteReturn !== undefined || payoff.minimumReturn !== undefined) {
+    issues.push({ field: 'mechanisms', message: 'Amortization repays the whole principal by the end of the term, so it cannot be combined with a payoff feature: nothing is left at maturity for one to apply to.' })
+  }
+  if (note.wrapper === 'deposit') issues.push({ field: 'mechanisms', message: 'Amortization is available on notes only: a deposit is repaid in full at the end of its term.' })
+  const factor = note.redemption.adjustmentFactor
+  if (factor !== undefined && factor !== 1) issues.push({ field: 'adjustmentFactor', message: 'An adjustment factor other than 100% cannot be combined with amortization: no payment reads the final level.' })
   return issues
 }
 
