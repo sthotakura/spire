@@ -46,8 +46,86 @@ Where amortization does meet a structured product, in the two documents read, is
 ## Options
 
 1. **Record it, model nothing (recommended for now).** Keep amortization as an established concept in this document and the feature map. A chapter of the book could explain it as the opposite of bullet redemption. No domain change.
-2. **Model the Tangible Equity Unit.** The unit would be two products: an amortizing note, as a redemption of its own, and a prepaid purchase contract, settled by delivery. That needs a unit concept, a level-pay schedule, and the purchase contract's settlement rate as a new payoff. It is the only form read that ties amortization to an underlier, and it is a large increment. The purchase contract needs its own proposal first.
+2. **Model the Tangible Equity Unit.** The unit would be two products: an amortizing note, with the amortization below, and a prepaid purchase contract, settled by delivery. That needs a unit concept, a level-pay schedule, and the purchase contract's settlement rate as a new payoff. It is the only form read that ties amortization to an underlier, and it is a large increment. The purchase contract needs its own proposal first.
 3. **Model a plain amortizing note.** This would reproduce the Barclays schedule, but it is not a structured product, and the fixed deposit decision argues against it.
+
+## The model, if built
+
+Agreed on 19 November 2026 as the shape to use, though not built now.
+
+### Where it sits
+
+Amortization is independent of how the product ends. Bullet and early redemption say whether something can end the product before maturity. Amortization says how the principal is repaid while it runs. The two combine. The Barclays note amortizes and can be redeemed at the company's option. Novanta's holders can require a repurchase at the outstanding principal plus accrued interest. So amortization is not a third kind of redemption, and not an early redemption mechanism beside the autocall, the issuer call and the put: it ends nothing.
+
+It is a term every redemption can carry, as the adjustment factor is. In the interface it is a checkbox under Redemption, beside the Bullet and Early redemption choice, not inside the list of early redemption mechanisms:
+
+```text
+Redemption       [ Bullet ▾ ]   or   [ Early redemption ▾ ]
+                                       ☐ Autocallable
+                                       ☐ Issuer callable
+                                       ☐ Puttable (unavailable)
+☐ Amortizing (unavailable)
+```
+
+The label Bullet stays. In strict use, bullet means the whole principal is repaid at maturity, which rules amortization out. So when amortization is built, Bullet's description narrows to "no early redemption", and Bullet with Amortizing ticked means a note that amortizes and cannot be called. Allowing Amortizing only with Early redemption was considered and rejected: it would rule out a plain amortizing note with no call, such as Novanta's apart from its tax redemption.
+
+### Domain type
+
+The amortization is a principal schedule. It has no rate of its own: the interest is the product's fixed coupon, measured on the outstanding principal. That matches Barclays' level payment, an "Interest Component Amount" plus a "Principal Component Amount".
+
+```ts
+/**
+ * Principal repaid in instalments on the amortization's schedule, so that later coupons, and a call, are measured on the
+ * principal still outstanding. With a level payment, each instalment and that review's coupon add up to the same amount on every
+ * review, and the outstanding principal reaches zero on the last.
+ */
+export interface Amortization {
+  /** The reviews on which an instalment is paid. With a level payment they must be the coupon's. */
+  schedule: Schedule
+  /** How the instalments are set. A level payment is the only method in this reference. */
+  method: 'level-payment'
+}
+
+export interface RedemptionTerms {
+  adjustmentFactor?: number
+  /** Principal repaid during the term. Absent, the whole principal is outstanding until the product ends. */
+  amortization?: Amortization
+}
+```
+
+### Schema
+
+The generated schema gains an `Amortization` definition with `schedule` and `method` (`"const": "level-payment"`), both required. `Bullet` and `EarlyRedemption` each gain an optional `amortization` property that refers to it, because both extend `RedemptionTerms`.
+
+These descriptions would change:
+
+| Where | Today | With amortization |
+| :--- | :--- | :--- |
+| `Bullet` | "one payment at the end of the term, with no early call" | "no early redemption. The principal outstanding at the end of the term is repaid then." |
+| `Coupon.rate` | a fraction of principal: principal × rate × months ÷ 12 | a fraction of the principal outstanding at the start of the period. Without amortization that is the whole principal, so nothing changes |
+| `Autocall`, `IssuerCall` | repays principal plus the call amount | repays the outstanding principal plus the call amount |
+
+The rules only the validator checks, listed in `scripts/product-schema.ts`, would gain three:
+
+1. **A level payment needs a fixed coupon**, with no barrier, because the instalment is the level amount less that review's interest.
+2. **The amortization's schedule is the coupon's.**
+3. **No payoff features.** A level payment leaves nothing outstanding at maturity, so participation, protection or a digital return would have no principal to apply to.
+
+The example product for `scripts/product-examples.ts` is the synthetic note below:
+
+```json
+"redemption": {
+  "kind": "bullet",
+  "amortization": { "schedule": { "frequency": "quarterly" }, "method": "level-payment" }
+},
+"coupon": { "schedule": { "frequency": "quarterly" }, "rate": 0.06 },
+"payoff": { "participations": [] }
+```
+
+### What the shape shows
+
+- **Rule 3 is the reason for option 1.** Even inside the product type, a level-pay note is fixed-rate debt. The underlier would still be required, and only an autocall could read it. The schema would accept a structure that the sources read show only beside a structured product, never within one.
+- **Neither source is reproduced exactly.** Barclays states the $100 payment, and its rate is derived from it. This type derives the payment from the rate, which gives Barclays' $100.00 to the cent. Novanta's short first period cannot be expressed, because the reference has no broken periods.
 
 ## The rule, if built
 
@@ -85,7 +163,7 @@ The holder receives 1,037.77: 1,000.00 of principal and 37.77 of interest. A bul
 
 ## Open questions
 
-1. **Barclays' early redemption price.** The operative terms were not read.
+1. **Barclays' early redemption price.** The operative terms were not read. With a call after amortization, it is also open whether a call amount is a fraction of the original or the outstanding principal.
 2. **Rounding of the last payment.** Barclays' last payment is exactly $100.00. Whether issuers adjust the last payment, or choose the rate so that no adjustment is needed, is not stated.
 3. **Equal principal instalments**, a fixed share of principal each period with interest on top, so the total falls. This is common in loans, but no note read uses it.
 4. **Amortization before an equity payoff at maturity.** None read. It stays unmodelled unless a public note shows it.
