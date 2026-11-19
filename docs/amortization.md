@@ -55,19 +55,19 @@ Agreed on 19 November 2026 as the shape to use, though not built now.
 
 ### Where it sits
 
-Amortization is independent of how the product ends. Bullet and early redemption say whether something can end the product before maturity. Amortization says how the principal is repaid while it runs. The two combine. The Barclays note amortizes and can be redeemed at the company's option. Novanta's holders can require a repurchase at the outstanding principal plus accrued interest. So amortization is not a third kind of redemption, and not an early redemption mechanism beside the autocall, the issuer call and the put: it ends nothing.
-
-It is a term every redemption can carry, as the adjustment factor is. In the interface it is a checkbox under Redemption, beside the Bullet and Early redemption choice, not inside the list of early redemption mechanisms:
+Amortization is an early redemption mechanism, beside the autocall, the issuer call and the put. Each instalment redeems part of the principal before maturity, which is what the Leonteq prospectus calls being "partially redeemed on partial redemption dates". So early redemption covers principal repaid before the end of the term in part as well as in whole. Agreed on 19 November 2026. In the interface it is an unavailable checkbox in the list of early redemption mechanisms:
 
 ```text
-Redemption       [ Bullet ▾ ]   or   [ Early redemption ▾ ]
-                                       ☐ Autocallable
-                                       ☐ Issuer callable
-                                       ☐ Puttable (unavailable)
-☐ Amortizing (unavailable)
+Redemption       [ Early redemption ▾ ]
+                   ☐ Autocallable
+                   ☐ Issuer callable
+                   ☐ Puttable (unavailable)
+                   ☐ Amortizing (unavailable)
 ```
 
-The label Bullet stays. In strict use, bullet means the whole principal is repaid at maturity, which rules amortization out. So when amortization is built, Bullet's description narrows to "no early redemption", and Bullet with Amortizing ticked means a note that amortizes and cannot be called. Allowing Amortizing only with Early redemption was considered and rejected: it would rule out a plain amortizing note with no call, such as Novanta's apart from its tax redemption.
+The mechanisms combine, and the sources show amortization alongside a mechanism that ends the product. The Barclays note amortizes and can be redeemed at the company's option. Novanta's holders can require a repurchase at the outstanding principal plus accrued interest. A note that amortizes and cannot be called is an early redemption with amortization as its only mechanism.
+
+Bullet keeps its label and meaning: the whole principal is repaid at the end of the term, so Bullet and amortization never combine. A checkbox beside the Bullet and Early redemption choice was considered first. It was set aside because Bullet with amortization contradicts what bullet means.
 
 ### Domain type
 
@@ -80,28 +80,25 @@ The amortization is a principal schedule. It has no rate of its own: the interes
  * review, and the outstanding principal reaches zero on the last.
  */
 export interface Amortization {
+  kind: 'amortization'
   /** The reviews on which an instalment is paid. With a level payment they must be the coupon's. */
   schedule: Schedule
   /** How the instalments are set. A level payment is the only method in this reference. */
   method: 'level-payment'
 }
 
-export interface RedemptionTerms {
-  adjustmentFactor?: number
-  /** Principal repaid during the term. Absent, the whole principal is outstanding until the product ends. */
-  amortization?: Amortization
-}
+export type EarlyMechanism = Autocall | IssuerCall | Amortization
 ```
 
 ### Schema
 
-The generated schema gains an `Amortization` definition with `schedule` and `method` (`"const": "level-payment"`), both required. `Bullet` and `EarlyRedemption` each gain an optional `amortization` property that refers to it, because both extend `RedemptionTerms`.
+The generated schema gains an `Amortization` definition with `kind` (`"const": "amortization"`), `schedule` and `method` (`"const": "level-payment"`), all required. It becomes a third named variant in the `oneOf` of `EarlyMechanism`. `Bullet` is unchanged.
 
 These descriptions would change:
 
 | Where | Today | With amortization |
 | :--- | :--- | :--- |
-| `Bullet` | "one payment at the end of the term, with no early call" | "no early redemption. The principal outstanding at the end of the term is repaid then." |
+| `EarlyRedemption` | "Redemption that can come before the end of the term" | principal can be repaid before the end of the term, in whole by a call or a put, or in part by amortization |
 | `Coupon.rate` | a fraction of principal: principal × rate × months ÷ 12 | a fraction of the principal outstanding at the start of the period. Without amortization that is the whole principal, so nothing changes |
 | `Autocall`, `IssuerCall` | repays principal plus the call amount | repays the outstanding principal plus the call amount |
 
@@ -115,8 +112,10 @@ The example product for `scripts/product-examples.ts` is the synthetic note belo
 
 ```json
 "redemption": {
-  "kind": "bullet",
-  "amortization": { "schedule": { "frequency": "quarterly" }, "method": "level-payment" }
+  "kind": "early-redemption",
+  "mechanisms": [
+    { "kind": "amortization", "schedule": { "frequency": "quarterly" }, "method": "level-payment" }
+  ]
 },
 "coupon": { "schedule": { "frequency": "quarterly" }, "rate": 0.06 },
 "payoff": { "participations": [] }

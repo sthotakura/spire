@@ -37,6 +37,7 @@ const hints = {
   'mechanism-autocall': 'The product is called early when the underlier is at or above a trigger on a review.',
   'mechanism-issuer-call': 'The issuer may redeem the product early, on a review it chooses. With an autocall too, whichever comes first ends the product, and on a date that is on both schedules the issuer’s call comes first.',
   'mechanism-puttable': 'The holder may require redemption under defined terms.',
+  'mechanism-amortizing': 'Principal is repaid in instalments during the term, so each coupon is interest on the principal still outstanding. With a level payment, every instalment of interest and principal is the same amount, and the principal reaches zero at the end of the term.',
   'first-review': 'The month of the first review on which the product can be called. Later reviews follow it at the review frequency to the end of the term, so the months before it are a non-call period, with no review in it. It starts one period in and follows the frequency until you choose a month. A trigger that steps moves from the first review.',
   'issuer-choice': 'Whether and when the issuer calls is its own choice, so a scenario states it. The issuer can call on any review except the last, which is the end of the term. A call ends the product and pays principal plus the call amount.',
   'trigger-step': 'How much the trigger changes on each review after the first, as a share of the initial level. −5% on a trigger of 100% steps it down to 95% on review 2, 90% on review 3, and so on. A positive value steps it up. Zero keeps one trigger for every review.',
@@ -1583,6 +1584,11 @@ const chooseSample = (event: Event) => {
                     <li class="node">
                       <div class="nrow">
                         <span class="nlabel"><label class="mechanism-check unavailable"><input type="checkbox" disabled>Puttable (unavailable)</label><HintToggle id="mechanism-puttable" about="puttable redemption" :text="hints['mechanism-puttable']" :active="activeHint === 'mechanism-puttable'" @toggle="toggleHint('mechanism-puttable')" /></span>
+                      </div>
+                    </li>
+                    <li class="node">
+                      <div class="nrow">
+                        <span class="nlabel"><label class="mechanism-check unavailable"><input type="checkbox" disabled>Amortizing (unavailable)</label><HintToggle id="mechanism-amortizing" about="amortizing redemption" :text="hints['mechanism-amortizing']" :active="activeHint === 'mechanism-amortizing'" @toggle="toggleHint('mechanism-amortizing')" /></span>
                       </div>
                     </li>
                   </ul>
