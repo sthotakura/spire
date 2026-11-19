@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { paymentAtEnd, redemptionOutcome } from '../domain/autocall'
-import { issuerCallOf, basketBreakdown, basketStartingLevel, initialObservationCountOf, observationCountOf, paymentBreakdown, reviewDates, type DeterminedLevels, type Product } from '../domain/note'
+import { amortizationOf, issuerCallOf, basketBreakdown, basketStartingLevel, initialObservationCountOf, observationCountOf, paymentBreakdown, reviewDates, type DeterminedLevels, type Product } from '../domain/note'
 import { couponClosingSteps, redemptionSteps } from './autocall'
 import { calculationSteps } from './calculation'
 import { sampleProducts } from './examples'
@@ -50,7 +50,8 @@ function checkLines(note: Product, closes: (final: number) => Closes = () => ({}
 }
 
 describe('the calculation path', () => {
-  for (const { name, product } of sampleProducts) {
+  // An amortizing note has no payoff line: its payments read no level, so the panel draws no chart.
+  for (const { name, product } of sampleProducts.filter(({ product }) => amortizationOf(product.redemption) === undefined)) {
     it(`builds the payoff line of ${name}`, () => checkLines(product))
   }
 

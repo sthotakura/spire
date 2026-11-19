@@ -215,6 +215,11 @@ public notes they are modelled on:
   the worst of three indices, two years, which the issuer may call on any
   monthly review from month 6. The coupon of 11.30% a year is paid at a 75%
   barrier, without memory, and a downside barrier at 70% applies.
+- [Level-pay amortizing note](https://sthotakura.github.io/spire/?example=level-pay-amortizing-note):
+  the last ten years of the Barclays note above, from the 10,068.58 it has
+  outstanding after five years. It pays 100.00 a month at 3.59231% a year: the
+  first payment is 30.14 of coupon and 69.86 of principal, and the last 0.30
+  and 99.70, as in the filing.
 
 ## Assumptions and sources
 

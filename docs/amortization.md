@@ -124,7 +124,7 @@ The example product for `scripts/product-examples.ts` is the synthetic note belo
 ### What the shape shows
 
 - **Rule 3 is why option 1 was first agreed.** Even inside the product type, a level-pay note is fixed-rate debt. The underlier would still be required, and only an autocall could read it. The schema would accept a structure that the sources read show only beside a structured product, never within one.
-- **Neither source is a sample.** Barclays states the $100 payment, and its rate is derived from it. This type derives the payment from the rate, which gives Barclays' $100.00 to the cent, and a test reproduces its first and last rows. But its 180-month term is beyond the reference's 120. Novanta's short first period cannot be expressed, because the reference has no broken periods.
+- **Barclays is a sample in part.** It states the $100 payment, and its rate is derived from it. This type derives the payment from the rate, which gives Barclays' $100.00 to the cent, and a test reproduces its first and last rows. Its 180-month term is beyond the reference's 120, so the sample is its last 120 payments. Novanta's short first period cannot be expressed, because the reference has no broken periods.
 
 ## The rule
 
@@ -160,7 +160,7 @@ The holder receives 1,037.78: 1,000.00 of principal and 37.78 of interest, 6.14%
 2. **No call beside it in the first pass.** Whether a call amount after some instalments is a fraction of the original or the outstanding principal is unsourced.
 3. **A fixed coupon is required, on the same schedule**, with no payoff feature, on a note, paid in cash. Ticking Amortizing adds a fixed coupon when the product has none.
 4. **No payoff chart.** The chart would be a flat line, so the panel says why there is none, and the calculation and the payments table show the instalments, with what was outstanding before each.
-5. **No sample.** The Barclays note's 180-month term is beyond the reference's limit of 120 months. Its schedule is reproduced in a test instead. A synthetic example is published with the schema.
+5. **A sample of the last 120 payments.** The Barclays note's 180-month term is beyond the reference's limit of 120 months, so the Level-pay amortizing note sample starts from the $10,068.58 it has outstanding after 60 payments. At the same rate that pays $100.00 a month for 120 months, and its last rows are the filing's. Its whole schedule is also reproduced in a test. A synthetic example is published with the schema.
 6. **No name or category.** It reads no underlier, so the Swiss taxonomy does not place it.
 
 ## Decisions left open

@@ -596,7 +596,8 @@ A note that repays its principal in level instalments, each the fixed coupon on 
 - **Interface.** An Amortizing checkbox under early redemption, which unticks the calls and adds a fixed coupon. No payoff chart; the payments table shows what was outstanding before each review. The summary, the payment rule, the calculation and the outcome describe the instalments, and name no underlier.
 - **Names.** None, and no category.
 - **Book.** A section in chapter 19, and a sentence in chapter 20.
-- **Not done:** a sample (the Barclays term is 180 months, beyond the limit of 120), amortization beside a call, instalments that are not level, and a short first period.
+- **Sample.** Level-pay amortizing note: the Barclays note's last 120 payments, from the 10,068.58 outstanding after the 60th, since its 180-month term is beyond the limit of 120.
+- **Not done:** amortization beside a call, instalments that are not level, and a short first period.
 
 ## Later direction: a composable form
 

@@ -1,5 +1,5 @@
 import { annualisedReturnOfPayments, type CouponTest, type RedemptionOutcome, type ReviewTest } from '../domain/autocall'
-import { annualisedReturn, autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, couponPerReview, firstReviewMonthOf, issuerCallOf, mechanismReviewCount, callsOf, monthsPerReview, reviewCount, reviewDates, triggerAtReview, type Autocall, type CallMechanism, type IssuerCall, type Product, type ReviewDate } from '../domain/note'
+import { amortizationOf, annualisedReturn, autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, couponPerReview, firstReviewMonthOf, issuerCallOf, mechanismReviewCount, callsOf, monthsPerReview, reviewCount, reviewDates, triggerAtReview, type Autocall, type CallMechanism, type IssuerCall, type Product, type ReviewDate } from '../domain/note'
 import type { CalculationStep } from './calculation'
 import type { FormulaLine } from './formula'
 
@@ -11,7 +11,8 @@ const yearsPhrase = (months: number) => `${(months / 12).toLocaleString('en-US',
 // The sentence about how the product ended, from the reviews. A called product says which review, at what level, and what it
 // pays; one that ran to the end of its term says no review reached the trigger, and the maturity payment follows in the outcome.
 export function explainRedemption(note: Product, outcome: RedemptionOutcome): string {
-  if (note.redemption.kind === 'bullet') return ''
+  // Amortization ends nothing; its sentence is explainAmortization's.
+  if (note.redemption.kind === 'bullet' || amortizationOf(note.redemption) !== undefined) return ''
   const autocall = autocallOf(note.redemption)
   if (autocall === undefined || outcome.endedBy === 'issuer-call') return explainIssuerCall(note, outcome)
   const { calledAtReview, tests, reviews, months, payment } = outcome
@@ -105,6 +106,8 @@ const twoDecimalPercent = (fraction: number) => `${(fraction * 100).toLocaleStri
 // the payoff steps that follow, which say what it would have paid at maturity.
 export function redemptionSteps(note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> {
   if (note.redemption.kind === 'bullet') return couponSteps(note, outcome)
+  // Amortization has steps of its own, amortizationSteps, in place of these.
+  if (amortizationOf(note.redemption) !== undefined) return []
   const redemption = autocallOf(note.redemption)
   if (redemption === undefined) return issuerCallSteps(note, issuerCallOf(note.redemption)!, outcome)
   const { callAmount, callAmountBasis, callOnFinalReview } = redemption

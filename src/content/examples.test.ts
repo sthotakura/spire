@@ -67,3 +67,24 @@ describe('the long-dated snowball autocallable buffered note', () => {
     expect(outcome.payment).toBeCloseTo(payment, 9)
   })
 })
+
+// The Barclays level-pay amortizing note's pricing supplement: its last 120 payments of $100.00, which end on the rows it prints.
+describe('the level-pay amortizing note', () => {
+  const { product } = sampleBySlug('level-pay-amortizing-note')!
+  const instalments = redemptionOutcome(product, [], { initial: 100, final: 100 }).instalments!
+  const cents = (value: number) => Math.round(value * 100) / 100
+
+  it('pays 100.00 a month for 120 months', () => {
+    expect(instalments).toHaveLength(120)
+    expect(instalments.every(({ amount }) => cents(amount) === 100)).toBe(true)
+  })
+
+  it('ends on the filing\'s last four rows', () => {
+    expect(instalments.slice(-4).map(({ outstanding, coupon, principal, remaining }) => [outstanding, coupon, principal, remaining].map(cents))).toEqual([
+      [397.02, 1.19, 98.81, 298.21],
+      [298.21, 0.89, 99.11, 199.11],
+      [199.11, 0.6, 99.4, 99.7],
+      [99.7, 0.3, 99.7, 0],
+    ])
+  })
+})

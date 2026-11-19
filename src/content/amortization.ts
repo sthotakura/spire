@@ -9,11 +9,13 @@ import type { SummarySegment } from './summary'
 // The words an amortizing note is explained in. Its payments read no level, so none of them names the underlier. See docs/amortization.md.
 
 const units = (value: number) => Math.abs(value).toLocaleString('en-US', { maximumFractionDigits: 2 })
-// To four decimals of a percent, marked as approximate when it is rounded: 5% a year monthly is ≈0.4167% a review.
+// A derived rate to four decimals of a percent, marked as approximate when it is rounded: 5% a year monthly is ≈0.4167% a review.
 const percent = (fraction: number) => {
   const shown = Math.round(fraction * 1e6) / 1e4
   return `${Math.abs(shown - fraction * 100) > 1e-9 ? '≈' : ''}${shown.toLocaleString('en-US', { maximumFractionDigits: 4 })}%`
 }
+// A stated rate, to the eight decimals of a percent the builder accepts, as the coupon's working shows it: 3.59231%, not ≈3.5923%.
+const statedPercent = (fraction: number) => `${(Math.round(fraction * 1e10) / 1e8).toLocaleString('en-US', { maximumFractionDigits: 8 })}%`
 const monthsPhrase = (months: number) => `${months} ${months === 1 ? 'month' : 'months'}`
 
 // The rate a review: the coupon rate a year × the months between reviews ÷ 12.
@@ -34,7 +36,7 @@ export function amortizationSummary(note: Product, term: { article: string; text
     { text: '.' },
     ...(coupon === undefined ? [] : [
       { text: ' Each includes ' },
-      { text: `a fixed coupon of ${percent(coupon.rate)} a year (${percent(ratePerReview(note))} a review)`, concept: 'coupon' as const },
+      { text: `a fixed coupon of ${statedPercent(coupon.rate)} a year (${percent(ratePerReview(note))} a review)`, concept: 'coupon' as const },
       { text: ' on the principal still outstanding, and repays principal with the rest, whatever the underlier does.' },
     ]),
   ]
@@ -93,7 +95,7 @@ export function amortizationSteps(note: Product, outcome: RedemptionOutcome): Ar
     : instalments.map(single)
   const coupons = instalments.reduce((sum, { coupon }) => sum + coupon, 0)
   return [
-    { title: 'Rate a review', how: `${percent(note.coupon.rate)} a year × ${months}/12`, value: percent(i), concept: 'coupon' },
+    { title: 'Rate a review', how: `${statedPercent(note.coupon.rate)} a year × ${months}/12`, value: percent(i), concept: 'coupon' },
     { title: 'Instalment', how: `${units(note.principalAmount)} × ${percent(i)} ÷ (1 − (1 + ${percent(i)})^−${count})`, value: units(instalments[0].amount), concept: 'amortization' },
     ...reviews,
     { title: 'Total paid', how: `${count} instalments: ${units(coupons)} in coupons + ${units(note.principalAmount)} of principal, over ${monthsPhrase(outcome.months)}`, value: units(outcome.totalPaid), result: true, concept: 'amortization' },

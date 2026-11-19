@@ -78,3 +78,11 @@ describe('an amortizing note elsewhere', () => {
     expect(lines.filter(({ concept }) => concept === 'amortization').map(({ text }) => text.trim())).toEqual(['{', '"kind": "amortization",', '"schedule": {', '"frequency": "quarterly"', '},', '"method": "level-payment"', '}'])
   })
 })
+
+describe('the rates of an amortizing note', () => {
+  it('shows a stated rate in full, and rounds only the rate a review it derives', () => {
+    const barclays = product({ coupon: { schedule: { frequency: 'monthly' }, rate: 0.0359231 }, redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'amortization', schedule: { frequency: 'monthly' }, method: 'level-payment' }] } })
+    expect(text(summarize(barclays))).toContain('a fixed coupon of 3.59231% a year (≈0.2994% a review)')
+    expect(amortizationSteps(barclays, outcomeOf(barclays))[0].how).toBe('3.59231% a year × 1/12')
+  })
+})
