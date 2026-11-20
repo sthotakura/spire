@@ -15,7 +15,8 @@ In this book's maturity examples, the calculation follows this sequence:
   absolute-return feature.
 - Add the resulting contribution to principal.
 - Apply the contractual payment floor: the protection percentage on a note, or
-  on a deposit its principal or its minimum return.
+  on a deposit its principal or its minimum return. A digital return whose
+  barrier is met is a floor too, and the higher floor applies.
 
 The applicable direction is chosen from the measured return. Upside and
 downside participation do not both apply to the same nonzero return. A

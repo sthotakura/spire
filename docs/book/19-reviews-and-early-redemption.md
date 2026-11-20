@@ -1,6 +1,6 @@
 # Reviews and early redemption
 
-Some products are tested on a series of dates through their life, not only at the end. A **review** is one of those dates: the underlier is read, a condition is checked, and something may happen. The simplest thing that can happen is that the product ends early. This chapter explains the reviews of a product, the automatic early redemption, the autocall, and the early redemption at the issuer's option, the issuer call, that the reference models.
+Some products are tested on a series of dates through their life, not only at the end. A **review** is one of those dates: the underlier is read, a condition is checked, and something may happen. The simplest thing that can happen is that the product ends early. This chapter explains the reviews of a product, the automatic early redemption, the autocall, and the early redemption at the issuer's option, the issuer call, that the reference models. It ends with amortization, which repays principal in parts on the reviews instead of ending the product.
 
 ## Reviews
 
@@ -176,7 +176,7 @@ It pays 1,037.78 in all: 1,000 of principal and 37.78 in coupons. That is a tota
 
 ### What it combines with
 
-Amortization needs a fixed coupon on the same reviews, since each instalment pays that coupon. It cannot be combined with a payoff feature, because nothing is outstanding at maturity for one to apply to, and it is available on notes only, since a deposit is repaid in full at the end of its term. In this reference it is the only mechanism of its redemption: the Barclays note can also be redeemed at its issuer's option, but its call terms were not in the filing read, so whether a call after some instalments pays a call amount on the original or the outstanding principal is open.
+Amortization needs a fixed coupon on the same reviews, since each instalment pays that coupon. It cannot be combined with a payoff feature, because nothing is outstanding at maturity for one to apply to, and it is available on notes only, since a deposit is repaid in full at the end of its term. In this reference it is the only mechanism of its redemption: the Barclays note can also be redeemed at its issuer's option, but neither its pricing supplement nor the documents it refers to states the call terms, so whether a call after some instalments pays a call amount on the original or the outstanding principal is open.
 
 Because no payment reads the underlier, an amortizing note on its own is fixed-rate debt, not a structured product. The reference includes it to show the opposite of bullet repayment, and how a coupon depends on what is outstanding.
 

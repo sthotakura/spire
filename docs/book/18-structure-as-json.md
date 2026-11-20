@@ -97,6 +97,14 @@ A fixed coupon is a coupon with no barrier, and so no memory:
 
 The chapter on [coupons](20-coupons.md) explains the terms.
 
+Amortization is a mechanism of early redemption too, with its own schedule and
+its method, `"level-payment"`. It needs a fixed coupon on the same schedule, and
+an empty payoff:
+
+```json
+"redemption": { "kind": "early-redemption", "mechanisms": [{ "kind": "amortization", "schedule": { "frequency": "quarterly" }, "method": "level-payment" }] }
+```
+
 ## Reading the terms
 
 Rates are fractions: `1.5` means 150% participation; `0.2` means a 20% cap.
@@ -163,8 +171,8 @@ description and its numeric limits, such as a lower barrier between 0% and 100%
 of the initial level and a term of 1 to 120 whole months. It is generated from
 the same types the calculation uses, so it changes whenever a feature is added.
 
-It also carries ten example products, one for each family of features, and each
-one passes both the schema and the validation.
+It also carries an example product for each family of features, and each one
+passes both the schema and the validation.
 
 A schema describes shape and ranges. It states two rules that tie fields
 together: barrier absolute return replaces participation, and a deposit has no

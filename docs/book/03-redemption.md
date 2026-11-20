@@ -5,7 +5,8 @@ does: the maturity payoff, or the call amount. The maturity payoff is the amount
 the payoff rules give from the underlier's final level; a call amount is a fixed
 term of the early redemption itself. A call pays principal plus the call amount, and
 the payoff's features (participation, buffer, cap, floor, protection) do not apply
-to it.
+to it. An amortizing note is the exception to both: it repays principal in
+instalments during the term, and nothing is left at maturity.
 
 ## Bullet redemption
 
@@ -31,10 +32,12 @@ In SPIRe a call pays principal plus the call amount, and the reviews that can
 call come from the product's review schedule. If no review calls, the note
 reaches its end and pays the maturity payoff. SPIRe models the autocall and the issuer call: [Reviews and early redemption](19-reviews-and-early-redemption.md)
 explains the reviews, the trigger, the call amount, a trigger that steps, a call on the final review, and an issuer call, which is the issuer's choice in a scenario.
+It also models amortization, which repays part of the principal on each review
+and ends nothing early, and the same chapter explains it.
 
 ![A note that can redeem early: if the stated condition is met on an observation date the note ends and pays then, otherwise it continues to scheduled maturity](diagrams/early-redemption.svg)
 
-Apart from an autocall or an issuer call, SPIRe's examples calculate only the scheduled maturity
+Apart from an autocall, an issuer call or amortization, SPIRe's examples calculate only the scheduled maturity
 payoff. They do not assume that an early sale or withdrawal would receive the
 same amount.
 
@@ -66,7 +69,8 @@ amount, a coupon pays its own rate, and a review reads the underlier's own level
 whatever the factor. SPIRe does not combine a factor other than 100% with a
 buffer, a barrier or a digital return, because each tests the final level and it
 is not settled whether that test reads the level before or after the factor. It
-does not combine one with delivery either.
+does not combine one with delivery either, or with amortization, which pays
+nothing that reads the final level.
 
 ## Related concepts
 

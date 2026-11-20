@@ -1,6 +1,6 @@
 # Coupons
 
-A **coupon** is a payment made to the holder during a product's life, on its reviews, separate from the repayment of principal. This chapter explains the two kinds the reference models: the **fixed coupon**, paid on every review whatever the underlier does, and the **contingent coupon**, paid only on reviews that meet a condition, with the **memory** feature that some contingent coupons add. A product has one coupon, fixed or contingent. The reference gives the coupon its own reviews, so it goes with any redemption: a bullet note, an autocall or an issuer call.
+A **coupon** is a payment made to the holder during a product's life, on its reviews, separate from the repayment of principal. This chapter explains the two kinds the reference models: the **fixed coupon**, paid on every review whatever the underlier does, and the **contingent coupon**, paid only on reviews that meet a condition, with the **memory** feature that some contingent coupons add. A product has one coupon, fixed or contingent. The reference gives the coupon its own reviews, so it goes with any redemption: a bullet note, an autocall or an issuer call. Amortization needs a fixed coupon.
 
 ## A fixed coupon
 

@@ -22,7 +22,7 @@ dates and business-day conventions are not calculated. A term is a whole
 number of months, from 1 to 120 in this reference.
 
 The products illustrated pay at scheduled maturity or when an autocall or an
-issuer call ends them early, and can also pay a fixed or a contingent coupon on
+issuer call ends them early, or repay principal in level instalments, and can also pay a fixed or a contingent coupon on
 reviews of its own, not both. Reviews are numbered and evenly spaced, not dated,
 and a payment is made at its review. An issuer call is the issuer's choice,
 stated by a scenario. A barrier can be observed on every close, but only through the

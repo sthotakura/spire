@@ -70,6 +70,10 @@ added at every level, so the line moves up by one coupon.
 
 For a product with an autocall, the chart still plots payment against the final level, which is what the product pays if no earlier review called it. Reviews are shown in a table beside the calculation, not on the chart. When the last review is also a call, the line jumps at its trigger to principal plus the call amount, so an upside participation with a high trigger draws as a shark fin. [Reviews and early redemption](19-reviews-and-early-redemption.md) explains both.
 
+An amortizing note has no payoff chart. None of its payments reads the final
+level, so the line would be flat; the payments table shows each instalment
+instead.
+
 ## Building the line rule by rule
 
 The chart can build its line one rule at a time, in the order the calculation
