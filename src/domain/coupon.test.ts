@@ -254,3 +254,59 @@ describe('a coupon with an issuer call', () => {
     expect(outcome.totalPaid).toBeCloseTo(1060, 9)
   })
 })
+
+// Synthetic: a 36-month note of 1,000 with a quarterly contingent coupon of 15.3% a year (38.25 a review) at a 60% barrier, no memory,
+// an autocall at 60% reviewed quarterly from month 6 that does not call on its final review, and a 60% downside barrier.
+describe('a 36-month quarterly coupon beside an autocall that does not call on its final review', () => {
+  const note = withCoupon({
+    term: { months: 36 },
+    redemption: autocall({ schedule: { frequency: 'quarterly' }, trigger: 0.6, firstReviewMonth: 6, callOnFinalReview: false }),
+    coupon: coupon({ schedule: { frequency: 'quarterly' }, rate: 0.153, barrier: 0.6, memory: false }),
+  })
+  // Month 3 is a coupon review only, and pays; every call review after it is below the trigger, so the note is never called.
+  const uncalled = [70, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55]
+
+  it('has 12 coupon reviews, months 3 to 36, and call reviews from month 6, the last of which is month 36', () => {
+    const dates = reviewDates(note)
+    expect(dates.filter(({ coupon }) => coupon !== undefined).map(({ month }) => month)).toEqual([3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36])
+    expect(dates.at(-1)).toEqual({ month: 36, call: 11, coupon: 12 })
+    expect(couponPerReview(note)).toBeCloseTo(38.25, 9)
+  })
+
+  it('does not test month 36 for a call, even at the trigger, but still tests its coupon on the final level', () => {
+    const outcome = redemptionOutcome(note, uncalled, { initial: 100, final: 80 })
+    expect(outcome.calledAtReview).toBeUndefined()
+    expect(outcome.tests.map(({ month }) => month)).toEqual([6, 9, 12, 15, 18, 21, 24, 27, 30, 33])
+    expect(outcome.coupons).toHaveLength(12)
+    expect(outcome.coupons.at(-1)).toMatchObject({ review: 12, month: 36, level: 80, met: true })
+  })
+
+  it('pays the final coupon with the redemption when the final level is at or above the barrier', () => {
+    const outcome = redemptionOutcome(note, uncalled, { initial: 100, final: 80 })
+    expect(outcome.payments.map(({ month }) => month)).toEqual([3, 36])
+    expect(outcome.payments.at(-1)!.coupon).toBeCloseTo(38.25, 9)
+    expect(outcome.payments.at(-1)!.redemption).toBe(1000)
+    expect(outcome.payments.at(-1)!.amount).toBeCloseTo(1038.25, 9)
+  })
+
+  it('pays no final coupon when the final level is below the barrier', () => {
+    const outcome = redemptionOutcome(note, uncalled, { initial: 100, final: 50 })
+    expect(outcome.coupons.at(-1)).toMatchObject({ month: 36, level: 50, met: false, paid: 0 })
+    expect(outcome.payments.at(-1)).toEqual({ month: 36, coupon: 0, redemption: 500, amount: 500 })
+  })
+
+  it('stops the coupons and the redemption at an earlier call', () => {
+    const outcome = redemptionOutcome(note, [70, 55, 65, 55, 55, 55, 55, 55, 55, 55, 55], { initial: 100, final: 80 })
+    expect(outcome).toMatchObject({ calledAtReview: 2, months: 9 })
+    expect(outcome.coupons.map(({ month }) => month)).toEqual([3, 6, 9])
+    expect(outcome.payments.map(({ month }) => month)).toEqual([3, 9])
+    expect(outcome.payments.at(-1)!.amount).toBeCloseTo(1038.25, 9)
+  })
+
+  it('tests the maturity coupon of a bullet note with the same coupon', () => {
+    const bullet = { ...note, redemption: { kind: 'bullet' as const } }
+    const outcome = redemptionOutcome(bullet, [70, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55], { initial: 100, final: 80 })
+    expect(outcome.coupons).toHaveLength(12)
+    expect(outcome.payments.at(-1)!.amount).toBeCloseTo(1038.25, 9)
+  })
+})

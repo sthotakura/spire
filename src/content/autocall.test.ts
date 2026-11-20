@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { redemptionOutcome } from '../domain/autocall'
 import { autocallOf, validateProduct, type Product } from '../domain/note'
 import { startingProduct } from '../domain/starting-note'
-import { explainRedemption, pathScenarios, redemptionFormula, redemptionSteps } from './autocall'
+import { explainRedemption, pathScenarios, redemptionFormula, redemptionSteps, reviewTableRows } from './autocall'
 import { structureLines } from './structure-json'
 import { summarize } from './summary'
 
@@ -385,5 +385,52 @@ describe('named path scenarios', () => {
 
   it('has none for a bullet product', () => {
     expect(pathScenarios(startingProduct, 100)).toEqual([])
+  })
+})
+
+// Synthetic: a 36-month note with a quarterly contingent coupon at a 60% barrier and an autocall at 60% reviewed quarterly from month 6.
+describe('the review table', () => {
+  const quarterly = { frequency: 'quarterly' as const }
+  const note = (callOnFinalReview: boolean): Product => ({
+    ...callable,
+    term: { months: 36 },
+    redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: quarterly, trigger: 0.6, firstReviewMonth: 6, callAmount: 0, callOnFinalReview }] },
+    coupon: { schedule: quarterly, rate: 0.153, barrier: 0.6, memory: false },
+  })
+  const uncalled = [70, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55]
+
+  it('ends with month 36, the last coupon review, which reads the final level, whether or not the final review calls', () => {
+    for (const callOnFinal of [false, true]) {
+      const rows = reviewTableRows(note(callOnFinal))
+      expect(rows.map(({ date }) => date.month)).toEqual([3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36])
+      expect(rows.at(-1)).toEqual({ date: { month: 36, call: 11, coupon: 12 }, final: true })
+      expect(rows.slice(0, -1).map(({ index }) => index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    }
+  })
+
+  it('has a row for every coupon the payments test, on the same months', () => {
+    const product = note(false)
+    const outcome = redemptionOutcome(product, uncalled, { initial: 100, final: 80 })
+    const rows = reviewTableRows(product).filter(({ date }) => date.coupon !== undefined)
+    expect(rows.map(({ date }) => [date.month, date.coupon])).toEqual(outcome.coupons.map(({ month, review }) => [month, review]))
+    expect(outcome.payments.at(-1)!.month).toBe(rows.at(-1)!.date.month)
+  })
+
+  it('ends with the maturity coupon of a bullet note', () => {
+    const rows = reviewTableRows({ ...note(false), redemption: { kind: 'bullet' } })
+    expect(rows).toHaveLength(12)
+    expect(rows.at(-1)).toEqual({ date: { month: 36, coupon: 12 }, final: true })
+  })
+
+  it('shows the last review of a fixed coupon beside an autocall on the final row', () => {
+    const fixed = { ...note(false), coupon: { schedule: { frequency: 'monthly' as const }, rate: 0.12 } }
+    const rows = reviewTableRows(fixed)
+    expect(rows).toHaveLength(36)
+    expect(rows.at(-1)).toEqual({ date: { month: 36, call: 11 }, final: true })
+    expect(rows.filter(({ final }) => final)).toHaveLength(1)
+  })
+
+  it('is empty for a product that reads no level', () => {
+    expect(reviewTableRows({ ...callable, redemption: { kind: 'bullet' } })).toEqual([])
   })
 })

@@ -5,7 +5,7 @@ import { amountToY, barrierFromX, bufferFromX, digitalBarrierFromX, digitalFromY
 import { payoffLabels, type PayoffLabelKey } from './content/chart-labels'
 import HintToggle from './components/HintToggle.vue'
 import NumberInput from './components/NumberInput.vue'
-import { couponCell, couponClosingSteps, couponFormula, explainCoupons, explainRedemption, pathScenarios, redemptionFormula, redemptionSteps } from './content/autocall'
+import { couponCell, couponClosingSteps, reviewTableRows, couponFormula, explainCoupons, explainRedemption, pathScenarios, redemptionFormula, redemptionSteps } from './content/autocall'
 import { amortizationFormula, amortizationInWords, amortizationSteps, explainAmortization } from './content/amortization'
 import { calculationSteps } from './content/calculation'
 import { lineStages, scenarioAside } from './content/path'
@@ -756,23 +756,16 @@ const fixedCouponReviews = computed(() => {
 })
 // The coupon review that falls on a date, if any.
 const couponReviewOn = (date: ReviewDate) => date.coupon ?? fixedCouponReviews.value.find(({ month }) => month === date.month)?.review
-// The rows of the review table: each date a level is read on before the last, with its place among them, and each review of a fixed
-// coupon before the last that falls between them, which reads no level and has no place. A product with no date that reads a level
-// has no table.
-const reviewRows = computed((): Array<{ date: ReviewDate; index?: number }> => {
-  const read = datesBeforeLast.value.map((date, index) => ({ date, index }))
-  if (!read.length) return read
-  const months = new Set(read.map(({ date }) => date.month))
-  const unread = fixedCouponReviews.value.filter(({ month }) => month < termMonths.value && !months.has(month)).map(({ review, month }) => ({ date: { month, coupon: review } }))
-  return [...read, ...unread].sort((a, b) => a.date.month - b.date.month)
-})
+const reviewRows = computed(() => reviewTableRows(note.value))
+// Whether a date is the last call review and that review is the maturity, not a call: an autocall that does not call on its final review.
+const maturityReview = (date: ReviewDate) => date.call !== undefined && date.month === note.value.term.months && !autocallOf(note.value.redemption)?.callOnFinalReview
 // What each date is a review of, for the review table: the call's review, the coupon's, or both.
 const reviewLabel = (date: ReviewDate) => [date.call === undefined ? '' : `Call ${date.call}`, couponReviewOn(date) === undefined ? '' : `Coupon ${couponReviewOn(date)}`].filter(Boolean).join(' · ')
 // The level a call review needs, as the call reads it: the trigger of that review, as a share of the initial level. None on a date that
 // is not a call review.
 const reviewTrigger = (date: ReviewDate) => {
   const terms = autocallOf(note.value.redemption)
-  return terms === undefined || date.call === undefined || !Number.isFinite(determinedInitialLevel.value) ? Number.NaN : barrierLevelAt(triggerAtReview(terms, date.call), determinedInitialLevel.value)
+  return terms === undefined || date.call === undefined || maturityReview(date) || !Number.isFinite(determinedInitialLevel.value) ? Number.NaN : barrierLevelAt(triggerAtReview(terms, date.call), determinedInitialLevel.value)
 }
 // Whether a date is after the one the product ended on, so nothing is read on it.
 const ended = (date: ReviewDate) => redemption.value?.calledAtReview !== undefined && date.month > redemption.value.months
@@ -780,6 +773,7 @@ const reviewTest = (date: ReviewDate) => {
   if (!redemption.value || date.call === undefined) return ''
   if (ended(date)) return 'Ended'
   if (redemption.value.endedBy === 'issuer-call' && date.month === redemption.value.months) return 'Issuer called'
+  if (maturityReview(date)) return 'Maturity'
   return redemption.value.tests.find((test) => test.review === date.call)?.called ? 'Called' : 'Not called'
 }
 // What a coupon review paid, for the review table, worked out from the rate, or that it missed. A review after
@@ -2004,8 +1998,8 @@ const chooseSample = (event: Event) => {
             <div v-if="highestCloseWanted && highestClose !== undefined" class="hint-field"><div class="field-heading"><label for="highest-close">Highest close: hypothetical highest close of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About the highest close" aria-controls="highest-close-hint" :aria-expanded="activeHint === 'highest-close'" @click="toggleHint('highest-close')">ⓘ</button><p v-if="activeHint === 'highest-close'" id="highest-close-hint" class="hint-text" role="tooltip">{{ hints['highest-close'] }}</p></div><NumberInput id="highest-close" :model-value="highestClose" class="final-input" @update:model-value="highestCloseInput = $event" /></div>
             </template>
             <div v-if="datesBeforeLast.length" class="hint-field">
-              <div class="field-heading"><span id="review-levels-label" class="observed-heading">Reviews: hypothetical level of {{ underlierLabel }} on each review before the last</span><select class="path-select" aria-label="Load a path" @change="loadPath($event)"><option value="">Load a path…</option><option v-for="(path, index) in pathOptions" :key="path.name" :value="index">{{ path.name }}</option></select></div>
-              <div class="table-wrap basket-levels review-levels" :style="conceptStyle(autocalled ? 'trigger' : 'coupon')" tabindex="0" role="region" aria-labelledby="review-levels-label"><table aria-labelledby="review-levels-label"><thead><tr><th scope="col">Month</th><th scope="col">Review</th><th v-if="autocalled" scope="col" class="review-trigger">Trigger</th><template v-if="isBasket"><th v-for="(asset, a) in basketAssets" :key="a" scope="col">{{ asset.name.trim() || `Asset ${a + 1}` }}</th><th scope="col">Basket level</th></template><th v-else scope="col">Level</th><th v-if="autocalled" scope="col">Test</th><th v-if="note.coupon" scope="col">Coupon</th></tr></thead><tbody><tr v-for="{ date, index } in reviewRows" :key="date.month"><th scope="row">{{ date.month }}</th><td class="review-name">{{ reviewLabel(date) }}</td><td v-if="autocalled" class="review-trigger">{{ Number.isFinite(reviewTrigger(date)) ? formatAmount(reviewTrigger(date)) : '—' }}</td><td v-if="index === undefined" :colspan="isBasket ? basketAssets.length + 1 : 1" class="review-unread" title="A fixed coupon reads no level">—</td><template v-else-if="isBasket"><td v-for="(assetLevel, a) in reviewAssetLevels[index]" :key="a"><NumberInput :model-value="assetLevel" class="observed-input" :aria-label="`${basketAssets[a].name.trim() || `Asset ${a + 1}`}, month ${date.month}`" @update:model-value="setReviewAssetLevel(index, a, $event)" /></td><td><output class="observed-result" aria-live="polite">{{ Number.isFinite(reviewLevels[index]) ? formatAmount(reviewLevels[index]) : '—' }}</output></td></template><td v-else><NumberInput :model-value="reviewLevels[index]" class="observed-input" :aria-label="`Level in month ${date.month}`" @update:model-value="setReviewLevel(index, $event)" /></td><td v-if="autocalled" class="review-test-cell"><span v-if="reviewTest(date)" :class="['review-test', { called: reviewTest(date) === 'Called' || reviewTest(date) === 'Issuer called', ended: reviewTest(date) === 'Ended' }]">{{ reviewTest(date) }}</span></td><td v-if="note.coupon" class="review-test-cell"><span v-if="reviewCoupon(date)" :class="['review-test', { ended: reviewCoupon(date).startsWith('Missed') || reviewCoupon(date) === 'Ended' || reviewCoupon(date) === '—' }]" :style="conceptStyle('coupon')">{{ reviewCoupon(date) }}</span></td></tr></tbody></table></div>
+              <div class="field-heading"><span id="review-levels-label" class="observed-heading">Reviews: hypothetical level of {{ underlierLabel }} on each review; the last reads the final level</span><select class="path-select" aria-label="Load a path" @change="loadPath($event)"><option value="">Load a path…</option><option v-for="(path, index) in pathOptions" :key="path.name" :value="index">{{ path.name }}</option></select></div>
+              <div class="table-wrap basket-levels review-levels" :style="conceptStyle(autocalled ? 'trigger' : 'coupon')" tabindex="0" role="region" aria-labelledby="review-levels-label"><table aria-labelledby="review-levels-label"><thead><tr><th scope="col">Month</th><th scope="col">Review</th><th v-if="autocalled" scope="col" class="review-trigger">Trigger</th><template v-if="isBasket"><th v-for="(asset, a) in basketAssets" :key="a" scope="col">{{ asset.name.trim() || `Asset ${a + 1}` }}</th><th scope="col">Basket level</th></template><th v-else scope="col">Level</th><th v-if="autocalled" scope="col">Test</th><th v-if="note.coupon" scope="col">Coupon</th></tr></thead><tbody><tr v-for="{ date, index, final } in reviewRows" :key="date.month"><th scope="row">{{ date.month }}</th><td class="review-name">{{ reviewLabel(date) }}</td><td v-if="autocalled" class="review-trigger">{{ Number.isFinite(reviewTrigger(date)) ? formatAmount(reviewTrigger(date)) : '—' }}</td><template v-if="final"><td v-if="isBasket" :colspan="basketAssets.length" class="review-unread" title="Each asset's final level is set above">—</td><td title="The final level, set above"><output class="observed-result" aria-live="polite">{{ Number.isFinite(finalLevel) ? formatAmount(finalLevel) : '—' }}</output></td></template><td v-else-if="index === undefined" :colspan="isBasket ? basketAssets.length + 1 : 1" class="review-unread" title="A fixed coupon reads no level">—</td><template v-else-if="isBasket"><td v-for="(assetLevel, a) in reviewAssetLevels[index]" :key="a"><NumberInput :model-value="assetLevel" class="observed-input" :aria-label="`${basketAssets[a].name.trim() || `Asset ${a + 1}`}, month ${date.month}`" @update:model-value="setReviewAssetLevel(index, a, $event)" /></td><td><output class="observed-result" aria-live="polite">{{ Number.isFinite(reviewLevels[index]) ? formatAmount(reviewLevels[index]) : '—' }}</output></td></template><td v-else><NumberInput :model-value="reviewLevels[index]" class="observed-input" :aria-label="`Level in month ${date.month}`" @update:model-value="setReviewLevel(index, $event)" /></td><td v-if="autocalled" class="review-test-cell"><span v-if="reviewTest(date)" :class="['review-test', { called: reviewTest(date) === 'Called' || reviewTest(date) === 'Issuer called', ended: reviewTest(date) === 'Ended' }]">{{ reviewTest(date) }}</span></td><td v-if="note.coupon" class="review-test-cell"><span v-if="reviewCoupon(date)" :class="['review-test', { ended: reviewCoupon(date).startsWith('Missed') || reviewCoupon(date) === 'Ended' || reviewCoupon(date) === '—' }]" :style="conceptStyle('coupon')">{{ reviewCoupon(date) }}</span></td></tr></tbody></table></div>
               <p v-if="reviewError" class="errors" role="alert">{{ reviewError }}</p>
             </div>
             <div v-if="issuerCalled && issuerCallableReviews.length" class="hint-field">

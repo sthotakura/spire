@@ -1,5 +1,5 @@
 import { annualisedReturnOfPayments, type CouponTest, type RedemptionOutcome, type ReviewTest } from '../domain/autocall'
-import { amortizationOf, annualisedReturn, autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, couponPerReview, firstReviewMonthOf, issuerCallOf, mechanismReviewCount, callsOf, monthsPerReview, reviewCount, reviewDates, triggerAtReview, type Autocall, type CallMechanism, type IssuerCall, type Product, type ReviewDate } from '../domain/note'
+import { amortizationOf, annualisedReturn, autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, couponPerReview, firstReviewMonthOf, issuerCallOf, mechanismReviewCount, callsOf, monthsPerReview, reviewCount, reviewDates, scheduleReviews, triggerAtReview, type Autocall, type CallMechanism, type IssuerCall, type Product, type ReviewDate } from '../domain/note'
 import type { CalculationStep } from './calculation'
 import type { FormulaLine } from './formula'
 
@@ -228,6 +228,27 @@ const callCouponText = (note: Product, outcome: RedemptionOutcome): string => {
   if (note.coupon === undefined || outcome.calledAtReview === undefined) return ''
   const onCall = outcome.coupons.find((test) => test.month === outcome.months)
   return onCall === undefined ? ', no coupon review on this date' : ` + coupon ${units(onCall.paid)}`
+}
+
+// A row of the review table: a date, the place of its level among the levels the scenario states for the dates before the last, if it
+// has one, and whether it is the last date, the end of the term, which reads the final level.
+export interface ReviewRow {
+  date: ReviewDate
+  index?: number
+  final?: true
+}
+
+// The rows of the review table: each date a level is read on, ending with the last, which reads the final level, and each review of a
+// fixed coupon that falls between them, which reads no level and has no place. A product with no date that reads a level has no table.
+export function reviewTableRows(note: Product): ReviewRow[] {
+  const dates = reviewDates(note)
+  if (!dates.length) return []
+  const read: ReviewRow[] = dates.map((date, index) => (index < dates.length - 1 ? { date, index } : { date, final: true }))
+  const months = new Set(dates.map(({ month }) => month))
+  const { coupon } = note
+  const fixed = coupon === undefined || coupon.barrier !== undefined ? [] : scheduleReviews(note.term, coupon.schedule) ?? []
+  const unread = fixed.filter(({ month }) => !months.has(month)).map(({ review, month }): ReviewRow => ({ date: { month, coupon: review } }))
+  return [...read, ...unread].sort((a, b) => a.date.month - b.date.month)
 }
 
 // A coupon review's cell in the review table, with its working: principal × the rate a year × the months between coupon reviews ÷ 12,
