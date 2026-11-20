@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { startingProduct } from '../domain/starting-note'
 import { redemptionOutcome } from '../domain/autocall'
-import { reviewDates } from '../domain/note'
+import { deliveryFrom, paymentBreakdown, reviewDates } from '../domain/note'
 import { sameProduct, sampleBySlug, sampleGroups, sampleProducts } from './examples'
 
 describe('sample products', () => {
@@ -86,5 +86,25 @@ describe('the level-pay amortizing note', () => {
       [199.11, 0.6, 99.4, 99.7],
       [99.7, 0.3, 99.7, 0],
     ])
+  })
+})
+
+// The TD note on a fund, as published: the digital return at or above 90% of the initial level, and below it fund shares for principal ÷
+// the buffer price. These read the sample itself, so a change to it that moved the switch between cash and shares would show here.
+describe('the buffered digital note delivering fund shares', () => {
+  const { product } = sampleBySlug('buffered-digital-note-delivering-fund-shares')!
+  const settle = (final: number) => {
+    const breakdown = paymentBreakdown(product, { initial: 100, final })
+    return { payment: breakdown.payment, delivery: deliveryFrom(product, breakdown, final) }
+  }
+
+  it('delivers 1,000 ÷ 90 fund shares and no cash just below 90%', () => {
+    const { payment, delivery } = settle(89.99)
+    expect(delivery).toEqual({ asset: 'Synthetic Fund', shares: expect.closeTo(11.1111, 4), cash: 0, initialLevel: 100, finalLevel: 89.99 })
+    expect(payment).toBeCloseTo(delivery!.shares * 89.99, 9)
+  })
+
+  it('pays 1,080 in cash at and just above 90%', () => {
+    for (const final of [90, 90.01]) expect(settle(final)).toEqual({ payment: expect.closeTo(1080, 9), delivery: undefined })
   })
 })
