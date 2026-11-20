@@ -67,6 +67,30 @@ describe('the level-payment schedule', () => {
     for (const { outstanding, coupon } of amortizationSchedule(amortizing())) expect(coupon).toBeCloseTo(outstanding * 0.015, 9)
   })
 
+  // At a high rate (1 + i)^−n is below the precision of 1, and at a rate near zero 1 − (1 + i)^−n rounds away: both once broke the
+  // level payment. The validator accepts any positive coupon rate, so every rate must give finite, level instalments that repay principal.
+  it('stays level and finite at any rate the validator accepts', () => {
+    for (const rate of [4, 1e-16, 1e-9, 0.0001, 0.5, 100]) {
+      const note = amortizing({ term: { months: 120 }, redemption: { kind: 'early-redemption', mechanisms: [amortization({ schedule: { frequency: 'monthly' } })] }, coupon: { schedule: { frequency: 'monthly' }, rate } })
+      expect(validateProduct(note)).toEqual([])
+      const instalments = amortizationSchedule(note)
+      const level = levelPayment(1000, rate / 12, 120)
+      expect(Number.isFinite(level)).toBe(true)
+      for (const { amount, principal, remaining } of instalments) {
+        expect(amount).toBeCloseTo(level, 6)
+        expect(principal).toBeGreaterThanOrEqual(0)
+        expect(Number.isFinite(remaining)).toBe(true)
+      }
+      expect(instalments.reduce((sum, { principal }) => sum + principal, 0)).toBeCloseTo(1000, 6)
+    }
+  })
+
+  it('repays principal ÷ n at a rate near zero and pays the coupon on principal at a high one', () => {
+    expect(levelPayment(1000, 1e-16, 120)).toBeCloseTo(1000 / 120, 9)
+    // 400% a year is a third a month: 1.3333^−120 is about 10^−15, so the payment is the coupon on principal, a third of 1,000.
+    expect(levelPayment(1000, 4 / 12, 120)).toBeCloseTo(1000 / 3, 9)
+  })
+
   it('is empty for a product that does not amortize', () => {
     expect(amortizationSchedule({ ...amortizing(), redemption: { kind: 'bullet' } })).toEqual([])
   })

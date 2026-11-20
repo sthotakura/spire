@@ -17,22 +17,30 @@ export interface Instalment {
 }
 
 // The level payment that repays a principal over a number of periods at a rate per period, with interest on what is outstanding:
-// principal × i ÷ (1 − (1 + i)^−n).
+// principal × i ÷ (1 − (1 + i)^−n). The power is taken through log1p and expm1, so that a rate near zero, where 1 − (1 + i)^−n
+// would round to zero, still gives principal ÷ n, and a high rate stays exact.
 export const levelPayment = (principal: number, ratePerPeriod: number, periods: number): number =>
-  (principal * ratePerPeriod) / (1 - (1 + ratePerPeriod) ** -periods)
+  (principal * ratePerPeriod) / -Math.expm1(-periods * Math.log1p(ratePerPeriod))
+
+// What is outstanding after k of n level payments: principal × (1 − (1 + i)^(k − n)) ÷ (1 − (1 + i)^−n), the payments still to come
+// discounted at the rate. Each balance is computed from the terms, not by subtracting each repayment from the last balance, which at a
+// high rate multiplies a rounding error by (1 + i) on every period.
+const outstandingAfter = (principal: number, ratePerPeriod: number, periods: number, paid: number): number => {
+  const growth = Math.log1p(ratePerPeriod)
+  return (principal * Math.expm1((paid - periods) * growth)) / Math.expm1(-periods * growth)
+}
 
 // The instalments of a level payment, review by review. Amounts are not rounded: the Barclays schedule read for docs/amortization.md
-// agrees to the cent with an unrounded schedule, and drifts from a schedule rounded to the cent on each row. The last review repays
-// what is outstanding, which differs from the level payment only by floating point.
+// agrees to the cent with an unrounded schedule, and drifts from a schedule rounded to the cent on each row. Each instalment repays
+// the fall in what is outstanding, so the last repays all of it, and coupon plus principal is the level payment up to floating point.
 export function levelPaymentSchedule(principal: number, ratePerPeriod: number, reviews: Array<{ review: number; month: number }>): Instalment[] {
-  const amount = levelPayment(principal, ratePerPeriod, reviews.length)
-  let outstanding = principal
+  const periods = reviews.length
   return reviews.map(({ review, month }, index) => {
+    const outstanding = index === 0 ? principal : outstandingAfter(principal, ratePerPeriod, periods, index)
+    const remaining = index === periods - 1 ? 0 : outstandingAfter(principal, ratePerPeriod, periods, index + 1)
     const coupon = outstanding * ratePerPeriod
-    const repaid = index === reviews.length - 1 ? outstanding : amount - coupon
-    const instalment = { review, month, outstanding, coupon, principal: repaid, amount: coupon + repaid, remaining: index === reviews.length - 1 ? 0 : outstanding - repaid }
-    outstanding = instalment.remaining
-    return instalment
+    const repaid = outstanding - remaining
+    return { review, month, outstanding, coupon, principal: repaid, amount: coupon + repaid, remaining }
   })
 }
 
