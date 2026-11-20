@@ -206,6 +206,64 @@ These appear in the documents above and belong to other concepts:
 - The US and Swiss documents describe the same concept, though their terms differ: physical delivery amount and ratio.
 - The summarising fetch tool produced most of the SEC quotations. The calculations above agree with them, but the quotations were not checked against the printed filings.
 
+## Proposal: fund shares and a named strike
+
+Proposed on 20 November 2026, and both recommendations agreed the same day (decisions 7 and 8). Nothing below is built. The unresolved questions under each are still open.
+
+### Fund shares
+
+**Sources.** Read on 20 November 2026 through a summarising fetch tool; quotations are its verbatim excerpts.
+
+| Finding | Source |
+| :--- | :--- |
+| **A note delivers shares of an exchange-traded fund by the same rule as a stock.** The reference asset is "The shares of the SPDR® S&P 500® ETF Trust", and the Physical Delivery Amount is "the quotient of the Principal Amount divided by the Buffer Price", with "any fractional share ... paid in cash ... equal to the product of such fraction and the Final Price". | [TD 2025, 424B2](https://www.sec.gov/Archives/edgar/data/947263/000114036125006567/ef20044740_424b2.htm) |
+| **The fund's level is its closing price, not its net asset value.** The Final Price is "The Closing Price of the Reference Asset on the Valuation Date", and the filing warns that "the market value of the Reference Asset may differ from its NAV per share". | TD 2025 |
+| **One product supplement covers both under one name.** Its reverse convertibles are linked to "(i) an underlying common stock or (ii) shares of an exchange traded fund (each, an "underlying equity")", and the share delivery amount is "the principal amount per Note divided by (ii) the initial price" for either. | [UBS 2015, product supplement](https://www.sec.gov/Archives/edgar/data/0001114446/000119312515222913/d941599d424b2.htm) |
+| **What differs is what happens to the fund, not the payment.** UBS has its own section for the "Delisting, Discontinuance or Modification of an ETF", with a substitute ETF that must "have the same underlying index or underlying assets as the original ETF". A delisted stock is replaced by another means. TD says the asset "may be replaced by distribution property or a substitute equity security". | UBS 2015; TD 2025 |
+
+So a fund share is delivered and paid exactly as a stock is. The differences are events during the term (delisting, substitution, a change in the fund's index), which belong to issuance and are not modelled for stocks either.
+
+**Options.**
+
+| Option | For | Against |
+| :--- | :--- | :--- |
+| **1. A fund asset kind (recommended).** `'fund'`, labelled "Exchange-traded fund", deliverable like `'equity'`. | It matches the documents, which name the fund as the reference asset, and the strategy index precedent: a kind changes the label and the explanation, not the payment. The two-fund and metal-fund notes could then name a fund where their samples now stand a fund as an index. | A new kind in the schema, the asset menu, the delivery rule and the book. |
+| 2. Read `'equity'` as including fund shares, as UBS's "underlying equity" does. | No change to the model. | An S&P 500 fund labelled Equity reads like a single stock. The book would have to explain that the label covers what tracks an index. |
+| 3. Keep funds out. | No change. | The TD note, the one public delivering note read on a fund, stays unmodelled. |
+
+**The smallest model, for option 1.**
+
+- `AssetKind` gains `'fund'`. The payoff reads its closing level, as it reads any other.
+- Delivery accepts an asset of kind `'equity'` or `'fund'`, on one asset or each asset of a worst-of basket. The message becomes "Delivery needs stocks or fund shares: an index cannot be delivered."
+- The book defines a fund in chapter 5 as a security that holds other assets and trades on an exchange, whose level is its closing price, and says its holdings, fees and the gap to its net asset value are not modelled. Chapters 21 and 22 drop "Delivering shares of a fund is not modelled."
+- No validation of what the fund holds. A fund on commodities, such as the metal funds read, would be accepted as a label like any other; the reference's scope sentence would say that the examples use funds on equity indices.
+
+**Unresolved.**
+
+1. Whether the reverse convertible names apply to a fund. SSPA and the issuers read say "underlying", so the proposal is yes: delivery of fund shares is still delivery.
+2. Whether to add a sample from the TD note now. It fits the model: a 10% buffer at a rate of 1 ÷ 0.9, an 8% digital return at or above 90%, no upside participation, delivery below 90%, on a principal of 10,000 and a term of about 12 months. It is a separate change.
+
+### A named strike
+
+**Today.** A strike of 80% is stated as a 20% buffer at a rate of 1.25 (decision 5). Nothing in the structure is called a strike, but the arithmetic is exact: principal × final level ÷ strike.
+
+**How documents state it.** Vontobel states a strike of 80% and a share count of 1,000 ÷ strike. TD states a "Buffer Price" of 90% and divides by it, with a rate of 1 ÷ 0.9 that it does not name. So one issuer names a strike and the other a buffer, for the same payment.
+
+**Options.**
+
+| Option | For | Against |
+| :--- | :--- | :--- |
+| **1. Keep the structure, and show the strike where it is implied (recommended).** When rate × (1 − buffer) is 1 and there is no barrier, the outline, the calculation and the delivery step name the strike: "Strike 80%: a 20% buffer at a rate of 1 ÷ 0.8". `marketingNames` already detects this case. | One way to write each payment, so the schema and the validator are unchanged. A reader looking for a strike finds it. | The strike is shown, not stated: a reader cannot type 80% and have the buffer and rate follow. |
+| 2. A strike preset in the interface. Typing a strike sets the buffer to 1 − strike and the rate to 1 ÷ strike. | A reader can enter the number the term sheet gives. | A control that edits two terms at once, and a rate of 1 ÷ 0.75 that the reader sees as 133.33%. |
+| 3. A `strike` term on downside participation, in place of the buffer and rate. | The structure says what Vontobel says. | Two ways to state one payment: the schema and the validator must reject a strike beside a buffer or a rate, and the TD note reads as a buffer, not a strike. |
+
+The recommendation is option 1 now. Option 2 can be added later on top of it without changing the structure. Option 3 is not recommended.
+
+**Unresolved.**
+
+1. Where the derived strike is shown: as a line under downside participation in the outline, only in the calculation, or both.
+2. Whether the strike is also shown when the rate is not 1 ÷ (1 − buffer), as "the fall beyond 20% counts at 150%". The proposal is no: then there is no single price below which shares are delivered at principal ÷ strike.
+
 ## Decisions
 
 1. **Settlement is a term on the product**, not on participation or the wrapper. Agreed on 4 November 2026.
@@ -214,9 +272,11 @@ These appear in the documents above and belong to other concepts:
 4. **Stocks only, first.** An index or a fund is rejected. Agreed on 4 November 2026.
 5. **No separate strike term.** A strike of 80% stays a 20% buffer at a rate of 1.25, explained in the book and a name's reason. It was recommended and not objected to, so it stands until a reader needs otherwise.
 6. **A share count to four places.** The count states fractions, as TD's does, and the hint says they are paid in cash.
+7. **A fund asset kind.** `'fund'`, deliverable like a stock, as the proposal above describes. Agreed on 20 November 2026; not built.
+8. **A strike shown, not stated.** No strike term: the strike is shown where the buffer and rate imply one. Agreed on 20 November 2026; not built. This keeps decision 5.
 
 ## Open questions
 
-1. **Funds.** TD delivers shares of an exchange-traded fund, and the model's asset kinds are equity, equity index and strategy index. Delivering one needs a fund kind, or `equity` read to include fund shares.
-2. **A named strike.** A reader looking for a strike will not find one in the structure. If that proves confusing, it could be a term that states the buffer and rate together.
+1. **Funds.** TD delivers shares of an exchange-traded fund, and the model's asset kinds are equity, equity index and strategy index. Agreed: a fund asset kind (decision 7).
+2. **A named strike.** A reader looking for a strike will not find one in the structure. Agreed: show the strike where the buffer and rate imply one, without a new term (decision 8).
 3. **A delivery on a rise**, such as the ELKS, is not modelled.
