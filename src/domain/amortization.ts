@@ -25,9 +25,9 @@ export const levelPayment = (principal: number, ratePerPeriod: number, periods: 
 // What is outstanding after k of n level payments: principal × (1 − (1 + i)^(k − n)) ÷ (1 − (1 + i)^−n), the payments still to come
 // discounted at the rate. Each balance is computed from the terms, not by subtracting each repayment from the last balance, which at a
 // high rate multiplies a rounding error by (1 + i) on every period.
-// At a rate of zero it is the limit, principal × (n − k) ÷ n.
+// At a rate of zero it is the limit, principal × (n − k) ÷ n, with the fraction taken first so that a large principal does not overflow.
 const outstandingAfter = (principal: number, ratePerPeriod: number, periods: number, paid: number): number => {
-  if (ratePerPeriod === 0) return (principal * (periods - paid)) / periods
+  if (ratePerPeriod === 0) return principal * ((periods - paid) / periods)
   const growth = Math.log1p(ratePerPeriod)
   return (principal * Math.expm1((paid - periods) * growth)) / Math.expm1(-periods * growth)
 }

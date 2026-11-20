@@ -96,6 +96,20 @@ describe('the level-payment schedule', () => {
     expect(redemptionOutcome(note, [], levels).totalPaid).toBe(1e308)
   })
 
+  // At a rate that rounds to zero each instalment is principal ÷ n, which fits in a number even when principal × n does not.
+  it('stays finite on a principal near the largest number at a rate that rounds to zero', () => {
+    for (const rate of [Number.MIN_VALUE, 1e-310]) {
+      const note = amortizing({ principalAmount: 2e306, term: { months: 120 }, redemption: { kind: 'early-redemption', mechanisms: [amortization({ schedule: { frequency: 'monthly' } })] }, coupon: { schedule: { frequency: 'monthly' }, rate } })
+      expect(validateProduct(note)).toEqual([])
+      const instalments = amortizationSchedule(note)
+      for (const { amount, remaining } of instalments) {
+        expect(amount / (2e306 / 120)).toBeCloseTo(1, 9)
+        expect(Number.isFinite(remaining)).toBe(true)
+      }
+      expect(redemptionOutcome(note, [], levels).totalPaid / 2e306).toBeCloseTo(1, 9)
+    }
+  })
+
   it('repays principal ÷ n at a rate near zero and pays the coupon on principal at a high one', () => {
     expect(levelPayment(1000, 1e-16, 120)).toBeCloseTo(1000 / 120, 9)
     // 400% a year is a third a month: 1.3333^−120 is about 10^−15, so the payment is the coupon on principal, a third of 1,000.
