@@ -68,6 +68,7 @@ The chart draws the value of the payment. Below the strike, where shares are del
 ## In the builder
 
 - The [Worst-of reverse convertible](https://sthotakura.github.io/spire/?example=worst-of-reverse-convertible) is modelled on a Vontobel note: 33 months, the worst of three stocks, a fixed coupon of 10% a year, and a strike of 80%.
+- The [Buffered digital note delivering fund shares](https://sthotakura.github.io/spire/?example=buffered-digital-note-delivering-fund-shares) is modelled on a TD note on an S&P 500 exchange-traded fund: 12 months, an 8% digital return at or above 90%, and below 90% a 10% buffer at a rate of 1 ÷ 0.9, paid in fund shares. At or above 90 it pays 1,080 in cash; at 80 it delivers 1,000 ÷ 90, about 11.1111 shares, worth 888.89. It has no coupon, so it is not a reverse convertible: the shares are delivered because the holder bears a fall.
 - The [Autocallable worst-of barrier reverse convertible](https://sthotakura.github.io/spire/?example=autocallable-worst-of-barrier-reverse-convertible) is modelled on a Credit Suisse note: 24 months, the worst of two stocks, a fixed coupon of 14% a year, an autocall from month 6, and a 45% barrier on the final date.
 
 ## Assumptions

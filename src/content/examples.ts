@@ -151,6 +151,17 @@ export const sampleGroups: SampleGroup[] = [
         source: { title: 'Bank of Montreal digital return barrier notes on the least performing of two indices, due 2027', url: 'https://www.sec.gov/Archives/edgar/data/927971/000183988226013810/bmo5560_424b2-08699.htm', note: 'The 13 months run from pricing to valuation.' },
         product: product(13, { participations: [{ direction: 'downside', rate: 1 }], digitalReturn: { amount: 0.0808, barrier: { level: 0.71, observation: 'final' } } }, { underlier: worstOf('Index A', 'Index B') }),
       },
+      // The filing pays the digital return at or above its buffer price of 90%, and below it delivers principal ÷ the buffer price in fund
+      // shares, which is a 10% buffer at a rate of 1 ÷ 0.9.
+      {
+        slug: 'buffered-digital-note-delivering-fund-shares',
+        name: 'Buffered digital note delivering fund shares',
+        source: { title: 'TD digital notes linked to the shares of the SPDR S&P 500 ETF Trust, due 2026', url: 'https://www.sec.gov/Archives/edgar/data/947263/000114036125006567/ef20044740_424b2.htm', note: 'The filing’s underlier is an exchange-traded fund on the S&P 500, and its principal is $10,000; this takes 1,000. Its 12.4 months from pricing to valuation are taken as 12.' },
+        product: product(12, { participations: [{ direction: 'downside', buffer: 0.1, rate: 1 / 0.9 }], digitalReturn: { amount: 0.08, barrier: { level: 0.9, observation: 'final' } } }, {
+          settlement: 'delivery',
+          underlier: { ...single(), components: [{ asset: { kind: 'fund', name: 'Synthetic Fund' } }] },
+        }),
+      },
     ],
   },
   {

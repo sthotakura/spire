@@ -277,6 +277,6 @@ The recommendation is option 1 now. Option 2 can be added later on top of it wit
 
 ## Open questions
 
-1. **Funds.** Settled by decision 7: a fund asset kind, delivered like a stock. A sample from the TD note is still to add.
+1. **Funds.** Settled by decision 7: a fund asset kind, delivered like a stock. The TD note is the sample Buffered digital note delivering fund shares.
 2. **A named strike.** A reader looking for a strike will not find one in the structure. Agreed: show the strike where the buffer and rate imply one, without a new term (decision 8).
 3. **A delivery on a rise**, such as the ELKS, is not modelled.

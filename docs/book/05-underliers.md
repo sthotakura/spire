@@ -146,6 +146,8 @@ The builder opens a note modelled on it, on two synthetic indices: the
 A [pricing supplement for a note on the SPDR S&P 500 ETF Trust](https://www.sec.gov/Archives/edgar/data/947263/000114036125006567/ef20044740_424b2.htm)
 reads the fund's closing price and, below a buffer, delivers its shares: the
 principal divided by the buffer price, with any fraction of a share paid in cash.
+The builder opens a note modelled on it, on a synthetic fund: the
+[Buffered digital note delivering fund shares](https://sthotakura.github.io/spire/?example=buffered-digital-note-delivering-fund-shares).
 
 A [pricing supplement for a ten-year autocallable note](https://www.sec.gov/Archives/edgar/data/200245/000191870426031411/form424b2.htm)
 is linked to an index of S&P 500 futures that targets a volatility of 35%,
