@@ -597,7 +597,7 @@ A note that repays its principal in level instalments, each the fixed coupon on 
 - **Names.** Amortizing note, by market usage from both titles read. No category.
 - **Book.** A section in chapter 19, and a sentence in chapter 20.
 - **Sample.** Level-pay amortizing note: the Barclays note's last 120 payments, from the 10,068.58 outstanding after the 60th, since its 180-month term is beyond the limit of 120.
-- **Not done:** amortization beside a call, instalments that are not level, and a short first period.
+- **Not done:** amortization beside a call, since no document read states what a call pays after some instalments, and instalments that are not level. A short first period belongs with broken periods on the schedule, and an equity payoff after amortization has nothing left to apply to; both are closed.
 
 ## Later direction: a composable form
 
