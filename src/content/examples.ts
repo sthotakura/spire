@@ -331,7 +331,7 @@ export const sampleGroups: SampleGroup[] = [
       {
         slug: 'level-pay-amortizing-note',
         name: 'Level-pay amortizing note',
-        source: { title: 'Barclays level-pay amortizing notes, due 2025', url: 'https://www.sec.gov/Archives/edgar/data/0000312070/000119312510201959/d424b2.htm', note: 'The note repays $13,900 in 180 monthly payments of $100.00, and the issuer may redeem it early. The reference accepts terms up to 120 months, so this sample is its last 120 payments, from the 10,068.58 outstanding after the 60th: they pay 100.00 a month, as the filing does, and end on its last rows. The issuer\u2019s call is not modelled. The note reads no underlier, so the synthetic index here changes nothing.' },
+        source: { title: 'Barclays level-pay amortizing notes, due 2025', url: 'https://www.sec.gov/Archives/edgar/data/0000312070/000119312510201959/d424b2.htm', note: 'The note repays $13,900 in 180 monthly payments of $100.00. Its pricing supplement refers to redemption at the company\u2019s option but states no call terms, and the documents it points to give only a template for one and a redemption for tax reasons, so no call is modelled. The reference accepts terms up to 120 months, so this sample is its last 120 payments, from the 10,068.58 outstanding after the 60th: they pay 100.00 a month, as the filing does, and end on its last rows. The note reads no underlier, so the synthetic index here changes nothing.' },
         // Principal is what the note has outstanding after 60 payments, not 1,000, so that the payments are the filing's own.
         product: product(120, { participations: [] }, {
           principalAmount: 10068.58,

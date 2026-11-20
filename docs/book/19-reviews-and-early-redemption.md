@@ -176,7 +176,7 @@ It pays 1,037.78 in all: 1,000 of principal and 37.78 in coupons. That is a tota
 
 ### What it combines with
 
-Amortization needs a fixed coupon on the same reviews, since each instalment pays that coupon. It cannot be combined with a payoff feature, because nothing is outstanding at maturity for one to apply to, and it is available on notes only, since a deposit is repaid in full at the end of its term. In this reference it is the only mechanism of its redemption: the Barclays note can also be redeemed at its issuer's option, but neither its pricing supplement nor the documents it refers to states the call terms, so whether a call after some instalments pays a call amount on the original or the outstanding principal is open.
+Amortization needs a fixed coupon on the same reviews, since each instalment pays that coupon. It cannot be combined with a payoff feature, because nothing is outstanding at maturity for one to apply to, and it is available on notes only, since a deposit is repaid in full at the end of its term. In this reference it is the only mechanism of its redemption. The Barclays note's pricing supplement refers to redemption at the company's option, but neither it nor the documents it refers to states call terms for the note: they give a template for a call and a redemption for tax reasons at 100% of the principal amount. So whether a call after some instalments pays a call amount on the original or the outstanding principal is open.
 
 Because no payment reads the underlier, an amortizing note on its own is fixed-rate debt, not a structured product. The reference includes it to show the opposite of bullet repayment, and how a coupon depends on what is outstanding.
 

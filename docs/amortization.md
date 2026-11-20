@@ -65,7 +65,7 @@ Redemption       [ Early redemption ▾ ]
                    ☐ Amortizing
 ```
 
-The mechanisms combine, and the sources show amortization alongside a mechanism that ends the product. The Barclays note amortizes and can be redeemed at the company's option. Novanta's holders can require a repurchase at the outstanding principal plus accrued interest. A note that amortizes and cannot be called is an early redemption with amortization as its only mechanism.
+The mechanisms combine, and the sources show amortization alongside a mechanism that ends the product. The Barclays note amortizes, and its pricing supplement refers to redemption at the company's option, though neither it nor the documents it points to states call terms: they give a template for a call and a redemption for tax reasons. Novanta's holders can require a repurchase at the outstanding principal plus accrued interest. A note that amortizes and cannot be called is an early redemption with amortization as its only mechanism.
 
 Bullet keeps its label and meaning: the whole principal is repaid at the end of the term, so Bullet and amortization never combine. A checkbox beside the Bullet and Early redemption choice was considered first. It was set aside because Bullet with amortization contradicts what bullet means.
 
