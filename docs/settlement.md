@@ -269,14 +269,14 @@ The recommendation is option 1 now. Option 2 can be added later on top of it wit
 1. **Settlement is a term on the product**, not on participation or the wrapper. Agreed on 4 November 2026.
 2. **The term is a plain value, cash or delivery.** Rounding, fractions and an issuer's cash option do not change the value on the final date, so a hint states them. Agreed on 4 November 2026.
 3. **The reverse convertible names need delivery.** They were first built without regard to settlement, since SSPA's and FINRA's wording allow cash or shares. On 5 November 2026 they came to need it, so that changing a delivering sample to cash removes the name. This is narrower than those sources, and a note on an index never shows it ([call-and-coupon-names.md](call-and-coupon-names.md)).
-4. **Stocks only, first.** An index or a fund is rejected. Agreed on 4 November 2026.
+4. **Stocks only, first.** An index or a fund is rejected. Agreed on 4 November 2026; decision 7 now admits funds.
 5. **No separate strike term.** A strike of 80% stays a 20% buffer at a rate of 1.25, explained in the book and a name's reason. It was recommended and not objected to, so it stands until a reader needs otherwise.
 6. **A share count to four places.** The count states fractions, as TD's does, and the hint says they are paid in cash.
-7. **A fund asset kind.** `'fund'`, deliverable like a stock, as the proposal above describes. Agreed on 20 November 2026; not built.
+7. **A fund asset kind.** `'fund'`, deliverable like a stock, as the proposal above describes. Agreed and built on 20 November 2026. The reverse convertible names apply to fund shares as to a stock's.
 8. **A strike shown, not stated.** No strike term: the strike is shown where the buffer and rate imply one. Agreed on 20 November 2026; not built. This keeps decision 5.
 
 ## Open questions
 
-1. **Funds.** TD delivers shares of an exchange-traded fund, and the model's asset kinds are equity, equity index and strategy index. Agreed: a fund asset kind (decision 7).
+1. **Funds.** Settled by decision 7: a fund asset kind, delivered like a stock. A sample from the TD note is still to add.
 2. **A named strike.** A reader looking for a strike will not find one in the structure. Agreed: show the strike where the buffer and rate imply one, without a new term (decision 8).
 3. **A delivery on a rise**, such as the ELKS, is not modelled.

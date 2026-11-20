@@ -280,6 +280,53 @@
         "months": 12
       },
       "redemption": {
+        "kind": "bullet"
+      },
+      "underlier": {
+        "kind": "single",
+        "components": [
+          {
+            "asset": {
+              "kind": "fund",
+              "name": "Synthetic Fund"
+            }
+          }
+        ],
+        "determination": {
+          "initial": {
+            "kind": "given",
+            "level": 100
+          },
+          "final": {
+            "kind": "final-date"
+          }
+        }
+      },
+      "payoff": {
+        "participations": [
+          {
+            "direction": "downside",
+            "buffer": 0.1,
+            "rate": 1.1111111111111112
+          }
+        ],
+        "digitalReturn": {
+          "amount": 0.08,
+          "barrier": {
+            "level": 0.9,
+            "observation": "final"
+          }
+        }
+      },
+      "settlement": "delivery"
+    },
+    {
+      "wrapper": "note",
+      "principalAmount": 1000,
+      "term": {
+        "months": 12
+      },
+      "redemption": {
         "kind": "bullet",
         "adjustmentFactor": 0.9935
       },
@@ -2095,9 +2142,10 @@
       "enum": [
         "equity",
         "equity-index",
-        "strategy-index"
+        "strategy-index",
+        "fund"
       ],
-      "description": "The kind of asset tracked: a single equity, an equity index, or a strategy index. A strategy index follows published rules to hold and rebalance exposure to other instruments, such as futures, and can aim at a target volatility or deduct a fixed percentage of its level a year. The payoff reads its level as it reads any other."
+      "description": "The kind of asset tracked: a single equity, an equity index, a strategy index, or an exchange-traded fund. A strategy index follows published rules to hold and rebalance exposure to other instruments, such as futures, and can aim at a target volatility or deduct a fixed percentage of its level a year. An exchange-traded fund is a security that holds other assets, often to follow an index, and trades on an exchange; its level is its closing price, which can differ from the value of what it holds. The payoff reads each level as it reads any other."
     },
     "Determination": {
       "type": "object",

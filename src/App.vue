@@ -19,7 +19,7 @@ import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
 import { finalCallLevel, paymentAtEnd, redemptionOutcome } from './domain/autocall'
-import { type Settlement, amortizationOf, autocallOf, issuerCallOf, barrierLevelAt, basketBreakdown, deliveryFrom, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, scheduleReviews, type CallMechanism, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
+import { type Settlement, amortizationOf, deliverable, autocallOf, issuerCallOf, barrierLevelAt, basketBreakdown, deliveryFrom, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, scheduleReviews, type CallMechanism, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
@@ -29,7 +29,7 @@ const activeHint = ref<string | null>(null)
 const toggleHint = (hint: string) => { activeHint.value = activeHint.value === hint ? null : hint }
 const hints = {
   wrapper: 'The legal form sets what the holder owns and who owes the payments. A note is a debt of its issuer, so every payment depends on the issuer’s ability to pay. A deposit is held by a bank and repaid in full at the end of its term. It is usually insured up to a limit; any payment above the limit depends on the bank’s ability to pay.',
-  settlement: 'How the product pays where the holder bears a fall. Cash pays the amount. Delivery hands over shares of the underlier, a count fixed when the product is priced: principal × downside rate ÷ initial level, of the worst stock in a worst-of. They are worth the payment on the final date, with any cash the terms add, and the holder then bears their price. A fraction of a share is paid in cash, and an issuer may keep the right to pay cash instead. A coupon, a call and a payment of principal or more are always in cash.',
+  settlement: 'How the product pays where the holder bears a fall. Cash pays the amount. Delivery hands over shares of the underlier, a count fixed when the product is priced: principal × downside rate ÷ initial level, of the worst asset in a worst-of. They are worth the payment on the final date, with any cash the terms add, and the holder then bears their price. A fraction of a share is paid in cash, and an issuer may keep the right to pay cash instead. A coupon, a call and a payment of principal or more are always in cash.',
   redemption: 'Sets when the product ends and principal is paid back: at scheduled maturity, earlier if its terms allow a call or a put, or in instalments through the term. Bullet redemption pays once, at maturity.',
   term: 'The length of the product, stated as a duration such as 3 years. Principal is repaid at the end of the term. The issue and maturity dates that put the term on a calendar are set when the product is issued.',
   underlier: 'What the payoff reads: the asset it tracks and how its change is measured, from where it starts. A single underlier tracks one asset. A basket tracks several and combines their changes into one return.',
@@ -50,7 +50,7 @@ const hints = {
   'coupon-schedule': 'How often the coupon is paid, or for a contingent coupon tested. The coupon has its own reviews, apart from the call’s: they can be the same, or the coupon can be reviewed more often, such as monthly beside a quarterly call. Same as the calls copies the call’s frequency once; changing either later does not change the other.',
   'coupon-barrier': 'The level, as a share of the initial level, at or above which a review pays its coupon. It is its own level, apart from the call trigger and the downside barrier, though a note may set two of them equal.',
   memory: 'With memory, a coupon missed on a review below the barrier is remembered, and paid with the coupon of the next review at or above it. Without memory a missed coupon is never paid. Remembered coupons that no later review pays are never paid either.',
-  asset: 'The equity, equity index or strategy index the product tracks. A strategy index follows published rules, such as holding futures, aiming at a target volatility or deducting a fixed percentage a year, so it can move differently from the market it is built on. Holding the product does not mean owning the asset.',
+  asset: 'The equity, equity index, strategy index or exchange-traded fund the product tracks. A strategy index follows published rules, such as holding futures, aiming at a target volatility or deducting a fixed percentage a year, so it can move differently from the market it is built on. An exchange-traded fund holds other assets, often to follow an index, and trades on an exchange: its level is its closing price, and its shares can be delivered as a stock’s can. Holding the product does not mean owning the asset.',
   determination: 'Sets which observed levels measure the underlier’s change: final ÷ initial − 1. The initial and final levels are each set on their own. Point-to-point uses the fixed initial level and the level on the final date; moves in between do not count. Lookback starts from the lowest of the levels on the pricing date and on several dates after it, so a fall soon after pricing lowers the starting point. Averaging takes the final level as the average of the levels observed on several dates before maturity, so a sharp move on the last date counts for less.',
   'lookback-observations': 'The number of dates after pricing whose levels can lower the starting point. The lowest of their levels and the level on the pricing date is the lookback level. With an autocall or a coupon, the lookback period is taken to end before the first review, so every review is measured from the lookback level.',
   observations: 'The number of dates whose levels are averaged into the final level. Each observed level counts equally.',
@@ -119,6 +119,7 @@ const assetOptions: ReadonlyArray<{ id: AssetKind; label: string }> = [
   { id: 'equity-index', label: 'Equity index' },
   { id: 'equity', label: 'Equity' },
   { id: 'strategy-index', label: 'Strategy index' },
+  { id: 'fund', label: 'Exchange-traded fund' },
 ]
 const [startingComponent] = startingProduct.underlier.components
 const assetKind = ref<AssetKind>(startingComponent.asset.kind)
@@ -398,7 +399,7 @@ const deliveryBlockedReason = computed(() => {
   const { payoff, underlier: chosen } = note.value
   const downside = payoff.participations.find((participation): participation is DownsideParticipation => participation.direction === 'downside')
   if (downside === undefined) return 'needs downside participation'
-  if (chosen.components.some(({ asset }) => asset.kind !== 'equity')) return 'stocks only'
+  if (chosen.components.some(({ asset }) => !deliverable(asset.kind))) return 'stocks or funds only'
   if (chosen.kind === 'basket' && chosen.determination.basketReturn.kind !== 'worst-of') return 'one stock or worst-of'
   if (chosen.determination.final.kind === 'averaging') return 'not with averaging'
   if ((payoff.principalProtection ?? 0) > 0) return 'not with protection'

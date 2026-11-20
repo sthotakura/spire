@@ -32,6 +32,13 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     note({ participations: [{ direction: 'downside', buffer: 0.2, rate: 1.25 }] }, { term: { months: 33 }, coupon: { schedule: { frequency: 'quarterly' }, rate: 0.1 }, settlement: 'delivery', underlier: stocks('Stock A', 'Stock B', 'Stock C') }),
   ],
   [
+    'settled by delivery of fund shares: a 10% buffer at a rate of 1 ÷ 0.9 and an 8% digital return at or above 90%, on one exchange-traded fund',
+    note(
+      { participations: [{ direction: 'downside', buffer: 0.1, rate: 1 / 0.9 }], digitalReturn: { amount: 0.08, barrier: { level: 0.9, observation: 'final' } } },
+      { term: { months: 12 }, settlement: 'delivery', underlier: { ...single(), components: [{ asset: { kind: 'fund', name: 'Synthetic Fund' } }] } },
+    ),
+  ],
+  [
     'delta one: the holder takes the whole move both ways, with the final level multiplied by an adjustment factor',
     note({ participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }] }, { term: { months: 12 }, redemption: { kind: 'bullet', adjustmentFactor: 0.9935 }, underlier: single({ initial: { kind: 'given', level: 100 }, final: { kind: 'averaging', observationCount: 5 } }) }),
   ],

@@ -29,7 +29,8 @@ stated by a scenario. A barrier can be observed on every close, but only through
 one lowest or highest close a scenario states. It is not combined with an
 autocall, an issuer call or a contingent coupon. A product pays in cash, or
 delivers stocks where the holder bears a fall, as [Settlement](22-settlement.md)
-explains. Delivering shares of a fund is not modelled. Conditions observed on calendar dates would need
+explains, or delivers shares of an exchange-traded fund by the same rule. An index
+cannot be delivered. Conditions observed on calendar dates would need
 dated observations, which are not modelled. A digital return reads the final level only.
 
 ## Reading other contracts

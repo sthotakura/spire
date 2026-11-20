@@ -527,7 +527,7 @@ Settlement is the form a payment takes: cash, or delivery of shares of the under
 
 - **Finding.** In a reverse convertible, delivery appears only where the holder bears a fall, whatever the coupon, call or wrapper. The classic form has no barrier: below its strike, which is often under the initial level, it delivers shares. The model already states its payment, with a buffer and a rate for a strike below the initial level. Its share count and any cash follow from the rate and the buffer: shares = principal × rate ÷ initial level, and cash = principal × (1 − rate × (1 − buffer)). This reproduces the barrier, buffer, geared buffer and classic patterns, and the payment does not change.
 - **Agreed model.** `settlement?: 'cash' | 'delivery'` as a term on the product. No share count, rounding or cash election.
-- **Still to decide.** How fund shares are treated, and whether a strike should be a named term. Agreed on 20 November 2026 in [docs/settlement.md](docs/settlement.md), not yet built: a fund asset kind, deliverable like a stock, and a strike shown where the buffer and rate imply one, with no new term.
+- **Still to decide.** How fund shares are treated, and whether a strike should be a named term. Agreed on 20 November 2026 in [docs/settlement.md](docs/settlement.md): a fund asset kind, deliverable like a stock (built the same day), and a strike shown where the buffer and rate imply one, with no new term (not yet built). A sample from the TD note on an S&P 500 fund follows the fund kind.
 
 ## 44. Add the reverse convertible names
 

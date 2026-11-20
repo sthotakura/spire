@@ -58,11 +58,12 @@ The outline nests the same parts. A JSON list is shown as repeated rows without 
 - **Each level is its own concept.** The outline nests Initial level and Final level under Determination, as the JSON nests `initial` and `final`. Each has its own colour (#8b4f2b and #6b6412, in the determination's family and checked against the downside and upside colours they sit beside on the chart) and highlights its own summary phrase, JSON lines, payment-rule line, calculation step and chart line. Selecting the determination or the underlier highlights both.
 - **Asset kind and underlier kind are separate choices.** "Equity index" answers what is tracked; "single" answers how many.
 - **A strategy index is an asset kind.** Added on 1 November 2026 for a ten-year Citigroup autocallable note on an index of S&P 500 futures with a 35% volatility target and a 6% a year decrement ([424B2](https://www.sec.gov/Archives/edgar/data/200245/000191870426031411/form424b2.htm)). It changes the label and the explanation, not the payment: the payoff reads its level as it reads any other. Its rules (excess return, volatility target, decrement) are explained in book chapter 5 and not modelled; a scenario states the level.
+- **An exchange-traded fund is an asset kind.** `'fund'`, added on 20 November 2026 so that a note can deliver fund shares, as the TD note on the SPDR S&P 500 ETF Trust does ([settlement.md](settlement.md), decision 7). Like a strategy index it changes the label and the explanation, not the payment: the payoff reads its closing price. Unlike an index it can be delivered. Its fees, holdings, the gap to its net asset value and events such as a substitute fund are not modelled. Nothing checks what a fund holds; the examples use funds on equity indices.
 
 ## Assumptions
 
 - A fixed initial level is given as a term. In practice it is usually observed on the pricing date, sometimes averaged over several dates. With lookback no level is stated: the pricing-date level is one of the observed levels, and the level the return is measured from can be lower.
-- The asset kinds are equity, equity index and strategy index. The initial level is fixed or by lookback; the final level is on the final date or averaged.
+- The asset kinds are equity, equity index, strategy index and exchange-traded fund. The initial level is fixed or by lookback; the final level is on the final date or averaged.
 
 ## Open questions
 

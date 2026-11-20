@@ -72,14 +72,14 @@ The chart draws the value of the payment. Below the strike, where shares are del
 
 ## Assumptions
 
-- The reference delivers stocks only, as one stock or a worst-of basket of stocks. An index cannot be delivered, and a note on one pays cash.
+- The reference delivers stocks and shares of exchange-traded funds, as one asset or a worst-of basket of them. A fund's shares are counted and valued by the same rule as a stock's, from its closing price. An index cannot be delivered, and a note on one pays cash.
 - The reference shows the names "reverse convertible" and "barrier reverse convertible" only on a product that delivers, so changing one of these samples to cash removes the name. Definitions are wider: the Swiss association's map says delivery and/or cash settlement, and at least one issuer sells a note on an index, paying only cash, under the name.
 - The value shown is on the final date. Public notes deliver a few days after it, and a holder of shares bears any move in their price from then on.
 - The final level has to be a close, so delivery is not combined with an averaged final level. It is not combined with principal protection either, since no public note read has both, nor with an adjustment factor other than 100%.
 
 ## What is not modelled
 
-Rounding down to whole shares, with cash for the fraction at the final level; an issuer's right to pay cash instead of shares; adjustments to the count for events such as a stock split; delivering shares of a fund; and a product that delivers on a rise, such as a mandatorily exchangeable note. None of the first three changes the value on the final date.
+Rounding down to whole shares, with cash for the fraction at the final level; an issuer's right to pay cash instead of shares; adjustments to the count for events such as a stock split, or a fund replaced by another; and a product that delivers on a rise, such as a mandatorily exchangeable note. None of the first three changes the value on the final date.
 
 ## Related concepts
 

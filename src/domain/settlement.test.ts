@@ -135,6 +135,15 @@ describe('a final level exactly on a barrier', () => {
   })
 })
 
+describe('a delivery of fund shares', () => {
+  it('counts and values fund shares by the rule for a stock', () => {
+    const fund = (kind: 'equity' | 'fund'): Product => delivering({ buffer: 0.1, rate: 1 / 0.9 }, { underlier: { ...stock(), components: [{ asset: { kind, name: 'Asset' } }] } as Product['underlier'] }, 10000)
+    const levels = { initial: 100, final: 80 }
+    expect(deliveryAt(fund('fund'), levels)).toEqual(deliveryAt(fund('equity'), levels))
+    expect(deliveryAt(fund('fund'), levels)!.shares).toBeCloseTo(111.1111, 4)
+  })
+})
+
 describe('what is paid around a delivery', () => {
   const autocall: Product['redemption'] = { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, firstReviewMonth: 6, callAmount: 0 }] }
   // The Credit Suisse note: its payment does not change for being delivered.
@@ -152,6 +161,8 @@ describe('the combinations delivery allows', () => {
     ['one stock, with a barrier', delivering(barrier)],
     ['one stock, with a barrier observed on every close', delivering({ barrier: { level: 0.6, observation: 'daily-close' }, rate: 1 })],
     ['a worst-of basket of stocks', delivering(barrier, { underlier: worstOf })],
+    ['one exchange-traded fund, as the TD note delivers', delivering({ buffer: 0.1, rate: 1 / 0.9 }, { underlier: { ...stock(), components: [{ asset: { kind: 'fund', name: 'Fund A' } }] } as Product['underlier'] })],
+    ['a worst-of basket of a stock and a fund', delivering(barrier, { underlier: { ...worstOf, components: [{ asset: { kind: 'equity', name: 'Stock A' } }, { asset: { kind: 'fund', name: 'Stock B' } }] } })],
     ['a classic strike', delivering({ rate: 1 })],
     ['a strike below the initial level', delivering({ buffer: 0.2, rate: 1.25 })],
     ['a buffer at rate 1', delivering({ buffer: 0.2, rate: 1 })],

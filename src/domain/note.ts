@@ -1,10 +1,15 @@
 // See docs/underlier-model.md.
 /**
- * The kind of asset tracked: a single equity, an equity index, or a strategy index. A strategy index follows published rules to hold
- * and rebalance exposure to other instruments, such as futures, and can aim at a target volatility or deduct a fixed percentage of
- * its level a year. The payoff reads its level as it reads any other.
+ * The kind of asset tracked: a single equity, an equity index, a strategy index, or an exchange-traded fund. A strategy index follows
+ * published rules to hold and rebalance exposure to other instruments, such as futures, and can aim at a target volatility or deduct
+ * a fixed percentage of its level a year. An exchange-traded fund is a security that holds other assets, often to follow an index,
+ * and trades on an exchange; its level is its closing price, which can differ from the value of what it holds. The payoff reads each
+ * level as it reads any other.
  */
-export type AssetKind = 'equity' | 'equity-index' | 'strategy-index'
+export type AssetKind = 'equity' | 'equity-index' | 'strategy-index' | 'fund'
+
+/** Whether shares of the asset can be delivered: a stock's or a fund's can, an index's cannot. */
+export const deliverable = (kind: AssetKind): boolean => kind === 'equity' || kind === 'fund'
 export type ParticipationDirection = 'downside' | 'upside'
 
 /**
@@ -905,7 +910,7 @@ function settlementIssues(note: Product): ProductIssue[] {
   if (downside === undefined) issues.push({ field: 'settlement', message: 'Delivery needs downside participation: without it no fall is borne, so nothing would be delivered.' })
   // Any asset of a worst-of basket can end up the worst, so each must be deliverable.
   const { underlier } = note
-  if (underlier.components.some(({ asset }) => asset.kind !== 'equity')) issues.push({ field: 'settlement', message: 'Delivery needs stocks: an index cannot be delivered.' })
+  if (underlier.components.some(({ asset }) => !deliverable(asset.kind))) issues.push({ field: 'settlement', message: 'Delivery needs stocks or fund shares: an index cannot be delivered.' })
   if (underlier.kind === 'basket' && underlier.determination.basketReturn.kind !== 'worst-of') issues.push({ field: 'settlement', message: 'Delivery needs one stock or a worst-of basket, so that one asset is delivered.' })
   if (underlier.determination.final.kind === 'averaging') issues.push({ field: 'settlement', message: 'Delivery cannot read an averaged final level: shares are worth their close, not an average.' })
   // A floor is not a share count and fixed cash, and no public note read has both.

@@ -425,6 +425,12 @@ describe('names for a call and a coupon', () => {
       expect(namesWith({ participations: [{ direction: 'downside', rate: 1.25, barrier: { level: 0.6, observation: 'final' } }] }, { coupon: fixed, settlement: 'delivery' })).not.toContain(barrierReverseConvertible)
     })
 
+    it('keeps the name when the shares delivered are a fund’s, since the sources say underlying, not stock', () => {
+      const fund: Product['underlier'] = { kind: 'single', components: [{ asset: { kind: 'fund', name: 'Synthetic Fund' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } }
+      expect(namesWith({ participations: [barrierDown] }, { coupon: fixed, settlement: 'delivery', underlier: fund })).toEqual([barrierReverseConvertible])
+      expect(namesWith({ participations: [down(1.25)], buffer: 0.2 }, { coupon: fixed, settlement: 'delivery', underlier: fund })).toContain(reverseConvertible)
+    })
+
     it('keeps the name beside a call, since the Swiss and US types can both be called', () => {
       expect(namesWith({ participations: [barrierDown] }, { coupon: fixed, settlement: 'delivery', redemption: autocall })).toEqual(['Autocallable note', barrierReverseConvertible])
       expect(namesWith({ participations: [down(1)] }, { coupon: fixed, settlement: 'delivery', redemption: issuerCall })).toEqual(['Callable note', reverseConvertible])

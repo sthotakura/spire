@@ -1,8 +1,8 @@
 # Underliers
 
 The underlier is the reference whose performance the payoff reads. An asset
-kind answers what is tracked, such as an equity, an equity index or a strategy
-index. A single underlier or basket answers how the reference is composed.
+kind answers what is tracked, such as an equity, an equity index, a strategy
+index or an exchange-traded fund. A single underlier or basket answers how the reference is composed.
 
 ## A single underlier
 
@@ -107,6 +107,26 @@ rate, which gives a slightly different figure. A note whose trigger is the start
 needs the market to rise just to be called. The reference does not model the
 rules: a scenario states the strategy index's level, as it does any other.
 
+## Exchange-traded funds
+
+An **exchange-traded fund** is a security that holds other assets, often to
+follow an index, and whose shares trade on an exchange like a stock's. A note
+can be linked to a fund on the S&P 500 rather than to the index itself. The
+payoff then reads the fund's closing price, which tracks the index only
+approximately: the fund pays fees, holds what it holds, and its price can differ
+from the value of its holdings, its net asset value. The reference reads the
+level a scenario states and does not model any of these.
+
+What a fund adds is that its shares can be delivered. A note on an index can only
+pay cash, but a note on a fund can hand over fund shares by the same rule as a
+stock's, as the [Settlement](22-settlement.md) chapter explains. Offering
+documents treat the two alike: one covers "an underlying common stock or ...
+shares of an exchange traded fund" under one name, and computes the shares
+delivered the same way for either. Where they differ is in what happens to the
+asset during the term, such as a fund that is delisted and replaced by another
+that follows the same index. The reference does not model those events, for a
+fund or a stock. The examples here use funds on equity indices.
+
 ## Assumptions
 
 These examples keep weights fixed and use assets in the same currency.
@@ -122,6 +142,10 @@ A [pricing supplement for a note linked to two funds](https://www.sec.gov/Archiv
 defines the "Lesser Performing Fund Return" as the lower of the two fund returns.
 The builder opens a note modelled on it, on two synthetic indices: the
 [Worst-of autocallable contingent coupon note with memory and a buffer](https://sthotakura.github.io/spire/?example=worst-of-autocallable-contingent-coupon-note).
+
+A [pricing supplement for a note on the SPDR S&P 500 ETF Trust](https://www.sec.gov/Archives/edgar/data/947263/000114036125006567/ef20044740_424b2.htm)
+reads the fund's closing price and, below a buffer, delivers its shares: the
+principal divided by the buffer price, with any fraction of a share paid in cash.
 
 A [pricing supplement for a ten-year autocallable note](https://www.sec.gov/Archives/edgar/data/200245/000191870426031411/form424b2.htm)
 is linked to an index of S&P 500 futures that targets a volatility of 35%,
