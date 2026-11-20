@@ -18,14 +18,16 @@ export interface Instalment {
 
 // The level payment that repays a principal over a number of periods at a rate per period, with interest on what is outstanding:
 // principal × i ÷ (1 − (1 + i)^−n). The power is taken through log1p and expm1, so that a rate near zero, where 1 − (1 + i)^−n
-// would round to zero, still gives principal ÷ n, and a high rate stays exact.
+// would round to zero, still gives principal ÷ n, and a high rate stays exact. A rate so small that it rounds to zero is its limit, principal ÷ n.
 export const levelPayment = (principal: number, ratePerPeriod: number, periods: number): number =>
-  (principal * ratePerPeriod) / -Math.expm1(-periods * Math.log1p(ratePerPeriod))
+  ratePerPeriod === 0 ? principal / periods : (principal * ratePerPeriod) / -Math.expm1(-periods * Math.log1p(ratePerPeriod))
 
 // What is outstanding after k of n level payments: principal × (1 − (1 + i)^(k − n)) ÷ (1 − (1 + i)^−n), the payments still to come
 // discounted at the rate. Each balance is computed from the terms, not by subtracting each repayment from the last balance, which at a
 // high rate multiplies a rounding error by (1 + i) on every period.
+// At a rate of zero it is the limit, principal × (n − k) ÷ n.
 const outstandingAfter = (principal: number, ratePerPeriod: number, periods: number, paid: number): number => {
+  if (ratePerPeriod === 0) return (principal * (periods - paid)) / periods
   const growth = Math.log1p(ratePerPeriod)
   return (principal * Math.expm1((paid - periods) * growth)) / Math.expm1(-periods * growth)
 }
@@ -51,5 +53,6 @@ export function amortizationSchedule(note: Product): Instalment[] {
   if (amortization === undefined || note.coupon === undefined) return []
   const reviews = scheduleReviews(note.term, amortization.schedule)
   if (reviews === undefined) return []
-  return levelPaymentSchedule(note.principalAmount, (note.coupon.rate * monthsPerReview[amortization.schedule.frequency]) / 12, reviews)
+  // The period's fraction of a year is applied first, so that a rate near the largest number does not overflow on the way.
+  return levelPaymentSchedule(note.principalAmount, note.coupon.rate * (monthsPerReview[amortization.schedule.frequency] / 12), reviews)
 }

@@ -70,7 +70,7 @@ describe('the level-payment schedule', () => {
   // At a high rate (1 + i)^−n is below the precision of 1, and at a rate near zero 1 − (1 + i)^−n rounds away: both once broke the
   // level payment. The validator accepts any positive coupon rate, so every rate must give finite, level instalments that repay principal.
   it('stays level and finite at any rate the validator accepts', () => {
-    for (const rate of [4, 1e-16, 1e-9, 0.0001, 0.5, 100]) {
+    for (const rate of [4, 1e-16, 1e-9, 0.0001, 0.5, 100, Number.MIN_VALUE]) {
       const note = amortizing({ term: { months: 120 }, redemption: { kind: 'early-redemption', mechanisms: [amortization({ schedule: { frequency: 'monthly' } })] }, coupon: { schedule: { frequency: 'monthly' }, rate } })
       expect(validateProduct(note)).toEqual([])
       const instalments = amortizationSchedule(note)
@@ -83,6 +83,17 @@ describe('the level-payment schedule', () => {
       }
       expect(instalments.reduce((sum, { principal }) => sum + principal, 0)).toBeCloseTo(1000, 6)
     }
+  })
+
+  // The largest rates: on a note of 1 in two semi-annual instalments each pays about half the rate, which fits in a number, though the
+  // rate times six months does not.
+  it('stays finite at a rate near the largest number', () => {
+    const note = amortizing({ principalAmount: 1, redemption: { kind: 'early-redemption', mechanisms: [amortization({ schedule: { frequency: 'semi-annual' } })] }, coupon: { schedule: { frequency: 'semi-annual' }, rate: 1e308 } })
+    expect(validateProduct(note)).toEqual([])
+    const instalments = amortizationSchedule(note)
+    expect(instalments.map(({ amount }) => amount)).toEqual([expect.closeTo(5e307, -295), expect.closeTo(5e307, -295)])
+    expect(instalments.reduce((sum, { principal }) => sum + principal, 0)).toBe(1)
+    expect(redemptionOutcome(note, [], levels).totalPaid).toBe(1e308)
   })
 
   it('repays principal ÷ n at a rate near zero and pays the coupon on principal at a high one', () => {
