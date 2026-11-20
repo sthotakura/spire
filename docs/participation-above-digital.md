@@ -136,6 +136,7 @@ The second column leaves the floor at 120, the third at about 113.33. From 120 u
 - **The outline states the threshold in the option**, "Digital return level (156%)", so choosing it adds no row or text. The row shows only when the product has both upside participation and a digital return.
 - **No chart label at the threshold itself.** The upside label says "Each 1% rise beyond +56% adds 1.5%", on the part of the line it describes. The rate handle sits halfway from the threshold to the end of the axis, and with a digital return of 100% or more the sloped part starts past the axis, so the handle is not shown.
 - **Also updated:** chapters 8 and 18, [marketing-names.md](marketing-names.md), [certificate.md](certificate.md) and the sample list. Chapter 15 still describes the digital return as a greater-of floor, which stays true of the floor.
+- **A second sample, added on 20 November 2026:** the BofA note on two funds, as Worst-of fund digital note with leverage above the digital return. Its formulas are still unread images, but its conditions, cover wording and table agree, and its table is a test.
 - **Not checked:** keyboard use of the new select with a screen reader, and the chart at phone width beyond the check that the page does not overflow.
 
 ## Assumptions

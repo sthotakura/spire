@@ -265,11 +265,10 @@ Between 85% and 100% it repays principal, and below 85% a 15% buffer applies at 
 With every stock observed at 120 on each date the note pays 1,474.40, because 150% of a 20% rise is only 30%; at 140
 it pays 1,600. At 99.99 it pays 1,000, at 80 it pays 941.18, and at 0 it pays nothing.
 
-One further shape is not modelled here. A public five-year note on the worst of two metal funds pays a digital
+One further shape measures the rise from somewhere else. A public five-year note on the worst of two metal funds pays a digital
 payment of 96.5% if both are at or above their starting values, and adds 150% of the rise beyond 196.5% of the
-starting value. It repays principal between 80% and 100%, and loses one for one below 80%. The digital payment and
-the two barriers fit the reference, but participation that starts at a level above the initial level is not a
-feature of it, so the note is not a sample.
+starting value. It repays principal between 80% and 100%, and loses one for one below 80%. Its rise is measured
+from the digital return, the form the next section describes, where it is a sample.
 
 ## Leverage above a digital return
 
@@ -288,6 +287,9 @@ the upside threshold value. A public note with a 56% digital return pays 56%
 from 100 to 156, and above 156 it pays the 56% plus 150% of the rise beyond 156:
 `$1,000 + ($1,000 × Contingent Digital Return) + [$1,000 × (Return − Contingent Digital Return) × Upside Leverage Factor]`.
 The [worst-of digital note with leverage above the digital return](https://sthotakura.github.io/spire/?example=worst-of-digital-note-with-leverage-above-the-digital-return) follows it.
+The [worst-of fund digital note with leverage above the digital return](https://sthotakura.github.io/spire/?example=worst-of-fund-digital-note-with-leverage-above-the-digital-return)
+has the same form on two exchange-traded funds, with a 96.5% digital return, so
+its rate applies beyond 196.5%, and a downside barrier at 80%.
 
 Assume principal of 1,000, an index that starts at 100, 150% upside
 participation, a 20% digital return with its barrier at 100%, and a 70% downside

@@ -120,4 +120,10 @@ describe('the sample', () => {
     const paid = (final: number) => paymentBreakdown(sample, { initial: 100, final }).payment
     for (const [final, payment] of [[180, 1920], [157, 1575], [156, 1560], [100, 1560], [99.99, 1000], [70, 1000], [69.99, 699.9]]) expect(paid(final)).toBeCloseTo(payment, 6)
   })
+
+  it('reproduces the table of the note on two funds', () => {
+    const sample = sampleBySlug('worst-of-fund-digital-note-with-leverage-above-the-digital-return')!.product
+    const paid = (final: number) => paymentBreakdown(sample, { initial: 100, final }).payment
+    for (const [final, payment] of [[250, 2767.5], [200, 2017.5], [196.5, 1965], [100, 1965], [99.99, 1000], [80, 1000], [79.99, 799.9]]) expect(paid(final)).toBeCloseTo(payment, 6)
+  })
 })

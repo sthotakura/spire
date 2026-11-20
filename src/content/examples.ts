@@ -25,6 +25,12 @@ const worstOfStocks = (...names: string[]): Underlier => ({
   components: names.map((name) => ({ asset: { kind: 'equity' as const, name } })),
   determination: { initial: { kind: 'given', levels: names.map((asset) => ({ asset, level: 100 })) }, final: { kind: 'final-date' }, basketReturn: { kind: 'worst-of' } },
 })
+// A worst-of basket of synthetic exchange-traded funds, each starting at 100.
+const worstOfFunds = (...names: string[]): Underlier => ({
+  kind: 'basket',
+  components: names.map((name) => ({ asset: { kind: 'fund' as const, name } })),
+  determination: { initial: { kind: 'given', levels: names.map((asset) => ({ asset, level: 100 })) }, final: { kind: 'final-date' }, basketReturn: { kind: 'worst-of' } },
+})
 // An equally weighted basket of synthetic stocks, each starting at 100, whose final level is the average of several observed levels.
 const averagedBasket = (names: string[], observationCount: number): Underlier => ({
   kind: 'basket',
@@ -143,6 +149,13 @@ export const sampleGroups: SampleGroup[] = [
         name: 'Worst-of digital note with leverage above the digital return',
         source: { title: 'JPMorgan uncapped digital barrier notes on the lesser performing of two indices, due 2030', url: 'https://www.sec.gov/Archives/edgar/data/19617/000121390025027653/ea0236742-01_424b2.htm' },
         product: product(60, { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.7, observation: 'final' } }, { direction: 'upside', rate: 1.5, measuredFrom: 'digital-return' }], digitalReturn: { amount: 0.56, barrier: { level: 1, observation: 'final' } } }, { underlier: worstOf('Index A', 'Index B') }),
+      },
+      // The same form on two funds: above 196.5% the filing pays the 96.5% digital return and 150% of the rise beyond it.
+      {
+        slug: 'worst-of-fund-digital-note-with-leverage-above-the-digital-return',
+        name: 'Worst-of fund digital note with leverage above the digital return',
+        source: { title: 'BofA Finance digital return plus notes on the least performing of the SPDR Gold Shares and the iShares Silver Trust, due 2031', url: 'https://www.sec.gov/Archives/edgar/data/1682472/000191870426018506/form424b2.htm', note: 'The filing’s underliers are a gold fund and a silver fund. Its formulas are printed as images; the sample follows its conditions, its cover wording and its table, which agree. The 60 months run from pricing to valuation.' },
+        product: product(60, { participations: [{ direction: 'downside', rate: 1, barrier: { level: 0.8, observation: 'final' } }, { direction: 'upside', rate: 1.5, measuredFrom: 'digital-return' }], digitalReturn: { amount: 0.965, barrier: { level: 1, observation: 'final' } } }, { underlier: worstOfFunds('Fund A', 'Fund B') }),
       },
       // The filing pays the digital return and nothing more on a rise, so there is no upside participation.
       {
