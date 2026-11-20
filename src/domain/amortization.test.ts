@@ -146,6 +146,14 @@ describe('what an amortizing product pays', () => {
     expect(paymentAtEnd(note, { initial: 100, final: 40 })).toBeCloseTo(259.44, 2)
   })
 
+  // The builder hides the final level of an amortizing note, so a level the payoff could not read must not stop the instalments.
+  it('pays its instalments with no final level to read, and has no payoff at maturity', () => {
+    const outcome = redemptionOutcome(amortizing(), [], { initial: 100, final: Number.NaN })
+    expect(outcome.maturity).toBeUndefined()
+    expect(outcome.payment).toBeCloseTo(259.44, 2)
+    expect(outcome.totalPaid).toBeCloseTo(1037.78, 2)
+  })
+
   it('returns the coupon rate a year, compounded on its own reviews', () => {
     const { payments } = redemptionOutcome(amortizing(), [], levels)
     expect(annualisedReturnOfPayments(payments, 1000)).toBeCloseTo(1.015 ** 4 - 1, 9)

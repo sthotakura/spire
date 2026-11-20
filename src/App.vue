@@ -677,16 +677,19 @@ const setAfterPricing = (index: number, level: number) => { lookbackLevels.value
 // The levels the initial end of the determination reads: with lookback, the pricing-date level and those after it.
 const initialObservations = computed(() => lookingBack.value ? [initialLevel.value, ...afterPricing.value] : [])
 const lookbackError = computed(() => initialObservations.value.every((level) => Number.isFinite(level) && level > 0) ? '' : 'Each observed level must be greater than zero.')
-// The chart and scenarios need only the initial level; the calculation also needs the final level.
+// The chart and scenarios need only the initial level; the calculation also needs the final level, except for an amortizing note,
+// which reads none and hides the field.
 const initialValid = computed(() => errors.value.length === 0 && !lookbackError.value)
-const valid = computed(() => initialValid.value && !finalError.value)
+const valid = computed(() => initialValid.value && (amortized.value || !finalError.value))
+// The payoff reads the final level. An amortizing note has no payoff.
+const payoffValid = computed(() => valid.value && !amortized.value)
 // A basket measured asset by asset: each return, the weighted return, and the basket's two levels the payoff reads.
-const basketMeasure = computed(() => valid.value && note.value.underlier.kind === 'basket' ? basketBreakdown(note.value.underlier, basketObservations.value) : null)
+const basketMeasure = computed(() => payoffValid.value && note.value.underlier.kind === 'basket' ? basketBreakdown(note.value.underlier, basketObservations.value) : null)
 // The initial level every calculation reads, as the initial end of the determination produces it. A basket starts at 100.
 const determinedInitialLevel = computed(() => !initialValid.value ? Number.NaN : isBasket.value ? basketStartingLevel : initialLevelFrom(determination.value.initial, initialObservations.value))
 // Marks the observed level, or tied levels, that set the lookback level.
 const isLowest = (level: number) => Number.isFinite(determinedInitialLevel.value) && level === determinedInitialLevel.value
-const finalLevel = computed(() => !valid.value ? Number.NaN : basketMeasure.value ? basketMeasure.value.levels.final : finalLevelFrom(determination.value.final, observations.value))
+const finalLevel = computed(() => !payoffValid.value ? Number.NaN : basketMeasure.value ? basketMeasure.value.levels.final : finalLevelFrom(determination.value.final, observations.value))
 // The closes a barrier observed daily reads. A close is a level on a date in the period, so none can be beyond the initial level
 // or any level observed on the final or averaging dates; the reader's level is moved in to stay within them.
 const lowestClose = computed(() => lowestCloseWanted.value && initialValid.value ? Math.min(Number.isFinite(lowestCloseInput.value) ? Math.max(0, lowestCloseInput.value as number) : Infinity, determinedInitialLevel.value, ...observations.value) : undefined)
@@ -694,10 +697,10 @@ const highestClose = computed(() => highestCloseWanted.value && initialValid.val
 // The levels the scenario gives the payment: the determined initial and final levels, and the closes a daily barrier reads. The
 // breakdown, the payment at the end of the term and the redemption outcome all read these, so they cannot disagree.
 const scenarioLevels = computed(() => ({ initial: determinedInitialLevel.value, final: finalLevel.value, lowestClose: lowestClose.value, highestClose: highestClose.value }))
-const breakdown = computed(() => valid.value ? paymentBreakdown(note.value, scenarioLevels.value) : null)
+const breakdown = computed(() => payoffValid.value ? paymentBreakdown(note.value, scenarioLevels.value) : null)
 // What the product pays at the end of its term from the final level, if no earlier review called it. It is the payment the chart
 // draws, and differs from the payment only when the final review is a call.
-const endPayment = computed(() => valid.value ? paymentAtEnd(note.value, scenarioLevels.value) : null)
+const endPayment = computed(() => payoffValid.value ? paymentAtEnd(note.value, scenarioLevels.value) : null)
 // The dates on which a level is read before the end of the term: an autocall's reviews and a coupon's, a date on both once. The last
 // review reads the final level, which has its own field.
 const datesBeforeLast = computed(() => reviewDates(note.value).slice(0, -1))
@@ -729,7 +732,7 @@ const issuerCallableReviews = computed(() => {
 })
 const issuerCallChoice = computed(() => issuerCallsOn.value !== null && issuerCallableReviews.value.includes(issuerCallsOn.value) ? issuerCallsOn.value : undefined)
 // How the product ended and what its coupon paid, for a product with a call or a coupon. A bullet product with neither pays its payoff.
-const redemption = computed(() => (scheduled.value || couponSelected.value) && valid.value && !reviewError.value && breakdown.value
+const redemption = computed(() => (scheduled.value || couponSelected.value) && valid.value && !reviewError.value && (amortized.value || breakdown.value)
   ? redemptionOutcome(note.value, reviewLevels.value, scenarioLevels.value, issuerCalled.value ? issuerCallChoice.value : undefined)
   : null)
 const issuerCallSelection = computed({ get: () => issuerCallChoice.value ?? null, set: (review: number | null) => { issuerCallsOn.value = review } })
@@ -800,10 +803,10 @@ const delivery = computed(() => breakdown.value && redemption.value?.calledAtRev
   ? deliveryFrom(note.value, breakdown.value, scenarioLevels.value.final, basketMeasure.value ?? undefined)
   : undefined)
 const outcomeSentence = computed(() => {
+  if (amortized.value) return redemption.value ? explainAmortization(note.value, redemption.value) : ''
   if (!breakdown.value) return ''
   const maturity = [explainOutcome(note.value, breakdown.value), explainDelivery(note.value, delivery.value)].filter(Boolean).join(' ')
   if (!redemption.value) return maturity
-  if (amortized.value) return explainAmortization(note.value, redemption.value)
   const early = explainRedemption(note.value, redemption.value)
   const coupons = explainCoupons(note.value, redemption.value)
   return [early, redemption.value.calledAtReview === undefined ? maturity : '', coupons].filter(Boolean).join(' ')
@@ -832,12 +835,12 @@ const payoffDescription = computed(() => {
 })
 
 const calculation = computed(() => {
+  // An amortizing note pays its instalments whatever the underlier does, so it has no payoff steps.
+  if (amortized.value) return redemption.value ? amortizationSteps(note.value, redemption.value).map((step, index) => ({ ...step, n: index + 1 })) : []
   const b = breakdown.value
   if (!b) return []
   const maturity = calculationSteps(note.value, b, observations.value, initialObservations.value, basketMeasure.value ?? undefined)
   if (!redemption.value) return maturity
-  // An amortizing note pays its instalments whatever the underlier does, so it has no payoff steps.
-  if (amortized.value) return amortizationSteps(note.value, redemption.value).map((step, index) => ({ ...step, n: index + 1 }))
   // Reviews come first. When the product was called its payoff steps are what it would have paid at maturity, so they are muted.
   const early = redemptionSteps(note.value, redemption.value)
   const called = redemption.value.calledAtReview !== undefined

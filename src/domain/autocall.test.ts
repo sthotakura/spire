@@ -197,14 +197,14 @@ describe('how an autocall ends', () => {
     const note = callable({ payoff: { participations: [{ direction: 'downside', rate: 1 }] } })
     const outcome = redemptionOutcome(note, flat(11), { initial: 100, final: 60 })
     expect(outcome.payment).toBe(600)
-    expect(outcome.maturity.payment).toBe(600)
+    expect(outcome.maturity?.payment).toBe(600)
   })
 
   it('keeps what the payoff would pay at maturity even when the product was called', () => {
     const note = callable({ payoff: { participations: [{ direction: 'upside', rate: 1.5 }] } })
     const outcome = redemptionOutcome(note, [110, ...flat(10)], { initial: 100, final: 140 })
     expect(outcome.payment).toBe(1080)
-    expect(outcome.maturity.payment).toBeCloseTo(1600, 9)
+    expect(outcome.maturity?.payment).toBeCloseTo(1600, 9)
   })
 
   it('pays principal only on a call with a call amount of zero', () => {
@@ -278,7 +278,7 @@ describe('a trigger that steps down, a call amount for each year, and a call on 
     expect(outcome.months).toBe(36)
     expect(outcome.payment).toBeCloseTo(1300, 9)
     // The payoff alone would have paid principal here, as the level is above the barrier.
-    expect(outcome.maturity.payment).toBe(1000)
+    expect(outcome.maturity?.payment).toBe(1000)
   })
 
   it('pays the payoff when the final level is below the final trigger', () => {
@@ -330,7 +330,7 @@ describe('a final review that calls, as the payment at the end of the term', () 
 
   it('pays the maturity payment when the final review is not a call', () => {
     const plain = callable({ payoff: { participations: [{ direction: 'upside', rate: 1 }] } })
-    for (const final of [60, 100, 130, 180]) expect(paymentAtEnd(plain, { initial: 100, final })).toBe(redemptionOutcome(plain, flat(11), { initial: 100, final }).maturity.payment)
+    for (const final of [60, 100, 130, 180]) expect(paymentAtEnd(plain, { initial: 100, final })).toBe(redemptionOutcome(plain, flat(11), { initial: 100, final }).maturity?.payment)
   })
 
   it('uses the call amount for the whole term when it accrues for each year', () => {
@@ -529,7 +529,7 @@ describe('an issuer call', () => {
     expect(outcome.months).toBe(5)
     expect(outcome.payment).toBe(1020)
     // What the payoff would have paid at maturity is kept, as for an autocall.
-    expect(outcome.maturity.payment).toBe(700)
+    expect(outcome.maturity?.payment).toBe(700)
   })
 
   it('pays principal only on a call with no call amount', () => {
@@ -556,7 +556,7 @@ describe('an issuer call', () => {
   })
 
   it('draws the same payment at the end of the term as the payoff does', () => {
-    for (const final of [40, 100, 130]) expect(paymentAtEnd(issuerCall(), { initial: 100, final })).toBe(redemptionOutcome(issuerCall(), [], { initial: 100, final }).maturity.payment)
+    for (const final of [40, 100, 130]) expect(paymentAtEnd(issuerCall(), { initial: 100, final })).toBe(redemptionOutcome(issuerCall(), [], { initial: 100, final }).maturity?.payment)
   })
 
   it('has no final-review call level', () => {

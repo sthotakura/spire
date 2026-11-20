@@ -94,7 +94,7 @@ describe('a fixed coupon on a bullet note', () => {
     const daily = { ...bullet, payoff: dailyBarrier }
     // The final level of 95 is above the 60% barrier, but a close of 50 reached it, so the whole 5% fall counts.
     const outcome = redemptionOutcome(daily, [], { initial: 100, final: 95, lowestClose: 50 })
-    expect(outcome.maturity.payment).toBeCloseTo(950, 9)
+    expect(outcome.maturity?.payment).toBeCloseTo(950, 9)
     expect(outcome.payment).toBeCloseTo(955, 9)
     expect(outcome.totalPaid).toBeCloseTo(1010, 9)
   })
@@ -145,7 +145,7 @@ describe('the 2019 worst-of fixed coupon autocall, with synthetic assets', () =>
     [[80, 165, 5], 400],
   ])('never called, with final levels %j: the payoff pays %s, plus the last coupon', (finals, payoff) => {
     const outcome = redemptionOutcome(note, [50, 50, 50, 50], { initial: 100, final: level(finals[0], finals[1], finals[2]) })
-    expect(outcome.maturity.payment).toBeCloseTo(payoff, 9)
+    expect(outcome.maturity?.payment).toBeCloseTo(payoff, 9)
     expect(outcome.payment).toBeCloseTo(payoff + 29.3, 9)
     expect(outcome.totalPaid).toBeCloseTo(payoff + 6 * 29.3, 9)
   })

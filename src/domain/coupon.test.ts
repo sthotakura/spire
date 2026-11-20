@@ -135,7 +135,7 @@ describe('a product with a coupon that is never called', () => {
     expect(outcome.coupons[11]).toMatchObject({ review: 12, level: 75, met: true })
     // Reviews 2, 3 and 4 are missed and paid on review 5; reviews 6 and 11 are missed and paid on reviews 7 and 12.
     expect(outcome.coupons.map(({ coupons }) => coupons)).toEqual([1, 0, 0, 0, 4, 0, 2, 1, 1, 1, 0, 2])
-    expect(outcome.maturity.payment).toBeCloseTo(1000, 9)
+    expect(outcome.maturity?.payment).toBeCloseTo(1000, 9)
     expect(outcome.payment).toBeCloseTo(1020, 9)
     expect(outcome.totalPaid).toBeCloseTo(1120, 9)
   })

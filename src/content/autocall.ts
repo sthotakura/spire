@@ -287,9 +287,10 @@ export const annualisedReturnStep = (note: Product, outcome: RedemptionOutcome):
 })
 
 // The steps after the payoff for a product with a coupon that ran to the end of its term: the payoff payment plus the last review's
-// coupons, then the total paid, the total return and the return a year. A called product states them with the call, so it has none here.
+// coupons, then the total paid, the total return and the return a year. A called product states them with the call, so it has none here,
+// and nor does an amortizing one, which has no payoff and states them with its instalments.
 export function couponClosingSteps(note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> {
-  if (note.coupon === undefined || outcome.calledAtReview !== undefined) return []
+  if (note.coupon === undefined || outcome.calledAtReview !== undefined || outcome.maturity === undefined) return []
   const last = outcome.coupons.at(-1)?.paid ?? 0
   return [
     { title: 'Paid at maturity', how: `${units(outcome.maturity.payment)} from the payoff + coupon ${units(last)} on the last review`, value: units(outcome.payment), result: true, concept: 'coupon' },
