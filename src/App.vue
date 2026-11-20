@@ -677,10 +677,10 @@ const setAfterPricing = (index: number, level: number) => { lookbackLevels.value
 // The levels the initial end of the determination reads: with lookback, the pricing-date level and those after it.
 const initialObservations = computed(() => lookingBack.value ? [initialLevel.value, ...afterPricing.value] : [])
 const lookbackError = computed(() => initialObservations.value.every((level) => Number.isFinite(level) && level > 0) ? '' : 'Each observed level must be greater than zero.')
-// The chart and scenarios need only the initial level; the calculation also needs the final level, except for an amortizing note,
-// which reads none and hides the field.
+// The chart and scenarios need only the initial level; the calculation also needs the final level. An amortizing note reads no level
+// and hides every hypothetical one, the lookback levels too, so it needs only valid terms.
 const initialValid = computed(() => errors.value.length === 0 && !lookbackError.value)
-const valid = computed(() => initialValid.value && (amortized.value || !finalError.value))
+const valid = computed(() => amortized.value ? errors.value.length === 0 : initialValid.value && !finalError.value)
 // The payoff reads the final level. An amortizing note has no payoff.
 const payoffValid = computed(() => valid.value && !amortized.value)
 // A basket measured asset by asset: each return, the weighted return, and the basket's two levels the payoff reads.
