@@ -108,3 +108,28 @@ describe('the buffered digital note delivering fund shares', () => {
     for (const final of [90, 90.01]) expect(settle(final)).toEqual({ payment: expect.closeTo(1080, 9), delivery: undefined })
   })
 })
+
+// The GS Finance note on one stock, as published: twelve quarterly coupon reviews, call reviews in months 6 to 33, and a coupon barrier
+// and a downside barrier both at 60%. These read the sample itself.
+describe('the quarterly autocallable contingent coupon note without memory', () => {
+  const { product } = sampleBySlug('quarterly-autocallable-contingent-coupon-note-without-memory')!
+  // Each review below 60%, so no coupon is paid before the last and the note is never called.
+  const uncalled = Array.from({ length: 11 }, () => 50)
+
+  it('tests a coupon on months 3 to 36, and a call on months 6 to 33 only', () => {
+    const outcome = redemptionOutcome(product, uncalled, { initial: 100, final: 100 })
+    expect(outcome.coupons.map(({ month }) => month)).toEqual([3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36])
+    expect(outcome.tests.map(({ month }) => month)).toEqual([6, 9, 12, 15, 18, 21, 24, 27, 30, 33])
+  })
+
+  it('pays 1,038.25 at maturity at 60%, and 599.90 just below it, with no coupon', () => {
+    expect(redemptionOutcome(product, uncalled, { initial: 100, final: 60 }).payment).toBeCloseTo(1038.25, 9)
+    expect(redemptionOutcome(product, uncalled, { initial: 100, final: 59.99 }).payment).toBeCloseTo(599.9, 9)
+  })
+
+  it('pays 1,038.25 when called on the first call review, in month 6', () => {
+    const outcome = redemptionOutcome(product, [50, 100, ...uncalled.slice(2)], { initial: 100, final: 100 })
+    expect(outcome).toMatchObject({ calledAtReview: 1, months: 6 })
+    expect(outcome.payment).toBeCloseTo(1038.25, 9)
+  })
+})

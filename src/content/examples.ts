@@ -228,6 +228,17 @@ export const sampleGroups: SampleGroup[] = [
           underlier: worstOf('Index A', 'Index B', 'Index C'),
         }),
       },
+      // The filing's call dates are its coupon dates from month 6 to month 33, so the call's reviews run quarterly from month 6 and the
+      // last, month 36, is not a call. Its "trigger buffer level" pays principal at or above 60% and loses one for one below it: a barrier.
+      {
+        slug: 'quarterly-autocallable-contingent-coupon-note-without-memory',
+        name: 'Quarterly autocallable contingent coupon note without memory',
+        source: { title: 'GS Finance autocallable contingent coupon equity-linked notes on one stock, due 2029', url: 'https://www.sec.gov/Archives/edgar/data/1419828/000119312526463082/nvdac322_prelim.htm', note: 'The filing is a preliminary pricing supplement, and its stock stands as a synthetic index. Its 60% “trigger buffer level” works as a barrier, not a buffer.' },
+        product: product(36, { participations: [{ direction: 'downside', barrier: { level: 0.6, observation: 'final' }, rate: 1 }] }, {
+          redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, firstReviewMonth: 6, triggerStep: 0, callAmount: 0, callAmountBasis: 'flat', callOnFinalReview: false }] },
+          coupon: { schedule: { frequency: 'quarterly' }, rate: 0.153, barrier: 0.6, memory: false },
+        }),
+      },
       // The filing's first call test is in month 6, so the call's first review is in month 6; its triggers of 95% to 80% are a trigger
       // of 95% there stepping down 5% a review.
       {

@@ -159,6 +159,13 @@ modelled on, on synthetic indices:
   16.5% buffer at a rate of 1 ÷ 0.835. The coupon barrier and the buffer
   threshold are both 83.5%: at maturity, a worst index at 83.5% pays 1,010,
   principal and the last coupon, and one just below it pays just under 1,000.
+- [Quarterly autocallable contingent coupon note without memory](https://sthotakura.github.io/spire/?example=quarterly-autocallable-contingent-coupon-note-without-memory):
+  three years of quarterly coupon reviews, twelve in all, a coupon of 15.3% a
+  year (38.25 a quarter) at a 60% barrier without memory, a call at 100% in
+  months 6 to 33, and a downside barrier at 60%. Month 36 is a coupon review
+  but not a call. The coupon barrier and the downside barrier are both 60%: at
+  maturity, a final level at 60% pays 1,038.25, principal and the last coupon,
+  and one just below it pays just under 600.
 - [Worst-of fixed coupon autocallable note](https://sthotakura.github.io/spire/?example=worst-of-fixed-coupon-autocallable-note):
   a fixed coupon of 11.72% a year paid every quarter for 18 months on the worst
   of three indices, a call from month 6 at 95% stepping down 5% a review to
