@@ -399,6 +399,10 @@ const redemptionBlockedReason = (id: string) => {
   return null
 }
 const couponBlockedReason = computed(() => dailySelected.value || bothWaysSelected.value ? 'not with a daily barrier' : null)
+// A coupon switched back on keeps its last condition, unless a contingent coupon is now blocked: it then comes back non-contingent.
+watch(couponSelected, (selected) => {
+  if (selected && couponCondition.value === 'contingent' && couponBlockedReason.value) couponCondition.value = 'non-contingent'
+})
 // Why delivery cannot be chosen, or null: the same rules productIssues enforces, in short. Once chosen it stays available, and the issues say what no longer fits.
 const deliveryBlockedReason = computed(() => {
   const { payoff, underlier: chosen } = note.value
