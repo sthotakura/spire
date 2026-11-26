@@ -122,4 +122,4 @@ A 12-month bullet note with a fixed coupon of 6% a year, monthly, pays 5.00 a mo
 2. **A fixed coupon for an initial period, then a contingent one.** Not seen in a public note.
 3. **Interest added to the balance and paid at the end** is a fixed return in the payoff, not a coupon, and is not modelled.
 4. **Broken periods**, a short or long first or last coupon period. Not modelled.
-5. **Floating coupons** would read a reference rate, such as SOFR, an underlier of their own. Shown in the builder as an unavailable rate type; modelling it waits for public source documents (PLAN.md, section 51).
+5. **Floating coupons** would read a reference rate, such as SOFR, an underlier of their own. Shown in the builder as an unavailable rate type; proposed in [floating-coupon.md](floating-coupon.md).
