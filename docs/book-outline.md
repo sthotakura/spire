@@ -41,8 +41,9 @@ remain working research and design records. Reader-facing chapters belong in
 Draft means reader-facing text exists and is available in the book view; it
 does not mean editorial review is complete. Determination and deposits have
 their own chapters because each needs an explanation beyond the overview of
-underliers and wrappers. The Coupons chapter covers the fixed coupon and the
-contingent coupon, and how a return a year reads payments on several dates.
+underliers and wrappers. The Coupons chapter covers when a coupon is paid and its rate, the fixed
+coupon and the contingent coupon, and how a return a year reads payments on
+several dates.
 
 ## Chapter standard
 

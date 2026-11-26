@@ -46,8 +46,10 @@ const hints = {
   'call-amount': 'What a call pays above principal, as a share of principal. It is paid in full whenever the product is called, or for each year the product has lasted, as the choice below says.',
   'call-basis': 'Flat pays the call amount whenever the product is called. Per year treats it as a rate for each year the product has lasted, as a term sheet states “10% per annum”: a call after six months pays half of it, and a call after three years pays three times it.',
   'final-call': 'The last review is the end of the term. It pays the maturity payoff, or it is a call too: a level at or above the trigger on that review pays principal plus the call amount in place of the maturity payoff. With an upside participation, a trigger above the initial level draws the payoff as a shark fin: it climbs, then drops to the call amount.',
-  coupon: 'Interest paid on the coupon’s own reviews. A fixed coupon is paid on every review, whatever the underlier does; a contingent coupon only on a review where the underlier is at or above the coupon barrier. It is stated as a rate a year, and each review pays its share: 12% a year on monthly reviews is 1% of principal a review. It is paid or tested on each of its own reviews, including those in a call’s non-call period and the last, until the product ends. A call on a date that is also a coupon review pays principal plus that review’s coupon.',
+  coupon: 'Interest paid on the coupon’s own reviews. Two terms describe it: when it is paid, on every review or only on those that meet a condition, and its rate. It is paid or tested on each of its own reviews, including those in a call’s non-call period and the last, until the product ends. A call on a date that is also a coupon review pays principal plus that review’s coupon.',
   'coupon-schedule': 'How often the coupon is paid, or for a contingent coupon tested. The coupon has its own reviews, apart from the call’s: they can be the same, or the coupon can be reviewed more often, such as monthly beside a quarterly call. Same as the calls copies the call’s frequency once; changing either later does not change the other.',
+  'coupon-condition': 'Non-contingent: the coupon is paid on every review, whatever the underlier does. It is also called unconditional; with a fixed rate, notes call it a fixed coupon. Contingent: the coupon is paid only on a review where the underlier is at or above the coupon barrier, and missed below it.',
+  'coupon-rate': 'The coupon as a rate a year, a share of principal. Each review pays its share: 12% a year on monthly reviews is 1% of principal a review. A fixed rate is set in the terms. A floating rate is reset each period from a reference rate, such as SOFR, plus or minus a spread, sometimes with a floor or a cap; older notes used LIBOR, which has been discontinued.',
   'coupon-barrier': 'The level, as a share of the initial level, at or above which a review pays its coupon. It is its own level, apart from the call trigger and the downside barrier, though a note may set two of them equal.',
   memory: 'With memory, a coupon missed on a review below the barrier is remembered, and paid with the coupon of the next review at or above it. Without memory a missed coupon is never paid. Remembered coupons that no later review pays are never paid either.',
   asset: 'The equity, equity index, strategy index or exchange-traded fund the product tracks. A strategy index follows published rules, such as holding futures, aiming at a target volatility or deducting a fixed percentage a year, so it can move differently from the market it is built on. An exchange-traded fund holds other assets, often to follow an index, and trades on an exchange: its level is its closing price, and its shares can be delivered as a stock’s can. Holding the product does not mean owning the asset.',
@@ -166,11 +168,11 @@ const triggerStepPercent = ref(0)
 const adjustmentFactorPercent = ref(100)
 const callAmountBasis = ref<'flat' | 'per-year'>('flat')
 const callOnFinal = ref(false)
-// A coupon on its own reviews: fixed, paid on every review, or contingent, paid on a review at or above its barrier. Its terms keep
-// their last values while it is off, and the barrier and memory theirs while it is fixed.
-const couponKind = ref<'none' | 'fixed' | 'contingent'>('none')
-const couponSelected = computed(() => couponKind.value !== 'none')
-const contingentCoupon = computed(() => couponKind.value === 'contingent')
+// A coupon on its own reviews, and when it is paid: non-contingent, on every review, or contingent, on a review at or above its
+// barrier. Its terms keep their last values while it is off, and the barrier and memory theirs while it is non-contingent.
+const couponSelected = ref(false)
+const couponCondition = ref<'non-contingent' | 'contingent'>('non-contingent')
+const contingentCoupon = computed(() => couponSelected.value && couponCondition.value === 'contingent')
 const settlementKind = ref<Settlement>('cash')
 const couponRatePercent = ref(firstFeatureValues.coupon)
 const couponBarrierPercent = ref(firstFeatureValues.couponBarrier)
@@ -193,7 +195,10 @@ const setAmortizing = (ticked: boolean) => {
   if (ticked) {
     autocallTicked.value = false
     issuerTicked.value = false
-    if (couponKind.value === 'none') couponKind.value = 'fixed'
+    if (!couponSelected.value) {
+      couponSelected.value = true
+      couponCondition.value = 'non-contingent'
+    }
   } else if (!issuerTicked.value) autocallTicked.value = true
 }
 const setCall = (call: 'autocall' | 'issuer', ticked: boolean) => {
@@ -1383,7 +1388,8 @@ function loadProduct(product: Product) {
   callAmountBasis.value = autocall?.callAmountBasis ?? 'flat'
   issuerAmountBasis.value = issuerCall?.callAmountBasis ?? 'flat'
   callOnFinal.value = autocall?.callOnFinalReview ?? false
-  couponKind.value = coupon === undefined ? 'none' : coupon.barrier === undefined ? 'fixed' : 'contingent'
+  couponSelected.value = coupon !== undefined
+  couponCondition.value = coupon?.barrier === undefined ? 'non-contingent' : 'contingent'
   settlementKind.value = product.settlement ?? 'cash'
   couponRatePercent.value = coupon ? percent(coupon.rate) : firstFeatureValues.coupon
   couponBarrierPercent.value = coupon?.barrier !== undefined ? percent(coupon.barrier) : firstFeatureValues.couponBarrier
@@ -1634,7 +1640,7 @@ const chooseSample = (event: Event) => {
                 <li :class="['node', { sel: highlighted('coupon') }]" :style="conceptStyle('coupon')">
                   <div class="nrow" @click="select('coupon')" @focusin="focusRow('coupon')">
                     <span class="nlabel">Coupon<HintToggle id="coupon" about="the coupon" :text="hints.coupon" :active="activeHint === 'coupon'" @toggle="toggleHint('coupon')" /></span>
-                    <span class="ctrl pick"><select id="coupon-kind" v-model="couponKind" aria-label="Coupon"><option value="none">None</option><option value="fixed">Fixed</option><option value="contingent" :disabled="!contingentCoupon && !!couponBlockedReason">Contingent{{ !contingentCoupon && couponBlockedReason ? ` (${couponBlockedReason})` : '' }}</option></select></span>
+                    <span class="ctrl pick"><select id="coupon-kind" v-model="couponSelected" aria-label="Coupon"><option :value="false">None</option><option :value="true">Paid on reviews</option></select></span>
                   </div>
                   <ul v-if="couponSelected">
                     <li :class="['node', { sel: highlighted('coupon-schedule') }]" :style="conceptStyle('coupon-schedule')">
@@ -1647,20 +1653,28 @@ const chooseSample = (event: Event) => {
                     </li>
                     <li :class="['node', { sel: highlighted('coupon') }]" :style="conceptStyle('coupon')">
                       <div class="nrow" @click="select('coupon')" @focusin="focusRow('coupon')">
-                        <span class="nlabel">Coupon rate</span>
-                        <span class="ctrl"><NumberInput id="coupon-rate" v-model="couponRatePercent" class="num rate" aria-label="Coupon rate (% of principal a year)" /><span class="unit">% a year</span></span>
+                        <span class="nlabel">Paid when<HintToggle id="coupon-condition" about="when the coupon is paid" :text="hints['coupon-condition']" :active="activeHint === 'coupon-condition'" @toggle="toggleHint('coupon-condition')" /></span>
+                        <span class="ctrl pick"><select id="coupon-condition" v-model="couponCondition" aria-label="Coupon paid when"><option value="non-contingent">Non-contingent</option><option value="contingent" :disabled="!contingentCoupon && !!couponBlockedReason">Contingent{{ !contingentCoupon && couponBlockedReason ? ` (${couponBlockedReason})` : '' }}</option></select></span>
                       </div>
+                      <ul v-if="contingentCoupon">
+                        <li :class="['node', { sel: highlighted('coupon-barrier') }]" :style="conceptStyle('coupon-barrier')">
+                          <div class="nrow" @click="select('coupon-barrier')" @focusin="focusRow('coupon-barrier')">
+                            <span class="nlabel">Coupon barrier<HintToggle id="coupon-barrier" about="the coupon barrier" :text="hints['coupon-barrier']" :active="activeHint === 'coupon-barrier'" @toggle="toggleHint('coupon-barrier')" /></span>
+                            <span class="ctrl"><NumberInput id="coupon-barrier" v-model="couponBarrierPercent" class="num rate" aria-label="Coupon barrier: level (% of the initial level)" /><span class="unit">%</span></span>
+                          </div>
+                        </li>
+                        <li :class="['node', { sel: highlighted('memory') }]" :style="conceptStyle('memory')">
+                          <div class="nrow" @click="select('memory')" @focusin="focusRow('memory')">
+                            <span class="nlabel">Memory<HintToggle id="memory" about="memory" :text="hints.memory" :active="activeHint === 'memory'" @toggle="toggleHint('memory')" /></span>
+                            <span class="ctrl pick"><select id="coupon-memory" v-model="couponMemory" aria-label="Memory"><option :value="false">Without memory</option><option :value="true">With memory</option></select></span>
+                          </div>
+                        </li>
+                      </ul>
                     </li>
-                    <li v-if="contingentCoupon" :class="['node', { sel: highlighted('coupon-barrier') }]" :style="conceptStyle('coupon-barrier')">
-                      <div class="nrow" @click="select('coupon-barrier')" @focusin="focusRow('coupon-barrier')">
-                        <span class="nlabel">Coupon barrier<HintToggle id="coupon-barrier" about="the coupon barrier" :text="hints['coupon-barrier']" :active="activeHint === 'coupon-barrier'" @toggle="toggleHint('coupon-barrier')" /></span>
-                        <span class="ctrl"><NumberInput id="coupon-barrier" v-model="couponBarrierPercent" class="num rate" aria-label="Coupon barrier: level (% of the initial level)" /><span class="unit">%</span></span>
-                      </div>
-                    </li>
-                    <li v-if="contingentCoupon" :class="['node', { sel: highlighted('memory') }]" :style="conceptStyle('memory')">
-                      <div class="nrow" @click="select('memory')" @focusin="focusRow('memory')">
-                        <span class="nlabel">Memory<HintToggle id="memory" about="memory" :text="hints.memory" :active="activeHint === 'memory'" @toggle="toggleHint('memory')" /></span>
-                        <span class="ctrl pick"><select id="coupon-memory" v-model="couponMemory" aria-label="Memory"><option :value="false">Without memory</option><option :value="true">With memory</option></select></span>
+                    <li :class="['node', { sel: highlighted('coupon') }]" :style="conceptStyle('coupon')">
+                      <div class="nrow" @click="select('coupon')" @focusin="focusRow('coupon')">
+                        <span class="nlabel">Rate<HintToggle id="coupon-rate" about="the coupon rate" :text="hints['coupon-rate']" :active="activeHint === 'coupon-rate'" @toggle="toggleHint('coupon-rate')" /></span>
+                        <span class="ctrl"><select id="coupon-rate-kind" class="rate-kind" aria-label="Coupon rate type"><option value="fixed">Fixed</option><option value="floating" disabled>Floating (unavailable)</option></select><NumberInput id="coupon-rate" v-model="couponRatePercent" class="num rate" aria-label="Coupon rate (% of principal a year)" /><span class="unit">% a year</span></span>
                       </div>
                     </li>
                   </ul>

@@ -599,6 +599,15 @@ A note that repays its principal in level instalments, each the fixed coupon on 
 - **Sample.** Level-pay amortizing note: the Barclays note's last 120 payments, from the 10,068.58 outstanding after the 60th, since its 180-month term is beyond the limit of 120.
 - **Not done:** amortization beside a call, since no document read states what a call pays after some instalments, and instalments that are not level. A short first period belongs with broken periods on the schedule, and an equity payoff after amortization has nothing left to apply to; both are closed.
 
+## 51. Split the coupon into when it is paid and its rate
+
+Two independent terms describe a coupon: when it is paid (non-contingent or contingent) and its rate (fixed or floating). The old Coupon choice of None, Fixed and Contingent mixed them, since a contingent coupon also has a fixed rate. Nothing on the product changes, so the structure JSON and the schema do not.
+
+- **Interface.** The Coupon row offers None or Paid on reviews. Under it, Reviews; Paid when, Non-contingent or Contingent, with the coupon barrier and memory nested under Contingent; and Rate, a type beside the rate a year. The tips say a non-contingent coupon is also called unconditional, and that with a fixed rate notes call it a fixed coupon.
+- **Wording.** Non-contingent, the usual term in filings and the plain opposite of contingent. Not guaranteed: a coupon depends on the issuer paying, and stops at a call.
+- **Floating.** Listed as Floating (unavailable), as Puttable is. Its tip says a floating rate is reset each period from a reference rate, such as SOFR, plus or minus a spread; older notes used LIBOR, which has been discontinued. Modelling it waits for public source documents, which the owner is collecting. It would need a rate underlier beside the equity one, the spread and any floor or cap, a rate for each period as a scenario input, and a decision on when the rate is set and on the day count.
+- **Book.** A section in chapter 20 on the two terms.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.
@@ -622,4 +631,4 @@ Payoff may eventually stop being one list of features and become several section
 
 ## Not planned
 
-Market pricing, implied volatility, Greeks, live data, floating coupons, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.
+Market pricing, implied volatility, Greeks, live data, booking, issuance workflows, documents, identifiers, regulatory processing, AI, and server infrastructure.

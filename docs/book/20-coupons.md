@@ -2,6 +2,12 @@
 
 A **coupon** is a payment made to the holder during a product's life, on its reviews, separate from the repayment of principal. This chapter explains the two kinds the reference models: the **fixed coupon**, paid on every review whatever the underlier does, and the **contingent coupon**, paid only on reviews that meet a condition, with the **memory** feature that some contingent coupons add. A product has one coupon, fixed or contingent. The reference gives the coupon its own reviews, so it goes with any redemption: a bullet note, an autocall or an issuer call. Amortization needs a fixed coupon.
 
+## When it is paid, and its rate
+
+Two separate terms describe a coupon. The first is **when it is paid**. A **non-contingent** coupon, also called unconditional, is paid on every review. A **contingent** coupon is paid only on reviews that meet a condition. The second is **its rate**. A **fixed** rate is set in the terms. A **floating** rate is reset each period from a reference rate plus or minus a spread, sometimes with a floor or a cap. One public note pays compounded SOFR plus a spread ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/1682472/000191870425003048/form424b2.htm)). Older notes used LIBOR, which has been discontinued.
+
+Notes call a non-contingent coupon at a fixed rate a **fixed coupon**. Both kinds this chapter explains have a fixed rate: the fixed coupon is non-contingent, and the contingent coupon is not. The reference does not model a floating rate. In the builder the Coupon has a Paid when row, Non-contingent or Contingent, and a Rate row, whose only available type is Fixed.
+
 ## A fixed coupon
 
 A fixed coupon is paid on every coupon review until the product ends, whatever the underlier does. No level is read for it. One public note pays "a quarterly coupon at an annual rate of 11.72%" on each coupon payment date unless it has been redeemed early ([Morgan Stanley Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/1666268/000095010319017010/dp117426_424b2-ps2983.htm)). Each coupon is the rate a year times the months between reviews, divided by 12: about 29.30 a quarter on 1,000.
@@ -187,7 +193,7 @@ modelled on, on synthetic indices:
 
 ## What is not modelled
 
-A fixed and a contingent coupon on one product, a coupon barrier that steps, a coupon barrier set differently for each asset, and payment dates. A coupon is always paid in cash, even on a product that delivers shares at the end of its term ([Settlement](22-settlement.md)).
+A floating rate, a fixed and a contingent coupon on one product, a coupon barrier that steps, a coupon barrier set differently for each asset, and payment dates. A coupon is always paid in cash, even on a product that delivers shares at the end of its term ([Settlement](22-settlement.md)).
 
 ## Related concepts
 
