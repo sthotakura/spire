@@ -130,7 +130,7 @@ The sample: principal 1,000, 60 months, initial level 100, monthly put reviews f
 
 1. **Any payoff, using the maturity formula.** Simple, and it composes. But the result would be labelled current value when it is not, and it would give a barrier note a free exit at par above the barrier. No source pays this on a barrier, buffer or cap; the Ensemble certificates pay a floored formula on a put. Not recommended.
 2. **A stated put price instead.** Close to the issuer call and allowed on any payoff, but no equity-linked source has one on stated dates. It can follow as a second basis.
-3. **A rate other than 100%.** A 150% tracker is still straight until the payment reaches zero. No source read has one, so it is left out to begin with.
+3. **A rate other than 100%.** A 150% tracker is still straight until the payment reaches zero. No source read has one, so it is left out to begin with. See open question 5.
 4. **One level for the chosen put, not one per put review.** Fewer rows on a monthly put, but a second kind of level input beside the review table, which an autocall on the same date would have to agree with. Not recommended.
 
 ## Assumptions
@@ -142,7 +142,7 @@ The sample: principal 1,000, 60 months, initial level 100, monthly put reviews f
 
 ## Decisions to agree
 
-1. **Tracker only.** Recommended, for the reason above.
+1. **Tracker only.** Agreed on 27 November 2026, for the reason above. Leverage is open question 5.
 2. **Same-date order:** issuer, holder, autocall. Recommended. The holder ahead of the autocall has no source.
 3. **A level for every put review**, in the existing table. Recommended.
 4. **No charge in the first version.** Recommended. A flat redemption charge would be one small field if wanted.
@@ -155,3 +155,4 @@ The sample: principal 1,000, 60 months, initial level 100, monthly put reviews f
 2. **Value on the other mechanisms.** An issuer's call on these products pays current value too, but the reference's issuer call pays principal plus a call amount. Sources read this way are not reproduced until that is added. The Citi notes' issuer call and their 50% trigger would both need it.
 3. **An open-ended term**, which would let the UBS and BCV certificates become samples.
 4. **A put on a floored formula.** The Ensemble certificates pay their floored formula on a put, which is the one source for alternative 1 above. Their floor sits beside a cash account the reference does not model, so they do not settle whether a floor, a buffer or a barrier on an equity payoff should be allowed.
+5. **Leverage.** A leveraged certificate pays a rate other than 100% of the move both ways, such as 200%. The Citi sample's formula already has the shape, `CA × Max[0, 1 + Leverage × Index Amount]`, with Leverage at 100%. It needs two things the reference does not have, for the product and not only for the put: a downside rate above 100%, which is limited to 100% today, and a floor at zero, where a fall of 1 ÷ rate takes the payment to nothing. The floor bends the line, but unlike a barrier it does not give the holder an exit worth more than the formula: reading the formula before maturity pays at most the note's worth, and differs from it only near zero. To be proposed as its own concept, from public sources: the Citi formula is one, and a public leveraged certificate with its rate above 100% is still to be found.
