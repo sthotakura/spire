@@ -206,6 +206,21 @@ Some of the same products also let the issuer end them when the underlier has fa
 - **A put on any business day.** The Citigroup note can be put on any index business day; the reference's finest schedule is monthly.
 - **Leverage.** A leveraged certificate pays a rate above 100% of the move both ways, down to a floor at zero. The Citigroup formula has the shape, with its leverage at 100%. It needs a downside rate above 100%, which the reference does not have.
 
+### A survivor's option
+
+A **survivor's option**, also called a death put or an estate put, lets the estate of a holder who has died require the issuer to repay the holder's notes before maturity. It is a holder's right, like the put above, but it differs in three ways. Only the estate of a holder who has died can use it, not any holder. It can be used when the holder dies, not on the reviews of a schedule. And it pays principal, not the product's formula.
+
+The public notes read are rate notes. A Barclays callable step-up fixed rate note repays "100% of the principal amount of the deceased beneficial owner's beneficial interest in the Notes plus accrued and unpaid interest" ([Barclays Bank PLC, pricing supplement](https://www.sec.gov/Archives/edgar/data/0000312070/000110465911049796/a11-23412_64424b2.htm)). A Royal Bank of Canada fixed to floating rate note marks it "Applicable", and its product supplement repays 100% of the principal plus accrued interest ([Royal Bank of Canada, preliminary pricing supplement](https://www.sec.gov/Archives/edgar/data/0001000275/000121465914001705/o33140424b2.htm)). A Lloyds retail note programme offers it for each series whose terms say so ([Lloyds TSB Bank plc, prospectus supplement](https://www.sec.gov/Archives/edgar/data/0001160106/000095010313003584/dp38362_424b2-retailnotes.htm)). On those notes, principal is what maturity pays anyway, so the option brings the repayment forward and changes nothing else. On a tracker it would be different: an estate paid principal with the underlier at 70 would have a protection worth something that the product's formula does not give.
+
+Most of a survivor's option's terms govern who may use it and how much it repays in a year, not what a note pays.
+
+- **A holding period.** The holder must have held the note for a time before dying or before the request: six months on the Barclays and Lloyds notes, a year on the Royal Bank of Canada note.
+- **Limits a year.** The issuer may limit what it repays in a calendar year, for each holder who has died and for all of them together. On the Barclays note the limits are $250,000 for each holder and 2% of the notes outstanding. On the Royal Bank of Canada note they are $100,000 for each holder, and in all the greater of $250,000 and 1% of the notes outstanding. A request over a limit is carried to the next year on the Barclays note, may be carried over if it is reaffirmed on the Lloyds note, and is not accepted later on the Royal Bank of Canada note.
+- **The request.** It needs evidence of the death and of the representative's authority, and it cannot be withdrawn. The notes say how a joint holding, a holding in trust and a nominee's holding count, and the smallest amount that can be repaid, $1,000.
+- **When it pays.** On a later interest date or a set payment date, at least 20, 30 or 60 days after the request is accepted, depending on the note.
+
+The reference does not model a survivor's option. Its payment would need a mechanism of its own, beside a payoff the reference has not yet found it on, and a scenario stating when the holder dies. Its holding period, limits and request belong to the issuance and administration of notes, not to the product's terms, as the conditions of exercise of a holder put do.
+
 ## Amortization
 
 An **amortizing** note repays its principal in parts during its term, not in one amount at the end. Each part is an **instalment**: interest on the principal still outstanding, for the period that ends on the review, and a repayment of principal with the rest. The principal still owed after an instalment is the **outstanding principal**, and the next coupon is measured on it, so the coupons fall as the principal is repaid. The reference lists amortization under early redemption because each instalment repays part of the principal before maturity. Unlike a call, it ends nothing: the note runs to the end of its term.
@@ -301,7 +316,7 @@ public notes they are modelled on:
 
 ## What is not modelled
 
-A trigger that steps by uneven amounts, a premium on an issuer call that a source states, an issuer call at current value, a holder put at a stated price or beside a payoff that is not a tracker, notice periods, and a schedule of payments. Each would be added on top of the reviews described here. For amortization: instalments that are not level, a short first period such as the Novanta note's, amortization beside a call, and terms beyond the reference's 120 months, such as the Barclays note's 180.
+A trigger that steps by uneven amounts, a premium on an issuer call that a source states, an issuer call at current value, a holder put at a stated price or beside a payoff that is not a tracker, a survivor's option, notice periods, and a schedule of payments. Each would be added on top of the reviews described here. For amortization: instalments that are not level, a short first period such as the Novanta note's, amortization beside a call, and terms beyond the reference's 120 months, such as the Barclays note's 180.
 
 ## Related concepts
 

@@ -156,6 +156,7 @@ The sample: principal 1,000, 60 months, initial level 100, monthly put reviews f
 - **Adding a payoff feature is blocked while the put is ticked**, with "Not with a holder put", and ticking the put is blocked on a payoff that is not a tracker, with the reason. Once ticked, the issues on its row say what no longer fits, as for amortization.
 - **The put date's level starts at 110% of the initial level**, as the starting final level does, so the put shows a gain until the reader sets it.
 - **`redemptionOutcome` takes one options argument**, `{ issuerCallsOnReview, holderPut, referenceRates }`, as decided.
+- **A survivor's option is not modelled** (agreed 2026-11-27). The estate of a holder who has died may require repayment, usually at principal plus accrued interest. The public notes read with one are rate notes: Barclays 424B2 (sec.gov/Archives/edgar/data/0000312070/000110465911049796), Royal Bank of Canada 424B2 (sec.gov/Archives/edgar/data/0001000275/000121465914001705) and a Lloyds programme supplement (sec.gov/Archives/edgar/data/0001160106/000095010313003584). What it pays is a product term, but it would be a mechanism of its own: a holder's death triggers it, not a schedule, and it pays principal, not the formula, which on a tracker would be free downside protection. Its holding period, annual limits, request and timing belong to issuance and administration. Chapter 19 describes it as not modelled. It would be modelled only if a public source puts it on a product the reference models.
 
 ## Open questions
 
