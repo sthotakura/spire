@@ -652,7 +652,9 @@ const formulaWords = computed(() => {
   const coupon = !note.value.coupon ? ''
     : note.value.coupon.barrier === undefined ? ` On each coupon review it also pays a ${floatingCoupon.value ? 'floating coupon, at that review’s reference rate plus the spread within its bounds' : 'fixed coupon'}, whatever the underlier does.`
       : ` On each coupon review at or above the coupon barrier it also pays a coupon${note.value.coupon.memory ? ', with any coupons missed before it' : ''}.`
-  return `${scheduled.value ? `If it is not called, ${words.startsWith('The ') ? `the ${words.slice(4)}` : words}` : words}${coupon}`
+  // The payment rule in words starts with "The" or "Each", which the call's clause lowers; an underlier's name would keep its capital.
+  const lowered = /^(The|Each) /.test(words) ? `${words[0].toLowerCase()}${words.slice(1)}` : words
+  return `${scheduled.value ? `If it is not called, ${lowered}` : words}${coupon}`
 })
 // What the final level on the chart belongs to: the asset, or the basket.
 const underlierLabel = computed(() => isBasket.value ? 'the basket' : assetName.value.trim() || 'the underlier')
