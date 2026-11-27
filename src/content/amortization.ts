@@ -1,6 +1,6 @@
 import type { Instalment } from '../domain/amortization'
 import type { RedemptionOutcome } from '../domain/autocall'
-import { amortizationOf, monthsPerReview, type Product } from '../domain/note'
+import { amortizationOf, fixedRateOf, monthsPerReview, type Product } from '../domain/note'
 import { annualisedOf, annualisedReturnStep, signedTwoDecimalPercent, totalReturn, totalReturnStep } from './autocall'
 import type { CalculationStep } from './calculation'
 import type { FormulaLine } from './formula'
@@ -18,10 +18,13 @@ const percent = (fraction: number) => {
 const statedPercent = (fraction: number) => `${(Math.round(fraction * 1e10) / 1e8).toLocaleString('en-US', { maximumFractionDigits: 8 })}%`
 const monthsPhrase = (months: number) => `${months} ${months === 1 ? 'month' : 'months'}`
 
+// The coupon's fixed rate a year, which amortization needs: not a number for any other coupon, which a valid amortizing note does not have.
+const fixedRate = (note: Product) => (note.coupon === undefined ? Number.NaN : fixedRateOf(note.coupon) ?? Number.NaN)
+
 // The rate a review: the coupon rate a year × the months between reviews ÷ 12.
 const ratePerReview = (note: Product) => {
   const amortization = amortizationOf(note.redemption)
-  return note.coupon === undefined || amortization === undefined ? 0 : (note.coupon.rate * monthsPerReview[amortization.schedule.frequency]) / 12
+  return note.coupon === undefined || amortization === undefined ? 0 : (fixedRate(note) * monthsPerReview[amortization.schedule.frequency]) / 12
 }
 
 // The summary of an amortizing note: its term, its instalments and the coupon they include.
@@ -36,7 +39,7 @@ export function amortizationSummary(note: Product, term: { article: string; text
     { text: '.' },
     ...(coupon === undefined ? [] : [
       { text: ' Each includes ' },
-      { text: `a fixed coupon of ${statedPercent(coupon.rate)} a year (${percent(ratePerReview(note))} a review)`, concept: 'coupon' as const },
+      { text: `a fixed coupon of ${statedPercent(fixedRate(note))} a year (${percent(ratePerReview(note))} a review)`, concept: 'coupon' as const },
       { text: ' on the principal still outstanding, and repays principal with the rest, whatever the underlier does.' },
     ]),
   ]
@@ -95,7 +98,7 @@ export function amortizationSteps(note: Product, outcome: RedemptionOutcome): Ar
     : instalments.map(single)
   const coupons = instalments.reduce((sum, { coupon }) => sum + coupon, 0)
   return [
-    { title: 'Rate a review', how: `${statedPercent(note.coupon.rate)} a year × ${months}/12`, value: percent(i), concept: 'coupon' },
+    { title: 'Rate a review', how: `${statedPercent(fixedRate(note))} a year × ${months}/12`, value: percent(i), concept: 'coupon' },
     { title: 'Instalment', how: `${units(note.principalAmount)} × ${percent(i)} ÷ (1 − (1 + ${percent(i)})^−${count})`, value: units(instalments[0].amount), concept: 'amortization' },
     ...reviews,
     { title: 'Total paid', how: `${count} instalments: ${units(coupons)} in coupons + ${units(note.principalAmount)} of principal, over ${monthsPhrase(outcome.months)}`, value: units(outcome.totalPaid), result: true, concept: 'amortization' },

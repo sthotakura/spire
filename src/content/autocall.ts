@@ -1,5 +1,5 @@
 import { annualisedReturnOfPayments, type CouponTest, type RedemptionOutcome, type ReviewTest } from '../domain/autocall'
-import { amortizationOf, annualisedReturn, autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, couponPerReview, firstReviewMonthOf, issuerCallOf, mechanismReviewCount, callsOf, monthsPerReview, reviewCount, reviewDates, scheduleReviews, triggerAtReview, type Autocall, type CallMechanism, type IssuerCall, type Product, type ReviewDate } from '../domain/note'
+import { amortizationOf, annualisedReturn, autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, couponPerReview, firstReviewMonthOf, floatingRateOf, issuerCallOf, mechanismReviewCount, callsOf, monthsPerReview, reviewCount, reviewDates, scheduleReviews, triggerAtReview, type Autocall, type CallMechanism, type IssuerCall, type Product, type ReviewDate } from '../domain/note'
 import type { CalculationStep } from './calculation'
 import type { FormulaLine } from './formula'
 
@@ -70,6 +70,22 @@ function mechanismFormula(mechanism: CallMechanism, lead: string): FormulaLine {
 // with no test. Empty without a coupon.
 export function couponFormula(note: Product): FormulaLine[] {
   if (note.coupon === undefined) return []
+  const floating = floatingRateOf(note.coupon)
+  if (floating !== undefined) {
+    const bounds = `at least ${floating.floor === 0 ? '0%' : 'Floor'}${floating.cap === undefined ? '' : ' and at most Cap'}`
+    return [{
+      lead: 'Coupon',
+      segments: [
+        { text: 'On each ' },
+        { text: 'coupon review', concept: 'coupon-schedule' },
+        { text: ' until it ends, pay ' },
+        { text: 'Principal × Rate × Months between coupon reviews ÷ 12', concept: 'coupon' },
+        { text: ', whatever the level, where ' },
+        { text: `Rate = Reference rate on the review + Spread, ${bounds}`, concept: 'coupon' },
+        { text: '. A coupon review on the date the product ends pays with it' },
+      ],
+    }]
+  }
   if (note.coupon.barrier === undefined) {
     return [{
       lead: 'Coupon',
@@ -189,24 +205,27 @@ function couponEntries(note: Product, outcome: RedemptionOutcome): Array<{ month
   if (coupon === undefined) return []
   const count = reviewCount({ term: note.term, schedule: coupon.schedule })
   const { barrier: couponBarrier } = coupon
-  const keyOf = (test: CouponTest) => (test.coupons > 1 ? undefined : test.met ? 'paid' : 'missed')
+  // A floating coupon's reviews group only while the rate stays the same, so a group is one coupon repeated.
+  const keyOf = (test: CouponTest) => (test.coupons > 1 ? undefined : test.met ? `paid ${test.referenceRate === undefined ? '' : test.rate}` : 'missed')
+  // What a non-contingent coupon's step says before its working: fixed, or the review's floating rate and how it came about.
+  const unconditional = (test: CouponTest) => (test.referenceRate === undefined ? 'Fixed' : `Floating at ${floatingRateWorking(note, test)}`)
   const grouped = (run: CouponTest[]): Omit<CalculationStep, 'n'> => {
     const [first, last] = [run[0], run.at(-1)!]
     const title = `Coupons on reviews ${first.review}–${last.review} of ${count}, months ${first.month}–${last.month}`
     const paid = units(run.reduce((sum, test) => sum + test.paid, 0))
-    if (couponBarrier === undefined || first.barrierLevel === undefined) return { title, how: `Fixed, paid whatever the level: ${couponWorking(note, run.length)}`, value: paid, concept: 'coupon' }
+    if (couponBarrier === undefined || first.barrierLevel === undefined) return { title, how: `${unconditional(first)}, paid whatever the level: ${couponWorking(note, first, run.length)}`, value: paid, concept: 'coupon' }
     const barrier = `the coupon barrier, ${percent(couponBarrier)} × initial level = ${units(first.barrierLevel)}`
     if (!first.met) {
       const after = coupon.memory ? `, so their coupons are remembered: ${coupons(last.remembered)} unpaid` : ', so their coupons are missed and not paid later'
       return { title, how: `Each level is below ${barrier}${after}; the review table shows each review`, value: '0', muted: true, concept: 'coupon' }
     }
-    return { title, how: `Each level is at or above ${barrier}: ${couponWorking(note, run.length)}; the review table shows each review`, value: paid, concept: 'coupon' }
+    return { title, how: `Each level is at or above ${barrier}: ${couponWorking(note, first, run.length)}; the review table shows each review`, value: paid, concept: 'coupon' }
   }
   const single = (test: CouponTest): Omit<CalculationStep, 'n'> => {
     const title = `Coupon on review ${test.review} of ${count}, month ${test.month}`
     // A fixed coupon reads no level: every review pays. Its tests have no level, and a contingent coupon's always have one.
     if (couponBarrier === undefined || test.barrierLevel === undefined) {
-      return { title, how: `Fixed, paid whatever the level: ${couponWorking(note, test.coupons)}`, value: units(test.paid), concept: 'coupon' as const }
+      return { title, how: `${unconditional(test)}, paid whatever the level: ${couponWorking(note, test, test.coupons)}`, value: units(test.paid), concept: 'coupon' as const }
     }
     const level = test.month === note.term.months ? `Final level ${units(test.level)}` : units(test.level)
     const barrier = `the coupon barrier, ${percent(couponBarrier)} × initial level = ${units(test.barrierLevel)}`
@@ -214,7 +233,7 @@ function couponEntries(note: Product, outcome: RedemptionOutcome): Array<{ month
       const after = coupon.memory ? `, so its coupon is remembered: ${coupons(test.remembered)} unpaid` : ', so its coupon is missed and not paid later'
       return { title, how: `${level} is below ${barrier}${after}`, value: '0', muted: true, concept: 'coupon' as const }
     }
-    const paid = `: ${couponWorking(note, test.coupons)}${test.coupons > 1 ? `, this review’s coupon and ${coupons(test.coupons - 1)} remembered` : ''}`
+    const paid = `: ${couponWorking(note, test, test.coupons)}${test.coupons > 1 ? `, this review’s coupon and ${coupons(test.coupons - 1)} remembered` : ''}`
     return { title, how: `${level} is at or above ${barrier}${paid}`, value: units(test.paid), concept: 'coupon' as const }
   }
   return inRuns(outcome.coupons, keyOf)
@@ -239,15 +258,17 @@ export interface ReviewRow {
 }
 
 // The rows of the review table: each date a level is read on, ending with the last, which reads the final level, and each review of a
-// fixed coupon that falls between them, which reads no level and has no place. A product with no date that reads a level has no table.
+// non-contingent coupon that falls between them, which reads no level and has no place. A product with no date that reads a level has
+// no table, unless its coupon floats: each of its reviews takes a reference rate, so the table lists them, the last at the end of the term.
 export function reviewTableRows(note: Product): ReviewRow[] {
   const dates = reviewDates(note)
-  if (!dates.length) return []
+  const { coupon } = note
+  const floats = coupon !== undefined && floatingRateOf(coupon) !== undefined
+  if (!dates.length && !floats) return []
   const read: ReviewRow[] = dates.map((date, index) => (index < dates.length - 1 ? { date, index } : { date, final: true }))
   const months = new Set(dates.map(({ month }) => month))
-  const { coupon } = note
   const fixed = coupon === undefined || coupon.barrier !== undefined ? [] : scheduleReviews(note.term, coupon.schedule) ?? []
-  const unread = fixed.filter(({ month }) => !months.has(month)).map(({ review, month }): ReviewRow => ({ date: { month, coupon: review } }))
+  const unread = fixed.filter(({ month }) => !months.has(month)).map(({ review, month }): ReviewRow => ({ date: { month, coupon: review }, ...(month === note.term.months ? { final: true as const } : {}) }))
   return [...read, ...unread].sort((a, b) => a.date.month - b.date.month)
 }
 
@@ -257,7 +278,25 @@ export function couponCell(note: Product, test: CouponTest): string {
   const { coupon } = note
   if (coupon === undefined) return ''
   if (!test.met) return coupon.memory ? 'Missed · remembered' : 'Missed'
-  return couponWorking(note, test.coupons)
+  return couponWorking(note, test, test.coupons)
+}
+
+// A rate as a percentage to eight decimals, every decimal the interface accepts; a finer rate, which only a structure can state, is
+// marked as approximate. A difference below a billionth of a percent is floating-point noise, as in 0.1735 × 100 = 17.349999999999998.
+const ratePercent = (fraction: number) => {
+  const percent = fraction * 100
+  const shown = Math.round(percent * 1e8) / 1e8
+  return `${Math.abs(shown - percent) > 1e-9 ? '≈' : ''}${shown < 0 ? '−' : ''}${Math.abs(shown).toLocaleString('en-US', { maximumFractionDigits: 8 })}%`
+}
+
+// How a floating coupon's rate on a review came about: the reference rate plus the spread, and the floor or the cap when it applied.
+export function floatingRateWorking(note: Product, test: CouponTest): string {
+  const floating = note.coupon === undefined ? undefined : floatingRateOf(note.coupon)
+  if (floating === undefined || test.referenceRate === undefined) return ''
+  const sum = test.referenceRate + floating.spread
+  const added = `${ratePercent(test.referenceRate)} ${floating.spread < 0 ? '−' : '+'} ${ratePercent(Math.abs(floating.spread))}`
+  if (Math.abs(test.rate - sum) <= 1e-12) return `${added} = ${ratePercent(test.rate)}`
+  return `${added} = ${ratePercent(sum)}, ${test.rate === floating.floor ? 'raised to the floor' : 'lowered to the cap'}, ${ratePercent(test.rate)}`
 }
 
 // The coupons a review pays, worked out: the number of coupons × principal × the rate a year × the months between coupon reviews ÷ 12.
@@ -265,13 +304,10 @@ export function couponCell(note: Product, test: CouponTest): string {
 // 9.5833 a review, and 2 × 9.58 is 19.16, not the 19.17 paid. The rate is shown to eight decimals of a percent, every decimal the
 // interface accepts; a finer rate, which only a structure can state, is marked as approximate. The review table and the calculation
 // both show it, so they read the same.
-function couponWorking(note: Product, count: number): string {
+// A floating coupon is worked out at the review's own rate, from its reference rate.
+function couponWorking(note: Product, test: Pick<CouponTest, 'rate' | 'referenceRate'>, count: number): string {
   if (note.coupon === undefined) return ''
-  const percent = note.coupon.rate * 100
-  const shown = Math.round(percent * 1e8) / 1e8
-  // A difference below a billionth of a percent is floating-point noise, as in 0.1735 × 100 = 17.349999999999998.
-  const rate = `${Math.abs(shown - percent) > 1e-9 ? '≈' : ''}${shown.toLocaleString('en-US', { maximumFractionDigits: 8 })}%`
-  return `${count > 1 ? `${count} × ` : ''}${units(note.principalAmount)} × ${rate} × ${monthsPerReview[note.coupon.schedule.frequency]}/12 = ${units(count * couponPerReview(note))}`
+  return `${count > 1 ? `${count} × ` : ''}${units(note.principalAmount)} × ${ratePercent(test.rate)} × ${monthsPerReview[note.coupon.schedule.frequency]}/12 = ${units(count * couponPerReview(note, test.referenceRate))}`
 }
 
 // Everything paid over the product's life: the coupons on the reviews before it ended, and the payment on the review it ended on.
@@ -332,6 +368,13 @@ export function explainCoupons(note: Product, outcome: RedemptionOutcome): strin
   const met = outcome.coupons.filter((test) => test.met).length
   const paid = outcome.coupons.reduce((sum, test) => sum + test.paid, 0)
   const [first] = outcome.coupons
+  const floating = floatingRateOf(coupon)
+  if (floating !== undefined) {
+    const floored = outcome.coupons.filter((test) => test.referenceRate !== undefined && test.rate === floating.floor && test.referenceRate + floating.spread < floating.floor).length
+    const capped = outcome.coupons.filter((test) => test.referenceRate !== undefined && floating.cap !== undefined && test.rate === floating.cap && test.referenceRate + floating.spread > floating.cap).length
+    const bounds = [floored ? `the floor held ${floored === 1 ? 'one' : floored} at ${ratePercent(floating.floor)}` : '', capped ? `the cap held ${capped === 1 ? 'one' : capped} at ${ratePercent(floating.cap!)}` : ''].filter(Boolean).join(' and ')
+    return `It paid its floating coupon on ${tested === 1 ? 'the one coupon review' : `each of the ${tested} coupon reviews`} it lasted for, whatever the underlier did, each at its own reference rate${bounds ? `; ${bounds}` : ''}: ${units(paid)} in coupons.${total}`
+  }
   if (coupon.barrier === undefined || first.barrierLevel === undefined) return `It paid its fixed coupon on ${tested === 1 ? 'the one coupon review' : `each of the ${tested} coupon reviews`} it lasted for, whatever the underlier did: ${units(paid)} in coupons.${total}`
   const barrier = units(first.barrierLevel)
   const opening = met === 0

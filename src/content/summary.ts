@@ -1,5 +1,5 @@
 import { amortizationSummary } from './amortization'
-import { amortizationOf, autocallOf, issuerCallOf, downsideOf, firstReviewMonthOf, monthsPerReview, upsideOf, type CallMechanism, type Product } from '../domain/note'
+import { amortizationOf, autocallOf, issuerCallOf, downsideOf, firstReviewMonthOf, floatingRateOf, monthsPerReview, upsideOf, type CallMechanism, type Coupon, type Product } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface SummarySegment {
@@ -151,13 +151,26 @@ export function summarize(note: Product): SummarySegment[] {
     return [...called, ...issuer, ...otherwise]
   })()
 
+  // A fixed rate is stated a year and a review. A floating rate states its reference, its spread and its bounds: its level on each review
+  // is the scenario's, not a term.
+  const couponPhrase = (coupon: Coupon, months: number | undefined) => {
+    const floating = floatingRateOf(coupon)
+    if (floating === undefined) {
+      const rate = coupon.rate as number
+      return `a ${coupon.barrier === undefined ? 'fixed ' : ''}coupon of ${weightPercent(rate)} a year${months === undefined ? '' : ` (${weightPercent((rate * months) / 12)} a review)`}`
+    }
+    const spread = floating.spread < 0 ? ` minus ${weightPercent(-floating.spread)}` : floating.spread > 0 ? ` plus ${weightPercent(floating.spread)}` : ''
+    const bounds = `at least ${weightPercent(floating.floor)}${floating.cap === undefined ? '' : ` and at most ${weightPercent(floating.cap)}`}`
+    return `a floating coupon at ${floating.reference.trim() || 'the reference rate'}${spread} a year, ${bounds},`
+  }
+
   // A coupon has its own reviews, whatever the redemption, so it is a sentence of its own: its rate a year and on each review, its
   // reviews, the level it needs, and memory.
   const { coupon } = note
   const couponMonths = coupon?.schedule ? monthsPerReview[coupon.schedule.frequency] : undefined
   const couponing: SummarySegment[] = coupon === undefined ? [] : [
     { text: ' It pays ' },
-    { text: `a ${coupon.barrier === undefined ? 'fixed ' : ''}coupon of ${weightPercent(coupon.rate)} a year${couponMonths === undefined ? '' : ` (${weightPercent((coupon.rate * couponMonths) / 12)} a review)`}`, concept: 'coupon' },
+    { text: couponPhrase(coupon, couponMonths), concept: 'coupon' },
     { text: ' on each ' },
     { text: coupon.schedule?.frequency ?? 'monthly', concept: 'coupon-schedule' },
     ...(coupon.barrier === undefined

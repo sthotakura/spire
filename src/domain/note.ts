@@ -264,6 +264,9 @@ export interface DeterminedLevels {
   // Absent means no close went beyond the initial and final levels, so no close in between reached a barrier.
   lowestClose?: number
   highestClose?: number
+  // For a floating coupon, the reference rate for the last coupon review, at the end of the term, as a rate a year. The rates for the
+  // reviews before it are given to redemptionOutcome, as the levels of the reviews before the last are.
+  lastReferenceRate?: number
 }
 
 /**
@@ -507,6 +510,52 @@ export interface EarlyRedemption extends RedemptionTerms {
 /** How the product ends: at maturity, or possibly earlier. */
 export type Redemption = Bullet | EarlyRedemption
 
+// See docs/floating-coupon.md.
+/**
+ * A coupon rate reset for each coupon review from a reference rate: the reference rate for the period plus the spread, at least the
+ * floor and, with a cap, at most the cap. The level of the reference rate for each review is part of a scenario, as a rate a year: how
+ * it is compounded and observed over the period is a calculation convention the scenario has already applied. This reference allows a
+ * floating rate only on a coupon with no barrier.
+ */
+export interface FloatingRate {
+  /**
+   * The name of the reference rate, such as an overnight rate, which must not be blank. It is a label: its level on each review is
+   * given by a scenario, not read from market data.
+   * @pattern \S
+   */
+  reference: string
+  /**
+   * A rate a year added to the reference rate, as a fraction; a negative spread is subtracted. This reference accepts −10% to 10%;
+   * that is a limit of this reference, not of the product type.
+   * @minimum -0.1
+   * @maximum 0.1
+   */
+  spread: number
+  /**
+   * The minimum coupon rate a year, as a fraction, which bounds the reference rate plus the spread from below, so the coupon is never
+   * negative. This reference accepts 0% to 20%; that is a limit of this reference, not of the product type.
+   * @minimum 0
+   * @maximum 0.2
+   */
+  floor: number
+  /**
+   * The maximum coupon rate a year, as a fraction, at or above the floor. Absent means the coupon rate has no maximum. This reference
+   * accepts 0% to 20%; that is a limit of this reference, not of the product type.
+   * @minimum 0
+   * @maximum 0.2
+   */
+  cap?: number
+}
+
+/**
+ * A coupon rate a year that stays the same on every review, as a fraction of principal.
+ * @exclusiveMinimum 0
+ */
+export type FixedRate = number
+
+/** The coupon's rate a year: fixed, the same on every review, or floating, reset on each review from a reference rate. */
+export type CouponRate = FixedRate | FloatingRate
+
 // See docs/contingent-coupon.md and docs/coupon.md.
 /**
  * Interest paid on each review of the coupon's own schedule, including those before a call's first review and the last, until the
@@ -521,12 +570,11 @@ export interface Coupon {
    */
   schedule: Schedule
   /**
-   * The coupon as a rate a year, as a fraction of principal. Each review that pays a coupon pays principal × rate × the months
-   * between reviews ÷ 12: 12% a year on monthly reviews is 1% of principal a review. With amortization the principal is what is
-   * outstanding before the review, so the coupon falls as principal is repaid.
-   * @exclusiveMinimum 0
+   * The coupon as a rate a year, as a fraction of principal: fixed, or floating from a reference rate. Each review that pays a coupon
+   * pays principal × that review's rate × the months between reviews ÷ 12: 12% a year on monthly reviews is 1% of principal a review.
+   * With amortization the principal is what is outstanding before the review, so the coupon falls as principal is repaid.
    */
-  rate: number
+  rate: CouponRate
   /**
    * The level at or above which a review pays its coupon, as a fraction of the initial level, for a contingent coupon. Absent for a
    * fixed coupon, which every review pays. This reference accepts up to 2, a rise of 100%; that is a limit of this reference, not of
@@ -863,7 +911,7 @@ function amortizationIssues(note: Product, amortization: Amortization): ProductI
   if (amortization.method !== 'level-payment') issues.push({ field: 'mechanisms', message: 'Amortization is by level payment.' })
   if (mechanismsOf(note.redemption).length > 1) issues.push({ field: 'mechanisms', message: 'Amortization cannot be combined with an autocall or an issuer call in this reference.' })
   const { coupon } = note
-  if (coupon === undefined || coupon.barrier !== undefined) issues.push({ field: 'coupon', message: 'Amortization needs a fixed coupon: each instalment pays the coupon on the outstanding principal and repays principal with the rest.' })
+  if (coupon === undefined || coupon.barrier !== undefined || fixedRateOf(coupon) === undefined) issues.push({ field: 'coupon', message: 'Amortization needs a non-contingent coupon at a fixed rate: each instalment pays the coupon on the outstanding principal and repays principal with the rest, as one level amount.' })
   else if (schedule !== undefined && coupon.schedule?.frequency !== schedule.frequency) issues.push({ field: 'couponSchedule', message: 'Amortization pays its instalments on the coupon reviews, so the coupon needs the same schedule.' })
   const { payoff } = note
   if (payoff.participations.length || payoff.principalProtection !== undefined || payoff.digitalReturn !== undefined || payoff.barrierAbsoluteReturn !== undefined || payoff.minimumReturn !== undefined) {
@@ -884,7 +932,14 @@ function couponIssues(note: Product): ProductIssue[] {
   const issues: ProductIssue[] = []
   if (coupon.schedule === undefined) issues.push({ field: 'couponSchedule', message: 'A coupon needs a review schedule.' })
   else if (reviewCount({ term: note.term, schedule: coupon.schedule }) === undefined) issues.push({ field: 'couponSchedule', message: 'The term must hold a whole number of coupon periods.' })
-  if (!Number.isFinite(coupon.rate) || coupon.rate <= 0) issues.push({ field: 'coupon', message: 'Coupon rate must be greater than zero.' })
+  const floating = floatingRateOf(coupon)
+  if (floating === undefined) {
+    if (typeof coupon.rate !== 'number' || !Number.isFinite(coupon.rate) || coupon.rate <= 0) issues.push({ field: 'coupon', message: 'Coupon rate must be greater than zero.' })
+  } else {
+    issues.push(...floatingRateIssues(floating))
+    // Floating says how the rate is set and contingent when the coupon is paid, so the two could combine; no note read has both.
+    if (coupon.barrier !== undefined) issues.push({ field: 'coupon', message: 'A floating rate is available only on a non-contingent coupon in this reference.' })
+  }
   if (coupon.barrier === undefined) {
     // A fixed coupon is paid on every review, so none is missed and there is nothing to remember.
     if (coupon.memory) issues.push({ field: 'coupon', message: 'Memory needs a coupon barrier: a fixed coupon is paid on every review, so none is missed.' })
@@ -895,6 +950,19 @@ function couponIssues(note: Product): ProductIssue[] {
   // Lookback is allowed on the assumption that the lookback period ends before the first coupon review, as for an autocall.
   const observations = [downsideOf(note)?.barrier, upsideOf(note)?.barrier, payoff.barrierAbsoluteReturn?.lowerBarrier, payoff.barrierAbsoluteReturn?.upperBarrier]
   if (observations.some((barrier) => barrier?.observation === 'daily-close')) issues.push({ field: 'couponSchedule', message: 'A barrier observed on every close cannot be combined with a coupon: the levels on the coupon reviews are closes that the lowest and highest close would have to agree with.' })
+  return issues
+}
+
+// The terms of a floating rate. The limits are this reference's; a floor of zero or above keeps every coupon at zero or more.
+function floatingRateIssues(rate: FloatingRate): ProductIssue[] {
+  const issues: ProductIssue[] = []
+  if (typeof rate.reference !== 'string' || !rate.reference.trim()) issues.push({ field: 'coupon', message: 'A floating rate needs the name of its reference rate.' })
+  if (!Number.isFinite(rate.spread) || rate.spread < -0.1 || rate.spread > 0.1) issues.push({ field: 'coupon', message: 'Spread must be between −10% and 10% a year.' })
+  if (!Number.isFinite(rate.floor) || rate.floor < 0 || rate.floor > 0.2) issues.push({ field: 'coupon', message: 'Floor must be between 0% and 20% a year.' })
+  if (rate.cap !== undefined) {
+    if (!Number.isFinite(rate.cap) || rate.cap < 0 || rate.cap > 0.2) issues.push({ field: 'coupon', message: 'Cap must be between 0% and 20% a year.' })
+    else if (Number.isFinite(rate.floor) && rate.cap < rate.floor) issues.push({ field: 'coupon', message: 'Cap must be at or above the floor.' })
+  }
   return issues
 }
 
@@ -936,9 +1004,26 @@ function adjustmentFactorIssues(note: Product): ProductIssue[] {
   return issues
 }
 
-// The coupon each review pays, when it meets the barrier or for a fixed coupon always, as an amount: principal × rate × the months between coupon reviews ÷ 12.
-export const couponPerReview = (note: Product): number =>
-  note.coupon?.schedule === undefined ? 0 : (note.principalAmount * note.coupon.rate * monthsPerReview[note.coupon.schedule.frequency]) / 12
+// The coupon's rate when it is fixed, or its floating rate's terms when it floats. Undefined for the other kind.
+export const fixedRateOf = (coupon: Coupon): number | undefined => (typeof coupon.rate === 'number' ? coupon.rate : undefined)
+export const floatingRateOf = (coupon: Coupon): FloatingRate | undefined => (typeof coupon.rate === 'number' ? undefined : coupon.rate)
+
+// The coupon rate a year on a review. A fixed rate is the same on every review. A floating rate is the review's reference rate plus the
+// spread, at least the floor and, with a cap, at most the cap; it needs that reference rate.
+export function couponRateOn(rate: CouponRate, referenceRate?: number): number {
+  if (typeof rate === 'number') return rate
+  if (referenceRate === undefined || !Number.isFinite(referenceRate)) throw new Error('A floating rate needs the reference rate for the review.')
+  const floored = Math.max(rate.floor, referenceRate + rate.spread)
+  return rate.cap === undefined ? floored : Math.min(rate.cap, floored)
+}
+
+// The coupon a review pays, when it meets the barrier or for a non-contingent coupon always, as an amount: principal × the review's rate
+// × the months between coupon reviews ÷ 12. A floating rate needs the review's reference rate.
+export const couponPerReview = (note: Product, referenceRate?: number): number =>
+  note.coupon?.schedule === undefined ? 0 : (note.principalAmount * couponRateOn(note.coupon.rate, referenceRate) * monthsPerReview[note.coupon.schedule.frequency]) / 12
+
+// Scenario limits of this reference on a reference rate: −5% to 20% a year.
+export const referenceRateLimits = { min: -0.05, max: 0.2 }
 
 export function productIssues(note: Product): ProductIssue[] {
   const issues: ProductIssue[] = underlierIssues(note.underlier)

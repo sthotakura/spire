@@ -27,8 +27,9 @@ const rulesInValidator = [
   'The term must hold a whole number of periods of each schedule: at least two for an autocall, an issuer call or amortization, and at least one for a coupon.',
   'An autocall, an issuer call or a contingent coupon cannot be combined with a barrier observed on every close.',
   'An adjustment factor other than 1 cannot be combined with a buffer, a barrier, a digital return, barrier absolute return or delivery.',
-  'Memory needs a coupon barrier: a fixed coupon, which has none, is paid on every review.',
-  'Amortization is the only mechanism of its redemption, on a note. It needs a fixed coupon on the same schedule, a payoff with no features, and no adjustment factor other than 1.',
+  'Memory needs a coupon barrier: a non-contingent coupon, which has none, is paid on every review.',
+  'A floating rate is on a non-contingent coupon only, and its cap, if any, is at or above its floor.',
+  'Amortization is the only mechanism of its redemption, on a note. It needs a non-contingent coupon at a fixed rate on the same schedule, a payoff with no features, and no adjustment factor other than 1.',
   'Delivery needs downside participation; one stock or a worst-of basket of stocks; a final level on the final date; no principal protection; and downside rate × (1 − buffer) of at most 1.',
   'An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The first review of an autocall or an issuer call is a whole number of periods in, and leaves at least one review that can call.',
 ]
@@ -48,7 +49,7 @@ const variantTitles: Record<string, string> = {
 const variantOf = (member: Json): string | undefined => member.properties?.kind?.const ?? member.properties?.direction?.const ?? member.const
 
 // Three changes to what the generator writes:
-// - A union becomes oneOf, not anyOf. Every union here is told apart by a constant key, so exactly one member matches, and oneOf
+// - A union becomes oneOf, not anyOf. Every union here is told apart by a constant key or by type, so exactly one member matches, and oneOf
 //   says that and gives tools the variants to offer.
 // - An inline variant gets a title, so a reader sees its name and not only its shape.
 // - A $ref with other keywords beside it becomes an allOf holding the $ref. Draft-07 ignores the siblings of a $ref, so a strict

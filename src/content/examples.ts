@@ -334,6 +334,18 @@ export const sampleGroups: SampleGroup[] = [
           underlier: worstOf('Index A', 'Index B', 'Index C'),
         }),
       },
+      // The coupon floats on SOFR compounded daily, set at the end of each quarter; the reference rate is a scenario input here, under a
+      // synthetic name. The filing's examples take a quarter of the annual rate on each date, as the evenly spaced reviews do.
+      {
+        slug: 'worst-of-callable-floating-coupon-note',
+        name: 'Worst-of callable floating coupon note',
+        source: { title: 'Citigroup Global Markets Holdings floating rate trigger callable yield notes on the least performing of two indices, due 2025', url: 'https://www.sec.gov/Archives/edgar/data/831001/000095010323006091/dp192618_424b2-us2327427.htm', note: 'The filing is a preliminary pricing supplement, and its principal is $10; this takes 1,000. Its coupon is SOFR compounded daily plus 2.75% a year, at least 0%: the reference rate for each quarter is set in the review table. Its first period runs from settlement on 28 April 2023, two days longer than a quarter; its examples take a quarter.' },
+        product: product(24, { participations: [{ direction: 'downside', barrier: { level: 0.6, observation: 'final' }, rate: 1 }] }, {
+          redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'quarterly' }, firstReviewMonth: 3, callAmount: 0, callAmountBasis: 'flat' }] },
+          coupon: { schedule: { frequency: 'quarterly' }, rate: { reference: 'Synthetic overnight rate', spread: 0.0275, floor: 0 } },
+          underlier: worstOf('Index A', 'Index B'),
+        }),
+      },
     ],
   },
   {

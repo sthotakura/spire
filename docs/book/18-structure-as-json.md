@@ -95,6 +95,14 @@ A fixed coupon is a coupon with no barrier, and so no memory:
 "coupon": { "schedule": { "frequency": "quarterly" }, "rate": 0.1172 }
 ```
 
+A floating rate is an object in place of the number: the name of its reference
+rate, the spread and the floor, and any cap. Its level on each review is not a
+term, so it is not in the structure:
+
+```json
+"coupon": { "schedule": { "frequency": "quarterly" }, "rate": { "reference": "Synthetic overnight rate", "spread": 0.0275, "floor": 0 } }
+```
+
 The chapter on [coupons](20-coupons.md) explains the terms.
 
 Amortization is a mechanism of early redemption too, with its own schedule and

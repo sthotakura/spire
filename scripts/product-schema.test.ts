@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import Ajv, { type ValidateFunction } from 'ajv'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { productIssues, type Autocall, type BarrierAbsoluteReturn, type IssuerCall, type DownsideParticipation, type Product, type UpsideParticipation } from '../src/domain/note'
+import { productIssues, type Autocall, type BarrierAbsoluteReturn, type IssuerCall, type DownsideParticipation, type FloatingRate, type Product, type UpsideParticipation } from '../src/domain/note'
 import { startingProduct } from '../src/domain/starting-note'
 import { sampleProducts } from '../src/content/examples'
 import { productExamples } from './product-examples'
@@ -62,6 +62,7 @@ const digital = (amount: number, level: number, payoff: Partial<Product['payoff'
 const issuerCallable =(terms: Partial<IssuerCall>): Product => ({ ...base, term: { months: 12 }, redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0.02, ...terms }] } })
 const callable = (terms: Partial<Autocall>): Product => ({ ...base, term: { months: 12 }, redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'autocall', schedule: { frequency: 'monthly' }, trigger: 1, callAmount: 0.08, ...terms }] } })
 const withCoupon = (terms: { rate?: number; barrier?: number }): Product => ({ ...base, term: { months: 12 }, coupon: { schedule: { frequency: 'quarterly' }, rate: 0.1, barrier: 0.7, ...terms } })
+const withFloating = (terms: Partial<FloatingRate>, coupon: { barrier?: number } = {}): Product => ({ ...base, term: { months: 12 }, coupon: { schedule: { frequency: 'quarterly' }, rate: { reference: 'Synthetic overnight rate', spread: 0.0275, floor: 0, ...terms }, ...coupon } })
 const determined = (determination: Extract<Product['underlier'], { kind: 'single' }>['determination']) => ({ ...base, underlier: { ...(base.underlier as object), determination } }) as Product
 const basket = (levels: number[], names = ['Index A', 'Index B'], weights?: number[]): Product => ({
   ...base,
@@ -161,6 +162,10 @@ describe('product schema', () => {
       ...[[0, false], [0.0001, true]].map(([value, ok]): [string, Product, boolean] => [`coupon rate ${value}`, withCoupon({ rate: value as number }), ok as boolean]),
       ...[[0, false], [0.01, true], [2, true], [2.01, false]].map(([value, ok]): [string, Product, boolean] => [`coupon barrier ${value}`, withCoupon({ barrier: value as number }), ok as boolean]),
       ['a fixed coupon, with no barrier', { ...withCoupon({}), coupon: { schedule: { frequency: 'quarterly' }, rate: 0.1 } } as Product, true],
+      ...[[-0.11, false], [-0.1, true], [0.1, true], [0.11, false]].map(([value, ok]): [string, Product, boolean] => [`floating spread ${value}`, withFloating({ spread: value as number }), ok as boolean]),
+      ...[[-0.01, false], [0, true], [0.2, true], [0.21, false]].map(([value, ok]): [string, Product, boolean] => [`floating floor ${value}`, withFloating({ floor: value as number }), ok as boolean]),
+      ...[[0, true], [0.2, true], [0.21, false]].map(([value, ok]): [string, Product, boolean] => [`floating cap ${value}`, withFloating({ cap: value as number }), ok as boolean]),
+      ['a blank reference rate name', withFloating({ reference: ' ' }), false],
     ]
 
     it.each(cases)('%s', (_, product, expected) => {
@@ -183,6 +188,8 @@ describe('product schema', () => {
       ['basket weights that do not add up to 1', basket([100, 100], ['Index A', 'Index B'], [5, 5])],
       ['a quarterly call schedule over a term of 10 months', { ...callable({ schedule: { frequency: 'quarterly' } }), term: { months: 10 } }],
       ['an annual coupon schedule over a term of 18 months', { ...withCoupon({}), term: { months: 18 }, coupon: { schedule: { frequency: 'annual' }, rate: 0.1, barrier: 0.7 } } as Product],
+      ['a floating rate with its cap below its floor', withFloating({ floor: 0.03, cap: 0.02 })],
+      ['a floating rate on a contingent coupon', withFloating({}, { barrier: 0.7 })],
       ['memory on a fixed coupon', { ...withCoupon({}), coupon: { schedule: { frequency: 'quarterly' }, rate: 0.1, memory: true } } as Product],
       ['barrier absolute return with lookback', { ...bothWays({}), underlier: determined({ initial: { kind: 'lookback', observationCount: 3 }, final: { kind: 'final-date' } }).underlier } as Product],
     ])('%s', (_, product) => {

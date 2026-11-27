@@ -1,4 +1,4 @@
-import { amortizationOf, monthsPerReview, scheduleReviews, type Product } from './note'
+import { amortizationOf, fixedRateOf, monthsPerReview, scheduleReviews, type Product } from './note'
 
 // One review of an amortizing product: what was outstanding before it, and what it paid. The coupon is interest on the principal
 // outstanding before the review, for the period that ends on it; the rest of the instalment repays principal.
@@ -50,9 +50,11 @@ export function levelPaymentSchedule(principal: number, ratePerPeriod: number, r
 // not amortize, or its terms do not give a schedule.
 export function amortizationSchedule(note: Product): Instalment[] {
   const amortization = amortizationOf(note.redemption)
-  if (amortization === undefined || note.coupon === undefined) return []
+  // Amortization needs a fixed rate, so that every instalment is the same amount.
+  const rate = note.coupon === undefined ? undefined : fixedRateOf(note.coupon)
+  if (amortization === undefined || rate === undefined) return []
   const reviews = scheduleReviews(note.term, amortization.schedule)
   if (reviews === undefined) return []
   // The period's fraction of a year is applied first, so that a rate near the largest number does not overflow on the way.
-  return levelPaymentSchedule(note.principalAmount, note.coupon.rate * (monthsPerReview[amortization.schedule.frequency] / 12), reviews)
+  return levelPaymentSchedule(note.principalAmount, rate * (monthsPerReview[amortization.schedule.frequency] / 12), reviews)
 }

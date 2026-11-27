@@ -19,7 +19,7 @@ import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
 import { finalCallLevel, paymentAtEnd, redemptionOutcome } from './domain/autocall'
-import { type Settlement, amortizationOf, deliverable, autocallOf, issuerCallOf, barrierLevelAt, basketBreakdown, deliveryFrom, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, scheduleReviews, type CallMechanism, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
+import { type Settlement, type CouponRate, floatingRateOf, referenceRateLimits, amortizationOf, deliverable, autocallOf, issuerCallOf, barrierLevelAt, basketBreakdown, deliveryFrom, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, scheduleReviews, type CallMechanism, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
@@ -50,6 +50,10 @@ const hints = {
   'coupon-schedule': 'How often the coupon is paid, or for a contingent coupon tested. The coupon has its own reviews, apart from the call’s: they can be the same, or the coupon can be reviewed more often, such as monthly beside a quarterly call. Same as the calls copies the call’s frequency once; changing either later does not change the other.',
   'coupon-condition': 'Non-contingent: the coupon is paid on every review, whatever the underlier does. It is also called unconditional; with a fixed rate, notes call it a fixed coupon. Contingent: the coupon is paid only on a review where the underlier is at or above the coupon barrier, and missed below it.',
   'coupon-rate': 'The coupon as a rate a year, a share of principal. Each review pays its share: 12% a year on monthly reviews is 1% of principal a review. A fixed rate is set in the terms. A floating rate is reset each period from a reference rate, such as SOFR, plus or minus a spread, sometimes with a floor or a cap; older notes used LIBOR, which has been discontinued.',
+  'reference-rate': 'The rate a floating coupon is reset from on each review, such as SOFR, an overnight rate compounded over each period. It is a name here: its level on each review is part of the scenario, set in the review table, not market data.',
+  'coupon-spread': 'A rate a year added to the reference rate on every review to give the coupon rate. A negative spread is subtracted.',
+  'coupon-floor': 'The lowest the coupon rate can be on a review: below it, the reference rate plus the spread is raised to the floor. A floor of 0% means the coupon is never negative, and can be zero.',
+  'coupon-cap': 'The highest the coupon rate can be on a review: above it, the reference rate plus the spread is lowered to the cap. Many floating coupons have none.',
   'coupon-barrier': 'The level, as a share of the initial level, at or above which a review pays its coupon. It is its own level, apart from the call trigger and the downside barrier, though a note may set two of them equal.',
   memory: 'With memory, a coupon missed on a review below the barrier is remembered, and paid with the coupon of the next review at or above it. Without memory a missed coupon is never paid. Remembered coupons that no later review pays are never paid either.',
   asset: 'The equity, equity index, strategy index or exchange-traded fund the product tracks. A strategy index follows published rules, such as holding futures, aiming at a target volatility or deducting a fixed percentage a year, so it can move differently from the market it is built on. An exchange-traded fund holds other assets, often to follow an index, and trades on an exchange: its level is its closing price, and its shares can be delivered as a stock’s can. Holding the product does not mean owning the asset.',
@@ -177,6 +181,14 @@ const settlementKind = ref<Settlement>('cash')
 const couponRatePercent = ref(firstFeatureValues.coupon)
 const couponBarrierPercent = ref(firstFeatureValues.couponBarrier)
 const couponMemory = ref(false)
+// How the coupon's rate is set: fixed, or floating from a reference rate. The floating terms keep their values while the rate is fixed.
+const couponRateKind = ref<'fixed' | 'floating'>('fixed')
+const floatingCoupon = computed(() => couponSelected.value && couponRateKind.value === 'floating')
+const referenceName = ref('Synthetic overnight rate')
+const spreadPercent = ref(2.75)
+const floorPercent = ref(0)
+const capWanted = ref(false)
+const capRatePercent = ref(7)
 // The coupon's reviews start at a frequency that suits the term, as the call's do, and follow it until the reader chooses one.
 const chosenCouponFrequency = ref<ReviewFrequency | null>(null)
 const couponFrequency = computed<ReviewFrequency>({
@@ -198,6 +210,7 @@ const setAmortizing = (ticked: boolean) => {
     if (!couponSelected.value) {
       couponSelected.value = true
       couponCondition.value = 'non-contingent'
+      couponRateKind.value = 'fixed'
     }
   } else if (!issuerTicked.value) autocallTicked.value = true
 }
@@ -213,6 +226,9 @@ const callFrequency = computed(() => (autocalled.value ? reviewFrequency.value :
 // The issuer's choice in a scenario: the number of the review it calls on, or null when it does not call.
 const issuerCallsOn = ref<number | null>(null)
 const reviewLevelInputs = ref<Record<number, number>>({})
+// The reference rate a year, in percent, for each review of a floating coupon, by month. A review not set by hand takes the starting rate.
+const referenceRateInputs = ref<Record<number, number>>({})
+const startingReferenceRatePercent = 4
 // A schedule with many reviews is allowed, but each review is a level to set, so the reader is told what a coarser one would give.
 const reviewNudge = computed(() => {
   const count = autocalled.value ? reviewCount({ term: { months: termMonths.value }, schedule: { frequency: reviewFrequency.value }, firstMonth: firstReviewMonth.value }) : undefined
@@ -398,7 +414,11 @@ const redemptionBlockedReason = (id: string) => {
   if (id === 'early-redemption' && !scheduled.value && (dailySelected.value || bothWaysSelected.value)) return 'not with a daily barrier'
   return null
 }
-const couponBlockedReason = computed(() => dailySelected.value || bothWaysSelected.value ? 'not with a daily barrier' : null)
+// Why a contingent coupon cannot be chosen, or null: a daily barrier, or a floating rate, which this reference allows only on a
+// non-contingent coupon.
+const couponBlockedReason = computed(() => dailySelected.value || bothWaysSelected.value ? 'not with a daily barrier' : couponRateKind.value === 'floating' ? 'not with a floating rate' : null)
+// Why a floating rate cannot be chosen, or null: a contingent coupon, or amortization, whose level instalments need a fixed rate.
+const floatingBlockedReason = computed(() => contingentCoupon.value ? 'not with a contingent coupon' : amortized.value ? 'not with amortization' : null)
 // A coupon switched back on keeps its last condition, unless a contingent coupon is now blocked: it then comes back non-contingent.
 watch(couponSelected, (selected) => {
   if (selected && couponCondition.value === 'contingent' && couponBlockedReason.value) couponCondition.value = 'non-contingent'
@@ -547,6 +567,10 @@ onBeforeUnmount(() => {
 
 // A weight or minimum return entered as a percent, as a fraction without the floating-point noise of dividing (33.34 / 100 is 0.33340000000000003).
 const fractionFrom = (percent: number) => Math.round(percent * 1e8) / 1e10
+// The coupon's rate as the structure states it: a fixed rate a year, or a floating rate's terms.
+const couponRate = computed<CouponRate>(() => couponRateKind.value === 'floating'
+  ? { reference: referenceName.value, spread: fractionFrom(spreadPercent.value), floor: fractionFrom(floorPercent.value), ...(capWanted.value ? { cap: fractionFrom(capRatePercent.value) } : {}) }
+  : fractionFrom(couponRatePercent.value))
 // At 100% the factor changes nothing, so the structure leaves it out.
 const adjustmentFactor = computed(() => (adjustmentFactorPercent.value === 100 ? undefined : fractionFrom(adjustmentFactorPercent.value)))
 // The weights entered so far and how far they are from 100%, so the reader can see what is left to allocate.
@@ -595,8 +619,8 @@ const note = computed<Product>(() => ({
       }
     : { kind: 'bullet', adjustmentFactor: adjustmentFactor.value },
   coupon: !couponSelected.value ? undefined
-    : contingentCoupon.value ? { schedule: { frequency: couponFrequency.value }, rate: fractionFrom(couponRatePercent.value), barrier: fractionFrom(couponBarrierPercent.value), memory: couponMemory.value }
-      : { schedule: { frequency: couponFrequency.value }, rate: fractionFrom(couponRatePercent.value) },
+    : contingentCoupon.value ? { schedule: { frequency: couponFrequency.value }, rate: couponRate.value, barrier: fractionFrom(couponBarrierPercent.value), memory: couponMemory.value }
+      : { schedule: { frequency: couponFrequency.value }, rate: couponRate.value },
   settlement: settlementKind.value === 'delivery' ? 'delivery' : undefined,
   underlier: underlier.value,
   payoff: {
@@ -626,7 +650,7 @@ const formulaWords = computed(() => {
   if (amortized.value) return amortizationInWords()
   const words = paymentInWords(note.value)
   const coupon = !note.value.coupon ? ''
-    : note.value.coupon.barrier === undefined ? ' On each coupon review it also pays a fixed coupon, whatever the underlier does.'
+    : note.value.coupon.barrier === undefined ? ` On each coupon review it also pays a ${floatingCoupon.value ? 'floating coupon, at that review’s reference rate plus the spread within its bounds' : 'fixed coupon'}, whatever the underlier does.`
       : ` On each coupon review at or above the coupon barrier it also pays a coupon${note.value.coupon.memory ? ', with any coupons missed before it' : ''}.`
   return `${scheduled.value ? `If it is not called, ${words.startsWith('The ') ? `the ${words.slice(4)}` : words}` : words}${coupon}`
 })
@@ -689,7 +713,7 @@ const lookbackError = computed(() => initialObservations.value.every((level) => 
 // The chart and scenarios need only the initial level; the calculation also needs the final level. An amortizing note reads no level
 // and hides every hypothetical one, the lookback levels too, so it needs only valid terms.
 const initialValid = computed(() => errors.value.length === 0 && !lookbackError.value)
-const valid = computed(() => amortized.value ? errors.value.length === 0 : initialValid.value && !finalError.value)
+const valid = computed(() => amortized.value ? errors.value.length === 0 : initialValid.value && !finalError.value && !referenceRateError.value)
 // The payoff reads the final level. An amortizing note has no payoff.
 const payoffValid = computed(() => valid.value && !amortized.value)
 // A basket measured asset by asset: each return, the weighted return, and the basket's two levels the payoff reads.
@@ -705,7 +729,7 @@ const lowestClose = computed(() => lowestCloseWanted.value && initialValid.value
 const highestClose = computed(() => highestCloseWanted.value && initialValid.value ? Math.max(Number.isFinite(highestCloseInput.value) ? highestCloseInput.value as number : -Infinity, determinedInitialLevel.value, ...observations.value) : undefined)
 // The levels the scenario gives the payment: the determined initial and final levels, and the closes a daily barrier reads. The
 // breakdown, the payment at the end of the term and the redemption outcome all read these, so they cannot disagree.
-const scenarioLevels = computed(() => ({ initial: determinedInitialLevel.value, final: finalLevel.value, lowestClose: lowestClose.value, highestClose: highestClose.value }))
+const scenarioLevels = computed(() => ({ initial: determinedInitialLevel.value, final: finalLevel.value, lowestClose: lowestClose.value, highestClose: highestClose.value, ...(floatingCoupon.value ? { lastReferenceRate: lastReferenceRate.value } : {}) }))
 const breakdown = computed(() => payoffValid.value ? paymentBreakdown(note.value, scenarioLevels.value) : null)
 // What the product pays at the end of its term from the final level, if no earlier review called it. It is the payment the chart
 // draws, and differs from the payment only when the final review is a call.
@@ -742,7 +766,7 @@ const issuerCallableReviews = computed(() => {
 const issuerCallChoice = computed(() => issuerCallsOn.value !== null && issuerCallableReviews.value.includes(issuerCallsOn.value) ? issuerCallsOn.value : undefined)
 // How the product ended and what its coupon paid, for a product with a call or a coupon. A bullet product with neither pays its payoff.
 const redemption = computed(() => (scheduled.value || couponSelected.value) && valid.value && !reviewError.value && (amortized.value || breakdown.value)
-  ? redemptionOutcome(note.value, reviewLevels.value, scenarioLevels.value, issuerCalled.value ? issuerCallChoice.value : undefined)
+  ? redemptionOutcome(note.value, reviewLevels.value, scenarioLevels.value, issuerCalled.value ? issuerCallChoice.value : undefined, floatingCoupon.value ? referenceRates.value.slice(0, -1) : undefined)
   : null)
 const issuerCallSelection = computed({ get: () => issuerCallChoice.value ?? null, set: (review: number | null) => { issuerCallsOn.value = review } })
 const issuerCallMonths = (review: number) => issuerFirstReviewMonth.value + (review - 1) * monthsPerReview[issuerFrequency.value]
@@ -758,6 +782,28 @@ const loadPath = (event: Event) => {
   reviewAssetInputs.value = Object.fromEntries(path.reviewLevels.map((level, index) => [months[index], basketAssets.value.map(({ initialLevel }) => Math.round(initialLevel * level / basketStartingLevel * 100) / 100)]))
   if (path.finalLevel !== undefined) setFinalLevel(path.finalLevel)
 }
+// The reviews of a floating coupon. Each takes a reference rate a year from the scenario, which the reader sets in the review table; the
+// last is read with the final level. Rates on reviews after a call stay set but are not read.
+const floatingReviews = computed(() => floatingCoupon.value && note.value.coupon ? scheduleReviews(note.value.term, note.value.coupon.schedule) ?? [] : [])
+const referenceRatePercentOn = (month: number) => referenceRateInputs.value[month] ?? startingReferenceRatePercent
+const referenceRates = computed(() => floatingReviews.value.map(({ month }) => fractionFrom(referenceRatePercentOn(month))))
+const lastReferenceRate = computed(() => referenceRates.value.at(-1) ?? Number.NaN)
+// The last review's rate for a line drawn for another product, such as the ghost of the one before an edit, which may float when this
+// one does not: the rate set for the end of the term, or the starting rate.
+const chartLastReferenceRate = computed(() => {
+  const rate = fractionFrom(referenceRatePercentOn(termMonths.value))
+  return Number.isFinite(rate) ? rate : startingReferenceRatePercent / 100
+})
+const referenceRateError = computed(() => referenceRates.value.every((rate) => Number.isFinite(rate) && rate >= referenceRateLimits.min && rate <= referenceRateLimits.max) ? '' : 'Each reference rate must be between −5% and 20% a year.')
+const setReferenceRate = (month: number, rate: number) => { referenceRateInputs.value = { ...referenceRateInputs.value, [month]: rate } }
+// Sets every review to the first review's rate, so the reader can then change one quarter at a time.
+const sameReferenceRate = () => {
+  const first = floatingReviews.value[0]
+  if (first === undefined) return
+  const rate = referenceRatePercentOn(first.month)
+  referenceRateInputs.value = Object.fromEntries(floatingReviews.value.map(({ month }) => [month, rate]))
+}
+const referenceRatesSame = computed(() => floatingReviews.value.every(({ month }) => referenceRatePercentOn(month) === referenceRatePercentOn(floatingReviews.value[0].month)))
 // The reviews of a fixed coupon. It reads no level, so they are not among the dates a level is read on, and are found by month.
 const fixedCouponReviews = computed(() => {
   const { coupon } = note.value
@@ -766,6 +812,14 @@ const fixedCouponReviews = computed(() => {
 // The coupon review that falls on a date, if any.
 const couponReviewOn = (date: ReviewDate) => date.coupon ?? fixedCouponReviews.value.find(({ month }) => month === date.month)?.review
 const reviewRows = computed(() => reviewTableRows(note.value))
+// Whether the review table has a level column: only when some review before the last reads a level. A floating coupon on a product
+// that reads none has a table for its reference rates alone.
+const readsLevels = computed(() => datesBeforeLast.value.length > 0)
+const reviewHeading = computed(() => {
+  const levels = `hypothetical level of ${underlierLabel.value} on each review; the last reads the final level`
+  if (!floatingCoupon.value) return `Reviews: ${levels}`
+  return readsLevels.value ? `Reviews: ${levels}, and the hypothetical reference rate a year on each coupon review` : 'Coupon reviews: hypothetical reference rate a year on each'
+})
 // Whether a date is the last call review and that review is the maturity, not a call: an autocall that does not call on its final review.
 const maturityReview = (date: ReviewDate) => date.call !== undefined && date.month === note.value.term.months && !autocallOf(note.value.redemption)?.callOnFinalReview
 // What each date is a review of, for the review table: the call's review, the coupon's, or both.
@@ -860,7 +914,7 @@ const calculation = computed(() => {
 // The calculation path: the payoff line built one rule at a time, in the calculation's order (see docs/calculation-path.md). The
 // stages at the final level are the scenario's point on each line. The line reads the final level only, as the chart draws it, so the
 // closes a barrier observed daily reads are left out here and named in the aside.
-const lineLevels = computed(() => ({ initial: scenarioLevels.value.initial, final: scenarioLevels.value.final }))
+const lineLevels = computed(() => ({ initial: scenarioLevels.value.initial, final: scenarioLevels.value.final, lastReferenceRate: scenarioLevels.value.lastReferenceRate }))
 const pathStages = computed(() => breakdown.value ? lineStages(note.value, paymentBreakdown(note.value, lineLevels.value), lineLevels.value) : [])
 const pathAside = computed(() => breakdown.value && (!(scheduled.value || couponSelected.value) || redemption.value) ? scenarioAside(note.value, scenarioLevels.value, redemption.value ?? undefined) : '')
 // The stage shown, or null when no path is shown, and the stage it is changing from while a step animates.
@@ -1090,7 +1144,8 @@ const labelPriority: ReadonlyArray<PayoffLabelKey> = ['final-call', 'cap', 'digi
 // A change of the underlier, as the axis and the bubble show it: +30%, −5%, 0%.
 const changeText = (change: number) => Math.abs(change) < 5e-4 ? '0%' : signedPercent(change)
 const chart = computed(() => {
-  if (!initialValid.value) return null
+  // A floating coupon's last coupon is drawn at the last review's reference rate, so the chart needs a valid one.
+  if (!initialValid.value || referenceRateError.value) return null
   const principalAmount = principal.value
   const initial = determinedInitialLevel.value
   const scale = axisScale.value
@@ -1106,7 +1161,8 @@ const chart = computed(() => {
   // A jump is where the payment changes at once between two neighbouring samples at the same place.
   const jumpsIn = (levels: number[], values: number[]) => levels.map((level, i) => i > 0 && level - levels[i - 1] < end * 1e-6 && Math.abs(values[i] - values[i - 1]) > principalAmount * 1e-9)
   // The payment at each final level on the axis, measured from the determined initial level.
-  const at = (level: number) => ({ initial, final: level })
+  const lastRate = scenarioLevels.value.lastReferenceRate
+  const at = (level: number) => ({ initial, final: level, lastReferenceRate: lastRate })
   const barrierAt = barrierSelected.value ? initial * barrierPercent.value / 100 : undefined
   const upsideBarrierAt = upsideBarrierSelected.value ? barrierLevelAt(fractionFrom(upsideBarrierPercent.value), initial) : undefined
   const jumpList = jumpsOf(note.value, initial)
@@ -1156,7 +1212,7 @@ const chart = computed(() => {
   const ghostInitial = !ghostDrawable ? Number.NaN : ghost.underlier.kind === 'basket' ? basketStartingLevel : initialLevelFrom(ghost.underlier.determination.initial, ghostObservations)
   const ghostOnAxis = ghostDrawable && ghostInitial === initial
   const ghostLevels = levelsFor(ghostOnAxis ? jumpsOf(ghost, ghostInitial) : [])
-  const ghostValues = ghostOnAxis ? ghostLevels.map((level) => paymentAtEnd(ghost, { initial: ghostInitial, final: level })) : []
+  const ghostValues = ghostOnAxis ? ghostLevels.map((level) => paymentAtEnd(ghost, { initial: ghostInitial, final: level, lastReferenceRate: chartLastReferenceRate.value })) : []
   const ghostJumps = jumpsIn(ghostLevels, ghostValues)
   const ghostPieces = ghostOnAxis ? splitAtJumps(ghostLevels.map((level, i) => ({ point: point(level, ghostValues[i]), jump: ghostJumps[i] }))) : []
   const finalHandle = endPayment.value === null ? null : { x: x(clamp(finalLevel.value, 0, end)), y: pinnedY(endPayment.value) }
@@ -1220,7 +1276,7 @@ const chart = computed(() => {
   const bubble = finalHandle && bubbleX !== null ? { text: bubbleText, width: bubbleWidth, x: bubbleX, y: finalHandle.y < plot.top + 40 || coversHandle ? finalHandle.y + 16 : finalHandle.y - 34 } : null
   // Labels say what each piece of the line does. Each sits by the middle of the longest stretch its concept sets, and they
   // are placed in priority order, the selected feature's first, clear of the bubble, the final-level dot and the principal label.
-  const texts = payoffLabels(note.value)
+  const texts = payoffLabels(note.value, lastRate)
   // A minimum return is just above principal, so the principal label goes under its line there instead of over it.
   const principalBelow = minimumSelected.value
   const longest = new Map<PayoffLabelKey, RegimeRun>()
@@ -1395,7 +1451,14 @@ function loadProduct(product: Product) {
   couponSelected.value = coupon !== undefined
   couponCondition.value = coupon?.barrier === undefined ? 'non-contingent' : 'contingent'
   settlementKind.value = product.settlement ?? 'cash'
-  couponRatePercent.value = coupon ? percent(coupon.rate) : firstFeatureValues.coupon
+  const floatingTerms = coupon === undefined ? undefined : floatingRateOf(coupon)
+  couponRateKind.value = floatingTerms === undefined ? 'fixed' : 'floating'
+  couponRatePercent.value = coupon !== undefined && floatingTerms === undefined ? percent(coupon.rate as number) : firstFeatureValues.coupon
+  referenceName.value = floatingTerms?.reference ?? 'Synthetic overnight rate'
+  spreadPercent.value = floatingTerms ? percent(floatingTerms.spread) : 2.75
+  floorPercent.value = floatingTerms ? percent(floatingTerms.floor) : 0
+  capWanted.value = floatingTerms?.cap !== undefined
+  capRatePercent.value = floatingTerms?.cap !== undefined ? percent(floatingTerms.cap) : 7
   couponBarrierPercent.value = coupon?.barrier !== undefined ? percent(coupon.barrier) : firstFeatureValues.couponBarrier
   couponMemory.value = coupon?.memory ?? false
   chosenCouponFrequency.value = coupon?.schedule.frequency ?? null
@@ -1469,6 +1532,7 @@ function loadProduct(product: Product) {
   basketLevels.value = basketAssets.value.map(({ initialLevel: level }) => [Math.round(level * startingFinalLevel / startingInitialLevel * 100) / 100])
   reviewLevelInputs.value = {}
   reviewAssetInputs.value = {}
+  referenceRateInputs.value = {}
   issuerCallsOn.value = null
   lowestCloseInput.value = undefined
   highestCloseInput.value = undefined
@@ -1678,8 +1742,34 @@ const chooseSample = (event: Event) => {
                     <li :class="['node', { sel: highlighted('coupon') }]" :style="conceptStyle('coupon')">
                       <div class="nrow" @click="select('coupon')" @focusin="focusRow('coupon')">
                         <span class="nlabel">Rate<HintToggle id="coupon-rate" about="the coupon rate" :text="hints['coupon-rate']" :active="activeHint === 'coupon-rate'" @toggle="toggleHint('coupon-rate')" /></span>
-                        <span class="ctrl"><select id="coupon-rate-kind" class="rate-kind" aria-label="Coupon rate type"><option value="fixed">Fixed</option><option value="floating" disabled>Floating (unavailable)</option></select><NumberInput id="coupon-rate" v-model="couponRatePercent" class="num rate" aria-label="Coupon rate (% of principal a year)" /><span class="unit">% a year</span></span>
+                        <span class="ctrl"><select id="coupon-rate-kind" v-model="couponRateKind" class="rate-kind" aria-label="Coupon rate type"><option value="fixed">Fixed</option><option value="floating" :disabled="!floatingCoupon && !!floatingBlockedReason">Floating{{ !floatingCoupon && floatingBlockedReason ? ` (${floatingBlockedReason})` : '' }}</option></select><template v-if="!floatingCoupon"><NumberInput id="coupon-rate" v-model="couponRatePercent" class="num rate" aria-label="Coupon rate (% of principal a year)" /><span class="unit">% a year</span></template></span>
                       </div>
+                      <ul v-if="floatingCoupon">
+                        <li class="node" :style="conceptStyle('coupon')">
+                          <div class="nrow" @click="select('coupon')" @focusin="focusRow('coupon')">
+                            <span class="nlabel">Reference rate<HintToggle id="reference-rate" about="the reference rate" :text="hints['reference-rate']" :active="activeHint === 'reference-rate'" @toggle="toggleHint('reference-rate')" /></span>
+                            <span class="ctrl"><input id="reference-name" v-model="referenceName" type="text" aria-label="Reference rate name"></span>
+                          </div>
+                        </li>
+                        <li class="node" :style="conceptStyle('coupon')">
+                          <div class="nrow" @click="select('coupon')" @focusin="focusRow('coupon')">
+                            <span class="nlabel">Spread<HintToggle id="coupon-spread" about="the spread" :text="hints['coupon-spread']" :active="activeHint === 'coupon-spread'" @toggle="toggleHint('coupon-spread')" /></span>
+                            <span class="ctrl"><NumberInput id="coupon-spread" v-model="spreadPercent" class="num rate" aria-label="Spread (% a year, added to the reference rate)" /><span class="unit">% a year</span></span>
+                          </div>
+                        </li>
+                        <li class="node" :style="conceptStyle('coupon')">
+                          <div class="nrow" @click="select('coupon')" @focusin="focusRow('coupon')">
+                            <span class="nlabel">Floor<HintToggle id="coupon-floor" about="the floor" :text="hints['coupon-floor']" :active="activeHint === 'coupon-floor'" @toggle="toggleHint('coupon-floor')" /></span>
+                            <span class="ctrl"><NumberInput id="coupon-floor" v-model="floorPercent" class="num rate" aria-label="Floor (minimum coupon rate, % a year)" /><span class="unit">% a year</span></span>
+                          </div>
+                        </li>
+                        <li class="node" :style="conceptStyle('coupon')">
+                          <div class="nrow" @click="select('coupon')" @focusin="focusRow('coupon')">
+                            <span class="nlabel">Cap<HintToggle id="coupon-cap" about="the cap on the coupon rate" :text="hints['coupon-cap']" :active="activeHint === 'coupon-cap'" @toggle="toggleHint('coupon-cap')" /></span>
+                            <span class="ctrl"><select id="coupon-cap-wanted" v-model="capWanted" class="rate-kind" aria-label="Cap on the coupon rate"><option :value="false">None</option><option :value="true">At most</option></select><template v-if="capWanted"><NumberInput id="coupon-cap" v-model="capRatePercent" class="num rate" aria-label="Cap (maximum coupon rate, % a year)" /><span class="unit">% a year</span></template></span>
+                          </div>
+                        </li>
+                      </ul>
                     </li>
                   </ul>
                   <ul v-if="issuesFor('coupon').length" class="errors" role="alert"><li v-for="message in issuesFor('coupon')" :key="message">{{ message }}</li></ul>
@@ -2015,10 +2105,11 @@ const chooseSample = (event: Event) => {
             <div v-if="lowestCloseWanted && lowestClose !== undefined" class="hint-field"><div class="field-heading"><label for="lowest-close">Lowest close: hypothetical lowest close of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About the lowest close" aria-controls="lowest-close-hint" :aria-expanded="activeHint === 'lowest-close'" @click="toggleHint('lowest-close')">ⓘ</button><p v-if="activeHint === 'lowest-close'" id="lowest-close-hint" class="hint-text" role="tooltip">{{ hints['lowest-close'] }}</p></div><NumberInput id="lowest-close" :model-value="lowestClose" class="final-input" @update:model-value="lowestCloseInput = $event" /></div>
             <div v-if="highestCloseWanted && highestClose !== undefined" class="hint-field"><div class="field-heading"><label for="highest-close">Highest close: hypothetical highest close of {{ underlierLabel }}</label><button type="button" class="hint-button" aria-label="About the highest close" aria-controls="highest-close-hint" :aria-expanded="activeHint === 'highest-close'" @click="toggleHint('highest-close')">ⓘ</button><p v-if="activeHint === 'highest-close'" id="highest-close-hint" class="hint-text" role="tooltip">{{ hints['highest-close'] }}</p></div><NumberInput id="highest-close" :model-value="highestClose" class="final-input" @update:model-value="highestCloseInput = $event" /></div>
             </template>
-            <div v-if="datesBeforeLast.length" class="hint-field">
-              <div class="field-heading"><span id="review-levels-label" class="observed-heading">Reviews: hypothetical level of {{ underlierLabel }} on each review; the last reads the final level</span><select class="path-select" aria-label="Load a path" @change="loadPath($event)"><option value="">Load a path…</option><option v-for="(path, index) in pathOptions" :key="path.name" :value="index">{{ path.name }}</option></select></div>
-              <div class="table-wrap basket-levels review-levels" :style="conceptStyle(autocalled ? 'trigger' : 'coupon')" tabindex="0" role="region" aria-labelledby="review-levels-label"><table aria-labelledby="review-levels-label"><thead><tr><th scope="col">Month</th><th scope="col">Review</th><th v-if="autocalled" scope="col" class="review-trigger">Trigger</th><template v-if="isBasket"><th v-for="(asset, a) in basketAssets" :key="a" scope="col">{{ asset.name.trim() || `Asset ${a + 1}` }}</th><th scope="col">Basket level</th></template><th v-else scope="col">Level</th><th v-if="autocalled" scope="col">Test</th><th v-if="note.coupon" scope="col">Coupon</th></tr></thead><tbody><tr v-for="{ date, index, final } in reviewRows" :key="date.month"><th scope="row">{{ date.month }}</th><td class="review-name">{{ reviewLabel(date) }}</td><td v-if="autocalled" class="review-trigger">{{ Number.isFinite(reviewTrigger(date)) ? formatAmount(reviewTrigger(date)) : '—' }}</td><template v-if="final"><td v-if="isBasket" :colspan="basketAssets.length" class="review-unread" title="Each asset's final level is set above">—</td><td title="The final level, set above"><output class="observed-result" aria-live="polite">{{ Number.isFinite(finalLevel) ? formatAmount(finalLevel) : '—' }}</output></td></template><td v-else-if="index === undefined" :colspan="isBasket ? basketAssets.length + 1 : 1" class="review-unread" title="A fixed coupon reads no level">—</td><template v-else-if="isBasket"><td v-for="(assetLevel, a) in reviewAssetLevels[index]" :key="a"><NumberInput :model-value="assetLevel" class="observed-input" :aria-label="`${basketAssets[a].name.trim() || `Asset ${a + 1}`}, month ${date.month}`" @update:model-value="setReviewAssetLevel(index, a, $event)" /></td><td><output class="observed-result" aria-live="polite">{{ Number.isFinite(reviewLevels[index]) ? formatAmount(reviewLevels[index]) : '—' }}</output></td></template><td v-else><NumberInput :model-value="reviewLevels[index]" class="observed-input" :aria-label="`Level in month ${date.month}`" @update:model-value="setReviewLevel(index, $event)" /></td><td v-if="autocalled" class="review-test-cell"><span v-if="reviewTest(date)" :class="['review-test', { called: reviewTest(date) === 'Called' || reviewTest(date) === 'Issuer called', ended: reviewTest(date) === 'Ended' }]">{{ reviewTest(date) }}</span></td><td v-if="note.coupon" class="review-test-cell"><span v-if="reviewCoupon(date)" :class="['review-test', { ended: reviewCoupon(date).startsWith('Missed') || reviewCoupon(date) === 'Ended' || reviewCoupon(date) === '—' }]" :style="conceptStyle('coupon')">{{ reviewCoupon(date) }}</span></td></tr></tbody></table></div>
+            <div v-if="datesBeforeLast.length || floatingCoupon" class="hint-field">
+              <div class="field-heading"><span id="review-levels-label" class="observed-heading">{{ reviewHeading }}</span><button v-if="floatingCoupon" type="button" class="link-button" :disabled="referenceRatesSame" @click="sameReferenceRate">Same rate for every review</button><select v-if="datesBeforeLast.length" class="path-select" aria-label="Load a path" @change="loadPath($event)"><option value="">Load a path…</option><option v-for="(path, index) in pathOptions" :key="path.name" :value="index">{{ path.name }}</option></select></div>
+              <div class="table-wrap basket-levels review-levels" :style="conceptStyle(autocalled ? 'trigger' : 'coupon')" tabindex="0" role="region" aria-labelledby="review-levels-label"><table aria-labelledby="review-levels-label"><thead><tr><th scope="col">Month</th><th scope="col">Review</th><th v-if="autocalled" scope="col" class="review-trigger">Trigger</th><template v-if="readsLevels"><template v-if="isBasket"><th v-for="(asset, a) in basketAssets" :key="a" scope="col">{{ asset.name.trim() || `Asset ${a + 1}` }}</th><th scope="col">Basket level</th></template><th v-else scope="col">Level</th></template><th v-if="floatingCoupon" scope="col">Reference rate</th><th v-if="autocalled" scope="col">Test</th><th v-if="note.coupon" scope="col">Coupon</th></tr></thead><tbody><tr v-for="{ date, index, final } in reviewRows" :key="date.month"><th scope="row">{{ date.month }}</th><td class="review-name">{{ reviewLabel(date) }}</td><td v-if="autocalled" class="review-trigger">{{ Number.isFinite(reviewTrigger(date)) ? formatAmount(reviewTrigger(date)) : '—' }}</td><template v-if="!readsLevels" /><template v-else-if="final"><td v-if="isBasket" :colspan="basketAssets.length" class="review-unread" title="Each asset's final level is set above">—</td><td title="The final level, set above"><output class="observed-result" aria-live="polite">{{ Number.isFinite(finalLevel) ? formatAmount(finalLevel) : '—' }}</output></td></template><td v-else-if="index === undefined" :colspan="isBasket ? basketAssets.length + 1 : 1" class="review-unread" title="A non-contingent coupon reads no level">—</td><template v-else-if="isBasket"><td v-for="(assetLevel, a) in reviewAssetLevels[index]" :key="a"><NumberInput :model-value="assetLevel" class="observed-input" :aria-label="`${basketAssets[a].name.trim() || `Asset ${a + 1}`}, month ${date.month}`" @update:model-value="setReviewAssetLevel(index, a, $event)" /></td><td><output class="observed-result" aria-live="polite">{{ Number.isFinite(reviewLevels[index]) ? formatAmount(reviewLevels[index]) : '—' }}</output></td></template><td v-else><NumberInput :model-value="reviewLevels[index]" class="observed-input" :aria-label="`Level in month ${date.month}`" @update:model-value="setReviewLevel(index, $event)" /></td><td v-if="floatingCoupon"><span v-if="couponReviewOn(date) !== undefined" class="rate-cell"><NumberInput :model-value="referenceRatePercentOn(date.month)" class="observed-input" :aria-label="`Reference rate in month ${date.month} (% a year)`" @update:model-value="setReferenceRate(date.month, $event)" /><span class="unit">%</span></span><template v-else>—</template></td><td v-if="autocalled" class="review-test-cell"><span v-if="reviewTest(date)" :class="['review-test', { called: reviewTest(date) === 'Called' || reviewTest(date) === 'Issuer called', ended: reviewTest(date) === 'Ended' }]">{{ reviewTest(date) }}</span></td><td v-if="note.coupon" class="review-test-cell"><span v-if="reviewCoupon(date)" :class="['review-test', { ended: reviewCoupon(date).startsWith('Missed') || reviewCoupon(date) === 'Ended' || reviewCoupon(date) === '—' }]" :style="conceptStyle('coupon')">{{ reviewCoupon(date) }}</span></td></tr></tbody></table></div>
               <p v-if="reviewError" class="errors" role="alert">{{ reviewError }}</p>
+              <p v-if="referenceRateError" class="errors" role="alert">{{ referenceRateError }}</p>
             </div>
             <div v-if="issuerCalled && issuerCallableReviews.length" class="hint-field">
               <div class="field-heading"><label for="issuer-call-review" class="observed-heading">The issuer’s choice in this scenario</label><HintToggle id="issuer-choice" about="the issuer’s choice" :text="hints['issuer-choice']" :active="activeHint === 'issuer-choice'" @toggle="toggleHint('issuer-choice')" /><select id="issuer-call-review" v-model="issuerCallSelection" class="path-select"><option :value="null">The issuer does not call</option><option v-for="review in issuerCallableReviews" :key="review" :value="review">Calls on review {{ review }} of {{ issuerCallableReviews.length + 1 }}, after {{ issuerCallMonths(review) }} {{ issuerCallMonths(review) === 1 ? 'month' : 'months' }}</option></select></div>

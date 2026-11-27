@@ -1,6 +1,6 @@
 # Floating coupon
 
-Proposed on 26 November 2026, revised on 27 November 2026 after a review, and agreed on 27 November 2026 as below; not built yet. A floating coupon is a coupon whose rate is reset each period from a reference rate, plus or minus a spread, often within a floor and a cap. It is the Floating rate type that the builder lists as unavailable (PLAN.md, section 51). This document covers a floating rate on a non-contingent coupon. It does not cover a fixed rate for an initial period, a floating rate on a contingent coupon, range accrual, or a coupon on the spread between two rates.
+Proposed on 26 November 2026, revised on 27 November 2026 after a review, agreed on 27 November 2026, and built on 27 November 2026 as below. A floating coupon is a coupon whose rate is reset each period from a reference rate, plus or minus a spread, often within a floor and a cap. It is the Floating rate type in the builder (PLAN.md, sections 51 and 52). This document covers a floating rate on a non-contingent coupon. It does not cover a fixed rate for an initial period, a floating rate on a contingent coupon, range accrual, or a coupon on the spread between two rates.
 
 ## What it means
 

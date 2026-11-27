@@ -1,5 +1,5 @@
 import { amortizationSchedule, type Instalment } from './amortization'
-import { autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, callReviewMonth, couponPerReview, issuerCallOf, lastCallReview, maturityPayment, mechanismReviewCount, reviewDates, scheduleReviews, triggerAtReview, paymentBreakdown, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
+import { autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, callReviewMonth, couponPerReview, couponRateOn, floatingRateOf, issuerCallOf, referenceRateLimits, lastCallReview, maturityPayment, mechanismReviewCount, reviewDates, scheduleReviews, triggerAtReview, paymentBreakdown, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
 
 // The level at or above which the final review calls the product, from the determined initial level. Undefined when the final review
 // is not a call.
@@ -18,7 +18,8 @@ export const couponBarrierLevel = (note: Product, initialLevel: number): number 
 // What the product pays at the end of its term for a final level, if no earlier review called it: the payoff, or, when the final
 // review is a call and the final level is at or above its trigger, principal plus the call amount. With a contingent coupon, a final
 // level at or above the coupon barrier adds the last review's own coupon; coupons remembered from earlier reviews depend on the path, so
-// they are left out. A fixed coupon adds the last coupon at every level. This is the payment the payoff chart draws against the final
+// they are left out. A non-contingent coupon adds the last coupon at every level; a floating one at the last review's reference rate,
+// `levels.lastReferenceRate`. This is the payment the payoff chart draws against the final
 // level. It equals the maturity payment when the final review is not a call and there is no coupon.
 export function paymentAtEnd(note: Product, levels: DeterminedLevels): number {
   // An amortizing product's last instalment does not depend on the final level.
@@ -27,7 +28,7 @@ export function paymentAtEnd(note: Product, levels: DeterminedLevels): number {
   const autocall = autocallOf(note.redemption)
   const call = finalCallLevel(note, levels.initial)
   const couponBarrier = couponBarrierLevel(note, levels.initial)
-  const coupon = note.coupon !== undefined && (couponBarrier === undefined || levels.final >= couponBarrier) ? couponPerReview(note) : 0
+  const coupon = note.coupon !== undefined && (couponBarrier === undefined || levels.final >= couponBarrier) ? couponPerReview(note, levels.lastReferenceRate) : 0
   if (autocall !== undefined && call !== undefined && levels.final >= call) {
     return note.principalAmount * (1 + callAmountAtReview(autocall, note.term.months)) + coupon
   }
@@ -63,6 +64,10 @@ interface CouponPayment {
   met: boolean
   // The number of coupons the review pays: its own and, with memory, those missed before it. Zero when it misses the barrier.
   coupons: number
+  // The coupon rate a year on this review: the fixed rate, or a floating rate from the review's reference rate, within its bounds.
+  rate: number
+  // For a floating rate, the review's reference rate a year, as the scenario gives it.
+  referenceRate?: number
   // What the review pays in coupons, as an amount.
   paid: number
   // With memory, the coupons missed so far and not yet paid, after this review. Zero without memory, since a missed coupon is lost.
@@ -127,8 +132,13 @@ export interface RedemptionOutcome {
 // the day an automatic call is triggered governs (docs/early-redemption-rights.md).
 //
 // A coupon is tested on each of its reviews up to the date the product ends. A coupon review on that date pays with the call or the
-// maturity payment; the ones before pay on their own. A fixed coupon reads no level, so its reviews are not among reviewDates: each pays.
-export function redemptionOutcome(note: Product, reviewLevels: number[], levels: DeterminedLevels, issuerCallsOnReview?: number): RedemptionOutcome {
+// maturity payment; the ones before pay on their own. A non-contingent coupon reads no level, so its reviews are not among reviewDates:
+// each pays.
+//
+// A floating coupon's rate on each review comes from its reference rate. `referenceRates` are the reference rates a year for each coupon
+// review before the last, in order, and `levels.lastReferenceRate` the last one's, as the review levels and the final level are. The
+// scenario gives every review's rate, but only those up to the date the product ends are read: a rate after a call changes nothing.
+export function redemptionOutcome(note: Product, reviewLevels: number[], levels: DeterminedLevels, issuerCallsOnReview?: number, referenceRates?: number[]): RedemptionOutcome {
   const errors = validateProduct(note)
   if (errors.length) throw new Error(errors.join(' '))
   const reviews = callReviewCount(note)!
@@ -142,10 +152,12 @@ export function redemptionOutcome(note: Product, reviewLevels: number[], levels:
   }
   if (reviewLevels.some((level) => !Number.isFinite(level) || level < 0)) throw new Error('Review levels must be zero or greater.')
   if (issuerCallsOnReview !== undefined && issuerCall === undefined) throw new Error('Only an issuer call is called by the issuer.')
+  const allRates = referenceRatesOf(note, referenceRates, levels.lastReferenceRate)
   // An amortizing product reads no level, so the payoff's levels are not checked, and is not called: it pays its instalments to the end of the term.
   const instalments = amortizationSchedule(note)
   if (instalments.length) {
-    const coupons = instalments.map(({ review, month, coupon }): CouponTest => ({ review, month, level: undefined, barrierLevel: undefined, met: true, coupons: 1, paid: coupon, remembered: 0 }))
+    const rate = couponRateOn(note.coupon!.rate)
+    const coupons = instalments.map(({ review, month, coupon }): CouponTest => ({ review, month, level: undefined, barrierLevel: undefined, met: true, coupons: 1, rate, paid: coupon, remembered: 0 }))
     const payments = instalments.map(({ month, coupon, principal, amount }): Payment => ({ month, coupon, redemption: principal, amount }))
     return { reviews, tests: [], months: note.term.months, payment: payments.at(-1)!.amount, coupons, totalPaid: payments.reduce((sum, { amount }) => sum + amount, 0), payments, instalments }
   }
@@ -181,7 +193,7 @@ export function redemptionOutcome(note: Product, reviewLevels: number[], levels:
   const couponReviews = note.coupon?.barrier === undefined
     ? (note.coupon === undefined ? [] : scheduleReviews(note.term, note.coupon.schedule) ?? []).filter(({ month }) => month <= months)
     : dates.flatMap((date, index) => (date.coupon !== undefined && date.month <= months ? [{ review: date.coupon, month: date.month, level: levelOn(index) }] : []))
-  const coupons = couponTests(note, couponReviews, levels.initial)
+  const coupons = couponTests(note, couponReviews, levels.initial, allRates)
   const ending = coupons.find((test) => test.month === months)?.paid ?? 0
   const earlier = coupons.filter((test) => test.month < months && test.paid > 0).map(({ month, paid }): Payment => ({ month, coupon: paid, redemption: 0, amount: paid }))
   const paidAtEnd = called ? note.principalAmount * (1 + called.callAmount) : maturity.payment
@@ -191,13 +203,29 @@ export function redemptionOutcome(note: Product, reviewLevels: number[], levels:
   return { calledAtReview: called?.review, endedBy, issuerCallNotReached: endedBy === 'autocall' ? issuerChoice?.review : undefined, reviews, tests, months, payment, maturity, coupons, totalPaid: payments.reduce((sum, { amount }) => sum + amount, 0), payments }
 }
 
+// Every coupon review's reference rate, in order, for a floating coupon: those before the last and the last. Undefined for a fixed rate,
+// which takes none. Each is checked against this reference's limits.
+function referenceRatesOf(note: Product, before: number[] | undefined, last: number | undefined): number[] | undefined {
+  const floating = note.coupon === undefined ? undefined : floatingRateOf(note.coupon)
+  if (floating === undefined) {
+    if (before !== undefined || last !== undefined) throw new Error('Only a floating coupon reads reference rates.')
+    return undefined
+  }
+  const count = scheduleReviews(note.term, note.coupon!.schedule)!.length
+  if (before === undefined || before.length !== count - 1 || last === undefined) throw new Error(`Expected a reference rate for each of the ${count} coupon reviews.`)
+  const rates = [...before, last]
+  const { min, max } = referenceRateLimits
+  if (rates.some((rate) => !Number.isFinite(rate) || rate < min || rate > max)) throw new Error('Each reference rate must be between −5% and 20% a year.')
+  return rates
+}
+
 // The coupon on each of its reviews, in order, from its level. A review at or above the barrier pays its coupon and, with memory, every
-// coupon missed before it; a review below it pays nothing, and with memory its coupon is remembered. Every review of a fixed coupon pays.
-function couponTests(note: Product, reviews: Array<{ review: number; month: number; level?: number }>, initialLevel: number): CouponTest[] {
+// coupon missed before it; a review below it pays nothing, and with memory its coupon is remembered. Every review of a non-contingent
+// coupon pays: a floating one at its own review's rate, from `referenceRates`, numbered as the coupon's reviews.
+function couponTests(note: Product, reviews: Array<{ review: number; month: number; level?: number }>, initialLevel: number, referenceRates?: number[]): CouponTest[] {
   const { coupon } = note
   if (coupon === undefined) return []
   const barrierLevel = coupon.barrier === undefined ? undefined : barrierLevelAt(coupon.barrier, initialLevel)
-  const each = couponPerReview(note)
   let remembered = 0
   return reviews.map(({ review, month, level }): CouponTest => {
     // A contingent coupon's reviews are the dates it reads a level on, so each has one.
@@ -205,7 +233,9 @@ function couponTests(note: Product, reviews: Array<{ review: number; month: numb
     const met = read.barrierLevel === undefined || read.level >= read.barrierLevel
     const coupons = met ? 1 + remembered : 0
     remembered = met ? 0 : coupon.memory ? remembered + 1 : 0
-    return { review, month, ...read, met, coupons, paid: coupons * each, remembered }
+    const referenceRate = referenceRates?.[review - 1]
+    const rate = couponRateOn(coupon.rate, referenceRate)
+    return { review, month, ...read, met, coupons, rate, ...(referenceRate === undefined ? {} : { referenceRate }), paid: coupons * couponPerReview(note, referenceRate), remembered }
   })
 }
 

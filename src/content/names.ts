@@ -1,4 +1,4 @@
-import { amortizationOf, autocallOf, downsideOf, issuerCallOf, upsideOf, type Product } from '../domain/note'
+import { amortizationOf, autocallOf, downsideOf, fixedRateOf, issuerCallOf, upsideOf, type Product } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface MarketingName {
@@ -38,7 +38,7 @@ export function productCategory(note: Product): ProductCategory | undefined {
 function maturityOnlyNote(note: Product, name: string): string {
   const parts: string[] = []
   if (note.redemption.kind !== 'bullet') parts.push(`The name describes the payment at maturity; ${autocallOf(note.redemption) ? (issuerCallOf(note.redemption) ? 'an autocall or an issuer call' : 'an autocall') : 'an issuer call'} can end the product earlier.`)
-  if (note.coupon !== undefined) parts.push(note.coupon.barrier === undefined ? 'The name does not cover the fixed coupon, paid on every coupon review.' : 'The name does not cover the contingent coupon, paid on the reviews that meet its barrier.')
+  if (note.coupon !== undefined) parts.push(note.coupon.barrier === undefined ? `The name does not cover the ${fixedRateOf(note.coupon) === undefined ? 'floating coupon, paid on every coupon review at its reference rate' : 'fixed coupon, paid on every coupon review'}.` : 'The name does not cover the contingent coupon, paid on the reviews that meet its barrier.')
   if (note.payoff.digitalReturn !== undefined && name !== 'Digital return note') parts.push('The name does not cover the digital return, a fixed return paid as a minimum at or above its barrier.')
   return parts.join(' ')
 }
@@ -385,9 +385,9 @@ function callAndCouponNames(note: Product): MarketingName[] {
   }
 
   // The Swiss Reverse Convertible (1220) and Barrier Reverse Convertible (1230): a fixed coupon in place of upside, and shares or their
-  // value below a strike. Both need delivery: the sources also allow cash, but a name for converting into shares would mislead on a product
+  // value below a strike. A floating coupon is not the fixed coupon both describe, so it gets neither. Both need delivery: the sources also allow cash, but a name for converting into shares would mislead on a product
   // this reference states as paying cash. The rules and sources are in docs/call-and-coupon-names.md.
-  if (note.settlement === 'delivery' && coupon !== undefined && coupon.barrier === undefined && unprotected && upsideOf(note) === undefined && note.payoff.barrierAbsoluteReturn === undefined && note.payoff.digitalReturn === undefined && downside !== undefined && downside.absoluteReturn === undefined) {
+  if (note.settlement === 'delivery' && coupon !== undefined && coupon.barrier === undefined && fixedRateOf(coupon) !== undefined && unprotected && upsideOf(note) === undefined && note.payoff.barrierAbsoluteReturn === undefined && note.payoff.digitalReturn === undefined && downside !== undefined && downside.absoluteReturn === undefined) {
     const settled = 'Otherwise it delivers shares of the underlier, worth the payment shown on the final date.'
     const strike = 1 - (downside.buffer ?? 0)
     // A strike below the initial level pays principal × final ÷ strike, which is a buffer at a rate of 1 ÷ strike. The tolerance lets a rate

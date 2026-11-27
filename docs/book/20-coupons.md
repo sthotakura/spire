@@ -1,12 +1,12 @@
 # Coupons
 
-A **coupon** is a payment made to the holder during a product's life, on its reviews, separate from the repayment of principal. This chapter explains the two kinds the reference models: the **fixed coupon**, paid on every review whatever the underlier does, and the **contingent coupon**, paid only on reviews that meet a condition, with the **memory** feature that some contingent coupons add. A product has one coupon, fixed or contingent. The reference gives the coupon its own reviews, so it goes with any redemption: a bullet note, an autocall or an issuer call. Amortization needs a fixed coupon.
+A **coupon** is a payment made to the holder during a product's life, on its reviews, separate from the repayment of principal. This chapter explains the kinds the reference models: the **fixed coupon**, paid on every review whatever the underlier does; the **contingent coupon**, paid only on reviews that meet a condition, with the **memory** feature that some contingent coupons add; and the **floating coupon**, paid on every review at a rate reset from a reference rate. A product has one coupon. The reference gives the coupon its own reviews, so it goes with any redemption: a bullet note, an autocall or an issuer call. Amortization needs a fixed coupon.
 
 ## When it is paid, and its rate
 
 Two separate terms describe a coupon. The first is **when it is paid**. A **non-contingent** coupon, also called unconditional, is paid on every review. A **contingent** coupon is paid only on reviews that meet a condition. The second is **its rate**. A **fixed** rate is set in the terms. A **floating** rate is reset each period from a reference rate plus or minus a spread, sometimes with a floor or a cap. One public note pays compounded SOFR plus a spread ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/1682472/000191870425003048/form424b2.htm)). Older notes used LIBOR, which has been discontinued.
 
-Notes call a non-contingent coupon at a fixed rate a **fixed coupon**. Both kinds this chapter explains have a fixed rate: the fixed coupon is non-contingent, and the contingent coupon is not. The reference does not model a floating rate. In the builder the Coupon has a Paid when row, Non-contingent or Contingent, and a Rate row, whose only available type is Fixed.
+Notes call a non-contingent coupon at a fixed rate a **fixed coupon**. The fixed coupon is non-contingent and the contingent coupon is not; both have a fixed rate. The floating coupon below is non-contingent at a floating rate. A floating rate could also be paid only when a condition holds, but no note read for this chapter does that, so the reference allows a floating rate only on a non-contingent coupon. In the builder the Coupon has a Paid when row, Non-contingent or Contingent, and a Rate row, Fixed or Floating.
 
 ## A fixed coupon
 
@@ -37,6 +37,23 @@ It is tested on its own **reviews**, a frequency such as monthly or quarterly, a
 Without memory, a missed coupon is lost. With memory it is remembered, and paid on the next review at or above the barrier, with that review's own coupon. The note at 50% above says that a review at or above the barrier pays, "in addition to the Contingent Interest Payment with respect to that Review Date, any previously unpaid Contingent Interest Payments for prior Review Dates". The note at 70%, from the same issuer, says a missed coupon "will not be accrued and subsequently paid". Memory is a term of the note, not part of what a contingent coupon is.
 
 Memory does not change the condition. It only lets a missed coupon be paid late. If no later review meets the barrier, the remembered coupons are never paid.
+
+## A floating rate
+
+A floating coupon's rate is not known when the product is issued. On each review it is the level of a **reference rate** for the period just ended, plus a **spread**: a fixed number of percentage points a year, which can be negative. A **floor**, or minimum interest rate, stops the coupon rate falling below a level, and a **cap**, or maximum interest rate, stops it rising above one. Both bound the whole coupon rate, the reference rate plus the spread, not the reference rate alone. Each review then pays principal × that review's rate × months between reviews ÷ 12, as a fixed coupon does.
+
+One public note on the worst of two indices pays, on each quarterly coupon date, "the reference rate with respect to the related observation period plus the spread, subject to the minimum interest rate": SOFR compounded daily, plus 2.75%, at least 0.00% ([Citigroup Global Markets Holdings Inc., 424B2](https://www.sec.gov/Archives/edgar/data/831001/000095010323006091/dp192618_424b2-us2327427.htm), preliminary). It pays the coupon "regardless of the performance of either underlying", so the coupon is non-contingent. Its table of a single coupon on $10 shows the floor at work:
+
+| Reference rate | Coupon rate | Coupon on $10 |
+| ---: | ---: | ---: |
+| 4.00% | 6.75% | $0.1688 |
+| 0.00% | 2.75% | $0.0688 |
+| −2.00% | 0.75% | $0.0188 |
+| −3.00% | 0.00% | $0.0000 |
+
+Each is 10 × max(0%, reference rate + 2.75%) ÷ 4, rounded to four decimals. Below −2.75% the floor holds the coupon at zero: the coupon can be nothing, but never negative. Two other public notes, without equity, show a cap: one floats at SOFR plus 0.25% between 0.00% and 7.00% ([Morgan Stanley, 424B2](https://www.sec.gov/Archives/edgar/data/895421/000183988225015645/ms6751_424b2-08126.htm)), another at SOFR plus 0.17% with a floor of 0.10% and no cap ([Morgan Stanley, 424B2](https://www.sec.gov/Archives/edgar/data/895421/000095010324004958/dp209499_424b2-ps1703.htm)).
+
+SOFR, the Secured Overnight Financing Rate, is an overnight rate published each business day. A coupon period is longer than a day, so the notes compound the daily rates over the period into one rate a year, and set it a couple of business days before the period ends: the coupon is known only shortly before it is paid. How the rate is compounded and observed changes what is paid. The reference does not model that: a scenario states the rate the period ended up with, for each review, as it states a level for each review of a contingent coupon. The reference rate is a name, and its levels are the scenario's, not market data.
 
 ## The coupon and the call
 
@@ -87,6 +104,23 @@ If the note is never called, it has paid five coupons, 150, before the last revi
 | 50 | 500 | 530 | 680 |
 
 At 60 the downside barrier is not reached, since it is reached only below its level. At 50 the holder bears the whole 50% fall and still receives every coupon.
+
+## Worked example: a floating coupon
+
+A synthetic note with principal of 1,000, a term of two years, quarterly coupon reviews and an initial level of 100 for each of two indices, shaped like the Citi note. The coupon is the reference rate + 2.75% a year, at least 0%. The issuer may call on any quarterly review, and the payoff is 100% downside participation with a 60% downside barrier on the worst index, read on the final date. The scenario states a reference rate for each review:
+
+| Review | Month | Reference rate | Coupon rate | Coupon |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 3 | 4.00% | 6.75% | 16.875 |
+| 2 | 6 | 3.00% | 5.75% | 14.375 |
+| 3 | 9 | 1.50% | 4.25% | 10.625 |
+| 4 | 12 | −1.00% | 1.75% | 4.375 |
+| 5 | 15 | −3.25% | 0.00%, the floor | 0 |
+| 6 | 18 | 0.00% | 2.75% | 6.875 |
+| 7 | 21 | 2.00% | 4.75% | 11.875 |
+| 8 | 24 | 3.00% | 5.75% | 14.375 |
+
+Each coupon is 1,000 × coupon rate × 3 ÷ 12. Not called, with the worst index at 75, the note pays 1,000 + 14.375 at the end and 79.375 in coupons in all, 1,079.375. With the worst index at 50 it pays 500 + 14.375 at the end. If the issuer calls in month 6, the note pays 1,000 + 14.375 then, after 16.875 in month 3, and the rates the scenario states for later reviews are not read. A cap of 6% would pay 15.00 in month 3, at 6.00% in place of 6.75%, and the other reviews as before.
 
 ## Seen against the final level
 
@@ -179,6 +213,11 @@ modelled on, on synthetic indices:
 - [Monthly worst-of fixed coupon autocallable note](https://sthotakura.github.io/spire/?example=monthly-worst-of-fixed-coupon-autocallable-note):
   a fixed coupon of 14.50% a year paid every month for three years on the worst
   of three indices, a call at 100% from month 6, and a downside barrier at 50%.
+- [Worst-of callable floating coupon note](https://sthotakura.github.io/spire/?example=worst-of-callable-floating-coupon-note):
+  the Citi note. Two years on the worst of two indices, a coupon each quarter at
+  the reference rate + 2.75% a year, at least 0%, an issuer call on any
+  quarterly review, and a downside barrier at 60%. The reference rate for each
+  quarter is set in the review table.
 - [Callable contingent coupon note](https://sthotakura.github.io/spire/?example=callable-contingent-coupon-note): a
   coupon reviewed monthly on a note the issuer may call quarterly, as described
   in [Reviews and early redemption](19-reviews-and-early-redemption.md).
@@ -189,11 +228,12 @@ modelled on, on synthetic indices:
 - The coupon has its own schedule. The four contingent notes use one list of review dates for both. A fixed coupon note lists its coupon payment dates and its call dates separately, but each call falls on a coupon date from the sixth month on, so the call is a monthly schedule from month 6 beside a monthly coupon ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/70858/000148105723007689/form424b2.htm)). An issuer callable contingent coupon note does review its coupon monthly and can be called only quarterly ([BofA Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/1682472/000148105724004907/form424b2.htm)).
 - The fixed coupon, paid on every review until a call or the end of the term and with the payment on the review the product ends, follows three public fixed coupon autocallable notes on the worst of several stocks: the 11.72% note, a monthly note at 12.90% a year or more ([Morgan Stanley Finance LLC, 424B2](https://www.sec.gov/Archives/edgar/data/1666268/000183988224003876/ms997_424b2-02307.htm)), and the note that pays 536.05 at half its initial level. A fourth, monthly at 14.50% a year, is described in the next point. In all four the coupon and the call share one schedule, and a call pays principal plus that review's coupon and nothing more.
 - The coupon on a review is the rate a year times the months between reviews, divided by 12. The reference does not round it; public notes state a rounded amount. Two of the fixed coupon notes state a 30/360 day count, which over whole months gives the same amount.
-- The reviews are evenly spaced whole numbers of months, and payments are made at the review. Public notes pay a few days after.
+- The floating coupon, its floor applied to the reference rate plus the spread, and the call that pays principal plus that review's coupon follow the Citi note; the two Morgan Stanley notes show a cap and a floor with no cap. All three were read through a summarising fetch tool, and the Citi coupon table was checked against the filing's text. The scenario's reference rate is the rate for the whole period, after its compounding; Citi and the 6.00%-then-floating Morgan Stanley note count 30/360, which over whole months is months ÷ 12.
+- The reviews are evenly spaced whole numbers of months, and payments are made at the review. Public notes pay a few days after. The Citi note's first period, from settlement, is two days longer than a quarter; its own examples take a quarter.
 
 ## What is not modelled
 
-A floating rate, a fixed and a contingent coupon on one product, a coupon barrier that steps, a coupon barrier set differently for each asset, and payment dates. A coupon is always paid in cash, even on a product that delivers shares at the end of its term ([Settlement](22-settlement.md)).
+A floating rate on a contingent coupon, a fixed rate for an initial period followed by a floating one, interest counted on actual days (Actual/360), a coupon without a floor, a fixed and a contingent coupon on one product, a coupon barrier that steps, a coupon barrier set differently for each asset, and payment dates. A coupon is always paid in cash, even on a product that delivers shares at the end of its term ([Settlement](22-settlement.md)).
 
 ## Related concepts
 

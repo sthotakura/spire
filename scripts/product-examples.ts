@@ -216,4 +216,17 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
       coupon: { schedule: { frequency: 'quarterly' }, rate: 0.06 },
     }),
   ],
+  [
+    'an issuer call on any quarterly review of a worst-of basket of two indices, with a floating coupon at a reference rate plus 2.75% a year, at least 0%, and a 60% downside barrier at the end of the term',
+    note({ participations: [{ direction: 'downside', barrier: { level: 0.6, observation: 'final' }, rate: 1 }] }, {
+      term: { months: 24 },
+      redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0 }] },
+      coupon: { schedule: { frequency: 'quarterly' }, rate: { reference: 'Synthetic overnight rate', spread: 0.0275, floor: 0 } },
+      underlier: {
+        kind: 'basket',
+        components: [{ asset: asset('Index A') }, { asset: asset('Index B') }],
+        determination: { initial: { kind: 'given', levels: [{ asset: 'Index A', level: 100 }, { asset: 'Index B', level: 100 }] }, final: { kind: 'final-date' }, basketReturn: { kind: 'worst-of' } },
+      },
+    }),
+  ],
 ]

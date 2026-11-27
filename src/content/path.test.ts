@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { paymentAtEnd, redemptionOutcome } from '../domain/autocall'
-import { amortizationOf, issuerCallOf, basketBreakdown, basketStartingLevel, initialObservationCountOf, observationCountOf, paymentBreakdown, reviewDates, type DeterminedLevels, type Product } from '../domain/note'
+import { amortizationOf, issuerCallOf, basketBreakdown, basketStartingLevel, floatingRateOf, initialObservationCountOf, observationCountOf, paymentBreakdown, reviewDates, scheduleReviews, type DeterminedLevels, type Product } from '../domain/note'
 import { couponClosingSteps, redemptionSteps } from './autocall'
 import { calculationSteps } from './calculation'
 import { sampleProducts } from './examples'
@@ -16,10 +16,13 @@ function scenario(note: Product, final: number, review: number, issuerCallsOnRev
   const observed = Array(observationCountOf(note.underlier.determination.final)).fill(finalLevel)
   const initialObservations = note.underlier.kind === 'single' ? Array(initialObservationCountOf(note.underlier.determination.initial)).fill(initial) : []
   const basket = note.underlier.kind === 'basket' ? basketBreakdown(note.underlier, note.underlier.components.map(() => observed)) : undefined
-  const levels: DeterminedLevels = { initial, final: finalLevel, ...closes }
+  // A floating coupon reads a reference rate on each of its reviews: 4% a year on each here.
+  const floats = note.coupon !== undefined && floatingRateOf(note.coupon) !== undefined
+  const rates = floats ? Array<number>(scheduleReviews(note.term, note.coupon!.schedule)!.length - 1).fill(0.04) : undefined
+  const levels: DeterminedLevels = { initial, final: finalLevel, ...closes, ...(floats ? { lastReferenceRate: 0.04 } : {}) }
   const b = paymentBreakdown(note, levels)
   const reads = reviewDates(note).length > 0 || (issuerCallOf(note.redemption) !== undefined && note.coupon !== undefined)
-  const outcome = note.redemption.kind !== 'bullet' || note.coupon ? redemptionOutcome(note, reads ? reviewDates(note).slice(0, -1).map(() => review * initial / 100) : [], levels, issuerCallsOnReview) : undefined
+  const outcome = note.redemption.kind !== 'bullet' || note.coupon ? redemptionOutcome(note, reads ? reviewDates(note).slice(0, -1).map(() => review * initial / 100) : [], levels, issuerCallsOnReview, rates) : undefined
   const maturity = calculationSteps(note, b, observed, initialObservations, basket)
   const titles = outcome ? [...redemptionSteps(note, outcome), ...maturity, ...couponClosingSteps(note, outcome)].map(({ title }) => title) : maturity.map(({ title }) => title)
   return { initial, levels, b, outcome, titles, stages: lineStages(note, b, levels) }

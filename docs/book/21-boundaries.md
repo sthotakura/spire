@@ -22,8 +22,9 @@ dates and business-day conventions are not calculated. A term is a whole
 number of months, from 1 to 120 in this reference.
 
 The products illustrated pay at scheduled maturity or when an autocall or an
-issuer call ends them early, or repay principal in level instalments, and can also pay a fixed or a contingent coupon on
-reviews of its own, not both. Reviews are numbered and evenly spaced, not dated,
+issuer call ends them early, or repay principal in level instalments, and can also pay a fixed, a contingent or a floating coupon on
+reviews of its own, one of them. A floating coupon is non-contingent, and the
+scenario states its reference rate for each review. Reviews are numbered and evenly spaced, not dated,
 and a payment is made at its review. An issuer call is the issuer's choice,
 stated by a scenario. A barrier can be observed on every close, but only through the
 one lowest or highest close a scenario states. It is not combined with an

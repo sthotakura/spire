@@ -138,8 +138,9 @@ export function lineStages(note: Product, b: PaymentBreakdown, levels: Determine
   }
   if (note.coupon !== undefined) {
     const barrier = couponBarrierLevel(note, levels.initial)
-    if (barrier === undefined || levels.final >= barrier) settled += couponPerReview(note) / principal
-    add('Paid at maturity', 'coupon', `Adds the last review’s coupon, ${formatAmount(couponPerReview(note))}${barrier === undefined ? '' : `, at or above the coupon barrier, ${formatAmount(barrier)}`}`)
+    const last = couponPerReview(note, levels.lastReferenceRate)
+    if (barrier === undefined || levels.final >= barrier) settled += last / principal
+    add('Paid at maturity', 'coupon', `Adds the last review’s coupon, ${formatAmount(last)}${barrier === undefined ? '' : `, at or above the coupon barrier, ${formatAmount(barrier)}`}`)
   }
   return stages
 }

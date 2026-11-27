@@ -605,8 +605,20 @@ Two independent terms describe a coupon: when it is paid (non-contingent or cont
 
 - **Interface.** The Coupon row offers None or Paid on reviews. Under it, Reviews; Paid when, Non-contingent or Contingent, with the coupon barrier and memory nested under Contingent; and Rate, a type beside the rate a year. The tips say a non-contingent coupon is also called unconditional, and that with a fixed rate notes call it a fixed coupon.
 - **Wording.** Non-contingent, the usual term in filings and the plain opposite of contingent. Not guaranteed: a coupon depends on the issuer paying, and stops at a call.
-- **Floating.** Listed as Floating (unavailable), as Puttable is. Its tip says a floating rate is reset each period from a reference rate, such as SOFR, plus or minus a spread; older notes used LIBOR, which has been discontinued. Proposed on 26 November 2026 in [docs/floating-coupon.md](docs/floating-coupon.md), from three public SOFR notes, one of them a worst-of callable note with a table of coupons; its five decisions were agreed on 27 November 2026, and it is not built yet. It would need a rate underlier beside the equity one, the spread and any floor or cap, a rate for each period as a scenario input, and a decision on when the rate is set and on the day count.
+- **Floating.** First listed as Floating (unavailable), as Puttable is; built in section 52. Its tip says a floating rate is reset each period from a reference rate, such as SOFR, plus or minus a spread; older notes used LIBOR, which has been discontinued. Proposed on 26 November 2026 in [docs/floating-coupon.md](docs/floating-coupon.md), from three public SOFR notes, one of them a worst-of callable note with a table of coupons; its five decisions were agreed on 27 November 2026, and it is not built yet. It would need a rate underlier beside the equity one, the spread and any floor or cap, a rate for each period as a scenario input, and a decision on when the rate is set and on the day count.
 - **Book.** A section in chapter 20 on the two terms.
+
+## 52. Add the floating coupon
+
+A coupon whose rate is reset on each review from a reference rate, plus a spread, at least a floor and at most any cap. The proposal, its three public SOFR notes and the decisions are in [docs/floating-coupon.md](docs/floating-coupon.md).
+
+- **Model.** The coupon's `rate` is a `CouponRate`: a number, `FixedRate`, or a `FloatingRate` with `reference` (a name), `spread`, `floor` (zero or above, required) and an optional `cap` at or above it. The schema names both variants. Limits of this reference: a spread from −10% to 10% a year, a floor and a cap from 0% to 20%.
+- **Scope.** A floating rate only on a non-contingent coupon, and not with amortization, whose level instalments need a fixed rate. The reverse convertible names need a fixed rate.
+- **Scenario.** A reference rate a year for each coupon review, from −5% to 20%: those before the last go to `redemptionOutcome`, the last with the final level as `lastReferenceRate`. A rate after a call is not read. Compounding and observation are calculation conventions the scenario has applied.
+- **Interface.** Rate offers Fixed and Floating; Floating shows Reference rate, Spread, Floor and Cap (None or At most). Contingent and Floating each say why the other is unavailable. The review table appears for a floating coupon even where no level is read, with a Reference rate column on each coupon review, starting at 4%, and a Same rate for every review action. The calculation shows each review's rate, raised to the floor or lowered to the cap; the chart and its labels add the last coupon at the last review's rate.
+- **Sample.** Worst-of callable floating coupon note, from the preliminary Citi note. Its coupon table is a test, checked against the filing's text.
+- **Book.** A floating rate section and a worked example in chapter 20; notes in chapters 18 and 21.
+- **Not done:** a floating rate on a contingent coupon, a fixed rate for an initial period then a floating one (Morgan Stanley No. 6,751), Actual/360 and broken periods, a coupon without a floor, and a chart of the coupon rate against the reference rate.
 
 ## Later direction: a composable form
 

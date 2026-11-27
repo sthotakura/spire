@@ -16,7 +16,8 @@ const perPoint = (rate: number) => Number.isFinite(rate) ? `${rate.toLocaleStrin
 // `upside-breach` is the label for an upside barrier's other path when a downside barrier has one too, so each side says its own.
 export type PayoffLabelKey = ConceptId | 'lowest' | 'upside-barrier' | 'breach' | 'upside-breach' | 'event-below' | 'event-above'
 
-export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, string>> {
+// A floating coupon's last coupon is at the last review's reference rate, `lastReferenceRate`, which the scenario gives.
+export function payoffLabels(product: Product, lastReferenceRate?: number): Partial<Record<PayoffLabelKey, string>> {
   const labels: Partial<Record<PayoffLabelKey, string>> = {}
   const principal = product.principalAmount
   const upside = upsideOf(product)
@@ -84,7 +85,7 @@ export function payoffLabels(product: Product): Partial<Record<PayoffLabelKey, s
   // state a fixed amount say so: a cap of 1,300 is drawn at 1,350 with a coupon of 50.
   if (product.coupon !== undefined) {
     const { barrier } = product.coupon
-    const plus = `, plus the last coupon ${amount(couponPerReview(product))}${barrier === undefined ? '' : ` at or above ${percent(barrier)}`}`
+    const plus = `, plus the last coupon ${amount(couponPerReview(product, lastReferenceRate))}${barrier === undefined ? '' : ` at or above ${percent(barrier)}`}`
     for (const key of ['payoff', 'buffer', 'barrier', 'cap', 'digital-return', 'upside-barrier', 'event-below', 'event-above'] as const) if (labels[key] !== undefined) labels[key] += plus
   }
   return labels
