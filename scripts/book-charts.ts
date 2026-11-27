@@ -13,6 +13,8 @@ interface BookChart {
   features: RegExp[]
   // Values for the inputs, by id, set in order after the features exist.
   values: Record<string, string>
+  // The chart to draw, when it is not the payoff chart: the coupon rate chart is svg.coupon-chart.
+  selector?: string
 }
 
 const charts: BookChart[] = [
@@ -31,6 +33,7 @@ const charts: BookChart[] = [
   { file: 'final-review-call', title: 'Payoff with 100% upside participation and a final review that calls at 120% and pays 110%', features: [/^Upside participation/], values: { 'redemption-kind': 'early-redemption', term: '24', 'call-trigger': '120', 'call-amount-input': '10', 'final-call': 'true', 'final-level': '130' } },
   { file: 'fixed-coupon', title: 'Payoff with 100% downside participation, a 60% downside barrier and a 12% fixed coupon paid quarterly', features: [/^Downside participation/, /^Downside barrier/], values: { 'redemption-kind': 'early-redemption', term: '18', 'review-frequency': 'quarterly', 'call-amount-input': '0', 'coupon-kind': 'Paid on reviews', 'coupon-condition': 'non-contingent', 'coupon-frequency': 'quarterly', 'coupon-rate': '12', 'rate-barrier': '60', 'final-level': '50' } },
   { file: 'contingent-coupon', title: 'Payoff with 100% downside participation, a 70% downside barrier and an 11.5% contingent coupon at a 70% barrier', features: [/^Downside participation/, /^Downside barrier/], values: { 'redemption-kind': 'early-redemption', term: '12', 'review-frequency': 'quarterly', 'call-amount-input': '0', 'coupon-kind': 'Paid on reviews', 'coupon-condition': 'contingent', 'coupon-frequency': 'quarterly', 'coupon-rate': '11.5', 'coupon-barrier': '70', 'rate-barrier': '70', 'final-level': '60' } },
+  { file: 'floating-coupon-rate', selector: 'svg.coupon-chart', title: 'Coupon rate of a floating coupon at the reference rate plus 2.75% a year, with a 0% floor and a 7% cap, and four quarterly reviews', features: [], values: { term: '12', 'coupon-kind': 'Paid on reviews', 'coupon-condition': 'non-contingent', 'coupon-rate-kind': 'floating', 'coupon-frequency': 'quarterly', 'coupon-cap-wanted': 'At most', 'coupon-cap': '7', 'reference-rate-3': '-4', 'reference-rate-6': '1', 'reference-rate-9': '3', 'reference-rate-12': '6' } },
   { file: 'reverse-convertible', title: 'Payoff of a reverse convertible with a strike of 80%: a 20% buffer at 125% downside participation', features: [/^Downside participation/, /^Buffer/], values: { 'rate-buffer': '20', 'rate-downside': '125', 'final-level': '60' } },
   { file: 'deposit-minimum-return', title: 'Deposit payoff with 100% upside participation, a 30% cap and a 5.25% minimum return', wrapper: 'deposit', features: [/^Upside participation/, /^Cap/, /^Minimum return/], values: { term: '84', 'rate-cap': '30', 'rate-minimum': '5.25', 'final-level': '102' } },
 ]
@@ -55,7 +58,7 @@ async function drawChart(page: Page, url: string, chart: BookChart): Promise<str
   }
   // Move the pointer off the chart so no handle is shown, and let the layout settle.
   await page.mouse.move(0, 0)
-  return page.locator('svg.chart').evaluate((svg, { inherited, notInherited, title }) => {
+  return page.locator(chart.selector ?? 'svg.chart:not(.coupon-chart)').evaluate((svg, { inherited, notInherited, title }) => {
     const copy = svg.cloneNode(true) as SVGSVGElement
     const sources = [svg, ...Array.from(svg.querySelectorAll('*'))]
     const targets = [copy, ...Array.from(copy.querySelectorAll('*'))]

@@ -53,6 +53,10 @@ One public note on the worst of two indices pays, on each quarterly coupon date,
 
 Each is 10 × max(0%, reference rate + 2.75%) ÷ 4, rounded to four decimals. Below −2.75% the floor holds the coupon at zero: the coupon can be nothing, but never negative. Two other public notes, without equity, show a cap: one floats at SOFR plus 0.25% between 0.00% and 7.00% ([Morgan Stanley, 424B2](https://www.sec.gov/Archives/edgar/data/895421/000183988225015645/ms6751_424b2-08126.htm)), another at SOFR plus 0.17% with a floor of 0.10% and no cap ([Morgan Stanley, 424B2](https://www.sec.gov/Archives/edgar/data/895421/000095010324004958/dp209499_424b2-ps1703.htm)).
 
+Drawn against the reference rate, the coupon rate is flat at the floor, rises one for one above floor − spread, and with a cap is flat again from cap − spread. The chart below is synthetic: the Citi terms with a 7% cap added, which the Citi note does not have, so that both corners show. Each dot is a review of a scenario with reference rates of −4%, 1%, 3% and 6%: the first is held at the floor and the last at the cap. The dashed line is the reference rate plus the spread with neither bound. The builder draws this chart under the payoff chart for any floating coupon.
+
+![Coupon rate of a floating coupon at the reference rate plus 2.75% a year, with a 0% floor and a 7% cap, and four quarterly reviews](charts/floating-coupon-rate.svg)
+
 SOFR, the Secured Overnight Financing Rate, is an overnight rate published each business day. A coupon period is longer than a day, so the notes compound the daily rates over the period into one rate a year, and set it a couple of business days before the period ends: the coupon is known only shortly before it is paid. How the rate is compounded and observed changes what is paid. The reference does not model that: a scenario states the rate the period ended up with, for each review, as it states a level for each review of a contingent coupon. The reference rate is a name, and its levels are the scenario's, not market data.
 
 ## The coupon and the call

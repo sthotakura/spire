@@ -618,7 +618,18 @@ A coupon whose rate is reset on each review from a reference rate, plus a spread
 - **Interface.** Rate offers Fixed and Floating; Floating shows Reference rate, Spread, Floor and Cap (None or At most). Contingent and Floating each say why the other is unavailable. The review table appears for a floating coupon even where no level is read, with a Reference rate column on each coupon review, starting at 4%, and a Same rate for every review action. The calculation shows each review's rate, raised to the floor or lowered to the cap; the chart and its labels add the last coupon at the last review's rate.
 - **Sample.** Worst-of callable floating coupon note, from the preliminary Citi note. Its coupon table is a test, checked against the filing's text.
 - **Book.** A floating rate section and a worked example in chapter 20; notes in chapters 18 and 21.
-- **Not done:** a floating rate on a contingent coupon, a fixed rate for an initial period then a floating one (Morgan Stanley No. 6,751), Actual/360 and broken periods, a coupon without a floor, and a chart of the coupon rate against the reference rate.
+- **Not done:** a floating rate on a contingent coupon, a fixed rate for an initial period then a floating one (Morgan Stanley No. 6,751), Actual/360 and broken periods, and a coupon without a floor. The chart of the coupon rate against the reference rate is section 53.
+
+## 53. Draw the coupon rate of a floating coupon
+
+A chart of a floating coupon's rate against its reference rate, under the payoff chart, which cannot show it: its horizontal axis is the underlier's final level. Agreed on 27 November 2026; it is a view of the floating coupon of section 52, so it has no document of its own.
+
+- **The line.** Flat at the floor up to floor − spread, rising one for one, and flat at any cap from cap − spread, with the floor and cap labelled. A dashed line is the reference rate plus the spread with no bounds.
+- **The scenario.** A dot for each review the scenario reads, at its reference rate from the review table; reviews after a call have none.
+- **Axes.** The reference rate from −5% to at least 10%, wider for a corner or a scenario rate; the coupon rate from 0% to a point above the highest drawn. The geometry is in `src/chart/coupon-rate.ts`, with tests.
+- **Read-only.** No handles: the terms are edited in the outline. The chart has a text description for screen readers.
+- **Book.** A chart in chapter 20, synthetic, with a 7% cap added to the Citi terms so both corners show. `scripts/book-charts.ts` draws it, through a new `selector` for a chart other than the payoff chart.
+- **Not done:** handles to drag the spread, the floor or the cap, and a coupon axis below zero to show what the floor removes.
 
 ## Later direction: a composable form
 
