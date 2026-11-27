@@ -86,7 +86,7 @@ describe('the coupon rate on a review', () => {
 
 describe('the outcome of a floating coupon', () => {
   it('pays each review at its own reference rate, the floor holding one at zero, in the worked example', () => {
-    const outcome = redemptionOutcome(note(), [], { initial: 100, final: 75, lastReferenceRate: lastRate }, undefined, rates)
+    const outcome = redemptionOutcome(note(), [], { initial: 100, final: 75, lastReferenceRate: lastRate }, { referenceRates: rates })
     expect(outcome.coupons.map(({ paid }) => paid)).toEqual([16.875, 14.375, 10.625, 4.375, 0, 6.875, 11.875, 14.375].map((amount) => expect.closeTo(amount, 9)))
     expect(outcome.coupons[4]).toMatchObject({ referenceRate: -0.0325, rate: 0, paid: 0 })
     expect(outcome.payment).toBeCloseTo(1014.375, 9)
@@ -96,35 +96,35 @@ describe('the outcome of a floating coupon', () => {
   })
 
   it('bears the fall below the downside barrier and still pays the last coupon', () => {
-    const outcome = redemptionOutcome(note(), [], { initial: 100, final: 50, lastReferenceRate: lastRate }, undefined, rates)
+    const outcome = redemptionOutcome(note(), [], { initial: 100, final: 50, lastReferenceRate: lastRate }, { referenceRates: rates })
     expect(outcome.payment).toBeCloseTo(514.375, 9)
   })
 
   it('stops at an issuer call, which pays that review\'s coupon, and reads no rate after it', () => {
-    const called = redemptionOutcome(note(), [], { initial: 100, final: 75, lastReferenceRate: lastRate }, 2, rates)
+    const called = redemptionOutcome(note(), [], { initial: 100, final: 75, lastReferenceRate: lastRate }, { issuerCallsOnReview: 2, referenceRates: rates })
     expect(called.months).toBe(6)
     expect(called.payments).toEqual([
       { month: 3, coupon: expect.closeTo(16.875, 9), redemption: 0, amount: expect.closeTo(16.875, 9) },
       { month: 6, coupon: expect.closeTo(14.375, 9), redemption: 1000, amount: expect.closeTo(1014.375, 9) },
     ])
-    const later = redemptionOutcome(note(), [], { initial: 100, final: 75, lastReferenceRate: 0.19 }, 2, [0.04, 0.03, 0.19, 0.19, 0.19, 0.19, 0.19])
+    const later = redemptionOutcome(note(), [], { initial: 100, final: 75, lastReferenceRate: 0.19 }, { issuerCallsOnReview: 2, referenceRates: [0.04, 0.03, 0.19, 0.19, 0.19, 0.19, 0.19] })
     expect(later).toEqual(called)
   })
 
   it('applies a cap to a review above it', () => {
-    const outcome = redemptionOutcome(note({ coupon: coupon({ cap: 0.06 }) }), [], { initial: 100, final: 75, lastReferenceRate: lastRate }, undefined, rates)
+    const outcome = redemptionOutcome(note({ coupon: coupon({ cap: 0.06 }) }), [], { initial: 100, final: 75, lastReferenceRate: lastRate }, { referenceRates: rates })
     expect(outcome.coupons[0]).toMatchObject({ rate: 0.06, paid: 15 })
     expect(outcome.coupons[1].paid).toBeCloseTo(14.375, 9)
   })
 
   it('needs a reference rate for every coupon review, each within this reference\'s limits, and only for a floating coupon', () => {
     const levels = { initial: 100, final: 75, lastReferenceRate: lastRate }
-    expect(() => redemptionOutcome(note(), [], levels, undefined, rates.slice(1))).toThrow('each of the 8 coupon reviews')
-    expect(() => redemptionOutcome(note(), [], { initial: 100, final: 75 }, undefined, rates)).toThrow('each of the 8 coupon reviews')
-    expect(() => redemptionOutcome(note(), [], levels, undefined, [...rates.slice(0, 6), 0.21])).toThrow('between −5% and 20%')
-    expect(() => redemptionOutcome(note(), [], levels, undefined, [...rates.slice(0, 6), -0.051])).toThrow('between −5% and 20%')
+    expect(() => redemptionOutcome(note(), [], levels, { referenceRates: rates.slice(1) })).toThrow('each of the 8 coupon reviews')
+    expect(() => redemptionOutcome(note(), [], { initial: 100, final: 75 }, { referenceRates: rates })).toThrow('each of the 8 coupon reviews')
+    expect(() => redemptionOutcome(note(), [], levels, { referenceRates: [...rates.slice(0, 6), 0.21] })).toThrow('between −5% and 20%')
+    expect(() => redemptionOutcome(note(), [], levels, { referenceRates: [...rates.slice(0, 6), -0.051] })).toThrow('between −5% and 20%')
     const fixed = note({ coupon: { schedule: { frequency: 'quarterly' }, rate: 0.12 } })
-    expect(() => redemptionOutcome(fixed, [], levels, undefined, rates)).toThrow('Only a floating coupon')
+    expect(() => redemptionOutcome(fixed, [], levels, { referenceRates: rates })).toThrow('Only a floating coupon')
   })
 
   it('adds the last review\'s coupon, at its reference rate, to the payment the chart draws at the end of the term', () => {

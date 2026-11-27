@@ -1,6 +1,6 @@
 # Holder put
 
-Proposal, not built. Revised on 27 November 2026 with a fixed-term source, which becomes the sample. It adds a holder put at current value as a third mechanism of an early redemption, beside the autocall and the issuer call. The public sources are in [early-redemption-rights.md](early-redemption-rights.md).
+Built on 27 November 2026, after the decisions below were agreed; PLAN.md section 54 lists what was built. Revised the same day with a fixed-term source, which became the sample. It adds a holder put at current value as a third mechanism of an early redemption, beside the autocall and the issuer call. The public sources are in [early-redemption-rights.md](early-redemption-rights.md).
 
 ## What it is
 
@@ -149,6 +149,13 @@ The sample: principal 1,000, 60 months, initial level 100, monthly put reviews f
 4. **No charge in the first version.** Agreed on 27 November 2026. A flat redemption charge would be one small field if wanted.
 5. **The Citi notes as the sample**, with monthly puts and without their issuer call and 50% trigger. Agreed on 27 November 2026: they are the only fixed-term source with a put on a tracker.
 6. **The sample's adjustment factor starts at 100%**, as the delta one sample does, with the filing's 0.992 ÷ 1.008 in the ⓘ. Agreed on 27 November 2026, for the same reason as there: the reader sees the plain one-for-one rule first. Starting at about 98.41% would reproduce the filing's payments.
+
+## Decided while building
+
+- **The names of a tracker stay.** Tracker and Delta One describe a note that follows the underlier, and a put pays the same formula at the put review's level, so a note whose only early redemption is a holder put keeps them, with a sentence that a holder put can end it earlier. The Swiss tracker certificates read carry an investor's termination right under the same name. Its Swiss category stays Participation. A put beside a call takes neither, as a call alone does not.
+- **Adding a payoff feature is blocked while the put is ticked**, with "Not with a holder put", and ticking the put is blocked on a payoff that is not a tracker, with the reason. Once ticked, the issues on its row say what no longer fits, as for amortization.
+- **The put date's level starts at 110% of the initial level**, as the starting final level does, so the put shows a gain until the reader sets it.
+- **`redemptionOutcome` takes one options argument**, `{ issuerCallsOnReview, holderPut, referenceRates }`, as decided.
 
 ## Open questions
 

@@ -1,5 +1,5 @@
 import { amortizationSummary } from './amortization'
-import { amortizationOf, autocallOf, issuerCallOf, downsideOf, firstReviewMonthOf, floatingRateOf, monthsPerReview, upsideOf, type CallMechanism, type Coupon, type Product } from '../domain/note'
+import { amortizationOf, autocallOf, issuerCallOf, holderPutOf, downsideOf, firstReviewMonthOf, floatingRateOf, monthsPerReview, upsideOf, type CallMechanism, type Coupon, type Product, type ReviewedMechanism } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface SummarySegment {
@@ -120,13 +120,14 @@ export function summarize(note: Product): SummarySegment[] {
 
   // An autocall says when it is called and what it pays, then that it otherwise redeems at maturity. The trigger is a share of the
   // initial level of what the payoff reads, so the underlier is named again. An issuer call says when the issuer may call, with no level.
+  // A holder put says when the holder may put, and that it pays what the payoff gives at that review's level.
   const redemption: SummarySegment[] = (() => {
     if (note.redemption.kind === 'bullet') return [{ text: ' that redeems ' }, { text: 'at maturity', concept: 'redemption' }]
-    const reviewing = (terms: CallMechanism): SummarySegment[] => [
+    const reviewing = (terms: ReviewedMechanism): SummarySegment[] => [
       { text: ' on any ' },
-      { text: terms.schedule?.frequency ?? 'monthly', concept: terms.kind === 'issuer-call' ? 'issuer-schedule' : 'schedule' },
+      { text: terms.schedule?.frequency ?? 'monthly', concept: terms.kind === 'issuer-call' ? 'issuer-schedule' : terms.kind === 'holder-put' ? 'put-schedule' : 'schedule' },
       { text: ' review' },
-      ...(firstReviewMonthOf(terms) > monthsPerReview[terms.schedule.frequency] ? [{ text: ` from month ${firstReviewMonthOf(terms)}`, concept: terms.kind === 'issuer-call' ? 'issuer-first-review' as const : 'first-review' as const }] : []),
+      ...(firstReviewMonthOf(terms) > monthsPerReview[terms.schedule.frequency] ? [{ text: ` from month ${firstReviewMonthOf(terms)}`, concept: terms.kind === 'issuer-call' ? 'issuer-first-review' as const : terms.kind === 'holder-put' ? 'put-first-review' as const : 'first-review' as const }] : []),
     ]
     const paying = (terms: CallMechanism): SummarySegment[] => [
       { text: ', ' },
@@ -148,7 +149,15 @@ export function summarize(note: Product): SummarySegment[] {
       ...paying(autocall),
     ]
     const issuer: SummarySegment[] = issuerCall === undefined ? [] : [{ text: autocall === undefined ? ' that the issuer may call early' : ' and that the issuer may call early' }, ...reviewing(issuerCall), { text: ' before maturity' }, ...paying(issuerCall)]
-    return [...called, ...issuer, ...otherwise]
+    const holderPut = holderPutOf(note.redemption)
+    const putting: SummarySegment[] = holderPut === undefined ? [] : [
+      { text: autocall === undefined && issuerCall === undefined ? ' that the holder may put early' : ' and that the holder may put early' },
+      ...reviewing(holderPut),
+      { text: ' before maturity, ' },
+      { text: 'paying what the payoff gives at that review’s level', concept: 'holder-put' },
+      { text: ',' },
+    ]
+    return [...called, ...issuer, ...putting, ...otherwise]
   })()
 
   // A fixed rate is stated a year and a review. A floating rate states its reference, its spread and its bounds: its level on each review

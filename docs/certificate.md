@@ -27,7 +27,7 @@ Only the open-end certificate differs from a note, and each difference belongs t
 | Difference | Concept it belongs to | In the reference today |
 | :--- | :--- | :--- |
 | No fixed term | Term and redemption | A term is required |
-| The holder may redeem on stated dates | Redemption | Puttable is listed and unavailable |
+| The holder may redeem on stated dates | Redemption | A holder put at current value on a fixed term, on a tracker ([holder-put.md](holder-put.md)) |
 | The issuer may terminate on stated dates | Redemption | An issuer call exists, with a fixed term |
 | Payment = reference price × ratio, with no denomination | Payoff and terms | Every payment is a multiple of the principal amount |
 | A loss is measured against the purchase price | Pricing | Out of scope |

@@ -79,7 +79,7 @@ describe('the adjustment factor', () => {
     const note: Product = { ...plain(), redemption }
     expect(validateProduct(note)).toEqual([])
     expect(maturityPayment(note, { initial: 100, final: 110 })).toBeCloseTo(990, 9)
-    expect(redemptionOutcome(note, [], { initial: 100, final: 110 }, 1).payment).toBeCloseTo(1050, 9)
+    expect(redemptionOutcome(note, [], { initial: 100, final: 110 }, { issuerCallsOnReview: 1 }).payment).toBeCloseTo(1050, 9)
   })
 
   it.each([0, -0.5, Number.NaN, Number.POSITIVE_INFINITY])('rejects a factor of %s', (factor) => {

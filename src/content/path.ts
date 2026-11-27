@@ -145,11 +145,16 @@ export function lineStages(note: Product, b: PaymentBreakdown, levels: Determine
   return stages
 }
 
-// What the scenario pays that the line does not draw: a call before the last review or by the issuer, coupons remembered to the last
+// What the scenario pays that the line does not draw: a call before the last review or by the issuer, a holder's put, coupons remembered to the last
 // review, a barrier reached on an earlier close, and the coupons paid before the end. Empty when the line's payment is the whole story.
 export function scenarioAside(note: Product, levels: DeterminedLevels, outcome?: RedemptionOutcome): string {
   const before = outcome ? outcome.totalPaid - outcome.payment : 0
   const coupons = before > 0 ? ` It also pays ${formatAmount(before)} in coupons on earlier reviews.` : ''
+  // A put pays the line's payment at the put review's level, not at the final level the line's dot reads.
+  if (outcome?.endedBy === 'holder-put' && outcome.put !== undefined) {
+    const withCoupon = outcome.payment - outcome.put.breakdown.payment
+    return `In this scenario the holder puts it on review ${outcome.calledAtReview} and it pays ${formatAmount(outcome.put.breakdown.payment)}: the line’s payment at that review’s level, ${formatAmount(outcome.put.level)}, not at the final level.${withCoupon > 1e-9 ? ` That review’s coupon, ${formatAmount(withCoupon)}, is paid with it.` : ''}${coupons}`
+  }
   const issuer = outcome?.endedBy === 'issuer-call'
   if (outcome?.calledAtReview !== undefined && (issuer || outcome.calledAtReview < outcome.reviews)) {
     return `In this scenario ${issuer ? 'the issuer calls it' : 'it is called'} on review ${outcome.calledAtReview} and pays ${formatAmount(outcome.payment)}, which the line does not show.${coupons}`

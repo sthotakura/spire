@@ -631,6 +631,19 @@ A chart of a floating coupon's rate against its reference rate, under the payoff
 - **Book.** A chart in chapter 20, synthetic, with a 7% cap added to the Citi terms so both corners show. `scripts/book-charts.ts` draws it, through a new `selector` for a chart other than the payoff chart.
 - **Not done:** handles to drag the spread, the floor or the cap, and a coupon axis below zero to show what the floor removes.
 
+## 54. Add the holder put
+
+The holder's right to end a product early, on a review the holder chooses, paying the payment at maturity read at that review's level. The proposal, its sources and the six agreed decisions are in [docs/holder-put.md](docs/holder-put.md).
+
+- **Model.** A third mechanism of an early redemption, `holder-put`, with a `schedule` and an optional `firstReviewMonth`, and no payment term. The schema shows it with an example.
+- **Scope.** A tracker only: upside and downside participation at 100% each and no other payoff feature. Not with a worst-of or best-of basket, an averaged final level, delivery or amortization. Allowed with a weighted basket, lookback, an adjustment factor, a coupon, an autocall and an issuer call.
+- **Scenario.** The holder's choice and, on a review no autocall or coupon reads, the level on it; on one the review table lists, that row's level. `redemptionOutcome` takes them in one options argument with the issuer's choice and the reference rates. The level is read for the payment only, never as a condition.
+- **Order.** On one date the issuer's call, then the holder's put, then the autocall.
+- **Interface.** Puttable under Early redemption, with Reviews and First review, disabled with its reason on a payoff that is not a tracker. The holder's choice and the put level in the scenario; Put in the review table's test column where the date is a row. The calculation works the put out at its level; the chart's aside says the put pays the line at that level.
+- **Sample.** Tracker with a holder put, from the five-year Citigroup note on an equity strategy index, with monthly puts and its factor starting at 100%. Its ⓘ links to the public LuxSE page, not to the repository's copy of the PDF. Tests check the worked examples and the filing's formula at its own strike level.
+- **Book.** A holder put section in chapter 19, covering what is not modelled: a stated put price, conditions of exercise, fees, a put on any business day, leverage, and the issuer's level-tested rights. The JSON in chapter 18 and the feature map.
+- **Not done:** a stated put price, an issuer call at current value, leverage, a put on any business day, and an open-ended term.
+
 ## Later direction: a composable form
 
 Eventually the outline should become a composable form, where the reader builds a note by dragging concepts into place. The model already suits this: the note is composed from small named parts rather than one universal object, the outline has the same shape as the Structure JSON, and each concept has its own row, colour and highlights. The form would be another way to edit the same tree. It is worth building once there are enough concepts to arrange; it is not planned yet.

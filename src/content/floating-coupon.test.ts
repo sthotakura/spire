@@ -18,7 +18,7 @@ const note = (overrides: Partial<Product> = {}): Product => ({
   ...overrides,
 })
 const rates = [0.04, 0.03, 0.015, -0.01, -0.0325, 0, 0.02]
-const outcomeOf = (product: Product, issuerCallsOnReview?: number) => redemptionOutcome(product, [], { initial: 100, final: 75, lastReferenceRate: 0.03 }, issuerCallsOnReview, rates)
+const outcomeOf = (product: Product, issuerCallsOnReview?: number) => redemptionOutcome(product, [], { initial: 100, final: 75, lastReferenceRate: 0.03 }, { issuerCallsOnReview, referenceRates: rates })
 const sentence = (product: Product) => summarize(product).map(({ text }) => text).join('')
 
 describe('the words for a floating coupon', () => {
@@ -48,7 +48,7 @@ describe('the words for a floating coupon', () => {
   // the first review's 4% + 2.75%.
   it('groups reviews only while the reference rate stays the same, so a grouped step states every review\'s working', () => {
     const capped = note({ term: { months: 12 }, coupon: { schedule: { frequency: 'quarterly' }, rate: rate({ cap: 0.06 }) } })
-    const steps = (referenceRates: number[], last: number) => redemptionSteps(capped, redemptionOutcome(capped, [], { initial: 100, final: 75, lastReferenceRate: last }, undefined, referenceRates))
+    const steps = (referenceRates: number[], last: number) => redemptionSteps(capped, redemptionOutcome(capped, [], { initial: 100, final: 75, lastReferenceRate: last }, { referenceRates }))
     const varying = steps([0.04, 0.05, 0.06], 0.06)
     expect(varying.filter(({ title }) => title.startsWith('Coupon')).map(({ title }) => title)).toEqual(['Coupon on review 1 of 4, month 3', 'Coupon on review 2 of 4, month 6', 'Coupon on review 3 of 4, month 9', 'Coupon on review 4 of 4, month 12'])
     expect(varying[1].how).toContain('5% + 2.75% = 7.75%, lowered to the cap, 6%')

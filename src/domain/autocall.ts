@@ -1,5 +1,5 @@
 import { amortizationSchedule, type Instalment } from './amortization'
-import { autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, callReviewMonth, couponPerReview, couponRateOn, floatingRateOf, issuerCallOf, referenceRateLimits, lastCallReview, maturityPayment, mechanismReviewCount, reviewDates, scheduleReviews, triggerAtReview, paymentBreakdown, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
+import { autocallOf, holderPutOf, barrierLevelAt, callAmountAtReview, callReviewCount, callReviewMonth, couponPerReview, couponRateOn, floatingRateOf, issuerCallOf, referenceRateLimits, lastCallReview, maturityPayment, mechanismReviewCount, reviewDates, scheduleReviews, triggerAtReview, paymentBreakdown, validateProduct, type DeterminedLevels, type PaymentBreakdown, type Product } from './note'
 
 // The level at or above which the final review calls the product, from the determined initial level. Undefined when the final review
 // is not a call.
@@ -91,9 +91,13 @@ export interface RedemptionOutcome {
   // the end of the term.
   calledAtReview?: number
   // The mechanism that ended the product early, if one did.
-  endedBy?: 'autocall' | 'issuer-call'
-  // The review the scenario has the issuer call on, when an autocall ended the product before it.
+  endedBy?: 'autocall' | 'issuer-call' | 'holder-put'
+  // The review the scenario has the issuer call on, when something else ended the product before it.
   issuerCallNotReached?: number
+  // The review the scenario has the holder put on, when something else ended the product before it.
+  holderPutNotReached?: number
+  // The holder's put that ended the product: the level on its review, and the maturity formula read at that level, which is what it pays.
+  put?: { level: number; breakdown: PaymentBreakdown }
   // The number of the call's reviews, the last of which is the end of the term: one for a bullet product.
   reviews: number
   // The call reviews up to and including the call, or every call review that is tested when there is none. An issuer call has no
@@ -117,6 +121,17 @@ export interface RedemptionOutcome {
   instalments?: Instalment[]
 }
 
+// What the scenario chooses and states beyond the levels: the issuer's call, the holder's put, and a floating coupon's reference rates.
+export interface ScenarioChoices {
+  // The number of the issuer call's review the issuer calls on, or undefined when it does not call.
+  issuerCallsOnReview?: number
+  // The holder put's review the holder puts on, and the level on it, or undefined when the holder does not put. The level is stated only
+  // for a put review that no autocall or coupon reads: on one that is also among reviewDates, the put reads that date's review level.
+  holderPut?: { review: number; level?: number }
+  // The reference rates a year for each coupon review before the last, in order, for a floating coupon.
+  referenceRates?: number[]
+}
+
 // How a product ends in a scenario, and what its coupon pays. `reviewLevels` are the levels of the underlier on each date before the
 // last of reviewDates, in order: the dates an autocall or a coupon reads, a date on both once. Each is the asset's level, or for a
 // basket its level from basketLevelFrom. `levels` are the determined levels the payoff reads at the end of the term, as for
@@ -124,12 +139,18 @@ export interface RedemptionOutcome {
 // after which no date is read. The last call review is the end of the term: it pays the payoff, unless the product also calls on the
 // final review, in which case the final level is tested against the trigger like any other review.
 //
-// An issuer call reads no level. The issuer's choice is a scenario input, `issuerCallsOnReview`: the number of the call review it calls
-// on, or undefined when it does not call, and the product runs to maturity.
+// An issuer call reads no level. The issuer's choice is a scenario input, `choices.issuerCallsOnReview`: the number of the call review
+// it calls on, or undefined when it does not call, and the product runs to maturity.
 //
-// With both, the product ends on the earlier of the two, compared by month since each has its own reviews. On a month that is both the
-// issuer's call comes first and no level is read for the autocall. That follows the one rule found in a filing: a call notice sent on
-// the day an automatic call is triggered governs (docs/early-redemption-rights.md).
+// A holder put is the holder's choice, `choices.holderPut`: the put review and the level on it. The level is read only for the payment,
+// which is the maturity formula at that level (docs/holder-put.md). On a put review that is also among reviewDates the level is that
+// date's review level, so the two cannot disagree.
+//
+// With more than one, the product ends on the earliest, compared by month since each has its own reviews. On a month that is more than
+// one, the issuer's call comes first, then the holder's put, and no level is read for the autocall. The issuer ahead of an automatic
+// call follows the one rule found in a filing: a call notice sent on the day an automatic call is triggered governs; the issuer ahead of
+// the holder is stated in two (docs/early-redemption-rights.md). The holder ahead of the autocall is an assumption: a party's notice is
+// given before the date, so it comes before an automatic test of that date's level.
 //
 // A coupon is tested on each of its reviews up to the date the product ends. A coupon review on that date pays with the call or the
 // maturity payment; the ones before pay on their own. A non-contingent coupon reads no level, so its reviews are not among reviewDates:
@@ -138,7 +159,8 @@ export interface RedemptionOutcome {
 // A floating coupon's rate on each review comes from its reference rate. `referenceRates` are the reference rates a year for each coupon
 // review before the last, in order, and `levels.lastReferenceRate` the last one's, as the review levels and the final level are. The
 // scenario gives every review's rate, but only those up to the date the product ends are read: a rate after a call changes nothing.
-export function redemptionOutcome(note: Product, reviewLevels: number[], levels: DeterminedLevels, issuerCallsOnReview?: number, referenceRates?: number[]): RedemptionOutcome {
+export function redemptionOutcome(note: Product, reviewLevels: number[], levels: DeterminedLevels, choices: ScenarioChoices = {}): RedemptionOutcome {
+  const { issuerCallsOnReview, holderPut: putChoice, referenceRates } = choices
   const errors = validateProduct(note)
   if (errors.length) throw new Error(errors.join(' '))
   const reviews = callReviewCount(note)!
@@ -146,12 +168,14 @@ export function redemptionOutcome(note: Product, reviewLevels: number[], levels:
   const before = Math.max(dates.length - 1, 0)
   const autocall = autocallOf(note.redemption)
   const issuerCall = issuerCallOf(note.redemption)
+  const holderPut = holderPutOf(note.redemption)
   if (reviewLevels.length !== before) {
-    if (!dates.length) throw new Error(issuerCall !== undefined ? 'An issuer call with no coupon reads no review levels.' : 'A product with no autocall or coupon has no reviews before the last.')
+    if (!dates.length) throw new Error(issuerCall !== undefined ? 'An issuer call with no coupon reads no review levels.' : holderPut !== undefined ? 'A holder put with no autocall or contingent coupon reads no review levels: the put date’s level is stated with the put.' : 'A product with no autocall or coupon has no reviews before the last.')
     throw new Error(`Expected a level for each of ${before} reviews before the last.`)
   }
   if (reviewLevels.some((level) => !Number.isFinite(level) || level < 0)) throw new Error('Review levels must be zero or greater.')
   if (issuerCallsOnReview !== undefined && issuerCall === undefined) throw new Error('Only an issuer call is called by the issuer.')
+  if (putChoice !== undefined && holderPut === undefined) throw new Error('Only a holder put is put by the holder.')
   const allRates = referenceRatesOf(note, referenceRates, levels.lastReferenceRate)
   // An amortizing product reads no level, so the payoff's levels are not checked, and is not called: it pays its instalments to the end of the term.
   const instalments = amortizationSchedule(note)
@@ -173,9 +197,24 @@ export function redemptionOutcome(note: Product, reviewLevels: number[], levels:
     called = { review: issuerCallsOnReview, month, callAmount: callAmountAtReview(issuerCall, month) }
   }
   const issuerChoice = called
+  let holderChoice: { review: number; month: number; callAmount: number; level: number; breakdown: PaymentBreakdown } | undefined
+  if (holderPut !== undefined && putChoice !== undefined) {
+    const last = lastCallReview(holderPut, mechanismReviewCount(note.term, holderPut)!)
+    const { review } = putChoice
+    if (!Number.isInteger(review) || review < 1 || review > last) throw new Error(`The holder can put on reviews 1 to ${last}.`)
+    const month = callReviewMonth(holderPut, review)
+    const read = dates.findIndex((date) => date.month === month)
+    if (read !== -1 && putChoice.level !== undefined) throw new Error('A put review that is also an autocall or coupon review reads that review’s level.')
+    const level = read === -1 ? putChoice.level : reviewLevels[read]
+    if (level === undefined || !Number.isFinite(level) || level < 0) throw new Error('The level on the put review must be zero or greater.')
+    holderChoice = { review, month, callAmount: 0, level, breakdown: paymentBreakdown(note, { initial: levels.initial, final: level }) }
+  }
+  // The issuer's call comes before the holder's put on the same month.
+  const chosen = holderChoice !== undefined && (issuerChoice === undefined || holderChoice.month < issuerChoice.month) ? holderChoice : issuerChoice
+  called = chosen
   if (autocall !== undefined) {
     for (const [index, { call: review, month }] of dates.entries()) {
-      if (issuerChoice !== undefined && month >= issuerChoice.month) break
+      if (chosen !== undefined && month >= chosen.month) break
       // The last review is the end of the term and is not tested, unless the final review is a call too.
       if (review === undefined || (review === reviews && !autocall.callOnFinalReview)) continue
       const level = levelOn(index)
@@ -196,11 +235,25 @@ export function redemptionOutcome(note: Product, reviewLevels: number[], levels:
   const coupons = couponTests(note, couponReviews, levels.initial, allRates)
   const ending = coupons.find((test) => test.month === months)?.paid ?? 0
   const earlier = coupons.filter((test) => test.month < months && test.paid > 0).map(({ month, paid }): Payment => ({ month, coupon: paid, redemption: 0, amount: paid }))
-  const paidAtEnd = called ? note.principalAmount * (1 + called.callAmount) : maturity.payment
+  const endedBy = called === undefined ? undefined : called === issuerChoice ? 'issuer-call' as const : called === holderChoice ? 'holder-put' as const : 'autocall' as const
+  const paidAtEnd = holderChoice !== undefined && endedBy === 'holder-put' ? holderChoice.breakdown.payment : called ? note.principalAmount * (1 + called.callAmount) : maturity.payment
   const payment = paidAtEnd + ending
   const payments = [...earlier, { month: months, coupon: ending, redemption: paidAtEnd, amount: payment }]
-  const endedBy = called === undefined ? undefined : called === issuerChoice ? 'issuer-call' as const : 'autocall' as const
-  return { calledAtReview: called?.review, endedBy, issuerCallNotReached: endedBy === 'autocall' ? issuerChoice?.review : undefined, reviews, tests, months, payment, maturity, coupons, totalPaid: payments.reduce((sum, { amount }) => sum + amount, 0), payments }
+  return {
+    calledAtReview: called?.review,
+    endedBy,
+    issuerCallNotReached: issuerChoice !== undefined && endedBy !== 'issuer-call' ? issuerChoice.review : undefined,
+    holderPutNotReached: holderChoice !== undefined && endedBy !== 'holder-put' ? holderChoice.review : undefined,
+    ...(holderChoice !== undefined && endedBy === 'holder-put' ? { put: { level: holderChoice.level, breakdown: holderChoice.breakdown } } : {}),
+    reviews,
+    tests,
+    months,
+    payment,
+    maturity,
+    coupons,
+    totalPaid: payments.reduce((sum, { amount }) => sum + amount, 0),
+    payments,
+  }
 }
 
 // Every coupon review's reference rate, in order, for a floating coupon: those before the last and the last. Undefined for a fixed rate,

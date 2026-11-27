@@ -1,6 +1,6 @@
 # Reviews and early redemption
 
-Some products are tested on a series of dates through their life, not only at the end. A **review** is one of those dates: the underlier is read, a condition is checked, and something may happen. The simplest thing that can happen is that the product ends early. This chapter explains the reviews of a product, the automatic early redemption, the autocall, and the early redemption at the issuer's option, the issuer call, that the reference models. It ends with amortization, which repays principal in parts on the reviews instead of ending the product.
+Some products are tested on a series of dates through their life, not only at the end. A **review** is one of those dates: the underlier is read, a condition is checked, and something may happen. The simplest thing that can happen is that the product ends early. This chapter explains the reviews of a product, the automatic early redemption, the autocall, the early redemption at the issuer's option, the issuer call, and the early redemption at the holder's option, the holder put, that the reference models. It ends with amortization, which repays principal in parts on the reviews instead of ending the product.
 
 ## Reviews
 
@@ -147,6 +147,65 @@ A synthetic note with principal of 1,000, a term of 12 months, an initial level 
 
 An issuer call is not available with a barrier observed on every close or with barrier absolute return, for the reason an autocall is not: a called product ends before the observation period does. Lookback is allowed, since nothing is read on the reviews. Averaging is allowed, and the final level is read only if the issuer does not call.
 
+## A holder put
+
+A **holder put** is the holder's right to end a product early: on a review the holder chooses, the holder may require the issuer to redeem it. It is the mirror of an issuer call. The party who holds the option is different, so a scenario states the holder's choice, not the issuer's, and nothing tests the underlier: the holder may put on any review of its schedule, whatever the underlier does. Public documents call it an investor put, a holder's repurchase right, or a redemption at the option of the holder.
+
+### What a put pays
+
+Public products pay a put in one of two ways.
+
+- **A stated price.** Some rate notes state a price for each put date. A Citigroup floating rate note due 2066 may be repurchased each year from May 2029, at $970 per $1,000 in 2029 and 2030, rising to $980, $990 and then $1,000 from 2037, plus accrued interest ([Citigroup Global Markets Holdings, 424B2](https://www.sec.gov/Archives/edgar/data/200245/000095010326008002/dp247495_424b2-26nir051422d.htm)). A BofA Finance floating rate note has the same stepped shape, from 97% to 100% of principal ([BofA Finance, 424B2](https://www.sec.gov/Archives/edgar/data/1682472/000191870425003048/form424b2.htm)). No equity-linked product read states a price for each put date.
+- **Current value under the product's own formula.** The equity-linked products with a put pay what their own formula gives on the date of the put. A five-year Citigroup note on an equity strategy index pays, at maturity and on a put alike, `CA × Max[0, 1 + Leverage × Index Amount]`, with the index amount read on the date the holder's notice names ([Citigroup Global Markets Funding Luxembourg, pricing supplement](https://www.luxse.com/pdf-viewer/105692613)). Open-ended tracker certificates and exchange-traded notes do the same, sometimes less a fee ([UBS, termsheet](https://keyinvest-ch-fr.ubs.com/filedb/deliver/xuuid/g001b82e5defe78560eb1b87ce552da87a48/name/DE000UBS1SV7_Termsheet_en.pdf); [BCV, termsheet](https://www.bcv.ch/termsheet/54357232_en.pdf); [JPMorgan, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390023097004/ea167102_424b2.htm)).
+
+The reference models the second. A put pays the payment at maturity, worked out with the level on the put review as the final level, and the adjustment factor applies, since it is part of that formula. The level is read only to work out the payment. It is not a condition of the put.
+
+### Why a tracker only
+
+The reference allows a put on a **tracker** only: upside and downside participation at 100% each way, and no other payoff feature. That is what the equity-linked sources are, and it is where the formula read early means what it says.
+
+A tracker's payment is a straight line in the underlier. At 120 its formula pays 1,200, and that is what the product is worth under its terms whether it is read today or at maturity. A payoff that bends is different. Take a note with a 70% barrier and the underlier at 75 in month 12. Its maturity formula says 1,000, because the level is above the barrier. But before maturity the underlier can still fall below 70, so a holder able to leave at 1,000 would escape that risk for nothing. What the note is worth on that date needs a pricing model, which the reference does not have. The same reasoning rules out a worst-of or best-of basket, whose return bends; an averaged final level, which reads dates after the put; and delivery, which is defined at the final date. A weighted basket is allowed, since its level is a straight line in its assets.
+
+### An example
+
+A synthetic tracker with principal of 1,000, a term of 24 months, an initial level of 100, and put reviews every six months from month 12. The holder can put on reviews 1 and 2, in months 12 and 18.
+
+| Scenario | What happens | Months | Paid |
+| :--- | :--- | ---: | ---: |
+| The holder puts in month 12, with the level at 120 | The payoff at 120: 1,000 × (1 + 20%) | 12 | 1,200 |
+| The holder puts in month 18, with the level at 80 | The payoff at 80: 1,000 × (1 − 20%) | 18 | 800 |
+| The holder does not put, and the level ends at 110 | The payment at maturity | 24 | 1,100 |
+| With an adjustment factor of 99%, the holder puts in month 12 at 120 | 1,000 × 120 × 0.99 ÷ 100 | 12 | 1,188 |
+
+A put can pay less than principal: the put in month 18 at 80 is a loss of 13.82% a year over the 18 months it lasted. The put does not protect the holder; it lets the holder leave at what the product is worth then.
+
+### A holder put beside a call
+
+A product can have a holder put beside an autocall, an issuer call or both, each on its own reviews. Whichever comes first ends the product. On a date that is on more than one schedule, the issuer's call comes first, then the holder's put, then the autocall. The issuer ahead of the holder is stated in two sources: one tracker certificate lets the investor terminate "provided that the Issuer has not already exercised its right of termination" ([BCV, termsheet](https://www.bcv.ch/termsheet/54357232_en.pdf)), and an exchangeable bond states that "the first of such notices to be given shall prevail" ([Citigroup Global Markets Funding Luxembourg, listing particulars](https://ise-prodnr-eu-west-1-data-integration.s3-eu-west-1.amazonaws.com/legacy/ListingParticulars_434c73cc-f762-4800-b534-50fe04c22078.PDF)). The holder ahead of the autocall is a stated assumption with no source: a party gives notice before the date, so its choice comes before an automatic test of that date's level.
+
+The same synthetic tracker, now with an issuer call on the same reviews at no premium, or with a quarterly autocall at a 100% trigger paying 8%:
+
+| Scenario | How it ends | Months | Paid |
+| :--- | :--- | ---: | ---: |
+| The issuer calls in month 12, and the holder would have put in month 18 | The issuer's call: principal | 12 | 1,000 |
+| Both act in month 12, with the level at 120 | The issuer's call comes first | 12 | 1,000 |
+| With the autocall, the level is 105 in month 3, and the holder would have put in month 12 | The autocall comes first | 3 | 1,080 |
+| With the autocall's first review in month 12, the holder puts in month 12 at 120 | The holder's put comes first, and the trigger is not tested | 12 | 1,200 |
+
+On a put review that is also an autocall or coupon review, the put reads that review's level, so the two cannot disagree. A coupon review on the put date pays with the put.
+
+### A holder's right, not a trigger
+
+Some of the same products also let the issuer end them when the underlier has fallen far. The Citigroup note above lets the issuer elect to redeem if the index closes at or below 50% of its strike level, and a basket certificate ends automatically below 60% of its start level ([Ensemble Investment Corporation, pricing supplement](https://www.luxse.com/pdf-viewer/105516177)). A level decides those, and they belong to the issuer or to the terms. The holder's put has no level test at all. The reference models neither of those issuer's rights, since its issuer call pays principal plus a call amount, not current value.
+
+### What the reference does not model
+
+- **A stated put price**, as on the rate notes above.
+- **Conditions of exercise.** Real puts set a minimum amount, such as $10,000 of principal; whether part of a holding can be put, or only all of it; a notice period, such as fifteen business days or one; and that a notice cannot be revoked once given. These govern how a holder exercises the right, not what a note pays, and the reference models one note.
+- **Fees.** Several sources deduct a running fee, and two a charge of 0.125% on a put. The Citigroup note's execution cost of 0.80% on the way in and out is a fixed ratio, which the adjustment factor states.
+- **A put on any business day.** The Citigroup note can be put on any index business day; the reference's finest schedule is monthly.
+- **Leverage.** A leveraged certificate pays a rate above 100% of the move both ways, down to a floor at zero. The Citigroup formula has the shape, with its leverage at 100%. It needs a downside rate above 100%, which the reference does not have.
+
 ## Amortization
 
 An **amortizing** note repays its principal in parts during its term, not in one amount at the end. Each part is an **instalment**: interest on the principal still outstanding, for the period that ends on the review, and a repayment of principal with the rest. The principal still owed after an instalment is the **outstanding principal**, and the next coupon is measured on it, so the coupons fall as the principal is repaid. The reference lists amortization under early redemption because each instalment repays part of the principal before maturity. Unlike a call, it ends nothing: the note runs to the end of its term.
@@ -215,6 +274,12 @@ public notes they are modelled on:
   the worst of three indices, two years, which the issuer may call on any
   monthly review from month 6. The coupon of 11.30% a year is paid at a 75%
   barrier, without memory, and a downside barrier at 70% applies.
+- [Tracker with a holder put](https://sthotakura.github.io/spire/?example=tracker-with-a-holder-put):
+  five years on a synthetic strategy index, one for one both ways, which the
+  holder may put on any monthly review. A put in month 24 with the level at 130
+  pays 1,300. The Citigroup note it follows deducts 0.80% on the way in and
+  out, an adjustment factor of about 98.41% that can be set under Redemption,
+  at which the same put pays 1,279.37.
 - [Level-pay amortizing note](https://sthotakura.github.io/spire/?example=level-pay-amortizing-note):
   the last ten years of the Barclays note above, from the 10,068.58 it has
   outstanding after five years. It pays 100.00 a month at 3.59231% a year: the
@@ -224,6 +289,7 @@ public notes they are modelled on:
 ## Assumptions and sources
 
 - The calls and reviews follow public auto-callable notes, such as an auto-callable contingent interest note whose automatic call can occur only from a later date ([JPMorgan Chase Financial Company LLC, 424B2](https://www.sec.gov/Archives/edgar/data/19617/000121390026108339/ea0308243-01_424b2.htm)), a ten-year autocallable note first valued after a year and quarterly after that ([Citigroup Global Markets Holdings Inc., 424B2](https://www.sec.gov/Archives/edgar/data/200245/000191870426031411/form424b2.htm)), and a step-down trigger autocallable note whose call threshold falls on each observation date, whose call return grows with time, and whose final valuation date is also tested for a call ([UBS AG, 424B2](https://www.sec.gov/Archives/edgar/data/1114446/000183988225047092/ubs_424b2-26373.htm)).
+- A holder put pays the maturity formula at the level on the put review, on a tracker only. The sources are recorded in the reference's research notes, with a five-year Citigroup note on an equity strategy index as the sample ([Citigroup Global Markets Funding Luxembourg, pricing supplement](https://www.luxse.com/pdf-viewer/105692613)). The order of an issuer's call, a holder's put and an autocall on one date is partly sourced and partly assumed, as the section above says.
 - An issuer call can be an election or a rule read from a valuation model. The reference states the call in a scenario either way, and does not model the decision ([Morgan Stanley Finance, 424B2](https://www.sec.gov/Archives/edgar/data/895421/000183988226049760/ms19348_424b2-33763.htm)).
 - The Swiss Structured Products Association describes an autocall as an obligation to repay early when the underlyings are above the trigger on a predetermined observation date, and a softcall as an issuer option on such dates ([SSPA](https://sspa.ch/en/lab/)).
 - The reviews are evenly spaced whole numbers of months. Public notes list dates that shift with weekends and holidays.
@@ -235,7 +301,7 @@ public notes they are modelled on:
 
 ## What is not modelled
 
-A trigger that steps by uneven amounts, a premium on an issuer call that a source states, notice periods, and a schedule of payments. Each would be added on top of the reviews described here. For amortization: instalments that are not level, a short first period such as the Novanta note's, amortization beside a call, and terms beyond the reference's 120 months, such as the Barclays note's 180.
+A trigger that steps by uneven amounts, a premium on an issuer call that a source states, an issuer call at current value, a holder put at a stated price or beside a payoff that is not a tracker, notice periods, and a schedule of payments. Each would be added on top of the reviews described here. For amortization: instalments that are not level, a short first period such as the Novanta note's, amortization beside a call, and terms beyond the reference's 120 months, such as the Barclays note's 180.
 
 ## Related concepts
 

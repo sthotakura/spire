@@ -113,6 +113,16 @@ an empty payoff:
 "redemption": { "kind": "early-redemption", "mechanisms": [{ "kind": "amortization", "schedule": { "frequency": "quarterly" }, "method": "level-payment" }] }
 ```
 
+A holder put is a mechanism of early redemption with a schedule and an optional
+first review, and no payment term: it pays the payment at maturity read at the
+put review's level. It needs a tracker, 100% participation each way and nothing
+else. Whether the holder puts, and the level on that review, are scenario
+inputs, so they are not in the structure:
+
+```json
+"redemption": { "kind": "early-redemption", "mechanisms": [{ "kind": "holder-put", "schedule": { "frequency": "monthly" }, "firstReviewMonth": 1 }] }
+```
+
 ## Reading the terms
 
 Rates are fractions: `1.5` means 150% participation; `0.2` means a 20% cap.

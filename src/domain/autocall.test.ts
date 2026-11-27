@@ -408,7 +408,7 @@ describe('an autocall and an issuer call on one product', () => {
   const quarterly: Autocall = { kind: 'autocall', schedule: { frequency: 'quarterly' }, trigger: 1, callAmount: 0.08 }
   const semiAnnual: IssuerCall = { kind: 'issuer-call', schedule: { frequency: 'semi-annual' }, callAmount: 0.02 }
   const both = (overrides: Partial<Product> = {}, mechanisms: EarlyMechanism[] = [quarterly, semiAnnual]): Product => ({ ...startingProduct, term: { months: 12 }, redemption: { kind: 'early-redemption', mechanisms }, ...overrides })
-  const outcomeOf = (reviewLevels: number[], issuerCallsOnReview?: number, product = both()) => redemptionOutcome(product, reviewLevels, levels, issuerCallsOnReview)
+  const outcomeOf = (reviewLevels: number[], issuerCallsOnReview?: number, product = both()) => redemptionOutcome(product, reviewLevels, levels, { issuerCallsOnReview })
 
   it('is valid, in either order', () => {
     expect(fieldsOf(both())).toEqual([])
@@ -480,7 +480,7 @@ describe('the autocall and issuer call example in the book', () => {
     ['the autocall in month 9', [90, 90, 105], undefined, 100, 9, 1080],
     ['neither ends it', [90, 90, 90], undefined, 70, 12, 700],
   ])('%s', (_, reviewLevels, issuerCallsOnReview, final, months, payment) => {
-    expect(redemptionOutcome(note, reviewLevels, { initial: 100, final }, issuerCallsOnReview)).toMatchObject({ months, payment })
+    expect(redemptionOutcome(note, reviewLevels, { initial: 100, final }, { issuerCallsOnReview })).toMatchObject({ months, payment })
   })
 })
 
@@ -524,7 +524,7 @@ describe('an issuer call', () => {
   })
 
   it('pays principal plus the call amount on the review the issuer calls, whatever the level', () => {
-    const outcome = redemptionOutcome(issuerCall(), [], { initial: 100, final: 70 }, 5)
+    const outcome = redemptionOutcome(issuerCall(), [], { initial: 100, final: 70 }, { issuerCallsOnReview: 5 })
     expect(outcome.calledAtReview).toBe(5)
     expect(outcome.months).toBe(5)
     expect(outcome.payment).toBe(1020)
@@ -533,26 +533,26 @@ describe('an issuer call', () => {
   })
 
   it('pays principal only on a call with no call amount', () => {
-    expect(redemptionOutcome(issuerCall({ callAmount: 0 }), [], levels, 3).payment).toBe(1000)
+    expect(redemptionOutcome(issuerCall({ callAmount: 0 }), [], levels, { issuerCallsOnReview: 3 }).payment).toBe(1000)
   })
 
   it('pays a call amount for each year elapsed when it accrues', () => {
     const accruing = issuerCall({ callAmount: 0.1, callAmountBasis: 'per-year' })
-    expect(redemptionOutcome(accruing, [], levels, 6).payment).toBeCloseTo(1050, 9)
-    expect(redemptionOutcome(accruing, [], levels, 11).payment).toBeCloseTo(1000 * (1 + (0.1 * 11) / 12), 9)
+    expect(redemptionOutcome(accruing, [], levels, { issuerCallsOnReview: 6 }).payment).toBeCloseTo(1050, 9)
+    expect(redemptionOutcome(accruing, [], levels, { issuerCallsOnReview: 11 }).payment).toBeCloseTo(1000 * (1 + (0.1 * 11) / 12), 9)
   })
 
   it('is called from its first review, in its month, and not on the last review', () => {
     const delayed = issuerCall({ firstReviewMonth: 6 })
-    expect(redemptionOutcome(delayed, [], levels, 1)).toMatchObject({ calledAtReview: 1, months: 6 })
-    expect(redemptionOutcome(delayed, [], levels, 6)).toMatchObject({ calledAtReview: 6, months: 11 })
-    expect(() => redemptionOutcome(delayed, [], levels, 7)).toThrow(/reviews 1 to 6/)
+    expect(redemptionOutcome(delayed, [], levels, { issuerCallsOnReview: 1 })).toMatchObject({ calledAtReview: 1, months: 6 })
+    expect(redemptionOutcome(delayed, [], levels, { issuerCallsOnReview: 6 })).toMatchObject({ calledAtReview: 6, months: 11 })
+    expect(() => redemptionOutcome(delayed, [], levels, { issuerCallsOnReview: 7 })).toThrow(/reviews 1 to 6/)
   })
 
   it('reads no review levels, and only an issuer call takes the issuer\'s choice', () => {
     expect(() => redemptionOutcome(issuerCall(), flat(11), levels)).toThrow(/no review levels/)
-    expect(() => redemptionOutcome(callable(), flat(11), levels, 3)).toThrow(/issuer call/)
-    expect(() => redemptionOutcome(startingProduct, [], levels, 3)).toThrow()
+    expect(() => redemptionOutcome(callable(), flat(11), levels, { issuerCallsOnReview: 3 })).toThrow(/issuer call/)
+    expect(() => redemptionOutcome(startingProduct, [], levels, { issuerCallsOnReview: 3 })).toThrow()
   })
 
   it('draws the same payment at the end of the term as the payoff does', () => {
@@ -572,15 +572,15 @@ describe('the issuer call example in the book', () => {
     ['does not call, ends at 70', undefined, 70, 12, 700],
     ['calls on review 3, in month 5, level 70', 3, 70, 5, 1020],
   ])('%s', (_, review, final, months, payment) => {
-    const outcome = redemptionOutcome(note, [], { initial: 100, final }, review)
+    const outcome = redemptionOutcome(note, [], { initial: 100, final }, { issuerCallsOnReview: review })
     expect(outcome.months).toBe(months)
     expect(outcome.payment).toBeCloseTo(payment, 9)
   })
 
   it('can be called on reviews 1 to 9, in months 3 to 11', () => {
-    expect(() => redemptionOutcome(note, [], levels, 10)).toThrow(/reviews 1 to 9/)
-    expect(redemptionOutcome(note, [], levels, 1).months).toBe(3)
-    expect(redemptionOutcome(note, [], levels, 9).months).toBe(11)
+    expect(() => redemptionOutcome(note, [], levels, { issuerCallsOnReview: 10 })).toThrow(/reviews 1 to 9/)
+    expect(redemptionOutcome(note, [], levels, { issuerCallsOnReview: 1 }).months).toBe(3)
+    expect(redemptionOutcome(note, [], levels, { issuerCallsOnReview: 9 }).months).toBe(11)
   })
 
   it('annualises a call after 5 months at 2% to 4.87% a year', () => {

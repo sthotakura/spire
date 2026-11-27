@@ -1,4 +1,4 @@
-import { amortizationOf, autocallOf, downsideOf, fixedRateOf, issuerCallOf, upsideOf, type Product } from '../domain/note'
+import { amortizationOf, autocallOf, downsideOf, fixedRateOf, holderPutOf, issuerCallOf, upsideOf, type Product } from '../domain/note'
 import type { ConceptId } from './concepts'
 
 export interface MarketingName {
@@ -30,14 +30,23 @@ export function productCategory(note: Product): ProductCategory | undefined {
   // A coupon in place of upside, fixed or contingent, as in the Swiss Express and reverse convertible types, with or without a call.
   if (note.wrapper === 'note' && note.coupon !== undefined && upside === undefined) return 'Yield Enhancement'
   // A call without a coupon, or a coupon beside upside participation, is not placed, so it gets no category.
-  if (note.wrapper === 'note' && note.redemption.kind === 'bullet' && note.coupon === undefined && (isRate(upside) || isRate(downside))) return 'Participation'
+  if (note.wrapper === 'note' && maturityOrPut(note) && note.coupon === undefined && (isRate(upside) || isRate(downside))) return 'Participation'
   return undefined
 }
+
+// Whether the product pays only its payoff: at maturity, or earlier when the holder puts, which pays the same formula at the put review's
+// level (docs/holder-put.md). A put is allowed on a tracker only, so a name that rests on following the underlier still describes it.
+const maturityOrPut = (note: Product) => note.redemption.kind === 'bullet' || note.redemption.mechanisms.every(({ kind }) => kind === 'holder-put')
 
 // The names below describe the payment at maturity. A call or a coupon changes what the product pays, so the reason says so.
 function maturityOnlyNote(note: Product, name: string): string {
   const parts: string[] = []
-  if (note.redemption.kind !== 'bullet') parts.push(`The name describes the payment at maturity; ${autocallOf(note.redemption) ? (issuerCallOf(note.redemption) ? 'an autocall or an issuer call' : 'an autocall') : 'an issuer call'} can end the product earlier.`)
+  if (note.redemption.kind !== 'bullet' && maturityOrPut(note)) parts.push('A holder put can end the product earlier, paying the same formula at the level on the put review.')
+  else if (note.redemption.kind !== 'bullet') {
+    const early = [autocallOf(note.redemption) ? 'an autocall' : '', issuerCallOf(note.redemption) ? 'an issuer call' : '', holderPutOf(note.redemption) ? 'a holder put' : ''].filter(Boolean)
+    const listed = early.length > 2 ? `${early.slice(0, -1).join(', ')} or ${early.at(-1)}` : early.join(' or ')
+    parts.push(`The name describes the payment at maturity; ${listed} can end the product earlier.`)
+  }
   if (note.coupon !== undefined) parts.push(note.coupon.barrier === undefined ? `The name does not cover the ${fixedRateOf(note.coupon) === undefined ? 'floating coupon, paid on every coupon review at its reference rate' : 'fixed coupon, paid on every coupon review'}.` : 'The name does not cover the contingent coupon, paid on the reviews that meet its barrier.')
   if (note.payoff.digitalReturn !== undefined && name !== 'Digital return note') parts.push('The name does not cover the digital return, a fixed return paid as a minimum at or above its barrier.')
   return parts.join(' ')
@@ -105,10 +114,10 @@ export function marketingNames(note: Product): MarketingName[] {
 
   // Without protection, a buffer or a barrier (on either direction), and without a cap except for Outperformance. A value that is present
   // but invalid is not absent, so a draft with one gets no name here. These names describe notes, so a deposit gets none of them. They
-  // describe a note that only follows the underlier to maturity, so a call or a coupon rules them out. Outperformance allows a cap
+  // describe a note that only follows the underlier, to maturity or to a holder's put, so a call or a coupon rules them out. Outperformance allows a cap
   // because the SSPA map's glossary lists capped participation as an additional feature that can be added to a product type, not a type of its own.
   const unprotected = protection === undefined || protection === 0
-  if (note.wrapper === 'note' && note.redemption.kind === 'bullet' && note.coupon === undefined && note.payoff.digitalReturn === undefined && unprotected && buffer === undefined && barrier === undefined && upsideBarrier === undefined && (cap === undefined || hasCap) && isRate(upside) && (downside === undefined || isRate(downside))) {
+  if (note.wrapper === 'note' && maturityOrPut(note) && note.coupon === undefined && note.payoff.digitalReturn === undefined && unprotected && buffer === undefined && barrier === undefined && upsideBarrier === undefined && (cap === undefined || hasCap) && isRate(upside) && (downside === undefined || isRate(downside))) {
     if (downside === 1 && upside === 1 && cap === undefined) {
       names.push({ name: 'Tracker', vocabulary: 'SSPA', reason: 'Participation is one for one, up and down: a rate of 100% in each direction.', concepts: ['upside', 'downside'] })
       // The same payoff under the name in the titles of public notes. Seller usage, and the filings read do not define it, so the reason gives the general meaning of delta.

@@ -1,5 +1,5 @@
 import { annualisedReturnOfPayments, type CouponTest, type RedemptionOutcome, type ReviewTest } from '../domain/autocall'
-import { amortizationOf, annualisedReturn, autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, couponPerReview, firstReviewMonthOf, floatingRateOf, issuerCallOf, mechanismReviewCount, callsOf, monthsPerReview, reviewCount, reviewDates, scheduleReviews, triggerAtReview, type Autocall, type CallMechanism, type IssuerCall, type Product, type ReviewDate } from '../domain/note'
+import { amortizationOf, annualisedReturn, autocallOf, barrierLevelAt, callAmountAtReview, callReviewCount, couponPerReview, firstReviewMonthOf, floatingRateOf, holderPutOf, issuerCallOf, mechanismReviewCount, callsOf, monthsPerReview, reviewCount, reviewDates, scheduleReviews, triggerAtReview, type Autocall, type CallMechanism, type HolderPut, type IssuerCall, type Product, type ReviewDate } from '../domain/note'
 import type { CalculationStep } from './calculation'
 import type { FormulaLine } from './formula'
 
@@ -14,6 +14,7 @@ export function explainRedemption(note: Product, outcome: RedemptionOutcome): st
   // Amortization ends nothing; its sentence is explainAmortization's.
   if (note.redemption.kind === 'bullet' || amortizationOf(note.redemption) !== undefined) return ''
   const autocall = autocallOf(note.redemption)
+  if (outcome.endedBy === 'holder-put') return explainHolderPut(note, outcome)
   if (autocall === undefined || outcome.endedBy === 'issuer-call') return explainIssuerCall(note, outcome)
   const { calledAtReview, tests, reviews, months, payment } = outcome
   const test = calledAtReview === undefined ? undefined : tests[calledAtReview - 1]
@@ -21,18 +22,71 @@ export function explainRedemption(note: Product, outcome: RedemptionOutcome): st
     const reviewed = `No review${autocall.callOnFinalReview ? ', including the last,' : ' before the last'} was`
     // The trigger is one level unless it steps, when each review has its own.
     const trigger = autocall.triggerStep ? 'its trigger' : `the ${units(tests[0]?.triggerLevel ?? 0)} trigger`
-    return `${reviewed} at or above ${trigger}${issuerCallOf(note.redemption) ? ' and the issuer did not call' : ''}, so the product ran to the end of its term.`
+    const choices = choicesNotMade(note)
+    const declined = choices.length === 2 ? `, ${choices[0]} and ${choices[1]}` : choices.length === 1 ? ` and ${choices[0]}` : ''
+    return `${reviewed} at or above ${trigger}${declined}, so the product ran to the end of its term.`
   }
   const difference = Math.round((payment - note.principalAmount) * 100) / 100
   const comparison = difference > 0 ? `${units(difference)} more than principal` : 'the same as principal'
-  return `The level was ${units(test.level)} on review ${test.review} of ${reviews}, at or above the ${units(test.triggerLevel)} trigger, so the product was called after ${monthsPhrase(months)} and pays ${units(payment)}, ${comparison}.${outcome.issuerCallNotReached === undefined ? '' : ` The issuer’s call on its review ${outcome.issuerCallNotReached} never happened: the product had already ended.`}`
+  return `The level was ${units(test.level)} on review ${test.review} of ${reviews}, at or above the ${units(test.triggerLevel)} trigger, so the product was called after ${monthsPhrase(months)} and pays ${units(payment)}, ${comparison}.${outcome.issuerCallNotReached === undefined ? '' : ` The issuer’s call on its review ${outcome.issuerCallNotReached} never happened: the product had already ended.`}${putNotReached(note, outcome)}`
+}
+
+// The parties' choices a product has, as declined, for a product that ran to the end of its term.
+const choicesNotMade = (note: Product): string[] => [
+  ...(issuerCallOf(note.redemption) ? ['the issuer did not call'] : []),
+  ...(holderPutOf(note.redemption) ? ['the holder did not put'] : []),
+]
+
+// The holder's put that something else ended the product before, or on the same date ahead of it.
+function putNotReached(note: Product, outcome: RedemptionOutcome): string {
+  const review = outcome.holderPutNotReached
+  const holderPut = holderPutOf(note.redemption)
+  if (review === undefined || holderPut === undefined) return ''
+  const month = firstReviewMonthOf(holderPut) + (review - 1) * monthsPerReview[holderPut.schedule.frequency]
+  return month === outcome.months
+    ? ' The holder’s put on the same date comes second: the issuer’s call comes first.'
+    : ` The holder’s put on its review ${review} never happened: the product had already ended.`
+}
+
+// A holder's put: the holder's choice, so the sentence says which review, the level on it, and what the payoff pays at that level. With
+// an autocall too, a date that is on both schedules says the holder's put came first.
+function explainHolderPut(note: Product, outcome: RedemptionOutcome): string {
+  const holderPut = holderPutOf(note.redemption)!
+  const reviews = mechanismReviewCount(note.term, holderPut)
+  const onAutocall = autocallOf(note.redemption) !== undefined && reviewDates(note).some(({ month, call }) => month === outcome.months && call !== undefined)
+  const level = units(outcome.put?.level ?? 0)
+  return `The holder put the product on review ${outcome.calledAtReview} of ${reviews}, after ${monthsPhrase(outcome.months)}, and it pays ${units(outcome.payment)}, ${comparedWithPrincipal(note, outcome.payment)}: what the payoff gives at that review’s level of ${level}.${onAutocall ? ' That date is also an autocall review: the holder’s put comes first, so the trigger is not tested.' : ''}${outcome.issuerCallNotReached === undefined ? '' : ` The issuer’s call on its review ${outcome.issuerCallNotReached} never happened: the product had already ended.`}`
+}
+
+// A payment against principal, more or less: a put pays the payoff early, which can be below principal.
+const comparedWithPrincipal = (note: Product, payment: number) => {
+  const difference = Math.round((payment - note.principalAmount) * 100) / 100
+  return difference > 0 ? `${units(difference)} more than principal` : difference < 0 ? `${units(difference)} less than principal` : 'the same as principal'
 }
 
 // The call rule beside the payment rule. It is tested on each review before the last, and the last review pays the payoff unless it
 // is a call too. A trigger that steps and a call amount for each year say so in the rule.
+// A holder put has a rule of its own: on a review the holder chooses, the payment at maturity read at that review's level.
 export const redemptionFormula = (note: Product): FormulaLine[] => {
   const mechanisms = callsOf(note.redemption)
-  return mechanisms.map((mechanism) => mechanismFormula(mechanism, mechanisms.length === 1 ? 'Call' : mechanism.kind === 'autocall' ? 'Autocall' : 'Issuer call'))
+  const holderPut = holderPutOf(note.redemption)
+  return [
+    ...mechanisms.map((mechanism) => mechanismFormula(mechanism, mechanisms.length === 1 ? 'Call' : mechanism.kind === 'autocall' ? 'Autocall' : 'Issuer call')),
+    ...(holderPut === undefined ? [] : [putFormula(holderPut)]),
+  ]
+}
+
+function putFormula(holderPut: HolderPut): FormulaLine {
+  const first = firstReviewMonthOf(holderPut)
+  const from = first > monthsPerReview[holderPut.schedule.frequency] ? ` from month ${first}` : ''
+  return {
+    lead: 'Holder put',
+    segments: [
+      { text: `On a review${from} before the last, if the holder puts, pay ` },
+      { text: 'the payment at maturity, with the level on that review as the final level', concept: 'holder-put' },
+      { text: ' and end' },
+    ],
+  }
 }
 
 function mechanismFormula(mechanism: CallMechanism, lead: string): FormulaLine {
@@ -125,7 +179,7 @@ export function redemptionSteps(note: Product, outcome: RedemptionOutcome): Arra
   // Amortization has steps of its own, amortizationSteps, in place of these.
   if (amortizationOf(note.redemption) !== undefined) return []
   const redemption = autocallOf(note.redemption)
-  if (redemption === undefined) return issuerCallSteps(note, issuerCallOf(note.redemption)!, outcome)
+  if (redemption === undefined) return choiceSteps(note, outcome)
   const { callAmount, callAmountBasis, callOnFinalReview } = redemption
   // With a coupon the call and the coupon can fall on different months, and with a later first review a review's number is not its
   // month, so each step says its month.
@@ -157,8 +211,11 @@ export function redemptionSteps(note: Product, outcome: RedemptionOutcome): Arra
   // In order of month, and on a month that is both, the coupon first: it is paid with the call.
   const steps: Array<Omit<CalculationStep, 'n'>> = [...couponEntries(note, outcome), ...callSteps].sort((a, b) => a.month - b.month).map(({ step }) => step)
   const issuerCall = issuerCallOf(note.redemption)
+  const holderPut = holderPutOf(note.redemption)
   if (issuerCall !== undefined && outcome.endedBy === 'issuer-call') return [...steps, ...issuerCallEnding(note, issuerCall, outcome)]
+  if (holderPut !== undefined && outcome.endedBy === 'holder-put') return [...steps, ...putEnding(note, outcome)]
   if (issuerCall !== undefined && outcome.endedBy === undefined) steps.push({ title: 'Issuer call', how: 'The issuer did not call', value: 'Not called', muted: true, concept: 'issuer-call' })
+  if (holderPut !== undefined && outcome.endedBy === undefined) steps.push({ title: 'Holder put', how: 'The holder did not put', value: 'Not put', muted: true, concept: 'holder-put' })
   const withCoupon = callCouponText(note, outcome)
   steps.push(outcome.calledAtReview === undefined
     ? { title: 'Redemption', how: `No review${callOnFinalReview ? ', including the last,' : ' before the last'} reached the trigger, so the product runs to the end of its ${monthsPhrase(outcome.months)} term`, value: 'At maturity', concept: 'redemption' }
@@ -172,11 +229,14 @@ export function redemptionSteps(note: Product, outcome: RedemptionOutcome): Arra
 // and the return a year reads when each payment was made.
 const calledSteps = (note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> => [
   note.coupon === undefined
-    ? { title: 'Annualised return', how: `(${units(outcome.payment)} ÷ ${units(note.principalAmount)})^(12 ÷ ${monthsPhrase(outcome.months)}) − 1, over the time it lasted`, value: `${twoDecimalPercent(annualisedReturn(outcome.payment, note.principalAmount, outcome.months))} a year`, concept: outcome.endedBy === 'issuer-call' ? 'issuer-call-amount' : 'call-amount' }
+    ? { title: 'Annualised return', how: `(${units(outcome.payment)} ÷ ${units(note.principalAmount)})^(12 ÷ ${monthsPhrase(outcome.months)}) − 1, over the time it lasted`, value: `${signedAnnual(annualisedReturn(outcome.payment, note.principalAmount, outcome.months))} a year`, concept: outcome.endedBy === 'issuer-call' ? 'issuer-call-amount' : outcome.endedBy === 'holder-put' ? 'holder-put' : 'call-amount' }
     : totalPaidStep(outcome),
   ...(note.coupon === undefined ? [] : [totalReturnStep(note, outcome), annualisedReturnStep(note, outcome)]),
-  { title: 'If it had run to maturity', how: 'It was called, so none of this is paid. The steps below are what the payoff would have paid at maturity.', value: '', heading: true },
+  { title: 'If it had run to maturity', how: `It was ${outcome.endedBy === 'holder-put' ? 'put' : 'called'}, so none of this is paid. The steps below are what the payoff would have paid at maturity.`, value: '', heading: true },
 ]
+
+// A return a year with a true minus when it is a loss, as a put below principal can be.
+const signedAnnual = (rate: number) => `${rate < 0 ? '−' : ''}${twoDecimalPercent(Math.abs(rate))}`
 
 const coupons = (n: number) => `${n} ${n === 1 ? 'coupon' : 'coupons'}`
 
@@ -396,23 +456,45 @@ const moreThanPrincipal = (note: Product, payment: number) => {
 // An issuer call: the issuer's choice, so the sentence says which review it called on, or that it did not. With an autocall too, a date
 // that is on both schedules says the issuer's call came first.
 function explainIssuerCall(note: Product, outcome: RedemptionOutcome): string {
-  if (outcome.calledAtReview === undefined) return 'The issuer did not call, so the product ran to the end of its term.'
+  if (outcome.calledAtReview === undefined) {
+    const choices = choicesNotMade(note)
+    return `${choices.join(' and ').replace(/^t/, 'T')}, so the product ran to the end of its term.`
+  }
   const issuerReviews = mechanismReviewCount(note.term, issuerCallOf(note.redemption)!)
   const onBoth = autocallOf(note.redemption) !== undefined && reviewDates(note).some(({ month, call }) => month === outcome.months && call !== undefined)
-  return `The issuer called the product on review ${outcome.calledAtReview} of ${issuerReviews}, after ${monthsPhrase(outcome.months)}, and it pays ${units(outcome.payment)}, ${moreThanPrincipal(note, outcome.payment)}.${onBoth ? ' That date is also an autocall review: the issuer’s call comes first, so the trigger is not tested.' : ''}`
+  return `The issuer called the product on review ${outcome.calledAtReview} of ${issuerReviews}, after ${monthsPhrase(outcome.months)}, and it pays ${units(outcome.payment)}, ${moreThanPrincipal(note, outcome.payment)}.${onBoth ? ' That date is also an autocall review: the issuer’s call comes first, so the trigger is not tested.' : ''}${putNotReached(note, outcome)}`
 }
 
-// The first review when it is later than one period in, the coupon steps when there is a coupon, then the call, then what follows a
-// call. The call reads no level, so there is no step for each call review.
-function issuerCallSteps(note: Product, issuerCall: IssuerCall, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> {
-  const first = firstReviewMonthOf(issuerCall)
+// With no autocall, the parties' choices: each one's first review when it is later than one period in, the coupon steps when there is a
+// coupon, then the call or the put that ended the product and what follows, or that neither party acted. Neither choice reads a level
+// on its reviews, so there is no step for each review.
+function choiceSteps(note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> {
+  const issuerCall = issuerCallOf(note.redemption)
+  const holderPut = holderPutOf(note.redemption)
   const steps: Array<Omit<CalculationStep, 'n'>> = couponSteps(note, outcome)
-  if (first > monthsPerReview[issuerCall.schedule.frequency]) steps.unshift({ title: 'First review', how: `The issuer cannot call before month ${first}`, value: `Month ${first}`, muted: true, concept: 'issuer-first-review' })
-  if (outcome.calledAtReview === undefined) {
-    steps.push({ title: 'Issuer call', how: `The issuer did not call, so the product runs to the end of its ${monthsPhrase(outcome.months)} term`, value: 'Not called', concept: 'redemption' })
-    return steps
-  }
-  return [...steps, ...issuerCallEnding(note, issuerCall, outcome)]
+  const both = issuerCall !== undefined && holderPut !== undefined
+  const firstSteps: Array<Omit<CalculationStep, 'n'>> = []
+  if (issuerCall !== undefined && firstReviewMonthOf(issuerCall) > monthsPerReview[issuerCall.schedule.frequency]) firstSteps.push({ title: both ? 'First call review' : 'First review', how: `The issuer cannot call before month ${firstReviewMonthOf(issuerCall)}`, value: `Month ${firstReviewMonthOf(issuerCall)}`, muted: true, concept: 'issuer-first-review' })
+  if (holderPut !== undefined && firstReviewMonthOf(holderPut) > monthsPerReview[holderPut.schedule.frequency]) firstSteps.push({ title: both ? 'First put review' : 'First review', how: `The holder cannot put before month ${firstReviewMonthOf(holderPut)}`, value: `Month ${firstReviewMonthOf(holderPut)}`, muted: true, concept: 'put-first-review' })
+  steps.unshift(...firstSteps)
+  if (issuerCall !== undefined && outcome.endedBy === 'issuer-call') return [...steps, ...issuerCallEnding(note, issuerCall, outcome)]
+  if (outcome.endedBy === 'holder-put') return [...steps, ...putEnding(note, outcome)]
+  const declined = [...(issuerCall ? ['the issuer did not call'] : []), ...(holderPut ? ['the holder did not put'] : [])].join(' and ')
+  steps.push({ title: both ? 'Issuer call and holder put' : issuerCall ? 'Issuer call' : 'Holder put', how: `${declined.replace(/^t/, 'T')}, so the product runs to the end of its ${monthsPhrase(outcome.months)} term`, value: both ? 'Neither' : issuerCall ? 'Not called' : 'Not put', concept: 'redemption' })
+  return steps
+}
+
+// The holder's put that ended the product: the payment at maturity at the level on the put review, and what follows. The payoff is a
+// tracker, so that payment is principal × the level × any adjustment factor ÷ the initial level.
+function putEnding(note: Product, outcome: RedemptionOutcome): Array<Omit<CalculationStep, 'n'>> {
+  const { put } = outcome
+  if (put === undefined) return []
+  const factor = note.redemption.adjustmentFactor ?? 1
+  const working = `${units(note.principalAmount)} × ${units(put.level)}${factor === 1 ? '' : ` × ${twoDecimalPercent(factor)}`} ÷ ${units(put.breakdown.initialLevel)}`
+  return [
+    { title: 'Holder put', how: `The holder put on review ${outcome.calledAtReview}, after ${monthsPhrase(outcome.months)}, with the level at ${units(put.level)}. It is paid the payment at maturity at that level: ${working}${callCouponText(note, outcome)}`, value: units(outcome.payment), result: true, concept: 'holder-put' },
+    ...calledSteps(note, outcome),
+  ]
 }
 
 // The issuer's call that ended the product, and what follows a call.

@@ -93,7 +93,7 @@ describe('the payments of a scenario', () => {
         const reviewLevels = Array<number>(Math.max(reviewDates(note).length - 1, 0)).fill(level)
         // A floating coupon reads a reference rate on each of its reviews: 4% a year on each here.
         const rates = note.coupon !== undefined && floatingRateOf(note.coupon) !== undefined ? Array<number>(scheduleReviews(note.term, note.coupon.schedule)!.length).fill(0.04) : undefined
-        const outcome = redemptionOutcome(note, reviewLevels, { initial: 100, final: level, ...(rates ? { lastReferenceRate: 0.04 } : {}) }, undefined, rates?.slice(1))
+        const outcome = redemptionOutcome(note, reviewLevels, { initial: 100, final: level, ...(rates ? { lastReferenceRate: 0.04 } : {}) }, { referenceRates: rates?.slice(1) })
         expect(outcome.payments.reduce((sum, { amount }) => sum + amount, 0)).toBeCloseTo(outcome.totalPaid, 8)
         expect(outcome.payments.at(-1)).toMatchObject({ month: outcome.months, amount: outcome.payment })
         const months = outcome.payments.map(({ month }) => month)

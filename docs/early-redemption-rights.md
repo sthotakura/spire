@@ -1,6 +1,6 @@
 # Early redemption rights: public sources
 
-Research record, read 8 November 2026, with three Luxembourg-listed pricing supplements and two other filings added on 27 November 2026. It asks which equity-linked products carry a holder put, an issuer call and an automatic call, alone or together. The autocall and the issuer call are built, alone or together; the holder put is not. The working definitions of each right are in [feature-map.md](feature-map.md), and the issuer call is in [issuer-call.md](issuer-call.md).
+Research record, read 8 November 2026, with three Luxembourg-listed pricing supplements and two other filings added on 27 November 2026. It asks which equity-linked products carry a holder put, an issuer call and an automatic call, alone or together. The autocall, the issuer call and the holder put are built, alone or together; the holder put at current value, on a tracker ([holder-put.md](holder-put.md)). The working definitions of each right are in [feature-map.md](feature-map.md), and the issuer call is in [issuer-call.md](issuer-call.md).
 
 ## Established from the filings
 
@@ -78,6 +78,6 @@ Two false leads, recorded so they are not chased again:
 
 ## Open questions
 
-1. How a holder put is built. Proposed, at current value, in [holder-put.md](holder-put.md), with the CGMFL213839 notes as its sample.
+1. How a holder put is built. Built at current value on 27 November 2026 ([holder-put.md](holder-put.md)), with the CGMFL213839 notes as its sample. A stated put price is still open.
 2. Whether a running fee or an open-ended term should be modelled, since most holder-right products have one.
 3. Whether the issuer's call should also be able to pay current value, as it does on the products with holder rights above.

@@ -181,7 +181,7 @@ describe('what an amortizing product pays', () => {
 
   // An amortizing product has no issuer call and no reviews to read, so a scenario that gives either is rejected, not ignored.
   it('rejects an issuer\'s call and review levels it does not read', () => {
-    expect(() => redemptionOutcome(amortizing(), [], levels, 1)).toThrow('Only an issuer call is called by the issuer.')
+    expect(() => redemptionOutcome(amortizing(), [], levels, { issuerCallsOnReview: 1 })).toThrow('Only an issuer call is called by the issuer.')
     expect(() => redemptionOutcome(amortizing(), [100], levels)).toThrow('has no reviews before the last')
   })
 

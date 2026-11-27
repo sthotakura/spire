@@ -20,7 +20,7 @@ import { isHighlighted } from './content/selection'
 import { structureLines } from './content/structure-json'
 import { summarize } from './content/summary'
 import { finalCallLevel, paymentAtEnd, redemptionOutcome } from './domain/autocall'
-import { type Settlement, type CouponRate, couponRateOn, floatingRateOf, referenceRateLimits, amortizationOf, deliverable, autocallOf, issuerCallOf, barrierLevelAt, basketBreakdown, deliveryFrom, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, scheduleReviews, type CallMechanism, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
+import { type Settlement, type CouponRate, couponRateOn, floatingRateOf, referenceRateLimits, amortizationOf, deliverable, autocallOf, issuerCallOf, holderPutOf, barrierLevelAt, basketBreakdown, deliveryFrom, basketLevelFrom, monthsPerReview, suggestedFrequency, triggerAtReview, reviewCount, reviewDates, scheduleReviews, type ReviewedMechanism, type ReviewDate, type ReviewFrequency, basketStartingLevel, equalWeights, finalLevelFrom, initialLevelFrom, initialObservationCountOf, productIssues, observationCountOf, paymentBreakdown, upsideOf, withSubFeatures, type BarrierObservation, type BasketReturn, type Determination, type DownsideParticipation, type FinalDetermination, type InitialDetermination, type ProductIssueField, type ParticipationDirection, type Product, type Underlier, type AssetKind, type Wrapper } from './domain/note'
 import { fitLookbackObservations, fitObservations, shiftReturns, shiftToAverage } from './domain/observations'
 import { firstFeatureValues, firstLookbackMoves, firstObservationCount, startingFinalLevel, startingInitialLevel, startingProduct } from './domain/starting-note'
 
@@ -38,10 +38,12 @@ const hints = {
   trigger: 'The level, as a share of the initial level, at or above which the product is called on the first review. A later review has the same trigger unless it steps down.',
   'mechanism-autocall': 'The product is called early when the underlier is at or above a trigger on a review.',
   'mechanism-issuer-call': 'The issuer may redeem the product early, on a review it chooses. With an autocall too, whichever comes first ends the product, and on a date that is on both schedules the issuer’s call comes first.',
-  'mechanism-puttable': 'The holder may require redemption under defined terms.',
+  'mechanism-puttable': 'The holder may require the issuer to redeem the product early, on a review the holder chooses, whatever the underlier does. The put pays the payment at maturity worked out at the level on that review: what the product is worth under its own terms. That holds only for a tracker, which moves one for one with the underlier both ways, so here a put needs one. Real puts also set a minimum amount, whether part of a holding can be put, and a notice period, which are not modelled. With a call too, on a date that is on both schedules the issuer’s call comes first, then the holder’s put, then the autocall.',
   'mechanism-amortizing': 'Principal is repaid in instalments during the term, so each coupon is interest on the principal still outstanding. With a level payment, every instalment of interest and principal is the same amount, and the principal reaches zero at the end of the term.',
   'first-review': 'The month of the first review on which the product can be called. Later reviews follow it at the review frequency to the end of the term, so the months before it are a non-call period, with no review in it. It starts one period in and follows the frequency until you choose a month. A trigger that steps moves from the first review.',
   'issuer-choice': 'Whether and when the issuer calls is its own choice, so a scenario states it. The issuer can call on any review except the last, which is the end of the term. A call ends the product and pays principal plus the call amount.',
+  'holder-choice': 'Whether and when the holder puts is the holder’s own choice, so a scenario states it. The holder can put on any review except the last, which is the end of the term, whatever the underlier does. A put ends the product and pays the payment at maturity at the level on that review.',
+  'put-level': 'A hypothetical level of the underlier on the review the holder puts on. It is read only to work out what the put pays, not to decide whether the holder may put. On a review that is also an autocall or coupon review, the review table’s level is used.',
   'trigger-step': 'How much the trigger changes on each review after the first, as a share of the initial level. −5% on a trigger of 100% steps it down to 95% on review 2, 90% on review 3, and so on. A positive value steps it up. Zero keeps one trigger for every review.',
   'adjustment-factor': 'A number the final level is multiplied by before the maturity payment is worked out. Below 100% the return the payoff reads is lower than the underlier’s own; above 100% it is higher. At 99%, a final level of 110 counts as 108.9. At 100% it changes nothing.',
   'call-amount': 'What a call pays above principal, as a share of principal. It is paid in full whenever the product is called, or for each year the product has lasted, as the choice below says.',
@@ -141,6 +143,18 @@ const autocallTicked = ref(true)
 const issuerTicked = ref(false)
 // Amortization is the only mechanism of its redemption in this reference, so ticking it unticks the calls, and ticking a call unticks it.
 const amortizeTicked = ref(false)
+// A holder put has its own reviews, which start at a frequency that suits the term, as a call's do.
+const putTicked = ref(false)
+const chosenPutFrequency = ref<ReviewFrequency | null>(null)
+const putFrequency = computed<ReviewFrequency>({
+  get: () => chosenPutFrequency.value ?? suggestedFrequency(termMonths.value),
+  set: (frequency) => { chosenPutFrequency.value = frequency },
+})
+const chosenPutFirstReviewMonth = ref<number | null>(null)
+const putFirstReviewMonth = computed<number>({
+  get: () => chosenPutFirstReviewMonth.value ?? monthsPerReview[putFrequency.value],
+  set: (month) => { chosenPutFirstReviewMonth.value = month },
+})
 // The reviews start at a frequency that suits the term, and follow it as the term changes until the reader chooses one.
 const chosenFrequency = ref<ReviewFrequency | null>(null)
 const reviewFrequency = computed<ReviewFrequency>({
@@ -201,6 +215,9 @@ const copyCallReviews = () => { beginGesture(); couponFrequency.value = callFreq
 const amortized = computed(() => redemptionKind.value === 'early-redemption' && amortizeTicked.value)
 const autocalled = computed(() => redemptionKind.value === 'early-redemption' && autocallTicked.value && !amortizeTicked.value)
 const issuerCalled = computed(() => redemptionKind.value === 'early-redemption' && issuerTicked.value && !amortizeTicked.value)
+const puttable = computed(() => redemptionKind.value === 'early-redemption' && putTicked.value && !amortizeTicked.value)
+// Whether a mechanism is the only one ticked, which cannot be unticked: Bullet is the choice for no early redemption.
+const onlyMechanism = (kind: 'autocall' | 'issuer' | 'put') => [autocalled.value, issuerCalled.value, puttable.value].filter(Boolean).length === 1 && (kind === 'autocall' ? autocalled.value : kind === 'issuer' ? issuerCalled.value : puttable.value)
 // Ticking amortization unticks the calls and, when the product has no coupon, adds a fixed one, whose interest each instalment pays.
 // Unticking it leaves the autocall ticked, so an early redemption always has a mechanism.
 const setAmortizing = (ticked: boolean) => {
@@ -208,24 +225,32 @@ const setAmortizing = (ticked: boolean) => {
   if (ticked) {
     autocallTicked.value = false
     issuerTicked.value = false
+    putTicked.value = false
     if (!couponSelected.value) {
       couponSelected.value = true
       couponCondition.value = 'non-contingent'
       couponRateKind.value = 'fixed'
     }
-  } else if (!issuerTicked.value) autocallTicked.value = true
+  } else if (!issuerTicked.value && !putTicked.value) autocallTicked.value = true
 }
-const setCall = (call: 'autocall' | 'issuer', ticked: boolean) => {
+const setCall = (call: 'autocall' | 'issuer' | 'put', ticked: boolean) => {
   if (call === 'autocall') autocallTicked.value = ticked
-  else issuerTicked.value = ticked
+  else if (call === 'issuer') issuerTicked.value = ticked
+  else putTicked.value = ticked
   if (ticked) amortizeTicked.value = false
 }
 // Both read the reviews of a schedule: an autocall tests a level on each, and an issuer call is the issuer's choice of one.
 const scheduled = computed(() => autocalled.value || issuerCalled.value)
+// Any mechanism that can end the product before maturity in whole: a call, or the holder's put.
+const endsEarly = computed(() => scheduled.value || puttable.value)
 // The calls the coupon can copy its reviews from: the autocall's when there is one.
 const callFrequency = computed(() => (autocalled.value ? reviewFrequency.value : issuerFrequency.value))
 // The issuer's choice in a scenario: the number of the review it calls on, or null when it does not call.
 const issuerCallsOn = ref<number | null>(null)
+// The holder's choice in a scenario: the number of the put review it puts on, or null when it does not put, and the level on that review,
+// as last edited. Until the reader sets one, the level is 110% of the initial level, as the starting final level is.
+const holderPutsOn = ref<number | null>(null)
+const putLevelInput = ref<number>()
 const reviewLevelInputs = ref<Record<number, number>>({})
 // The reference rate a year, in percent, for each review of a floating coupon, by month. A review not set by hand takes the starting rate.
 const referenceRateInputs = ref<Record<number, number>>({})
@@ -324,7 +349,7 @@ const observedLevels = ref<number[]>([startingFinalLevel])
 // The part of the note the reader is looking at. It highlights that part's outline row, sentence phrase, JSON lines and chart elements.
 const selected = ref<ConceptId>('payoff')
 const select = (concept: ConceptId) => { selected.value = concept }
-const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', 'adjustment-factor': '#5b8a72', schedule: '#2c8ea3', trigger: '#1f8a70', 'trigger-step': '#7a9a1e', 'call-amount': '#0f766e', 'final-call': '#3d7ea6', 'first-review': '#4d7c9b', autocall: '#1f7a8c', 'issuer-call': '#5c6bc0', 'issuer-schedule': '#5a7fb5', 'issuer-first-review': '#6a78a8', 'issuer-call-amount': '#4f5bab', amortization: '#3b7d5c', coupon: '#b5446e', 'coupon-schedule': '#9b4d7a', 'coupon-barrier': '#8a5a00', memory: '#55708a', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', 'minimum-return': '#4338ca', 'digital-return': '#c2255c', 'digital-barrier': '#087f5b', upside: '#2b8a3e', 'measured-from': '#5c7f1a', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa', 'absolute-return': '#d4a017', settlement: '#8d5a3b' }
+const conceptColors: Record<ConceptId, string> = { wrapper: '#4f6fae', redemption: '#2e8b83', 'adjustment-factor': '#5b8a72', schedule: '#2c8ea3', trigger: '#1f8a70', 'trigger-step': '#7a9a1e', 'call-amount': '#0f766e', 'final-call': '#3d7ea6', 'first-review': '#4d7c9b', autocall: '#1f7a8c', 'issuer-call': '#5c6bc0', 'issuer-schedule': '#5a7fb5', 'issuer-first-review': '#6a78a8', 'issuer-call-amount': '#4f5bab', 'holder-put': '#7b5ea7', 'put-schedule': '#6a6fb0', 'put-first-review': '#80679f', amortization: '#3b7d5c', coupon: '#b5446e', 'coupon-schedule': '#9b4d7a', 'coupon-barrier': '#8a5a00', memory: '#55708a', underlier: '#7a5cb5', asset: '#9c6ade', determination: '#b7791f', 'initial-level': '#8b4f2b', 'final-level': '#6b6412', 'basket-return': '#5f5aa2', payoff: '#42536d', protection: '#2369bd', 'minimum-return': '#4338ca', 'digital-return': '#c2255c', 'digital-barrier': '#087f5b', upside: '#2b8a3e', 'measured-from': '#5c7f1a', downside: '#d9480f', cap: '#a23b8c', buffer: '#1aa3b8', barrier: '#9775fa', 'absolute-return': '#d4a017', settlement: '#8d5a3b' }
 const conceptStyle = (concept: ConceptId) => ({ '--c': conceptColors[concept] })
 const highlighted = (concept: ConceptId) => isHighlighted(selected.value, concept)
 
@@ -415,6 +440,21 @@ const redemptionBlockedReason = (id: string) => {
   if (id === 'early-redemption' && !scheduled.value && (dailySelected.value || bothWaysSelected.value)) return 'not with a daily barrier'
   return null
 }
+// Why a holder put cannot be ticked, or null: the same rules productIssues enforces, in short. Once ticked it stays available, and the
+// issues on its row say what no longer fits.
+const putBlockedReason = computed(() => {
+  if (puttable.value) return null
+  const { payoff, underlier: chosen } = note.value
+  const rates = payoff.participations.map(({ direction, rate }) => `${direction}:${rate}`).sort().join(' ')
+  const plain = payoff.participations.every((participation) => participation.direction === 'downside'
+    ? participation.buffer === undefined && participation.barrier === undefined && participation.absoluteReturn === undefined
+    : participation.barrier === undefined && participation.cap === undefined && participation.measuredFrom === undefined)
+  if (rates !== 'downside:1 upside:1' || !plain || payoff.principalProtection !== undefined || payoff.digitalReturn !== undefined || payoff.barrierAbsoluteReturn !== undefined || payoff.minimumReturn !== undefined) return 'needs a tracker: 100% each way, nothing else'
+  if (chosen.kind === 'basket' && chosen.determination.basketReturn.kind !== 'weighted') return 'not with a worst-of or best-of basket'
+  if (chosen.determination.final.kind === 'averaging') return 'not with averaging'
+  if (note.value.settlement === 'delivery') return 'not with delivery'
+  return null
+})
 // Why a contingent coupon cannot be chosen, or null: a daily barrier, or a floating rate, which this reference allows only on a
 // non-contingent coupon.
 const couponBlockedReason = computed(() => dailySelected.value || bothWaysSelected.value ? 'not with a daily barrier' : couponRateKind.value === 'floating' ? 'not with a floating rate' : null)
@@ -438,6 +478,8 @@ const deliveryBlockedReason = computed(() => {
 })
 const blockedReason = (id: FeatureId) => {
   if (wrapper.value === 'deposit' && depositExcludes.includes(id)) return 'Not on a deposit'
+  // A holder put needs a tracker: participation both ways and nothing else.
+  if (puttable.value && id !== 'upside' && id !== 'downside') return 'Not with a holder put'
   if (wrapper.value !== 'deposit' && id === 'minimum') return 'Deposits only'
   // Barrier absolute return is a payoff of its own: it replaces participation, and has no minimum return, lookback, basket or averaging beside it.
   if (id === 'absolute-both' && selectedDirections.value.length) return 'Not with participation'
@@ -597,7 +639,7 @@ const note = computed<Product>(() => ({
   wrapper: wrapper.value,
   principalAmount: principal.value,
   term: { months: termMonths.value },
-  redemption: scheduled.value || amortized.value
+  redemption: endsEarly.value || amortized.value
     ? {
         kind: 'early-redemption',
         mechanisms: [
@@ -615,6 +657,7 @@ const note = computed<Product>(() => ({
             callOnFinalReview: callOnFinal.value,
           }] : []),
           ...(issuerCalled.value ? [{ kind: 'issuer-call' as const, schedule: { frequency: issuerFrequency.value }, firstReviewMonth: issuerFirstReviewMonth.value, callAmount: fractionFrom(issuerAmountPercent.value), callAmountBasis: issuerAmountBasis.value }] : []),
+          ...(puttable.value ? [{ kind: 'holder-put' as const, schedule: { frequency: putFrequency.value }, firstReviewMonth: putFirstReviewMonth.value }] : []),
         ],
         adjustmentFactor: adjustmentFactor.value,
       }
@@ -646,7 +689,7 @@ const note = computed<Product>(() => ({
 }))
 const jsonLines = computed(() => structureLines(note.value))
 // With an autocall the payment rule is what is paid at maturity, when the product has not been called.
-const formula = computed(() => amortized.value ? amortizationFormula() : [...paymentFormula(note.value).map((line) => scheduled.value && line.lead === 'Payment' ? { ...line, lead: 'At maturity' } : line), ...settlementFormula(note.value), ...couponFormula(note.value), ...redemptionFormula(note.value)])
+const formula = computed(() => amortized.value ? amortizationFormula() : [...paymentFormula(note.value).map((line) => endsEarly.value && line.lead === 'Payment' ? { ...line, lead: 'At maturity' } : line), ...settlementFormula(note.value), ...couponFormula(note.value), ...redemptionFormula(note.value)])
 const formulaWords = computed(() => {
   if (amortized.value) return amortizationInWords()
   const words = paymentInWords(note.value)
@@ -655,7 +698,8 @@ const formulaWords = computed(() => {
       : ` On each coupon review at or above the coupon barrier it also pays a coupon${note.value.coupon.memory ? ', with any coupons missed before it' : ''}.`
   // The payment rule in words starts with "The" or "Each", which the call's clause lowers; an underlier's name would keep its capital.
   const lowered = /^(The|Each) /.test(words) ? `${words[0].toLowerCase()}${words.slice(1)}` : words
-  return `${scheduled.value ? `If it is not called, ${lowered}` : words}${coupon}`
+  const unless = scheduled.value && puttable.value ? 'If it is not called or put' : scheduled.value ? 'If it is not called' : 'If it is not put'
+  return `${endsEarly.value ? `${unless}, ${lowered}` : words}${coupon}`
 })
 // What the final level on the chart belongs to: the asset, or the basket.
 const underlierLabel = computed(() => isBasket.value ? 'the basket' : assetName.value.trim() || 'the underlier')
@@ -675,7 +719,10 @@ const copyJson = async () => {
 onBeforeUnmount(() => clearTimeout(copyReset))
 const issues = computed(() => productIssues(note.value))
 const errors = computed(() => issues.value.map(({ message }) => message))
-const issuesFor = (...fields: ProductIssueField[]) => issues.value.filter(({ field, mechanism }) => mechanism !== 'issuer-call' && mechanism !== 'amortization' && fields.includes(field)).map(({ message }) => message)
+const issuesFor = (...fields: ProductIssueField[]) => issues.value.filter(({ field, mechanism }) => mechanism !== 'issuer-call' && mechanism !== 'holder-put' && mechanism !== 'amortization' && fields.includes(field)).map(({ message }) => message)
+// A holder put's issues about its reviews are shown on those rows, and those about what it is combined with on its own row.
+const putIssuesFor = (...fields: ProductIssueField[]) => issues.value.filter(({ field, mechanism }) => mechanism === 'holder-put' && fields.includes(field)).map(({ message }) => message)
+const putIssues = computed(() => issues.value.filter(({ field, mechanism }) => mechanism === 'holder-put' && field !== 'schedule' && field !== 'firstReviewMonth').map(({ message }) => message))
 // Amortization's issues are about what it is combined with, so they are all shown on its row.
 const amortizationIssues = computed(() => issues.value.filter(({ mechanism }) => mechanism === 'amortization').map(({ message }) => message))
 const issuerIssuesFor = (...fields: ProductIssueField[]) => issues.value.filter(({ field, mechanism }) => mechanism === 'issuer-call' && fields.includes(field)).map(({ message }) => message)
@@ -767,9 +814,25 @@ const issuerCallableReviews = computed(() => {
   return issuerCalled.value && count !== undefined ? Array.from({ length: Math.max(0, count - 1) }, (_, index) => index + 1) : []
 })
 const issuerCallChoice = computed(() => issuerCallsOn.value !== null && issuerCallableReviews.value.includes(issuerCallsOn.value) ? issuerCallsOn.value : undefined)
-// How the product ended and what its coupon paid, for a product with a call or a coupon. A bullet product with neither pays its payoff.
-const redemption = computed(() => (scheduled.value || couponSelected.value) && valid.value && !reviewError.value && (amortized.value || breakdown.value)
-  ? redemptionOutcome(note.value, reviewLevels.value, scenarioLevels.value, issuerCalled.value ? issuerCallChoice.value : undefined, floatingCoupon.value ? referenceRates.value.slice(0, -1) : undefined)
+// The review the holder puts on in the scenario, when it is one the holder can put on, in the same way.
+const puttableReviews = computed(() => {
+  const count = reviewCount({ term: { months: termMonths.value }, schedule: { frequency: putFrequency.value }, firstMonth: putFirstReviewMonth.value })
+  return puttable.value && count !== undefined ? Array.from({ length: Math.max(0, count - 1) }, (_, index) => index + 1) : []
+})
+const putChoice = computed(() => holderPutsOn.value !== null && puttableReviews.value.includes(holderPutsOn.value) ? holderPutsOn.value : undefined)
+const putMonths = (review: number) => putFirstReviewMonth.value + (review - 1) * monthsPerReview[putFrequency.value]
+// The put review's place among the dates the review table reads a level on, if it is one: its level is then that row's.
+const putReadIndex = computed(() => putChoice.value === undefined ? -1 : datesBeforeLast.value.findIndex(({ month }) => month === putMonths(putChoice.value!)))
+const putLevel = computed(() => putLevelInput.value ?? (Number.isFinite(determinedInitialLevel.value) ? determinedInitialLevel.value : 100) * 1.1)
+const putLevelError = computed(() => putChoice.value !== undefined && putReadIndex.value === -1 && !(Number.isFinite(putLevel.value) && putLevel.value >= 0) ? 'The level on the put review must be zero or greater.' : '')
+const putSelection = computed({ get: () => putChoice.value ?? null, set: (review: number | null) => { holderPutsOn.value = review } })
+// How the product ended and what its coupon paid, for a product with a call, a put or a coupon. A bullet product with none pays its payoff.
+const redemption = computed(() => (endsEarly.value || couponSelected.value) && valid.value && !reviewError.value && !putLevelError.value && (amortized.value || breakdown.value)
+  ? redemptionOutcome(note.value, reviewLevels.value, scenarioLevels.value, {
+      issuerCallsOnReview: issuerCalled.value ? issuerCallChoice.value : undefined,
+      holderPut: putChoice.value === undefined ? undefined : { review: putChoice.value, ...(putReadIndex.value === -1 ? { level: putLevel.value } : {}) },
+      referenceRates: floatingCoupon.value ? referenceRates.value.slice(0, -1) : undefined,
+    })
   : null)
 const issuerCallSelection = computed({ get: () => issuerCallChoice.value ?? null, set: (review: number | null) => { issuerCallsOn.value = review } })
 const issuerCallMonths = (review: number) => issuerFirstReviewMonth.value + (review - 1) * monthsPerReview[issuerFrequency.value]
@@ -839,6 +902,7 @@ const reviewTest = (date: ReviewDate) => {
   if (!redemption.value || date.call === undefined) return ''
   if (ended(date)) return 'Ended'
   if (redemption.value.endedBy === 'issuer-call' && date.month === redemption.value.months) return 'Issuer called'
+  if (redemption.value.endedBy === 'holder-put' && date.month === redemption.value.months) return 'Put'
   if (maturityReview(date)) return 'Maturity'
   return redemption.value.tests.find((test) => test.review === date.call)?.called ? 'Called' : 'Not called'
 }
@@ -855,8 +919,8 @@ const reviewCoupon = (date: ReviewDate) => {
 // what the chart's dot and the comparison steps read, so the field stays, dimmed, and says so.
 const finalUnused = computed(() => {
   const outcome = redemption.value
-  if (!outcome || outcome.calledAtReview === undefined || outcome.calledAtReview >= outcome.reviews) return ''
-  return `Not used for the payment: the product was called on review ${outcome.calledAtReview}, before the final date. It still sets the chart's dot and the comparison under "If it had run to maturity".`
+  if (!outcome || outcome.calledAtReview === undefined || (outcome.endedBy !== 'holder-put' && outcome.calledAtReview >= outcome.reviews)) return ''
+  return `Not used for the payment: the product was ${outcome.endedBy === 'holder-put' ? 'put' : 'called'} on review ${outcome.calledAtReview}, before the final date. It still sets the chart's dot and the comparison under "If it had run to maturity".`
 })
 // What the holder receives in shares at the end of the term. A product called earlier has paid in cash.
 const delivery = computed(() => breakdown.value && redemption.value?.calledAtReview === undefined
@@ -1458,22 +1522,26 @@ function loadProduct(product: Product) {
   termMonths.value = product.term.months
   const autocall = autocallOf(terms)
   const issuerCall = issuerCallOf(terms)
+  const holderPut = holderPutOf(terms)
   redemptionKind.value = terms.kind
   const amortization = amortizationOf(terms)
-  autocallTicked.value = autocall !== undefined || (issuerCall === undefined && amortization === undefined)
+  autocallTicked.value = autocall !== undefined || (issuerCall === undefined && holderPut === undefined && amortization === undefined)
   issuerTicked.value = issuerCall !== undefined
+  putTicked.value = holderPut !== undefined
   amortizeTicked.value = amortization !== undefined
   chosenFrequency.value = autocall?.schedule.frequency ?? null
   chosenIssuerFrequency.value = issuerCall?.schedule.frequency ?? null
+  chosenPutFrequency.value = holderPut?.schedule.frequency ?? null
   triggerPercent.value = autocall ? percent(autocall.trigger) : 100
   triggerStepPercent.value = percent(autocall?.triggerStep ?? 0)
   adjustmentFactorPercent.value = percent(terms.adjustmentFactor ?? 1)
   callAmountPercent.value = autocall ? percent(autocall.callAmount) : 8
   issuerAmountPercent.value = issuerCall ? percent(issuerCall.callAmount) : 0
   // A first review one period in is where the control starts, so it is left to follow the frequency.
-  const followed = (mechanism: CallMechanism | undefined) => (mechanism?.firstReviewMonth === undefined || mechanism.firstReviewMonth === monthsPerReview[mechanism.schedule.frequency] ? null : mechanism.firstReviewMonth)
+  const followed = (mechanism: ReviewedMechanism | undefined) => (mechanism?.firstReviewMonth === undefined || mechanism.firstReviewMonth === monthsPerReview[mechanism.schedule.frequency] ? null : mechanism.firstReviewMonth)
   chosenFirstReviewMonth.value = followed(autocall)
   chosenIssuerFirstReviewMonth.value = followed(issuerCall)
+  chosenPutFirstReviewMonth.value = followed(holderPut)
   callAmountBasis.value = autocall?.callAmountBasis ?? 'flat'
   issuerAmountBasis.value = issuerCall?.callAmountBasis ?? 'flat'
   callOnFinal.value = autocall?.callOnFinalReview ?? false
@@ -1555,7 +1623,7 @@ function loadProduct(product: Product) {
   minimumSelected.value = payoff.minimumReturn !== undefined
   minimumPercent.value = payoff.minimumReturn !== undefined ? percent(payoff.minimumReturn) : firstFeatureValues.minimum
   // The scenario starts where a first visit does: the starting final level, a basket's assets each up by the same share, and no
-  // review levels, closes or issuer choice set by hand.
+  // review levels, closes, issuer choice or holder choice set by hand.
   observedLevels.value = [startingFinalLevel]
   lookbackLevels.value = initialKind.value === 'lookback' ? firstLookbackMoves.map((move) => Math.round(initialLevel.value * (1 + move))) : []
   basketLevels.value = basketAssets.value.map(({ initialLevel: level }) => [Math.round(level * startingFinalLevel / startingInitialLevel * 100) / 100])
@@ -1563,6 +1631,8 @@ function loadProduct(product: Product) {
   reviewAssetInputs.value = {}
   referenceRateInputs.value = {}
   issuerCallsOn.value = null
+  holderPutsOn.value = null
+  putLevelInput.value = undefined
   lowestCloseInput.value = undefined
   highestCloseInput.value = undefined
   ghostNote.value = null
@@ -1624,7 +1694,7 @@ const chooseSample = (event: Event) => {
                   <ul v-if="redemptionKind === 'early-redemption'">
                     <li :class="['node', { sel: highlighted('autocall') }]" :style="conceptStyle('autocall')">
                       <div class="nrow" @click="select('autocall')" @focusin="focusRow('autocall')">
-                        <span class="nlabel"><label class="mechanism-check"><input id="mechanism-autocall" type="checkbox" :checked="autocalled" :disabled="autocalled && !issuerCalled" :title="autocalled && !issuerCalled ? 'Choose Bullet for no early redemption' : undefined" @click.stop @change="setCall('autocall', ($event.target as HTMLInputElement).checked)">Autocallable</label><HintToggle id="mechanism-autocall" about="autocallable redemption" :text="hints['mechanism-autocall']" :active="activeHint === 'mechanism-autocall'" @toggle="toggleHint('mechanism-autocall')" /></span>
+                        <span class="nlabel"><label class="mechanism-check"><input id="mechanism-autocall" type="checkbox" :checked="autocalled" :disabled="onlyMechanism('autocall')" :title="onlyMechanism('autocall') ? 'Choose Bullet for no early redemption' : undefined" @click.stop @change="setCall('autocall', ($event.target as HTMLInputElement).checked)">Autocallable</label><HintToggle id="mechanism-autocall" about="autocallable redemption" :text="hints['mechanism-autocall']" :active="activeHint === 'mechanism-autocall'" @toggle="toggleHint('mechanism-autocall')" /></span>
                       </div>
                       <ul v-if="autocalled">
                         <li :class="['node', { sel: highlighted('schedule') }]" :style="conceptStyle('schedule')">
@@ -1679,7 +1749,7 @@ const chooseSample = (event: Event) => {
                     </li>
                     <li :class="['node', { sel: highlighted('issuer-call') }]" :style="conceptStyle('issuer-call')">
                       <div class="nrow" @click="select('issuer-call')" @focusin="focusRow('issuer-call')">
-                        <span class="nlabel"><label class="mechanism-check"><input id="mechanism-issuer-call" type="checkbox" :checked="issuerCalled" :disabled="issuerCalled && !autocalled" :title="issuerCalled && !autocalled ? 'Choose Bullet for no early redemption' : undefined" @click.stop @change="setCall('issuer', ($event.target as HTMLInputElement).checked)">Issuer callable</label><HintToggle id="mechanism-issuer-call" about="issuer callable redemption" :text="hints['mechanism-issuer-call']" :active="activeHint === 'mechanism-issuer-call'" @toggle="toggleHint('mechanism-issuer-call')" /></span>
+                        <span class="nlabel"><label class="mechanism-check"><input id="mechanism-issuer-call" type="checkbox" :checked="issuerCalled" :disabled="onlyMechanism('issuer')" :title="onlyMechanism('issuer') ? 'Choose Bullet for no early redemption' : undefined" @click.stop @change="setCall('issuer', ($event.target as HTMLInputElement).checked)">Issuer callable</label><HintToggle id="mechanism-issuer-call" about="issuer callable redemption" :text="hints['mechanism-issuer-call']" :active="activeHint === 'mechanism-issuer-call'" @toggle="toggleHint('mechanism-issuer-call')" /></span>
                       </div>
                       <ul v-if="issuerCalled">
                         <li :class="['node', { sel: highlighted('issuer-schedule') }]" :style="conceptStyle('issuer-schedule')">
@@ -1718,10 +1788,27 @@ const chooseSample = (event: Event) => {
                       </div>
                       <ul v-if="amortizationIssues.length" class="errors" role="alert"><li v-for="message in amortizationIssues" :key="message">{{ message }}</li></ul>
                     </li>
-                    <li class="node">
-                      <div class="nrow">
-                        <span class="nlabel"><label class="mechanism-check unavailable"><input type="checkbox" disabled>Puttable (unavailable)</label><HintToggle id="mechanism-puttable" about="puttable redemption" :text="hints['mechanism-puttable']" :active="activeHint === 'mechanism-puttable'" @toggle="toggleHint('mechanism-puttable')" /></span>
+                    <li :class="['node', { sel: highlighted('holder-put') }]" :style="conceptStyle('holder-put')">
+                      <div class="nrow" @click="select('holder-put')" @focusin="focusRow('holder-put')">
+                        <span class="nlabel"><label :class="['mechanism-check', { unavailable: putBlockedReason }]"><input id="mechanism-puttable" type="checkbox" :checked="puttable" :disabled="onlyMechanism('put') || !!putBlockedReason" :title="onlyMechanism('put') ? 'Choose Bullet for no early redemption' : undefined" @click.stop @change="setCall('put', ($event.target as HTMLInputElement).checked)">Puttable{{ putBlockedReason ? ` (${putBlockedReason})` : '' }}</label><HintToggle id="mechanism-puttable" about="puttable redemption" :text="hints['mechanism-puttable']" :active="activeHint === 'mechanism-puttable'" @toggle="toggleHint('mechanism-puttable')" /></span>
                       </div>
+                      <ul v-if="putIssues.length" class="errors" role="alert"><li v-for="message in putIssues" :key="message">{{ message }}</li></ul>
+                      <ul v-if="puttable">
+                        <li :class="['node', { sel: highlighted('put-schedule') }]" :style="conceptStyle('put-schedule')">
+                          <div class="nrow" @click="select('put-schedule')" @focusin="focusRow('put-schedule')">
+                            <span class="nlabel">Reviews<HintToggle id="put-schedule" about="the holder put’s reviews" :text="hints['schedule']" :active="activeHint === 'put-schedule'" @toggle="toggleHint('put-schedule')" /></span>
+                            <span class="ctrl pick"><select id="put-review-frequency" v-model="putFrequency" aria-label="Holder put: review frequency"><option v-for="option in reviewFrequencyOptions" :key="option.id" :value="option.id">{{ option.label }}</option></select></span>
+                          </div>
+                          <ul v-if="putIssuesFor('schedule').length" class="errors" role="alert"><li v-for="message in putIssuesFor('schedule')" :key="message">{{ message }}</li></ul>
+                        </li>
+                        <li :class="['node', { sel: highlighted('put-first-review') }]" :style="conceptStyle('put-first-review')">
+                          <div class="nrow" @click="select('put-first-review')" @focusin="focusRow('put-first-review')">
+                            <span class="nlabel">First review<HintToggle id="put-first-review" about="the holder put’s first review" :text="hints['first-review']" :active="activeHint === 'put-first-review'" @toggle="toggleHint('put-first-review')" /></span>
+                            <span class="ctrl"><NumberInput id="put-first-review" v-model="putFirstReviewMonth" class="num rate" aria-label="Holder put: first review, months from the start of the term" /><span class="unit">months in</span></span>
+                          </div>
+                          <ul v-if="putIssuesFor('firstReviewMonth').length" class="errors" role="alert"><li v-for="message in putIssuesFor('firstReviewMonth')" :key="message">{{ message }}</li></ul>
+                        </li>
+                      </ul>
                     </li>
                   </ul>
                   <ul>
@@ -2160,6 +2247,14 @@ const chooseSample = (event: Event) => {
               <div class="table-wrap basket-levels review-levels" :style="conceptStyle(autocalled ? 'trigger' : 'coupon')" tabindex="0" role="region" aria-labelledby="review-levels-label"><table aria-labelledby="review-levels-label"><thead><tr><th scope="col">Month</th><th scope="col">Review</th><th v-if="autocalled" scope="col" class="review-trigger">Trigger</th><template v-if="readsLevels"><template v-if="isBasket"><th v-for="(asset, a) in basketAssets" :key="a" scope="col">{{ asset.name.trim() || `Asset ${a + 1}` }}</th><th scope="col">Basket level</th></template><th v-else scope="col">Level</th></template><th v-if="floatingCoupon" scope="col">Reference rate</th><th v-if="autocalled" scope="col">Test</th><th v-if="note.coupon" scope="col">Coupon</th></tr></thead><tbody><tr v-for="{ date, index, final } in reviewRows" :key="date.month"><th scope="row">{{ date.month }}</th><td class="review-name">{{ reviewLabel(date) }}</td><td v-if="autocalled" class="review-trigger">{{ Number.isFinite(reviewTrigger(date)) ? formatAmount(reviewTrigger(date)) : '—' }}</td><template v-if="!readsLevels" /><template v-else-if="final"><td v-if="isBasket" :colspan="basketAssets.length" class="review-unread" title="Each asset's final level is set above">—</td><td title="The final level, set above"><output class="observed-result" aria-live="polite">{{ Number.isFinite(finalLevel) ? formatAmount(finalLevel) : '—' }}</output></td></template><td v-else-if="index === undefined" :colspan="isBasket ? basketAssets.length + 1 : 1" class="review-unread" title="A non-contingent coupon reads no level">—</td><template v-else-if="isBasket"><td v-for="(assetLevel, a) in reviewAssetLevels[index]" :key="a"><NumberInput :model-value="assetLevel" class="observed-input" :aria-label="`${basketAssets[a].name.trim() || `Asset ${a + 1}`}, month ${date.month}`" @update:model-value="setReviewAssetLevel(index, a, $event)" /></td><td><output class="observed-result" aria-live="polite">{{ Number.isFinite(reviewLevels[index]) ? formatAmount(reviewLevels[index]) : '—' }}</output></td></template><td v-else><NumberInput :model-value="reviewLevels[index]" class="observed-input" :aria-label="`Level in month ${date.month}`" @update:model-value="setReviewLevel(index, $event)" /></td><td v-if="floatingCoupon"><span v-if="couponReviewOn(date) !== undefined" class="rate-cell"><NumberInput :id="`reference-rate-${date.month}`" :model-value="referenceRatePercentOn(date.month)" class="observed-input" :aria-label="`Reference rate in month ${date.month} (% a year)`" @update:model-value="setReferenceRate(date.month, $event)" /><span class="unit">%</span></span><template v-else>—</template></td><td v-if="autocalled" class="review-test-cell"><span v-if="reviewTest(date)" :class="['review-test', { called: reviewTest(date) === 'Called' || reviewTest(date) === 'Issuer called', ended: reviewTest(date) === 'Ended' }]">{{ reviewTest(date) }}</span></td><td v-if="note.coupon" class="review-test-cell"><span v-if="reviewCoupon(date)" :class="['review-test', { ended: reviewCoupon(date).startsWith('Missed') || reviewCoupon(date) === 'Ended' || reviewCoupon(date) === '—' }]" :style="conceptStyle('coupon')">{{ reviewCoupon(date) }}</span></td></tr></tbody></table></div>
               <p v-if="reviewError" class="errors" role="alert">{{ reviewError }}</p>
               <p v-if="referenceRateError" class="errors" role="alert">{{ referenceRateError }}</p>
+            </div>
+            <div v-if="puttable && puttableReviews.length" class="hint-field">
+              <div class="field-heading"><label for="holder-put-review" class="observed-heading">The holder’s choice in this scenario</label><HintToggle id="holder-choice" about="the holder’s choice" :text="hints['holder-choice']" :active="activeHint === 'holder-choice'" @toggle="toggleHint('holder-choice')" /><select id="holder-put-review" v-model="putSelection" class="path-select"><option :value="null">The holder does not put</option><option v-for="review in puttableReviews" :key="review" :value="review">Puts on review {{ review }} of {{ puttableReviews.length + 1 }}, after {{ putMonths(review) }} {{ putMonths(review) === 1 ? 'month' : 'months' }}</option></select></div>
+            </div>
+            <div v-if="putChoice !== undefined && putReadIndex === -1" class="hint-field">
+              <div class="field-heading"><label for="put-level">Put level: hypothetical level of {{ underlierLabel }} in month {{ putMonths(putChoice) }}</label><HintToggle id="put-level" about="the put level" :text="hints['put-level']" :active="activeHint === 'put-level'" @toggle="toggleHint('put-level')" /></div>
+              <NumberInput id="put-level" :model-value="putLevel" class="observed-input" @update:model-value="putLevelInput = $event" />
+              <p v-if="putLevelError" class="errors" role="alert">{{ putLevelError }}</p>
             </div>
             <div v-if="issuerCalled && issuerCallableReviews.length" class="hint-field">
               <div class="field-heading"><label for="issuer-call-review" class="observed-heading">The issuer’s choice in this scenario</label><HintToggle id="issuer-choice" about="the issuer’s choice" :text="hints['issuer-choice']" :active="activeHint === 'issuer-choice'" @toggle="toggleHint('issuer-choice')" /><select id="issuer-call-review" v-model="issuerCallSelection" class="path-select"><option :value="null">The issuer does not call</option><option v-for="review in issuerCallableReviews" :key="review" :value="review">Calls on review {{ review }} of {{ issuerCallableReviews.length + 1 }}, after {{ issuerCallMonths(review) }} {{ issuerCallMonths(review) === 1 ? 'month' : 'months' }}</option></select></div>

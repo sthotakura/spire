@@ -93,16 +93,16 @@ describe('an autocall and an issuer call on one product', () => {
   })
 
   it('says the issuer’s call never happened when the autocall came first', () => {
-    const outcome = redemptionOutcome(both, [105, 90, 90], levels, 1)
+    const outcome = redemptionOutcome(both, [105, 90, 90], levels, { issuerCallsOnReview: 1 })
     expect(explainRedemption(both, outcome)).toBe('The level was 105 on review 1 of 4, at or above the 100 trigger, so the product was called after 3 months and pays 1,080, 80 more than principal. The issuer’s call on its review 1 never happened: the product had already ended.')
   })
 
   it('says the issuer called, with the issuer’s own count of reviews', () => {
-    expect(explainRedemption(both, redemptionOutcome(both, below, levels, 1))).toContain('The issuer called the product on review 1 of 2, after 6 months, and it pays 1,020')
+    expect(explainRedemption(both, redemptionOutcome(both, below, levels, { issuerCallsOnReview: 1 }))).toContain('The issuer called the product on review 1 of 2, after 6 months, and it pays 1,020')
   })
 
   it('says the issuer’s call comes first on a date that is on both schedules', () => {
-    expect(explainRedemption(both, redemptionOutcome(both, [90, 120, 90], levels, 1))).toContain('That date is also an autocall review: the issuer’s call comes first, so the trigger is not tested.')
+    expect(explainRedemption(both, redemptionOutcome(both, [90, 120, 90], levels, { issuerCallsOnReview: 1 }))).toContain('That date is also an autocall review: the issuer’s call comes first, so the trigger is not tested.')
   })
 
   it('does not say so on a date that is only the issuer’s', () => {
@@ -110,11 +110,11 @@ describe('an autocall and an issuer call on one product', () => {
       { kind: 'autocall', schedule: { frequency: 'semi-annual' }, trigger: 1, callAmount: 0.08 },
       { kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0.02 },
     ] } }
-    expect(explainRedemption(offset, redemptionOutcome(offset, [90], levels, 1))).not.toContain('also an autocall review')
+    expect(explainRedemption(offset, redemptionOutcome(offset, [90], levels, { issuerCallsOnReview: 1 }))).not.toContain('also an autocall review')
   })
 
   it('shows the reviews tested before the issuer’s call, then the call', () => {
-    const steps = redemptionSteps(both, redemptionOutcome(both, below, levels, 1))
+    const steps = redemptionSteps(both, redemptionOutcome(both, below, levels, { issuerCallsOnReview: 1 }))
     expect(steps.map(({ title }) => title)).toEqual(['Review 1 of 4', 'Issuer call', 'Annualised return', 'If it had run to maturity'])
     expect(steps[1]).toMatchObject({ value: '1,020', result: true, concept: 'issuer-call-amount' })
   })
@@ -124,7 +124,7 @@ describe('an autocall and an issuer call on one product', () => {
   })
 
   it('leaves out the issuer call step when the autocall ended it', () => {
-    expect(redemptionSteps(both, redemptionOutcome(both, [105, 90, 90], levels, 1)).map(({ title }) => title)).toEqual(['Review 1 of 4', 'Redemption', 'Annualised return', 'If it had run to maturity'])
+    expect(redemptionSteps(both, redemptionOutcome(both, [105, 90, 90], levels, { issuerCallsOnReview: 1 })).map(({ title }) => title)).toEqual(['Review 1 of 4', 'Redemption', 'Annualised return', 'If it had run to maturity'])
   })
 })
 
@@ -324,13 +324,13 @@ describe('an issuer call', () => {
   })
 
   it('explains a call and a product the issuer left alone', () => {
-    expect(explainRedemption(issuer, redemptionOutcome(issuer, [], levels, 3))).toBe('The issuer called the product on review 3 of 10, after 5 months, and it pays 1,020, 20 more than principal.')
+    expect(explainRedemption(issuer, redemptionOutcome(issuer, [], levels, { issuerCallsOnReview: 3 }))).toBe('The issuer called the product on review 3 of 10, after 5 months, and it pays 1,020, 20 more than principal.')
     expect(explainRedemption(issuer, redemptionOutcome(issuer, [], levels))).toBe('The issuer did not call, so the product ran to the end of its term.')
-    expect(explainRedemption({ ...issuer, redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0 }] } }, redemptionOutcome({ ...issuer, redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0 }] } }, [], levels, 5))).toContain('pays 1,000, the same as principal')
+    expect(explainRedemption({ ...issuer, redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0 }] } }, redemptionOutcome({ ...issuer, redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'monthly' }, callAmount: 0 }] } }, [], levels, { issuerCallsOnReview: 5 }))).toContain('pays 1,000, the same as principal')
   })
 
   it('shows the first review, the call, its annualised return and the comparison', () => {
-    const steps = redemptionSteps(issuer, redemptionOutcome(issuer, [], levels, 3))
+    const steps = redemptionSteps(issuer, redemptionOutcome(issuer, [], levels, { issuerCallsOnReview: 3 }))
     expect(steps.map(({ title, value }) => [title, value])).toEqual([['First review', 'Month 3'], ['Issuer call', '1,020'], ['Annualised return', '4.87% a year'], ['If it had run to maturity', '']])
     expect(steps[0].how).toBe('The issuer cannot call before month 3')
     expect(steps[1].how).toBe('The issuer called on review 3, after 5 months: principal × (1 + 2%)')

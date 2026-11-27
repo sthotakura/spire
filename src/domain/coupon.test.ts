@@ -247,7 +247,7 @@ describe('a coupon with an issuer call', () => {
   const issuer = withCoupon({ redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'issuer-call', schedule: { frequency: 'quarterly' }, callAmount: 0 }] } })
 
   it('reads the coupon reviews only, and pays the coupon of the call month with the call', () => {
-    const outcome = redemptionOutcome(issuer, [95, 65, 90, 60, 95, 90, 90, 90, 90, 90, 90], { initial: 100, final: 90 }, 2)
+    const outcome = redemptionOutcome(issuer, [95, 65, 90, 60, 95, 90, 90, 90, 90, 90, 90], { initial: 100, final: 90 }, { issuerCallsOnReview: 2 })
     expect(outcome.months).toBe(6)
     expect(outcome.coupons).toHaveLength(6)
     expect(outcome.payment).toBeCloseTo(1010, 9)

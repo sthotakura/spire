@@ -133,3 +133,36 @@ describe('the quarterly autocallable contingent coupon note without memory', () 
     expect(outcome.payment).toBeCloseTo(1038.25, 9)
   })
 })
+
+// The Citigroup Global Markets Funding Luxembourg notes, CGMFL213839: a five-year tracker the holder may put. The pricing supplement's
+// Schedule 1 pays CA × Max[0, 1 + Index(t) × (1 − 0.80%) ÷ Strike Level − 1], with Strike Level = Index(0) × (1 + 0.80%), at maturity and
+// on a put alike. These read the sample itself, and the worked examples of docs/holder-put.md.
+describe('the tracker with a holder put', () => {
+  const { product } = sampleBySlug('tracker-with-a-holder-put')!
+  const withFactor = { ...product, redemption: { ...product.redemption, adjustmentFactor: 0.992 / 1.008 } }
+
+  it('can be put on any monthly review from month 1 to month 59', () => {
+    expect(redemptionOutcome(product, [], { initial: 100, final: 110 }, { holderPut: { review: 59, level: 100 } }).months).toBe(59)
+    expect(() => redemptionOutcome(product, [], { initial: 100, final: 110 }, { holderPut: { review: 60, level: 100 } })).toThrow('reviews 1 to 59')
+  })
+
+  it.each([
+    ['puts in month 24 at 130', product, { review: 24, level: 130 }, 24, 1300],
+    ['puts in month 7 at 80', product, { review: 7, level: 80 }, 7, 800],
+    ['does not put, and the level ends at 110', product, undefined, 60, 1100],
+    ['puts in month 24 at 130 with the filing\'s adjustment factor', withFactor, { review: 24, level: 130 }, 24, 1279.37],
+  ])('pays what docs/holder-put.md works out when the holder %s', (_, note, holderPut, months, payment) => {
+    const outcome = redemptionOutcome(note, [], { initial: 100, final: 110 }, { holderPut })
+    expect(outcome.months).toBe(months)
+    expect(outcome.payment).toBeCloseTo(payment, 2)
+  })
+
+  it('pays the filing\'s formula at its own strike level', () => {
+    const strike = 1565.7466
+    const index0 = strike / 1.008
+    for (const level of [782.8733, 1553.32, 2000]) {
+      const filing = 100000 * Math.max(0, 1 + (level * (1 - 0.008) / strike - 1))
+      expect(redemptionOutcome(withFactor, [], { initial: index0, final: level }, { holderPut: { review: 12, level } }).payment * 100).toBeCloseTo(filing, 6)
+    }
+  })
+})

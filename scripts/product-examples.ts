@@ -153,6 +153,14 @@ export const productExamples: ReadonlyArray<readonly [string, Product]> = [
     }),
   ],
   [
+    'a tracker on a strategy index that the holder may put on any monthly review, at the maturity formula read at that review\'s level',
+    note({ participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }] }, {
+      term: { months: 60 },
+      redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'holder-put', schedule: { frequency: 'monthly' } }] },
+      underlier: { kind: 'single', components: [{ asset: { kind: 'strategy-index', name: 'Synthetic Strategy Index' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },
+    }),
+  ],
+  [
     'a ten-year autocall on a strategy index, reviewed quarterly from month 12, paying 17% for each year elapsed, with a call on the final review and a buffer',
     note({ participations: [{ direction: 'downside', buffer: 0.4, rate: 1 }] }, {
       term: { months: 120 },

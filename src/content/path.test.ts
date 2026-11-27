@@ -22,7 +22,7 @@ function scenario(note: Product, final: number, review: number, issuerCallsOnRev
   const levels: DeterminedLevels = { initial, final: finalLevel, ...closes, ...(floats ? { lastReferenceRate: 0.04 } : {}) }
   const b = paymentBreakdown(note, levels)
   const reads = reviewDates(note).length > 0 || (issuerCallOf(note.redemption) !== undefined && note.coupon !== undefined)
-  const outcome = note.redemption.kind !== 'bullet' || note.coupon ? redemptionOutcome(note, reads ? reviewDates(note).slice(0, -1).map(() => review * initial / 100) : [], levels, issuerCallsOnReview, rates) : undefined
+  const outcome = note.redemption.kind !== 'bullet' || note.coupon ? redemptionOutcome(note, reads ? reviewDates(note).slice(0, -1).map(() => review * initial / 100) : [], levels, { issuerCallsOnReview, referenceRates: rates }) : undefined
   const maturity = calculationSteps(note, b, observed, initialObservations, basket)
   const titles = outcome ? [...redemptionSteps(note, outcome), ...maturity, ...couponClosingSteps(note, outcome)].map(({ title }) => title) : maturity.map(({ title }) => title)
   return { initial, levels, b, outcome, titles, stages: lineStages(note, b, levels) }

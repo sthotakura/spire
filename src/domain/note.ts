@@ -469,6 +469,29 @@ export interface IssuerCall {
   callAmountBasis?: 'flat' | 'per-year'
 }
 
+// See docs/holder-put.md.
+/**
+ * An early redemption at the holder's option. On a review before the last, the holder may require the issuer to redeem the product,
+ * which then ends and pays what its own maturity formula gives at the level on that review: its current value under its terms. The
+ * level is read only to work out that payment: the holder may put on any review, whatever the underlier does. Whether and when the
+ * holder puts is the holder's choice, which a scenario states with the level on that review. The last review is the end of the term
+ * and is not a put. This reference allows it on a tracker only, a payoff that moves one for one with the underlier both ways, where
+ * the formula read early is what the product is worth under its terms.
+ */
+export interface HolderPut {
+  kind: 'holder-put'
+  /** How often the holder may put, from its first review. The term must hold at least two periods. */
+  schedule: Schedule
+  /**
+   * The month of the first review on which the holder may put, counted from the start of the term. Later reviews follow it at the
+   * schedule's frequency to the end of the term. Absent, the first review is one period in. It must be a whole number of periods, and
+   * leave a review before the last.
+   * @asType integer
+   * @minimum 1
+   */
+  firstReviewMonth?: number
+}
+
 // See docs/amortization.md.
 /**
  * Principal repaid in instalments on the reviews of its schedule, so that each coupon is interest on the principal still outstanding.
@@ -488,11 +511,14 @@ export interface Amortization {
   method: 'level-payment'
 }
 
-/** One way principal can be repaid before the end of the term: in whole by a call, or in part by amortization. */
-export type EarlyMechanism = Autocall | IssuerCall | Amortization
+/** One way principal can be repaid before the end of the term: in whole by a call or a holder's put, or in part by amortization. */
+export type EarlyMechanism = Autocall | IssuerCall | HolderPut | Amortization
 
-// A mechanism that ends the product early, in whole.
+// A call: a mechanism that ends the product early, in whole, paying principal plus a call amount.
 export type CallMechanism = Autocall | IssuerCall
+
+// A mechanism with reviews that a level, a party's choice or both can end the product on.
+export type ReviewedMechanism = Autocall | IssuerCall | HolderPut
 
 /**
  * Redemption that can come before the end of the term, by the mechanisms listed: in whole when a call ends the product, or in part by
@@ -759,12 +785,13 @@ const triggerAllowed = (trigger: number) => Number.isFinite(trigger) && trigger 
 export const mechanismsOf = (redemption: Redemption): EarlyMechanism[] => (redemption.kind === 'bullet' ? [] : redemption.mechanisms)
 export const autocallOf = (redemption: Redemption): Autocall | undefined => mechanismsOf(redemption).find((mechanism): mechanism is Autocall => mechanism.kind === 'autocall')
 export const issuerCallOf = (redemption: Redemption): IssuerCall | undefined => mechanismsOf(redemption).find((mechanism): mechanism is IssuerCall => mechanism.kind === 'issuer-call')
+export const holderPutOf = (redemption: Redemption): HolderPut | undefined => mechanismsOf(redemption).find((mechanism): mechanism is HolderPut => mechanism.kind === 'holder-put')
 export const amortizationOf = (redemption: Redemption): Amortization | undefined => mechanismsOf(redemption).find((mechanism): mechanism is Amortization => mechanism.kind === 'amortization')
-// The mechanisms that end the product early, in whole: every one but amortization.
-export const callsOf = (redemption: Redemption): CallMechanism[] => mechanismsOf(redemption).filter((mechanism): mechanism is CallMechanism => mechanism.kind !== 'amortization')
+// The calls, which pay principal plus a call amount: the autocall and the issuer call.
+export const callsOf = (redemption: Redemption): CallMechanism[] => mechanismsOf(redemption).filter((mechanism): mechanism is CallMechanism => mechanism.kind === 'autocall' || mechanism.kind === 'issuer-call')
 
 // The last review that can call: the last but one, or the last when the final review is a call too.
-export const lastCallReview = (redemption: Autocall | IssuerCall, reviews: number): number => (redemption.kind === 'autocall' && redemption.callOnFinalReview ? reviews : reviews - 1)
+export const lastCallReview = (redemption: ReviewedMechanism, reviews: number): number => (redemption.kind === 'autocall' && redemption.callOnFinalReview ? reviews : reviews - 1)
 
 // Whether the trigger stays within what this reference accepts on every review that can call, from the first to the last that can.
 // The trigger moves in a straight line, so those two reviews are the extremes.
@@ -801,11 +828,11 @@ export function scheduleReviews(term: Term, schedule: Schedule, firstMonth?: num
 }
 
 // The month of a call's first review: as stated, or one period in.
-export const firstReviewMonthOf = (redemption: Autocall | IssuerCall): number => redemption.firstReviewMonth ?? monthsPerReview[redemption.schedule.frequency]
+export const firstReviewMonthOf = (redemption: ReviewedMechanism): number => redemption.firstReviewMonth ?? monthsPerReview[redemption.schedule.frequency]
 
-// The number of the call's reviews, from its first: one, the final date, for a bullet product.
+// The number of the call's reviews, from its first: one, the final date, for a bullet product. With no call, the holder put's.
 export const callReviewCount = (note: Product): number | undefined => {
-  const mechanism = autocallOf(note.redemption) ?? issuerCallOf(note.redemption)
+  const mechanism = autocallOf(note.redemption) ?? issuerCallOf(note.redemption) ?? holderPutOf(note.redemption)
   return mechanism === undefined || mechanism.schedule === undefined ? 1 : reviewCount({ term: note.term, schedule: mechanism.schedule, firstMonth: firstReviewMonthOf(mechanism) })
 }
 
@@ -814,7 +841,7 @@ export const mechanismReviewCount = (term: Term, mechanism: EarlyMechanism): num
   reviewCount({ term, schedule: mechanism.schedule, firstMonth: mechanism.kind === 'amortization' ? undefined : firstReviewMonthOf(mechanism) })
 
 // The month of a call's review, numbered from 1 at its first review.
-export const callReviewMonth = (redemption: Autocall | IssuerCall, review: number): number =>
+export const callReviewMonth = (redemption: ReviewedMechanism, review: number): number =>
   firstReviewMonthOf(redemption) + (review - 1) * monthsPerReview[redemption.schedule.frequency]
 
 // One date on which a level of the underlier is read, by its month from the start of the term, and the number of the call review and
@@ -865,13 +892,13 @@ function redemptionIssues(note: Product): ProductIssue[] {
 
 function mechanismIssues(note: Product, redemption: EarlyMechanism): ProductIssue[] {
   if (redemption.kind === 'amortization') return amortizationIssues(note, redemption)
-  const issues: ProductIssue[] = []
+  const issues: ProductIssue[] = redemption.kind === 'holder-put' ? holderPutIssues(note) : []
   const { schedule } = redemption
-  const named = redemption.kind === 'autocall' ? 'An autocall' : 'An issuer call'
+  const named = redemption.kind === 'autocall' ? 'An autocall' : redemption.kind === 'issuer-call' ? 'An issuer call' : 'A holder put'
   const periods = schedule === undefined ? undefined : reviewCount({ term: note.term, schedule })
   if (schedule === undefined) issues.push({ field: 'schedule', message: `${named} needs a review schedule.` })
   else if (periods === undefined) issues.push({ field: 'schedule', message: 'The term must hold a whole number of review periods.' })
-  else if (periods < 2) issues.push({ field: 'schedule', message: `${named} needs at least two reviews, so the product can be called before the last.` })
+  else if (periods < 2) issues.push({ field: 'schedule', message: `${named} needs at least two reviews, so the product can ${redemption.kind === 'holder-put' ? 'be put' : 'be called'} before the last.` })
   if (redemption.kind === 'autocall') {
     if (!Number.isFinite(redemption.trigger) || redemption.trigger <= 0 || redemption.trigger > 2) issues.push({ field: 'trigger', message: 'Call trigger must be greater than 0% and at most 200% of the initial level.' })
   }
@@ -883,19 +910,40 @@ function mechanismIssues(note: Product, redemption: EarlyMechanism): ProductIssu
     const latest = redemption.kind === 'autocall' && redemption.callOnFinalReview ? note.term.months : note.term.months - period
     const months = (n: number) => `${n} ${n === 1 ? 'month' : 'months'}`
     if (!Number.isInteger(firstReviewMonth) || firstReviewMonth < period || firstReviewMonth % period !== 0) issues.push({ field: 'firstReviewMonth', message: `The first review must be a whole number of review periods in: a multiple of ${months(period)}.` })
-    else if (firstReviewMonth > latest) issues.push({ field: 'firstReviewMonth', message: `The first review must leave a review that can call: from month ${period} to month ${latest}.` })
+    else if (firstReviewMonth > latest) issues.push({ field: 'firstReviewMonth', message: `The first review must leave a review that can ${redemption.kind === 'holder-put' ? 'put' : 'call'}: from month ${period} to month ${latest}.` })
   }
   const count = callReviewCount(note)
   if (redemption.kind === 'autocall') {
     if (redemption.triggerStep !== undefined && !Number.isFinite(redemption.triggerStep)) issues.push({ field: 'triggerStep', message: 'Trigger step must be a number.' })
     else if (triggerAllowed(redemption.trigger) && count !== undefined && !triggersAllowed(redemption, count)) issues.push({ field: 'triggerStep', message: 'The trigger must stay above 0% and at most 200% of the initial level on every review that can call, after its step.' })
   }
-  if (!Number.isFinite(redemption.callAmount) || redemption.callAmount < 0) issues.push({ field: 'callAmount', message: 'Call amount must be zero or greater.' })
+  if (redemption.kind !== 'holder-put' && (!Number.isFinite(redemption.callAmount) || redemption.callAmount < 0)) issues.push({ field: 'callAmount', message: 'Call amount must be zero or greater.' })
   const { payoff } = note
   // Lookback is allowed with an autocall on the assumption that the lookback period ends before the first review, so the trigger is a
   // share of a level already known when it is first tested. Lookback dates are counted, not dated, so this is not checked.
   const observations = [downsideOf(note)?.barrier, upsideOf(note)?.barrier, payoff.barrierAbsoluteReturn?.lowerBarrier, payoff.barrierAbsoluteReturn?.upperBarrier]
   if (observations.some((barrier) => barrier?.observation === 'daily-close')) issues.push({ field: 'schedule', message: `A barrier observed on every close cannot be combined with ${named.toLowerCase()}: a called product ends before the observation period does.` })
+  return issues
+}
+
+// A holder put pays the maturity formula read at the level on the put date. That is the product's current value under its terms only
+// for a tracker, whose formula is a straight line in the underlier one for one both ways; a formula that bends, at a barrier, a buffer,
+// a cap or a floor, read early is not what the product is worth on that date (docs/holder-put.md). The same reasoning rules out a
+// worst-of or best-of basket, whose return bends, an averaged final level, which reads dates after the put, and delivery, which is
+// defined at the final date. A weighted basket's level is a straight line in its assets, so it is allowed.
+function holderPutIssues(note: Product): ProductIssue[] {
+  const issues: ProductIssue[] = []
+  const { payoff, underlier } = note
+  const downside = downsideOf(note)
+  const upside = upsideOf(note)
+  const tracker = downside !== undefined && upside !== undefined && downside.rate === 1 && upside.rate === 1
+    && downside.buffer === undefined && downside.barrier === undefined && downside.absoluteReturn === undefined
+    && upside.barrier === undefined && upside.cap === undefined && (upside.measuredFrom ?? 'initial-level') === 'initial-level'
+    && payoff.principalProtection === undefined && payoff.digitalReturn === undefined && payoff.barrierAbsoluteReturn === undefined && payoff.minimumReturn === undefined
+  if (!tracker) issues.push({ field: 'mechanisms', message: 'A holder put needs a tracker: upside and downside participation at 100% each and no other payoff feature, so that its payment, the maturity formula read early, is what the product is worth under its terms.' })
+  if (underlier.kind === 'basket' && underlier.determination.basketReturn.kind !== 'weighted') issues.push({ field: 'mechanisms', message: 'A holder put cannot be combined with a worst-of or best-of basket, whose return bends.' })
+  if (underlier.determination.final.kind === 'averaging') issues.push({ field: 'mechanisms', message: 'A holder put cannot be combined with an averaged final level, which reads dates after the put.' })
+  if (note.settlement === 'delivery') issues.push({ field: 'mechanisms', message: 'A holder put pays in cash: delivery is defined at the final date.' })
   return issues
 }
 
@@ -909,7 +957,7 @@ function amortizationIssues(note: Product, amortization: Amortization): ProductI
   else if (periods === undefined) issues.push({ field: 'schedule', message: 'The term must hold a whole number of review periods.' })
   else if (periods < 2) issues.push({ field: 'schedule', message: 'Amortization needs at least two reviews, so that principal is repaid in more than one instalment.' })
   if (amortization.method !== 'level-payment') issues.push({ field: 'mechanisms', message: 'Amortization is by level payment.' })
-  if (mechanismsOf(note.redemption).length > 1) issues.push({ field: 'mechanisms', message: 'Amortization cannot be combined with an autocall or an issuer call in this reference.' })
+  if (mechanismsOf(note.redemption).length > 1) issues.push({ field: 'mechanisms', message: 'Amortization cannot be combined with an autocall, an issuer call or a holder put in this reference.' })
   const { coupon } = note
   if (coupon === undefined || coupon.barrier !== undefined || fixedRateOf(coupon) === undefined) issues.push({ field: 'coupon', message: 'Amortization needs a non-contingent coupon at a fixed rate: each instalment pays the coupon on the outstanding principal and repays principal with the rest, as one level amount.' })
   else if (schedule !== undefined && coupon.schedule?.frequency !== schedule.frequency) issues.push({ field: 'couponSchedule', message: 'Amortization pays its instalments on the coupon reviews, so the coupon needs the same schedule.' })

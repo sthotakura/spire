@@ -349,6 +349,24 @@ export const sampleGroups: SampleGroup[] = [
     ],
   },
   {
+    label: 'Puttable notes',
+    samples: [
+      {
+        slug: 'tracker-with-a-holder-put',
+        name: 'Tracker with a holder put',
+        source: {
+          title: 'Citigroup Global Markets Funding Luxembourg notes on the Citi US Equity Put Ratio Series 6 EUR TR Index, due 2031',
+          url: 'https://www.luxse.com/pdf-viewer/105692613',
+          note: 'The holder may put on any index business day; the sample puts on monthly reviews, the finest schedule this reference has. The filing deducts an execution cost of 0.80% on the way in and on the way out, an adjustment factor of 0.992 ÷ 1.008, about 98.41%; this starts at 100%, so the payment moves one for one from the initial level, and the factor can be set under Redemption. The filing also lets the issuer call at the same formula, and elect to redeem if the index closes at or below 50% of its strike level; neither is modelled, since an issuer call here pays principal plus a call amount. The underlier, a proprietary equity strategy index, stands as a synthetic strategy index. Read on 27 November 2026 as text extracted from the pricing supplement.',
+        },
+        product: product(60, { participations: [{ direction: 'downside', rate: 1 }, { direction: 'upside', rate: 1 }] }, {
+          redemption: { kind: 'early-redemption', mechanisms: [{ kind: 'holder-put', schedule: { frequency: 'monthly' }, firstReviewMonth: 1 }] },
+          underlier: { kind: 'single', components: [{ asset: { kind: 'strategy-index', name: 'Synthetic Strategy Index' } }], determination: { initial: { kind: 'given', level: 100 }, final: { kind: 'final-date' } } },
+        }),
+      },
+    ],
+  },
+  {
     label: 'Amortizing notes',
     samples: [
       {

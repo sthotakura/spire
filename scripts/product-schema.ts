@@ -24,14 +24,15 @@ const rulesInValidator = [
   'A basket needs unique asset names and one initial level for each asset and no other.',
   'A weighted basket needs a weight on each asset, adding up to 1. A worst-of or best-of basket has no weights.',
   'Each early redemption mechanism appears at most once.',
-  'The term must hold a whole number of periods of each schedule: at least two for an autocall, an issuer call or amortization, and at least one for a coupon.',
-  'An autocall, an issuer call or a contingent coupon cannot be combined with a barrier observed on every close.',
+  'The term must hold a whole number of periods of each schedule: at least two for an autocall, an issuer call, a holder put or amortization, and at least one for a coupon.',
+  'An autocall, an issuer call, a holder put or a contingent coupon cannot be combined with a barrier observed on every close.',
   'An adjustment factor other than 1 cannot be combined with a buffer, a barrier, a digital return, barrier absolute return or delivery.',
   'Memory needs a coupon barrier: a non-contingent coupon, which has none, is paid on every review.',
   'A floating rate is on a non-contingent coupon only, and its cap, if any, is at or above its floor.',
   'Amortization is the only mechanism of its redemption, on a note. It needs a non-contingent coupon at a fixed rate on the same schedule, a payoff with no features, and no adjustment factor other than 1.',
   'Delivery needs downside participation; one stock or a worst-of basket of stocks; a final level on the final date; no principal protection; and downside rate × (1 − buffer) of at most 1.',
-  'An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The first review of an autocall or an issuer call is a whole number of periods in, and leaves at least one review that can call.',
+  'An autocall trigger stays above zero, and at most 200% of the initial level, on every review that can call, after its step. The first review of an autocall, an issuer call or a holder put is a whole number of periods in, and leaves at least one review that can call or put.',
+  'A holder put needs a tracker: upside and downside participation at 100% each and no other payoff feature. It cannot be combined with a worst-of or best-of basket, an averaged final level or delivery.',
 ]
 
 // Names for the variants a union spells out inline, keyed by the value of the key that tells them apart. A variant that is a named
