@@ -1,6 +1,6 @@
 # Floating coupon
 
-Proposed on 26 November 2026 and revised on 27 November 2026 after a review; not built. A floating coupon is a coupon whose rate is reset each period from a reference rate, plus or minus a spread, often within a floor and a cap. It is the Floating rate type that the builder lists as unavailable (PLAN.md, section 51). This document covers a floating rate on a non-contingent coupon. It does not cover a fixed rate for an initial period, a floating rate on a contingent coupon, range accrual, or a coupon on the spread between two rates.
+Proposed on 26 November 2026, revised on 27 November 2026 after a review, and agreed on 27 November 2026 as below; not built yet. A floating coupon is a coupon whose rate is reset each period from a reference rate, plus or minus a spread, often within a floor and a cap. It is the Floating rate type that the builder lists as unavailable (PLAN.md, section 51). This document covers a floating rate on a non-contingent coupon. It does not cover a fixed rate for an initial period, a floating rate on a contingent coupon, range accrual, or a coupon on the spread between two rates.
 
 ## What it means
 
@@ -129,7 +129,10 @@ A cap of 6% on the same note would pay 15.00 in month 3 (6.00% in place of 6.75%
 - The three notes were read through a summarising fetch tool, and a later review could not fetch the Citi filing again. Its coupon table is checked against the filing itself before it becomes a test.
 - The Citi note is preliminary: its initial levels are blank and its trade date expected. The terms used here do not depend on them. Its example 2 says the note was not called on "any of the first four coupon payment dates", and its table says "First through Seventh"; the table agrees with its eight coupons and is followed.
 
-## Decisions to agree
+## Decisions agreed
+
+All five were agreed on 27 November 2026, as recommended.
+
 
 1. **Floating on a non-contingent coupon only, as the scope of this change.** Recommended; no note read has a contingent floating coupon, though the two terms can combine.
 2. **The reference rate as a name and a scenario input**, not market data. Recommended; it keeps the reference free of live data, as AGENTS.md requires.
