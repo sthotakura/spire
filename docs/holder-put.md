@@ -123,7 +123,7 @@ The sample: principal 1,000, 60 months, initial level 100, monthly put reviews f
 - **Domain.** `HolderPut`, `holderPutOf`, and `put` on `ReviewDate`. `redemptionOutcome` takes the holder's choice and returns `endedBy: 'holder-put'`. Its issuer's choice and the holder's become one options argument, since two positional choices are easy to swap.
 - **Validator and schema.** The combinations above, listed in the validator-only rules, with a synthetic example.
 - **Content.** Summary clause, formula line, calculation steps, outcome sentence, concept highlights for the put's own terms.
-- **Sample.** The Tracker with a holder put in `src/content/examples.ts`, under a new group or Participation notes, and its row in [sample-products.md](sample-products.md), with the differences above in its ⓘ.
+- **Sample.** The Tracker with a holder put in `src/content/examples.ts`, under a new group or Participation notes, and its row in [sample-products.md](sample-products.md), with the differences above in its ⓘ. The ⓘ and the book link to the filing's public [LuxSE viewer page](https://www.luxse.com/pdf-viewer/105692613), not to the copy in `docs/sources/puttable/`.
 - **Book.** A section in chapter 19, the JSON in chapter 18, and the feature map.
 
 ## Alternatives
