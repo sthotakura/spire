@@ -205,8 +205,9 @@ function couponEntries(note: Product, outcome: RedemptionOutcome): Array<{ month
   if (coupon === undefined) return []
   const count = reviewCount({ term: note.term, schedule: coupon.schedule })
   const { barrier: couponBarrier } = coupon
-  // A floating coupon's reviews group only while the rate stays the same, so a group is one coupon repeated.
-  const keyOf = (test: CouponTest) => (test.coupons > 1 ? undefined : test.met ? `paid ${test.referenceRate === undefined ? '' : test.rate}` : 'missed')
+  // A floating coupon's reviews group only while the reference rate stays the same, so a group is one working repeated: reviews at
+  // different reference rates can pay the same coupon at a floor or a cap, and grouped they would all read as the first one's rate.
+  const keyOf = (test: CouponTest) => (test.coupons > 1 ? undefined : test.met ? `paid ${test.referenceRate ?? ''}` : 'missed')
   // What a non-contingent coupon's step says before its working: fixed, or the review's floating rate and how it came about.
   const unconditional = (test: CouponTest) => (test.referenceRate === undefined ? 'Fixed' : `Floating at ${floatingRateWorking(note, test)}`)
   const grouped = (run: CouponTest[]): Omit<CalculationStep, 'n'> => {

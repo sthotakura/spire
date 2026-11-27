@@ -44,6 +44,18 @@ describe('the words for a floating coupon', () => {
     expect(redemptionSteps(capped, outcomeOf(capped)).map((step) => step.how)).toContain('Floating at 4% + 2.75% = 6.75%, lowered to the cap, 6%, paid whatever the level: 1,000 × 6% × 3/12 = 15')
   })
 
+  // Three reviews capped at 6% pay the same coupon, but from reference rates of 4%, 5% and 6%: grouped as one step, each would read as
+  // the first review's 4% + 2.75%.
+  it('groups reviews only while the reference rate stays the same, so a grouped step states every review\'s working', () => {
+    const capped = note({ term: { months: 12 }, coupon: { schedule: { frequency: 'quarterly' }, rate: rate({ cap: 0.06 }) } })
+    const steps = (referenceRates: number[], last: number) => redemptionSteps(capped, redemptionOutcome(capped, [], { initial: 100, final: 75, lastReferenceRate: last }, undefined, referenceRates))
+    const varying = steps([0.04, 0.05, 0.06], 0.06)
+    expect(varying.filter(({ title }) => title.startsWith('Coupon')).map(({ title }) => title)).toEqual(['Coupon on review 1 of 4, month 3', 'Coupon on review 2 of 4, month 6', 'Coupon on review 3 of 4, month 9', 'Coupon on review 4 of 4, month 12'])
+    expect(varying[1].how).toContain('5% + 2.75% = 7.75%, lowered to the cap, 6%')
+    const same = steps([0.04, 0.04, 0.04], 0.06)
+    expect(same[0]).toMatchObject({ title: 'Coupons on reviews 1–3 of 4, months 3–9', how: 'Floating at 4% + 2.75% = 6.75%, lowered to the cap, 6%, paid whatever the level: 3 × 1,000 × 6% × 3/12 = 45' })
+  })
+
   it('says how the coupons went, and how often the floor held one', () => {
     expect(explainCoupons(note(), outcomeOf(note()))).toMatch(/^It paid its floating coupon on each of the 8 coupon reviews it lasted for, whatever the underlier did, each at its own reference rate; the floor held one at 0%: 79\.38 in coupons\./)
   })
