@@ -120,10 +120,21 @@ describe('the steps of a holder put', () => {
 })
 
 describe('the chart’s aside for a holder put', () => {
-  it('says the put pays the line’s payment at the put review’s level, not at the final level', () => {
+  it('says the put pays the payment at maturity worked out early, and that the line shows the same at that level', () => {
     const outcome = redemptionOutcome(tracker(), [], levels, { holderPut: { review: 2, level: 130 } })
-    expect(scenarioAside(tracker(), levels, outcome)).toBe('In this scenario the holder puts it on review 2 and it pays 1,300: the line’s payment at that review’s level, 130, not at the final level.')
+    expect(scenarioAside(tracker(), levels, outcome)).toBe('In this scenario the holder puts it on review 2 and it pays 1,300: the payment at maturity worked out early, at that review’s level, 130, not at the final level. The line shows the same payment at that level.')
+  })
+
+  it('says what the line adds at the put’s level when the last review pays a coupon', () => {
     const note = tracker([put], { coupon: { schedule: { frequency: 'semi-annual' }, rate: 0.04 } })
-    expect(scenarioAside(note, levels, redemptionOutcome(note, [], levels, { holderPut: { review: 1, level: 120 } }))).toBe('In this scenario the holder puts it on review 1 and it pays 1,200: the line’s payment at that review’s level, 120, not at the final level. That review’s coupon, 20, is paid with it. It also pays 20 in coupons on earlier reviews.')
+    expect(scenarioAside(note, levels, redemptionOutcome(note, [], levels, { holderPut: { review: 1, level: 120 } }))).toBe('In this scenario the holder puts it on review 1 and it pays 1,200: the payment at maturity worked out early, at that review’s level, 120, not at the final level. The line shows 1,220 at that level, since at the end of the term it also pays the last review’s coupon. That review’s coupon, 20, is paid with it. It also pays 20 in coupons on earlier reviews.')
+  })
+
+  // The case the review found: an 8% autocall that also calls on the final review. The line at 120 is the call, 1,080, not the put's 1,200.
+  it('says what the line adds at the put’s level when the final review is a call', () => {
+    const note = tracker([{ kind: 'autocall', schedule: { frequency: 'semi-annual' }, trigger: 1, callAmount: 0.08, firstReviewMonth: 18, callOnFinalReview: true }, put])
+    const outcome = redemptionOutcome(note, [90], levels, { holderPut: { review: 1, level: 120 } })
+    expect(outcome.payment).toBeCloseTo(1200, 9)
+    expect(scenarioAside(note, levels, outcome)).toBe('In this scenario the holder puts it on review 1 and it pays 1,200: the payment at maturity worked out early, at that review’s level, 120, not at the final level. The line shows 1,080 at that level, since at the end of the term it also pays the final review’s call, in place of the payoff.')
   })
 })

@@ -93,7 +93,7 @@ A party's notice is given before the date in every source, so an exercised choic
 - **The holder's choice in this scenario**, a select beside the issuer's.
 - **The put date's level**, one input beside the holder's choice, shown once a put date is chosen. Where the review table already lists that month, for an autocall or a coupon, the level is that row's, so the two cannot disagree. The table shows "Put" on that month and "Ended" after it.
 - **On an unavailable payoff**, the box is disabled with a short reason, as for a daily barrier.
-- **The line on the chart** is also the put's payment line, read at the put date's level. The scenario sentence says so.
+- **The line on the chart** is the payment at the end of the term. A put pays the payment at maturity worked out early, at the put date's level, which is the line at that level only when the last review adds nothing: no coupon, and no call on the final review. The chart's aside says what the put pays, and what the line adds at that level when it differs. Corrected on 27 November 2026 after a review found the line at 1,080 where a put paid 1,200, beside an autocall that calls on the final review.
 
 ## Worked examples
 

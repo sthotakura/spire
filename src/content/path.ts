@@ -150,10 +150,22 @@ export function lineStages(note: Product, b: PaymentBreakdown, levels: Determine
 export function scenarioAside(note: Product, levels: DeterminedLevels, outcome?: RedemptionOutcome): string {
   const before = outcome ? outcome.totalPaid - outcome.payment : 0
   const coupons = before > 0 ? ` It also pays ${formatAmount(before)} in coupons on earlier reviews.` : ''
-  // A put pays the line's payment at the put review's level, not at the final level the line's dot reads.
+  // A put pays the payment at maturity worked out early, at the put review's level, not at the final level the line's dot reads. The
+  // line is the payment at the end of the term, which also adds the last review's coupon and any call on the final review, so at the
+  // put's level it can differ from what the put pays; the aside then says what the line adds.
   if (outcome?.endedBy === 'holder-put' && outcome.put !== undefined) {
-    const withCoupon = outcome.payment - outcome.put.breakdown.payment
-    return `In this scenario the holder puts it on review ${outcome.calledAtReview} and it pays ${formatAmount(outcome.put.breakdown.payment)}: the line’s payment at that review’s level, ${formatAmount(outcome.put.level)}, not at the final level.${withCoupon > 1e-9 ? ` That review’s coupon, ${formatAmount(withCoupon)}, is paid with it.` : ''}${coupons}`
+    const { level, breakdown } = outcome.put
+    const atLevel = { initial: levels.initial, final: level, lastReferenceRate: levels.lastReferenceRate }
+    const onLine = paymentAtEnd(note, atLevel)
+    const call = finalCallLevel(note, levels.initial)
+    const barrier = couponBarrierLevel(note, levels.initial)
+    const adds = [
+      ...(call !== undefined && level >= call ? ['the final review’s call, in place of the payoff'] : []),
+      ...(note.coupon !== undefined && (barrier === undefined || level >= barrier) ? ['the last review’s coupon'] : []),
+    ]
+    const line = Math.abs(onLine - breakdown.payment) <= 1e-9 ? ' The line shows the same payment at that level.' : ` The line shows ${formatAmount(onLine)} at that level, since at the end of the term it also pays ${adds.join(' and ')}.`
+    const withCoupon = outcome.payment - breakdown.payment
+    return `In this scenario the holder puts it on review ${outcome.calledAtReview} and it pays ${formatAmount(breakdown.payment)}: the payment at maturity worked out early, at that review’s level, ${formatAmount(level)}, not at the final level.${line}${withCoupon > 1e-9 ? ` That review’s coupon, ${formatAmount(withCoupon)}, is paid with it.` : ''}${coupons}`
   }
   const issuer = outcome?.endedBy === 'issuer-call'
   if (outcome?.calledAtReview !== undefined && (issuer || outcome.calledAtReview < outcome.reviews)) {
