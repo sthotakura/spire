@@ -61,7 +61,7 @@ The Citi notes become a sample, a **Tracker with a holder put**, on the rule in 
 - **The holder's choice is a scenario input**, as the issuer's is: the put review the holder exercises on, or none. It is not in the structure.
 - **The last review is the end of the term** and is not a put.
 - **The payment** is `maturityPayment` with the put date's level as the final level. The adjustment factor applies, since it is part of that formula.
-- **A level is read on each put review**, so put reviews join `reviewDates`. A coupon review on the put date pays with the put, as it does with a call.
+- **The level is read for the payment only, never as a condition.** Agreed on 27 November 2026. The holder may put on any date of the schedule, whatever the underlier does; no source tests a level for a holder's put. A put at current value reads the level on the put date to work out what it pays, and a put at a stated price, such as Citi's floating rate notes due 2066, would read none. A level-tested right in the sources, such as the Citi notes' 50% trigger, is the issuer's. A coupon review on the put date pays with the put, as it does with a call.
 
 ### What it combines with
 
@@ -124,7 +124,7 @@ The sample: principal 1,000, 60 months, initial level 100, monthly put reviews f
 - **Validator and schema.** The combinations above, listed in the validator-only rules, with a synthetic example.
 - **Content.** Summary clause, formula line, calculation steps, outcome sentence, concept highlights for the put's own terms.
 - **Sample.** The Tracker with a holder put in `src/content/examples.ts`, under a new group or Participation notes, and its row in [sample-products.md](sample-products.md), with the differences above in its ⓘ. The ⓘ and the book link to the filing's public [LuxSE viewer page](https://www.luxse.com/pdf-viewer/105692613), not to the copy in `docs/sources/puttable/`.
-- **Book.** A section in chapter 19, the JSON in chapter 18, and the feature map.
+- **Book.** A section in chapter 19, the JSON in chapter 18, and the feature map. The section also explains what is not modelled: that a put pays either a stated price or current value; the conditions of exercise in the sources (a minimum amount, all or part of a holding, notice, irrevocability); and that a level-tested early redemption such as a trigger is the issuer's right, not the holder's.
 
 ## Alternatives
 
@@ -143,11 +143,11 @@ The sample: principal 1,000, 60 months, initial level 100, monthly put reviews f
 ## Decisions to agree
 
 1. **Tracker only.** Agreed on 27 November 2026, for the reason above. Leverage is open question 5.
-2. **Same-date order:** issuer, holder, autocall. Recommended. The holder ahead of the autocall has no source.
-3. **A level for every put review**, in the existing table. Recommended.
-4. **No charge in the first version.** Recommended. A flat redemption charge would be one small field if wanted.
-5. **The Citi notes as the sample**, with monthly puts and without their issuer call and 50% trigger. Recommended: they are the only fixed-term source with a put on a tracker.
-6. **The sample's adjustment factor starts at 100%**, as the delta one sample does, with the filing's 0.992 ÷ 1.008 in the ⓘ. Recommended for the same reason as there: the reader sees the plain one-for-one rule first. Starting at about 98.41% would reproduce the filing's payments.
+2. **Same-date order:** issuer, holder, autocall. Agreed on 27 November 2026. The holder ahead of the autocall has no source.
+3. **A level for every put review**, in the existing table. Under review: since the level is read only for the payment, only the date the holder puts on needs one, which favours alternative 4. Open until the project owner decides whether a level is needed at all.
+4. **No charge in the first version.** Agreed on 27 November 2026. A flat redemption charge would be one small field if wanted.
+5. **The Citi notes as the sample**, with monthly puts and without their issuer call and 50% trigger. Agreed on 27 November 2026: they are the only fixed-term source with a put on a tracker.
+6. **The sample's adjustment factor starts at 100%**, as the delta one sample does, with the filing's 0.992 ÷ 1.008 in the ⓘ. Agreed on 27 November 2026, for the same reason as there: the reader sees the plain one-for-one rule first. Starting at about 98.41% would reproduce the filing's payments.
 
 ## Open questions
 
