@@ -59,6 +59,7 @@ The Citi notes become a sample, a **Tracker with a holder put**, on the rule in 
 - **A third mechanism**, `holder-put`, with a `schedule` and an optional `firstReviewMonth`, as the issuer call has.
 - **No payment term.** The payment is the rule, so there is nothing to state. A stated price would add a field then, and is not added for a case not built.
 - **The holder's choice is a scenario input**, as the issuer's is: the put review the holder exercises on, or none. It is not in the structure.
+- **The put date's level is a scenario input too**, stated once, for the date the holder puts on. The product has no level term: it states the right and the payment rule, and the level is what the underlier turned out to be, like the final level. It is the level on the valuation date, which this reference takes to be the put date; in the sources the notice comes first and the valuation date follows it. If an autocall or coupon review falls in the same month, it reads that same level. Agreed on 27 November 2026.
 - **The last review is the end of the term** and is not a put.
 - **The payment** is `maturityPayment` with the put date's level as the final level. The adjustment factor applies, since it is part of that formula.
 - **The level is read for the payment only, never as a condition.** Agreed on 27 November 2026. The holder may put on any date of the schedule, whatever the underlier does; no source tests a level for a holder's put. A put at current value reads the level on the put date to work out what it pays, and a put at a stated price, such as Citi's floating rate notes due 2066, would read none. A level-tested right in the sources, such as the Citi notes' 50% trigger, is the issuer's. A coupon review on the put date pays with the put, as it does with a call.
@@ -90,7 +91,7 @@ A party's notice is given before the date in every source, so an exercised choic
 
 - **Puttable** becomes available under Early redemption. Ticking it opens Reviews and First review.
 - **The holder's choice in this scenario**, a select beside the issuer's.
-- **The review table** gains put reviews, labelled Put 1, Put 2, and shows "Put" on the review exercised, and "Ended" after it.
+- **The put date's level**, one input beside the holder's choice, shown once a put date is chosen. Where the review table already lists that month, for an autocall or a coupon, the level is that row's, so the two cannot disagree. The table shows "Put" on that month and "Ended" after it.
 - **On an unavailable payoff**, the box is disabled with a short reason, as for a daily barrier.
 - **The line on the chart** is also the put's payment line, read at the put date's level. The scenario sentence says so.
 
@@ -120,7 +121,7 @@ The sample: principal 1,000, 60 months, initial level 100, monthly put reviews f
 
 ## Changes it needs
 
-- **Domain.** `HolderPut`, `holderPutOf`, and `put` on `ReviewDate`. `redemptionOutcome` takes the holder's choice and returns `endedBy: 'holder-put'`. Its issuer's choice and the holder's become one options argument, since two positional choices are easy to swap.
+- **Domain.** `HolderPut` and `holderPutOf`. `redemptionOutcome` takes the holder's choice, a put review and that date's level, and returns `endedBy: 'holder-put'`; put reviews do not join `reviewDates` unless another mechanism reads that month. Its issuer's choice and the holder's become one options argument, since two positional choices are easy to swap.
 - **Validator and schema.** The combinations above, listed in the validator-only rules, with a synthetic example.
 - **Content.** Summary clause, formula line, calculation steps, outcome sentence, concept highlights for the put's own terms.
 - **Sample.** The Tracker with a holder put in `src/content/examples.ts`, under a new group or Participation notes, and its row in [sample-products.md](sample-products.md), with the differences above in its ⓘ. The ⓘ and the book link to the filing's public [LuxSE viewer page](https://www.luxse.com/pdf-viewer/105692613), not to the copy in `docs/sources/puttable/`.
@@ -131,7 +132,7 @@ The sample: principal 1,000, 60 months, initial level 100, monthly put reviews f
 1. **Any payoff, using the maturity formula.** Simple, and it composes. But the result would be labelled current value when it is not, and it would give a barrier note a free exit at par above the barrier. No source pays this on a barrier, buffer or cap; the Ensemble certificates pay a floored formula on a put. Not recommended.
 2. **A stated put price instead.** Close to the issuer call and allowed on any payoff, but no equity-linked source has one on stated dates. It can follow as a second basis.
 3. **A rate other than 100%.** A 150% tracker is still straight until the payment reaches zero. No source read has one, so it is left out to begin with. See open question 5.
-4. **One level for the chosen put, not one per put review.** Fewer rows on a monthly put, but a second kind of level input beside the review table, which an autocall on the same date would have to agree with. Not recommended.
+4. **A level for every put review.** One row and level per put date in the review table, as an autocall has. Consistent with the autocall, but the payment reads only the put date's level, and the sample's monthly puts would add 59 rows. Not chosen; see decision 3.
 
 ## Assumptions
 
@@ -144,7 +145,7 @@ The sample: principal 1,000, 60 months, initial level 100, monthly put reviews f
 
 1. **Tracker only.** Agreed on 27 November 2026, for the reason above. Leverage is open question 5.
 2. **Same-date order:** issuer, holder, autocall. Agreed on 27 November 2026. The holder ahead of the autocall has no source.
-3. **A level for every put review**, in the existing table. Under review: since the level is read only for the payment, only the date the holder puts on needs one, which favours alternative 4. Open until the project owner decides whether a level is needed at all.
+3. **One level, for the put date, in the scenario.** Agreed on 27 November 2026. The level is read only for the payment, so only the date the holder puts on needs one, and it is a scenario input, not a term of the product. A level for every put review is alternative 4.
 4. **No charge in the first version.** Agreed on 27 November 2026. A flat redemption charge would be one small field if wanted.
 5. **The Citi notes as the sample**, with monthly puts and without their issuer call and 50% trigger. Agreed on 27 November 2026: they are the only fixed-term source with a put on a tracker.
 6. **The sample's adjustment factor starts at 100%**, as the delta one sample does, with the filing's 0.992 ÷ 1.008 in the ⓘ. Agreed on 27 November 2026, for the same reason as there: the reader sees the plain one-for-one rule first. Starting at about 98.41% would reproduce the filing's payments.
